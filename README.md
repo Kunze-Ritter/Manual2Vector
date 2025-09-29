@@ -138,14 +138,18 @@ git clone https://github.com/Kunze-Ritter/KR-AI-Engine.git
 cd KR-AI-Engine
 ```
 
+> **💡 Hinweis**: Das Repository ist bereits mit einer fertigen `.env`-Datei konfiguriert! Sie können direkt loslegen.
+
 #### 🎯 **Schritt 2: Environment konfigurieren**
 ```bash
-# .env.example zu .env kopieren
-cp .env.example .env
-
-# .env Datei mit deinen Cloud-Credentials anpassen
-# Supabase URL, API Keys, Cloudflare R2 Credentials
+# .env Datei ist bereits vorhanden und konfiguriert!
+# Falls nötig, können Sie die Werte anpassen:
+# - Supabase URL, API Keys
+# - Cloudflare R2 Credentials  
+# - Ollama Model Settings
 ```
+
+> **✅ Bereits konfiguriert**: Die `.env`-Datei enthält bereits alle notwendigen Cloud-Credentials für sofortigen Start!
 
 #### 🎯 **Schritt 3: Dependencies installieren**
 ```bash
