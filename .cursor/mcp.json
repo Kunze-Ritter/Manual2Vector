@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "Supabase-Production": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--project-ref=crujfdpqdjzcfqeyhang"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "sbp_0789c60681fb654e01308de196aad2a44050c879"
+      }
+    },
+    "Supabase-Docker ": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgres://postgres:postgres@localhost:54322/postgres"
+      ]
+    }
+  }
+}
