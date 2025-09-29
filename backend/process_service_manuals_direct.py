@@ -140,11 +140,15 @@ class DirectServiceManualProcessor:
                 processing_config={"filename": os.path.basename(file_path)}  # Add filename to processing_config
             )
             
+            # Add file_size attribute to context
+            context.file_size = os.path.getsize(file_path)
+            
             # Add filename attribute to context for upload processor
             context.filename = os.path.basename(file_path)
             
             # Stage 1: Upload Processor
             print(f"  📤 Stage 1: Upload Processor")
+            print(f"    🔄 Uploading document to database...")
             upload_result = await self.upload_processor.safe_process(context)
             if not upload_result.success:
                 raise Exception(f"Upload failed: {upload_result.error}")
@@ -152,30 +156,39 @@ class DirectServiceManualProcessor:
             document_id = upload_result.data.get('document_id')
             context.document_id = document_id
             print(f"  ✅ Document uploaded: {document_id}")
+            print(f"    📊 File size: {context.file_size:,} bytes")
+            print(f"    🔗 Document ID: {document_id}")
             
             # Stage 2: Text Processor
             print(f"  📄 Stage 2: Text Processor")
+            print(f"    🔄 Extracting text and creating chunks...")
             text_result = await self.text_processor.safe_process(context)
             if not text_result.success:
                 print(f"  ⚠️ Text processing failed: {text_result.error}")
             else:
-                print(f"  ✅ Text extracted and chunked")
+                chunks_count = text_result.data.get('chunks_created', 0) if text_result.data else 0
+                print(f"  ✅ Text extracted and chunked ({chunks_count} chunks)")
             
             # Stage 3: Image Processor
             print(f"  🖼️ Stage 3: Image Processor")
+            print(f"    🔄 Extracting images and uploading to R2...")
             image_result = await self.image_processor.safe_process(context)
             if not image_result.success:
                 print(f"  ⚠️ Image processing failed: {image_result.error}")
             else:
-                print(f"  ✅ Images extracted and stored")
+                images_count = image_result.data.get('images_processed', 0) if image_result.data else 0
+                print(f"  ✅ Images extracted and stored ({images_count} images)")
             
             # Stage 4: Classification Processor
             print(f"  🏷️ Stage 4: Classification Processor")
+            print(f"    🔄 Classifying document with AI...")
             classification_result = await self.classification_processor.safe_process(context)
             if not classification_result.success:
                 print(f"  ⚠️ Classification failed: {classification_result.error}")
             else:
-                print(f"  ✅ Document classified")
+                manufacturer = classification_result.data.get('manufacturer', 'Unknown') if classification_result.data else 'Unknown'
+                model = classification_result.data.get('model', 'Unknown') if classification_result.data else 'Unknown'
+                print(f"  ✅ Document classified: {manufacturer} {model}")
             
             # Stage 5: Metadata Processor
             print(f"  📑 Stage 5: Metadata Processor")
@@ -195,13 +208,24 @@ class DirectServiceManualProcessor:
             
             # Stage 7: Embedding Processor
             print(f"  🔮 Stage 7: Embedding Processor")
+            print(f"    🔄 Generating AI embeddings...")
             embedding_result = await self.embedding_processor.safe_process(context)
             if not embedding_result.success:
                 print(f"  ⚠️ Embedding processing failed: {embedding_result.error}")
             else:
-                print(f"  ✅ Embeddings generated")
+                embeddings_count = embedding_result.data.get('embeddings_created', 0) if embedding_result.data else 0
+                print(f"  ✅ Embeddings generated ({embeddings_count} vectors)")
             
             print(f"✅ Successfully processed: {os.path.basename(file_path)}")
+            print(f"  📊 Processing Summary:")
+            print(f"    📄 Document ID: {document_id}")
+            print(f"    📁 File size: {context.file_size:,} bytes")
+            print(f"    🏷️ Manufacturer: {context.manufacturer or 'Unknown'}")
+            print(f"    🔧 Model: {context.model or 'Unknown'}")
+            print(f"    📝 Chunks: {text_result.data.get('chunks_created', 0) if text_result.data else 0}")
+            print(f"    🖼️ Images: {image_result.data.get('images_processed', 0) if image_result.data else 0}")
+            print(f"    🔮 Embeddings: {embedding_result.data.get('embeddings_created', 0) if embedding_result.data else 0}")
+            
             return {
                 "file": file_path,
                 "document_id": document_id,

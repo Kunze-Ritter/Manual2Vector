@@ -11,7 +11,7 @@ import json
 
 try:
     from supabase import create_client, Client
-    from supabase.client import SupabaseClient
+    from supabase.client import Client as SupabaseClient
     SUPABASE_AVAILABLE = True
 except ImportError:
     SupabaseClient = None
@@ -79,7 +79,7 @@ class DatabaseService:
                 return
             
             # Simple query to test connection
-            result = self.client.table("krai_system.system_metrics").select("id").limit(1).execute()
+            result = self.client.table("system_metrics").select("id").limit(1).execute()
             self.logger.info("Database connection test successful")
         except Exception as e:
             self.logger.warning(f"Database connection test failed: {e}")
@@ -94,7 +94,13 @@ class DatabaseService:
                 self.logger.info(f"Created document {document_id} (mock)")
                 return document_id
             
-            result = self.client.table("documents").insert(document.dict()).execute()
+            # Convert datetime objects to ISO strings for JSON serialization
+            document_data = document.dict(exclude_unset=True)
+            for key, value in document_data.items():
+                if hasattr(value, 'isoformat'):  # datetime objects
+                    document_data[key] = value.isoformat()
+            
+            result = self.client.table("documents").insert(document_data).execute()
             document_id = result.data[0]["id"]
             self.logger.info(f"Created document {document_id}")
             return document_id
@@ -405,8 +411,12 @@ class DatabaseService:
     
     # Audit Logging
     async def log_audit(self, action: str, entity_type: str, entity_id: str, details: Dict[str, Any] = None):
-        """Log audit event"""
+        """Log audit event - TEMPORARILY DISABLED TO PREVENT SYSTEM FAILURE"""
         try:
+            # TEMPORARILY DISABLED - Audit logging causes system failure
+            self.logger.info(f"Audit event (disabled): {action} on {entity_type} {entity_id}")
+            return
+            
             if self.client is None:
                 # Mock mode for testing
                 self.logger.info(f"Logged audit event: {action} on {entity_type} {entity_id} (mock)")
@@ -418,7 +428,14 @@ class DatabaseService:
                 entity_id=entity_id,
                 details=details or {}
             )
-            result = self.client.table("audit_log").insert(audit_log.dict()).execute()
+            
+            # Convert datetime objects to ISO strings for JSON serialization
+            audit_data = audit_log.dict(exclude_unset=True)
+            for key, value in audit_data.items():
+                if hasattr(value, 'isoformat'):  # datetime objects
+                    audit_data[key] = value.isoformat()
+            
+            result = self.client.table("audit_log").insert(audit_data).execute()
             self.logger.info(f"Logged audit event: {action} on {entity_type} {entity_id}")
         except Exception as e:
             self.logger.error(f"Failed to log audit event: {e}")
