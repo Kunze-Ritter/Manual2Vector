@@ -73,7 +73,6 @@ class ManufacturerModel(BaseModel):
     """Manufacturer model for krai_core.manufacturers"""
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
-    code: Optional[str] = None
     website: Optional[str] = None
     country: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -207,8 +206,6 @@ class ErrorCodeModel(BaseModel):
     requires_parts: bool = False
     estimated_fix_time_minutes: Optional[int] = None
     severity_level: str = "low"
-    manufacturer: Optional[str] = None
-    model: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class SearchAnalyticsModel(BaseModel):

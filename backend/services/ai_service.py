@@ -132,14 +132,21 @@ class AIService:
             prompt = f"""
             Analyze this technical document and classify it. Return a JSON response with:
             - document_type: service_manual, parts_catalog, technical_bulletin, cpmd_database, user_manual, installation_guide, troubleshooting_guide
-            - manufacturer: HP, Konica Minolta, Lexmark, UTAX, or other
-            - series: product series name
-            - models: list of model numbers
-            - version: document version
+            - manufacturer: Exact manufacturer name (HP Inc., Konica Minolta, Canon Inc., Lexmark International, etc.)
+            - series: product series name (LaserJet Pro, Bizhub C, imageCLASS LBP, etc.)
+            - models: ALL model numbers found in the document (not just filename) - include variations, options, and related models
+            - options: any option numbers or accessory models mentioned
+            - version: document version if found
             - confidence: confidence score 0-1
             - language: document language
             
-            Document text: {text[:2000]}...
+            IMPORTANT: 
+            - Extract ALL models mentioned in the document, not just the main model
+            - Include option models and accessory models
+            - Look for model patterns like M404dn, M404n, M404dw, etc.
+            - Include any model variations or related models
+            
+            Document text: {text[:3000]}...
             """
             
             if filename:

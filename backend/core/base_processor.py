@@ -55,6 +55,7 @@ class ProcessingContext:
     version: Optional[str] = None
     language: str = "en"
     processing_config: Dict[str, Any] = None
+    file_size: Optional[int] = None
     
     def __post_init__(self):
         if self.processing_config is None:

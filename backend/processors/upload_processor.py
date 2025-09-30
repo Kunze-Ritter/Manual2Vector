@@ -5,6 +5,7 @@ Stage 1: Document upload and validation (Database only)
 
 import hashlib
 import mimetypes
+import os
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 from datetime import datetime
@@ -84,13 +85,16 @@ class UploadProcessor(BaseProcessor):
             file_size = len(file_content)
             content_type = mimetypes.guess_type(context.file_path)[0] or 'application/octet-stream'
             
+            # Get filename from processing config
+            filename = context.processing_config.get('filename', os.path.basename(context.file_path))
+            
             # Detect document type from filename
-            document_type = self._detect_document_type(context.filename)
+            document_type = self._detect_document_type(filename)
             
             # Create document model
             document = DocumentModel(
-                filename=context.filename,
-                original_filename=context.filename,
+                filename=filename,
+                original_filename=filename,
                 file_size=file_size,
                 file_hash=file_hash,
                 document_type=document_type,
@@ -111,7 +115,7 @@ class UploadProcessor(BaseProcessor):
                 entity_type="document",
                 entity_id=document_id,
                 details={
-                    'filename': context.filename,
+                    'filename': filename,
                     'file_size': file_size,
                     'file_hash': file_hash,
                     'document_type': document_type.value
@@ -128,7 +132,7 @@ class UploadProcessor(BaseProcessor):
             }
             
             metadata = {
-                'original_filename': context.filename,
+                'original_filename': filename,
                 'processing_status': 'pending',
                 'upload_timestamp': datetime.utcnow().isoformat()
             }

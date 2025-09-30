@@ -89,7 +89,7 @@ class SearchProcessor(BaseProcessor):
                 details={
                     'search_index_created': True,
                     'analytics_tracked': True,
-                    'document_type': document.document_type.value
+                    'document_type': document.document_type
                 }
             )
             

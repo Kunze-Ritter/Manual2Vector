@@ -4,6 +4,7 @@ Stage 4: Document classification and features extraction
 """
 
 import logging
+import os
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from core.data_models import ManufacturerModel, ProductSeriesModel, ProductModel
 from services.database_service import DatabaseService
 from services.ai_service import AIService
 from services.features_service import FeaturesService
+from services.manufacturer_normalization import ManufacturerNormalizationService, ModelDetectionService
 
 class ClassificationProcessor(BaseProcessor):
     """
@@ -29,11 +31,15 @@ class ClassificationProcessor(BaseProcessor):
     def __init__(self, 
                  database_service: DatabaseService, 
                  ai_service: AIService,
-                 features_service: FeaturesService):
+                 features_service: FeaturesService = None):
         super().__init__("classification_processor")
         self.database_service = database_service
         self.ai_service = ai_service
         self.features_service = features_service
+        
+        # Initialize normalization services
+        self.manufacturer_normalizer = ManufacturerNormalizationService()
+        self.model_detector = ModelDetectionService()
     
     def get_required_inputs(self) -> List[str]:
         """Get required inputs for classification processor"""
@@ -86,10 +92,29 @@ class ClassificationProcessor(BaseProcessor):
             document_text = await self._extract_document_text(context.file_path)
             
             # AI-powered document classification
+            filename = context.processing_config.get('filename', os.path.basename(context.file_path))
             classification_result = await self.ai_service.classify_document(
                 text=document_text,
-                filename=context.filename
+                filename=filename
             )
+            
+            # Normalize manufacturer name to prevent duplicates
+            raw_manufacturer = classification_result.get('manufacturer', 'Unknown')
+            normalized_manufacturer = self.manufacturer_normalizer.normalize_manufacturer_name(raw_manufacturer)
+            classification_result['manufacturer'] = normalized_manufacturer
+            
+            # Extract all models from document text (not just AI result)
+            ai_models = classification_result.get('models', [])
+            detected_models = self.model_detector.extract_all_models(document_text, normalized_manufacturer)
+            
+            # Combine AI models with detected models
+            all_models = list(set(ai_models + detected_models))
+            classification_result['models'] = all_models
+            
+            # Extract series if not detected by AI
+            if not classification_result.get('series') or classification_result.get('series') == 'Unknown':
+                detected_series = self.model_detector.extract_series(document_text, normalized_manufacturer)
+                classification_result['series'] = detected_series
             
             # Create or get manufacturer
             manufacturer_id = await self._create_or_get_manufacturer(
@@ -198,23 +223,23 @@ class ClassificationProcessor(BaseProcessor):
             return ""
     
     async def _create_or_get_manufacturer(self, manufacturer_name: str) -> str:
-        """Create or get manufacturer"""
+        """Create or get manufacturer with normalization"""
         try:
+            # Manufacturer name is already normalized at this point
             # Check if manufacturer exists
             existing_manufacturer = await self.database_service.get_manufacturer_by_name(manufacturer_name)
             if existing_manufacturer:
-                return existing_manufacturer.id
+                self.logger.info(f"Found existing manufacturer: {manufacturer_name}")
+                return existing_manufacturer['id']
             
             # Create new manufacturer
             manufacturer = ManufacturerModel(
                 name=manufacturer_name,
-                code=manufacturer_name.upper()[:3],
-                website=f"https://{manufacturer_name.lower()}.com",
-                country="Unknown"
+                description=f"Manufacturer: {manufacturer_name}"
             )
             
             manufacturer_id = await self.database_service.create_manufacturer(manufacturer)
-            self.logger.info(f"Created manufacturer: {manufacturer_name}")
+            self.logger.info(f"Created new manufacturer: {manufacturer_name}")
             return manufacturer_id
             
         except Exception as e:
@@ -258,17 +283,23 @@ class ClassificationProcessor(BaseProcessor):
                                     series_id: str, 
                                     models: List[str], 
                                     classification_result: Dict[str, Any]) -> List[str]:
-        """Create or get products"""
+        """Create or get products for ALL detected models"""
         try:
             product_ids = []
             
+            self.logger.info(f"Creating products for {len(models)} models: {models}")
+            
             for model in models:
+                if not model or model.strip() == "":
+                    continue
+                    
                 # Check if product exists
                 existing_product = await self.database_service.get_product_by_model(
                     model, manufacturer_id
                 )
                 if existing_product:
-                    product_ids.append(existing_product.id)
+                    self.logger.info(f"Found existing product: {model}")
+                    product_ids.append(existing_product['id'])
                     continue
                 
                 # Create new product
@@ -277,17 +308,14 @@ class ClassificationProcessor(BaseProcessor):
                     series_id=series_id,
                     model_number=model,
                     model_name=model,
-                    product_type=classification_result.get('document_type', 'printer'),
-                    duplex_capable=classification_result.get('duplex_capable', False),
-                    network_capable=classification_result.get('network_capable', False),
-                    mobile_print_support=classification_result.get('mobile_print_support', False),
-                    energy_star_certified=classification_result.get('energy_star_certified', False)
+                    product_type=classification_result.get('document_type', 'printer')
                 )
                 
                 product_id = await self.database_service.create_product(product)
                 product_ids.append(product_id)
-                self.logger.info(f"Created product: {model}")
+                self.logger.info(f"Created new product: {model}")
             
+            self.logger.info(f"Total products created/found: {len(product_ids)}")
             return product_ids
             
         except Exception as e:

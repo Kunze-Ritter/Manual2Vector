@@ -63,9 +63,9 @@ class DocumentAPI:
         """Setup API routes"""
         
         @self.router.post("/upload", response_model=DocumentUploadResponse)
-        async def upload_document(
-            background_tasks: BackgroundTasks,
-            file: UploadFile = File(...),
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
             document_type: Optional[DocumentType] = None,
             language: str = "en"
         ):
@@ -73,10 +73,10 @@ class DocumentAPI:
             try:
                 # Read file content
                 file_content = await file.read()
-                
-                # Create processing context
+        
+        # Create processing context
                 from core.base_processor import ProcessingContext
-                context = ProcessingContext(
+        context = ProcessingContext(
                     document_id="",  # Will be set by upload processor
                     file_path="",  # Will be set by upload processor
                     file_hash="",  # Will be set by upload processor
@@ -105,12 +105,12 @@ class DocumentAPI:
                     file.filename
                 )
                 
-                return DocumentUploadResponse(
+            return DocumentUploadResponse(
                     document_id=result.data['document_id'],
                     status='pending',
                     message='Document uploaded successfully. Processing started.',
-                    processing_time=result.processing_time
-                )
+                processing_time=result.processing_time
+            )
                 
             except Exception as e:
                 self.logger.error(f"Document upload failed: {e}")
@@ -137,10 +137,10 @@ class DocumentAPI:
                     'created_at': document.created_at,
                     'updated_at': document.updated_at
                 }
-                
-            except HTTPException:
-                raise
-            except Exception as e:
+    
+    except HTTPException:
+        raise
+    except Exception as e:
                 self.logger.error(f"Failed to get document {document_id}: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
@@ -150,8 +150,8 @@ class DocumentAPI:
             try:
                 document = await self.database_service.get_document(document_id)
                 if not document:
-                    raise HTTPException(status_code=404, detail="Document not found")
-                
+            raise HTTPException(status_code=404, detail="Document not found")
+        
                 # Get processing queue status
                 queue_items = await self.database_service.get_pending_queue_items("all")
                 processing_status = {
@@ -161,10 +161,10 @@ class DocumentAPI:
                 }
                 
                 return processing_status
-                
-            except HTTPException:
-                raise
-            except Exception as e:
+    
+    except HTTPException:
+        raise
+    except Exception as e:
                 self.logger.error(f"Failed to get document status {document_id}: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
@@ -174,8 +174,8 @@ class DocumentAPI:
             try:
                 document = await self.database_service.get_document(document_id)
                 if not document:
-                    raise HTTPException(status_code=404, detail="Document not found")
-                
+            raise HTTPException(status_code=404, detail="Document not found")
+        
                 # Reset processing status
                 await self.database_service.update_document(
                     document_id,
@@ -197,10 +197,10 @@ class DocumentAPI:
                     'document_id': document_id,
                     'status': 'pending'
                 }
-                
-            except HTTPException:
-                raise
-            except Exception as e:
+    
+    except HTTPException:
+        raise
+    except Exception as e:
                 self.logger.error(f"Failed to reprocess document {document_id}: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
@@ -233,8 +233,8 @@ class DocumentAPI:
                     'images': [],
                     'total_count': 0
                 }
-                
-            except Exception as e:
+    
+    except Exception as e:
                 self.logger.error(f"Failed to get document images {document_id}: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
     
@@ -297,8 +297,8 @@ class DocumentAPI:
                 # Clean up temporary file
                 if os.path.exists(temp_file_path):
                     os.unlink(temp_file_path)
-                    
-        except Exception as e:
+    
+    except Exception as e:
             self.logger.error(f"Background processing failed for document {document_id}: {e}")
             # Update document status to failed
             try:

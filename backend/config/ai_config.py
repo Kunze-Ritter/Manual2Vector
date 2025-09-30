@@ -213,7 +213,7 @@ class AIConfigManager:
         tier = self.detector.recommend_model_tier()
         self.config = self.detector.get_model_config(tier)
         
-        print(f"🔍 Hardware Detection:")
+        print(f"Hardware Detection:")
         print(f"   RAM: {self.detector.specs.total_ram_gb:.1f} GB")
         print(f"   CPU: {self.detector.specs.cpu_cores} cores, {self.detector.specs.cpu_threads} threads")
         if self.detector.specs.gpu_available:

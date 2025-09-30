@@ -8,7 +8,7 @@ import logging
 import hashlib
 import mimetypes
 from typing import Dict, List, Optional, Any, Union, BinaryIO
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 
@@ -57,7 +57,7 @@ class ObjectStorageService:
         
         # Bucket configurations
         self.buckets = {
-            'document_images': 'krai-documents',
+            'document_images': 'krai-documents-images',
             'error_images': 'krai-error-images', 
             'parts_images': 'krai-parts-images'
         }
@@ -134,13 +134,9 @@ class ObjectStorageService:
         return hashlib.sha256(content).hexdigest()
     
     def _generate_storage_path(self, filename: str, bucket_type: str = 'document_images') -> str:
-        """Generate organized storage path"""
-        now = datetime.utcnow()
-        year = now.strftime('%Y')
-        month = now.strftime('%m')
-        
-        # Create organized path: images/YYYY/MM/filename
-        return f"images/{year}/{month}/{filename}"
+        """Generate storage path - just the filename (hash-based)"""
+        # No folder structure - just use the hash-based filename directly
+        return filename
     
     def _get_content_type(self, filename: str) -> str:
         """Get content type for file"""
@@ -167,9 +163,9 @@ class ObjectStorageService:
         try:
             if self.client is None:
                 # Mock mode for testing
-                file_hash = sha256(content).hexdigest()
-                current_time = datetime.utcnow().strftime("%Y/%m")
-                storage_path = f"images/{current_time}/{file_hash}_{filename}"
+                file_hash = hashlib.sha256(content).hexdigest()
+                # No folder structure - just use the hash-based filename directly
+                storage_path = filename
                 
                 # Generate public URL based on bucket type
                 if bucket_type == 'document_images':
@@ -182,8 +178,11 @@ class ObjectStorageService:
                     public_url = f"{self.public_urls['documents']}/{storage_path}"
                 
                 result = {
+                    'success': True,
                     'bucket': self.buckets.get(bucket_type, 'krai-documents'),
                     'key': storage_path,
+                    'storage_path': storage_path,
+                    'public_url': public_url,
                     'url': public_url,
                     'file_hash': file_hash,
                     'size': len(content),
@@ -202,19 +201,39 @@ class ObjectStorageService:
             # Generate file hash for deduplication
             file_hash = self._generate_file_hash(content)
             
+            # Check for duplicate file by hash
+            duplicate = await self.check_duplicate(file_hash, bucket_type)
+            if duplicate:
+                self.logger.info(f"Duplicate file found with hash {file_hash[:16]}...: {duplicate['key']}")
+                return {
+                    'success': True,
+                    'file_hash': file_hash,
+                    'storage_path': duplicate['key'],
+                    'storage_url': duplicate['url'],
+                    'bucket': duplicate['bucket'],
+                    'is_duplicate': True
+                }
+            
             # Generate storage path
             storage_path = self._generate_storage_path(filename, bucket_type)
             
-            # Prepare metadata
+            # Prepare metadata (all values must be strings for S3)
             file_metadata = {
                 'original_filename': filename,
                 'file_hash': file_hash,
-                'upload_timestamp': datetime.utcnow().isoformat(),
+                'upload_timestamp': datetime.now(timezone.utc).isoformat(),
                 'content_type': self._get_content_type(filename)
             }
             
             if metadata:
-                file_metadata.update(metadata)
+                # Convert all metadata values to strings
+                for key, value in metadata.items():
+                    if isinstance(value, (int, float, bool)):
+                        file_metadata[key] = str(value)
+                    elif isinstance(value, str):
+                        file_metadata[key] = value
+                    else:
+                        file_metadata[key] = str(value)
             
             # Upload to R2
             self.client.put_object(
@@ -236,10 +255,15 @@ class ObjectStorageService:
                 public_url = f"{self.public_urls['documents']}/{storage_path}"
             
             result = {
+                'success': True,
                 'bucket': bucket_name,
                 'key': storage_path,
+                'storage_path': storage_path,
+                'public_url': public_url,
                 'url': public_url,
+                'storage_url': public_url,
                 'file_hash': file_hash,
+                'is_duplicate': False,
                 'size': len(content),
                 'content_type': self._get_content_type(filename),
                 'metadata': file_metadata
@@ -452,25 +476,25 @@ class ObjectStorageService:
                     "status": "mock_mode",
                     "response_time_ms": 0,
                     "buckets": list(self.buckets.values()),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
             
             # Test basic operation
             self.client.head_bucket(Bucket=self.buckets['document_images'])
             
-            response_time = (datetime.utcnow() - start_time).total_seconds()
+            response_time = (datetime.now(timezone.utc) - start_time).total_seconds()
             
             return {
                 "status": "healthy",
                 "response_time_ms": response_time * 1000,
                 "buckets": list(self.buckets.values()),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }

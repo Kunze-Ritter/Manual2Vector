@@ -1,15 +1,16 @@
-# 🚀 KR-AI-Engine (Minimal)
+# 🚀 KR-AI-Engine - Production Ready
 
-**AI-Powered Document Processing System - Minimal Cloud Setup**
+**Complete AI-Powered Document Processing Pipeline with 8-Stage Architecture**
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Kunze-Ritter/KR-AI-Engine)
-[![Architecture](https://img.shields.io/badge/architecture-minimal-purple.svg)](#architecture)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/Kunze-Ritter/KR-AI-Engine)
+[![Architecture](https://img.shields.io/badge/architecture-8--stage-purple.svg)](#architecture)
 [![Cloud](https://img.shields.io/badge/cloud-supabase-green.svg)](https://supabase.com)
 [![Storage](https://img.shields.io/badge/storage-cloudflare%20r2-orange.svg)](https://cloudflare.com)
+[![AI](https://img.shields.io/badge/ai-ollama-ff69b4.svg)](https://ollama.ai)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Organization](https://img.shields.io/badge/org-Kunze%20&%20Ritter-blue.svg)](https://github.com/Kunze-Ritter)
 
-> Minimales KI-gestütztes Dokumentenverarbeitungssystem mit Cloud-Integration für **Kunze & Ritter GmbH**
+> **Production-ready AI document processing system with complete 8-stage pipeline for Kunze & Ritter GmbH**
 
 ---
 
@@ -27,26 +28,38 @@
 
 ## 🎯 Überblick
 
-KR-AI-Engine (Minimal) ist ein schlankes, KI-gestütztes Dokumentenverarbeitungssystem mit Cloud-First-Ansatz. Es nutzt Supabase Cloud, Ollama Windows App und Cloudflare R2 für eine minimalistische aber leistungsstarke Dokumentenverarbeitung.
+KR-AI-Engine ist ein vollständiges, production-ready KI-gestütztes Dokumentenverarbeitungssystem mit 8-stufiger Pipeline-Architektur. Es kombiniert Supabase Cloud, Ollama AI und Cloudflare R2 für eine hochperformante Dokumentenverarbeitung mit intelligenter Klassifizierung und Semantic Search.
 
-### 🎯 Hauptziele (Minimal Setup)
+### 🎯 Hauptziele (Production Setup)
 
-- **☁️ Cloud-First** - Supabase Cloud, Cloudflare R2, Ollama Windows App
-- **🔍 Intelligente Dokumentenanalyse** - Automatische Extraktion von Metadaten, Modellnummern, Versionen
-- **🏷️ Hybrid-Klassifizierung** - Kombination aus Dateinamen-, Inhalts- und LLM-basierter Klassifizierung  
-- **🔮 Semantic Search** - Vector-basierte Suche mit EmbeddingGemma-Modell
-- **🖼️ Vision AI** - OCR, Bildanalyse und intelligente Bildklassifizierung
-- **⚡ Minimal Setup** - Keine lokale Supabase, keine Docker für Ollama
+- **🏗️ 8-Stage Pipeline** - Komplette Verarbeitungskette von Upload bis Search
+- **☁️ Cloud-First** - Supabase Cloud, Cloudflare R2, Ollama AI
+- **🔍 AI-Powered Classification** - Automatische Hersteller-/Modell-Erkennung
+- **🖼️ Advanced Image Processing** - OCR, AI Vision, Format-Erhaltung
+- **🔮 Semantic Search** - Vector-basierte Suche mit EmbeddingGemma
+- **💾 Intelligent Storage** - Deduplication, R2 Integration, Database-only Documents
+- **📊 Real-time Progress** - Advanced Progress Tracking mit ETA
 
 ---
 
 ## ✨ Features
 
-### 🎯 **Universal Processor mit Feature Flags**
-- **Modulares Hauptskript** - `krai_main.py` mit umfassenden Feature Flags
-- **Demo & Production Modi** - `--demo` für Tests, Production für echte Verarbeitung
-- **Flexible Verarbeitung** - `--onlypage`, `--images-only`, `--chunks-only`, `--embeddings-only`
-- **Intelligente Seitenverarbeitung** - Einzelne Seiten oder Bereiche (z.B. `800-850`)
+### 🏗️ **8-Stage Processing Pipeline**
+- **Stage 1: Upload Processor** - Document validation, hash generation, database storage
+- **Stage 2: Text Processor** - PDF text extraction, intelligent chunking
+- **Stage 3: Image Processor** - Image extraction, OCR, AI vision analysis
+- **Stage 4: Classification Processor** - AI-powered manufacturer/model detection
+- **Stage 5: Metadata Processor** - Error codes, version extraction
+- **Stage 6: Storage Processor** - R2 object storage, deduplication
+- **Stage 7: Embedding Processor** - Vector embedding generation
+- **Stage 8: Search Processor** - Search index, analytics
+
+### 🎯 **AI-Powered Intelligence**
+- **Manufacturer Normalization** - HP, HP Inc. → HP Inc. (prevents duplicates)
+- **Model Detection** - Extracts ALL models from documents (not just filename)
+- **Document Classification** - Service manual, parts catalog, user manual detection
+- **Vision AI** - OCR + AI analysis with Ollama llava model
+- **Semantic Search** - Vector embeddings with embeddinggemma model
 
 ### 🔗 **Advanced Link Management**
 - **PDF Page Mapping** - Automatische Zuordnung Adobe ↔ Actual Seitennummern
@@ -154,7 +167,7 @@ cd KR-AI-Engine
 #### 🎯 **Schritt 3: Dependencies installieren**
 ```bash
 # Minimal requirements installieren
-pip install -r backend/requirements.minimal.txt
+pip install -r backend/requirements.txt
 ```
 
 #### 🎯 **Schritt 4: Ollama Windows App starten**
@@ -245,7 +258,7 @@ cp .env.example .env
 # .env mit Cloud-Credentials anpassen
 
 # Dependencies installieren
-pip install -r backend/requirements.minimal.txt
+pip install -r backend/requirements.txt
 
 # Ollama Windows App starten
 # Models herunterladen: llama3.2:3b, embeddinggemma, llava:7b

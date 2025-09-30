@@ -21,7 +21,9 @@ class ConfigService:
     """
     
     def __init__(self, config_dir: str = "config"):
-        self.config_dir = Path(config_dir)
+        # Get the absolute path to the config directory
+        current_dir = Path(__file__).parent.parent  # Go up from services/ to backend/
+        self.config_dir = current_dir / config_dir
         self.logger = logging.getLogger("krai.config")
         self._setup_logging()
         

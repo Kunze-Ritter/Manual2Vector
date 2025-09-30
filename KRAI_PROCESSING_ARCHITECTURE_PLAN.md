@@ -41,7 +41,7 @@
 ```
 backend/
 ├── main.py                             # FastAPI Hauptanwendung
-├── requirements.minimal.txt            # Minimal Dependencies
+├── requirements.txt                    # Dependencies
 ├── config/
 │   ├── database_config.py              # Supabase Database Config
 │   ├── object_storage_config.py        # Cloudflare R2 Config
@@ -786,7 +786,7 @@ defect_analysis = {
 - **pgvector** für Vector Search
 - **Async Processing** für Performance
 
-### **📦 Dependencies (requirements.minimal.txt)**
+### **📦 Dependencies (requirements.txt)**
 ```python
 # Core Framework
 fastapi>=0.104.0
