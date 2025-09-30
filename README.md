@@ -147,8 +147,8 @@ graph TB
 
 #### 🎯 **Schritt 1: Repository klonen**
 ```bash
-git clone https://github.com/Kunze-Ritter/KR-AI-Engine.git
-cd KR-AI-Engine
+git clone https://github.com/Kunze-Ritter/Manual2Vector.git
+cd Manual2Vector
 ```
 
 > **💡 Hinweis**: Das Repository ist bereits mit einer fertigen `.env`-Datei konfiguriert! Sie können direkt loslegen.
