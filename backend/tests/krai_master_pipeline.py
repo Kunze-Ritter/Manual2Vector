@@ -620,17 +620,17 @@ class KRMasterPipeline:
                 # Use carriage return to overwrite the same line
                 print(f"\r{status_line}", end="", flush=True)
                 
+                # Get current status values
+                current_doc_count = pipeline_status['total_docs']
+                current_classified_count = pipeline_status['classified_docs']
+                current_chunk_count = pipeline_status['total_chunks']
+                
                 # Add newline only for detailed updates to prevent PowerShell line wrapping issues
                 if (current_doc_count != last_doc_count or 
                     current_classified_count != last_classified_count or 
                     current_chunk_count != last_chunk_count or
                     show_detailed_view):
                     print()  # New line before detailed view
-                
-                # Show detailed status only when significant changes occur
-                current_doc_count = pipeline_status['total_docs']
-                current_classified_count = pipeline_status['classified_docs']
-                current_chunk_count = pipeline_status['total_chunks']
                 
                 # Check for keyboard input (Windows compatible)
                 try:
@@ -646,6 +646,7 @@ class KRMasterPipeline:
                     # Fallback: skip keyboard input on non-Windows or if msvcrt not available
                     pass
                 
+                # Check if we should show detailed view
                 if (current_doc_count != last_doc_count or 
                     current_classified_count != last_classified_count or 
                     current_chunk_count != last_chunk_count or
