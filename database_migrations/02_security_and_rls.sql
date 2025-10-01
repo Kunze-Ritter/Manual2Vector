@@ -29,6 +29,7 @@ ALTER TABLE krai_intelligence.search_analytics ENABLE ROW LEVEL SECURITY;
 -- Content tables
 ALTER TABLE krai_content.chunks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_content.images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE krai_content.links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_content.instructional_videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_content.print_defects ENABLE ROW LEVEL SECURITY;
 
@@ -107,6 +108,10 @@ CREATE POLICY "service_role_embeddings_all" ON krai_intelligence.embeddings FOR 
 
 -- Images policies
 CREATE POLICY "service_role_images_all" ON krai_content.images FOR ALL
+    USING (true);
+
+-- Links policies
+CREATE POLICY "service_role_links_all" ON krai_content.links FOR ALL
     USING (true);
 
 -- Error codes policies
@@ -232,6 +237,9 @@ GRANT ALL ON ALL TABLES IN SCHEMA krai_parts TO krai_service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA krai_service TO krai_service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA krai_users TO krai_service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA krai_integrations TO krai_service_role;
+
+-- Grant permissions on all views
+GRANT SELECT ON ALL TABLES IN SCHEMA krai_content TO krai_service_role;
 
 -- Grant sequence permissions
 GRANT ALL ON ALL SEQUENCES IN SCHEMA krai_core TO krai_service_role;

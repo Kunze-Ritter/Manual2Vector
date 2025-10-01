@@ -1,6 +1,6 @@
 -- Add Links table for video/tutorial links extraction
 CREATE TABLE IF NOT EXISTS krai_content.links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     document_id UUID NOT NULL REFERENCES krai_core.documents(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     link_type VARCHAR(50) NOT NULL DEFAULT 'external', -- 'video', 'external', 'tutorial'

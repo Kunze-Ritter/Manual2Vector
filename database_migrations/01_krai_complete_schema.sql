@@ -295,6 +295,8 @@ CREATE TABLE IF NOT EXISTS krai_content.images (
     manual_description TEXT,
     tags TEXT[],
     file_hash VARCHAR(64),
+    figure_number VARCHAR(50),
+    figure_context TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -313,6 +315,20 @@ CREATE TABLE IF NOT EXISTS krai_content.instructional_videos (
     resolution VARCHAR(20),
     language VARCHAR(10) DEFAULT 'en',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Links table (for video/tutorial links)
+CREATE TABLE IF NOT EXISTS krai_content.links (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL REFERENCES krai_core.documents(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    link_type VARCHAR(50) NOT NULL DEFAULT 'external',
+    page_number INTEGER NOT NULL,
+    description TEXT,
+    position_data JSONB,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Print Defects table  

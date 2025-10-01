@@ -334,6 +334,10 @@ CREATE INDEX IF NOT EXISTS idx_manufacturers_is_competitor
 
 -- HIGH-PRIORITY: Production-critical tables
 CREATE INDEX IF NOT EXISTS idx_images_chunk_id ON krai_content.images(chunk_id);
+CREATE INDEX IF NOT EXISTS idx_links_document_id ON krai_content.links(document_id);
+CREATE INDEX IF NOT EXISTS idx_links_type ON krai_content.links(link_type);
+CREATE INDEX IF NOT EXISTS idx_links_page ON krai_content.links(page_number);
+CREATE INDEX IF NOT EXISTS idx_images_figure_number ON krai_content.images(figure_number) WHERE figure_number IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_error_codes_chunk_id ON krai_intelligence.error_codes(chunk_id);
 CREATE INDEX IF NOT EXISTS idx_error_codes_document_id ON krai_intelligence.error_codes(document_id);
 CREATE INDEX IF NOT EXISTS idx_processing_queue_document_id ON krai_system.processing_queue(document_id);
