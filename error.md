@@ -1,45 +1,54 @@
-=== BATCH PROCESSING ===
-🔍 Searching for service_documents directory...
-❌ Not found: service_documents
-❌ Not found: ../service_documents
-✅ Found service_documents with 5 document files: C:\service_documents
-📁 Found 5 document files in ../../service_documents
-   .pdf: 5 files
-Gefunden: 5 Dokumente
+C:\Manual2Vector>python backend/tests/krai_master_pipeline.py
+Hardware Detection:
+   RAM: 31.7 GB
+   CPU: 20 cores, 28 threads
+   GPU: Not Available
+   Recommended Tier: balanced
+   GPU Acceleration: Disabled
+   Selected Models: llama3.2:13b, embeddinggemma:2b, llava:13b
+KR-AI-ENGINE MASTER PIPELINE
+==================================================
+Ein einziges Script für alle Pipeline-Funktionen!
+==================================================
+Initializing KR Master Pipeline Services...
+2025-10-01 14:25:34,495 - krai.database - ERROR - Failed to connect to database: supabase_url is required
+ERROR:krai.database:Failed to connect to database: supabase_url is required
+Traceback (most recent call last):
+  File "C:\Manual2Vector\backend\services\database_service_production.py", line 60, in connect
+    self.client = create_client(self.supabase_url, self.supabase_key)
+                  ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demo\AppData\Roaming\Python\Python313\site-packages\supabase\_sync\client.py", line 369, in create_client
+    return SyncClient.create(
+           ~~~~~~~~~~~~~~~~~^
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Demo\AppData\Roaming\Python\Python313\site-packages\supabase\_sync\client.py", line 101, in create
+    client = cls(supabase_url, supabase_key, options)
+  File "C:\Users\Demo\AppData\Roaming\Python\Python313\site-packages\supabase\_sync\client.py", line 53, in __init__
+    raise SupabaseException("supabase_url is required")
+supabase._sync.client.SupabaseException: supabase_url is required
 
-Verarbeite ALLE 5 Dokumente? (y/n): y
-HARDWARE WAKER - Processing 5 files with 8 concurrent documents!
-This WILL wake up your CPU and GPU!
-Starting HARDWARE WAKER processing of 5 files...
-Multiple documents will be processed simultaneously - CPU and GPU will be busy!
-[1/5] Processing: A93E.pdf (21.6MB)
-  [1] Upload: A93E.pdf
-2025-10-01 14:19:56,532 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
-ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
-[2/5] Processing: A93E017.pdf (17.1MB)
-  [2] Upload: A93E017.pdf
-2025-10-01 14:19:56,555 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
-ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
-[3/5] Processing: AAJN.pdf (21.7MB)
-  [3] Upload: AAJN.pdf
-2025-10-01 14:19:56,575 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
-ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
-[4/5] Processing: AAJN007.pdf (17.2MB)
-  [4] Upload: AAJN007.pdf
-2025-10-01 14:19:56,593 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
-ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
-[5/5] Processing: bizhub_C750i_C751i_SM_EN_20250729.pdf (104.0MB)
-  [5] Upload: bizhub_C750i_C751i_SM_EN_20250729.pdf
-2025-10-01 14:19:56,691 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
-ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
+During handling of the above exception, another exception occurred:
 
-================================================================================
-KR MASTER PIPELINE SUMMARY
-================================================================================
-Total Files: 5
-Successful: 0
-Failed: 5
-Success Rate: 0.0%
-Total Duration: 0.2s (0.0m)
-Average per File: 0.0s
-================================================================================
+Traceback (most recent call last):
+  File "C:\Manual2Vector\backend\tests\krai_master_pipeline.py", line 714, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "C:\Program Files\Python313\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Program Files\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Program Files\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Manual2Vector\backend\tests\krai_master_pipeline.py", line 516, in main
+    await pipeline.initialize_services()
+  File "C:\Manual2Vector\backend\tests\krai_master_pipeline.py", line 81, in initialize_services
+    await self.database_service.connect()
+  File "C:\Manual2Vector\backend\services\database_service_production.py", line 68, in connect
+    raise RuntimeError(f"Cannot connect to Supabase database: {e}")
+RuntimeError: Cannot connect to Supabase database: supabase_url is required
