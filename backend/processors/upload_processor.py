@@ -166,7 +166,7 @@ class UploadProcessor(BaseProcessor):
             return DocumentType.SERVICE_MANUAL
         
         # Parts Catalog patterns
-        elif any(keyword in filename_lower for keyword in ['parts', 'catalog', 'spare', 'replacement', 'parts guide', 'parts manual']):
+        elif any(keyword in filename_lower for keyword in ['parts', 'catalog', 'spare', 'replacement', 'parts guide', 'parts manual', 'parts list', 'parts guide manual']):
             return DocumentType.PARTS_CATALOG
         
         # Technical Bulletin patterns
