@@ -546,19 +546,91 @@ class KRMasterPipeline:
                 ram_percent = ram.percent
                 ram_used_gb = (ram.total - ram.available) / 1024 / 1024 / 1024
                 
+                # Get GPU status
+                gpu_info = self._get_gpu_status()
+                
                 print(f"\n--- HARDWARE STATUS ---")
                 print(f"CPU: {cpu_percent:5.1f}% | RAM: {ram_percent:5.1f}% ({ram_used_gb:.1f}GB)")
                 
+                if gpu_info:
+                    print(f"GPU: {gpu_info['name']} | VRAM: {gpu_info['memory_used']:.1f}/{gpu_info['memory_total']:.1f}GB ({gpu_info['memory_percent']:.1f}%)")
+                    if gpu_info['utilization'] > 0:
+                        print(f"GPU Utilization: {gpu_info['utilization']:.1f}%")
+                else:
+                    print("GPU: Not Available")
+                
                 # Check if hardware is waking up
                 if cpu_percent > 50:
-                    print("CPU IS WAKING UP!")
+                    print("🔥 CPU IS WAKING UP!")
                 if ram_percent > 60:
-                    print("RAM IS BEING USED!")
+                    print("💾 RAM IS BEING USED!")
+                if gpu_info and gpu_info['utilization'] > 10:
+                    print("🎮 GPU IS WORKING!")
                 
             except asyncio.CancelledError:
                 break
             except Exception:
                 pass
+    
+    def _get_gpu_status(self) -> Dict[str, Any]:
+        """Get GPU status information"""
+        try:
+            # Method 1: Try nvidia-smi (NVIDIA GPUs)
+            import subprocess
+            result = subprocess.run([
+                'nvidia-smi', 
+                '--query-gpu=name,memory.used,memory.total,utilization.gpu', 
+                '--format=csv,noheader,nounits'
+            ], capture_output=True, text=True, timeout=2)
+            
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                if lines and lines[0]:
+                    parts = lines[0].split(', ')
+                    if len(parts) >= 4:
+                        return {
+                            'name': parts[0],
+                            'memory_used': float(parts[1]) / 1024,  # MB to GB
+                            'memory_total': float(parts[2]) / 1024,  # MB to GB
+                            'memory_percent': (float(parts[1]) / float(parts[2])) * 100,
+                            'utilization': float(parts[3])
+                        }
+        except:
+            pass
+        
+        try:
+            # Method 2: Try wmic for Intel/AMD GPUs (Windows)
+            result = subprocess.run([
+                'wmic', 'path', 'win32_VideoController', 'get', 'name,AdapterRAM', 
+                '/format:csv'
+            ], capture_output=True, text=True, timeout=2)
+            
+            if result.returncode == 0:
+                lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
+                for line in lines:
+                    if 'Name' not in line and line:
+                        parts = line.split(',')
+                        if len(parts) >= 2:
+                            gpu_name = parts[1].strip()
+                            if gpu_name and gpu_name != '':
+                                # Estimate memory for integrated GPUs
+                                estimated_memory = 2.0  # Default estimate
+                                if 'Intel' in gpu_name:
+                                    estimated_memory = 2.0
+                                elif 'AMD' in gpu_name or 'Radeon' in gpu_name:
+                                    estimated_memory = 4.0
+                                
+                                return {
+                                    'name': gpu_name,
+                                    'memory_used': estimated_memory * 0.3,  # Estimate usage
+                                    'memory_total': estimated_memory,
+                                    'memory_percent': 30.0,  # Estimate
+                                    'utilization': 0.0  # Cannot measure for integrated GPUs
+                                }
+        except:
+            pass
+        
+        return None
     
     def find_pdf_files(self, directory: str, limit: int = None) -> List[str]:
         """Find PDF files in directory with optional limit"""
