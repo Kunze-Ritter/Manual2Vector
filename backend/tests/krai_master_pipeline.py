@@ -550,8 +550,11 @@ class KRMasterPipeline:
         try:
             import os
             if os.name == 'nt':  # Windows
-                # Enable ANSI color support in PowerShell
-                os.system('powershell -Command "& {$Host.UI.RawUI.OutputEncoding = [System.Text.Encoding]::UTF8}"')
+                # Enable ANSI color support in PowerShell (simplified approach)
+                try:
+                    os.system('chcp 65001 >nul 2>&1')  # Set UTF-8 code page
+                except:
+                    pass
         except:
             pass
         
