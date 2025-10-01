@@ -578,9 +578,17 @@ class KRMasterPipeline:
             print(f"  [{doc_index}] Upload: {filename}")
             result1 = await self.processors['upload'].process(context)
             
+            # FORCE DEBUG OUTPUT - ALWAYS SHOW
+            print(f"  [{doc_index}] FORCE DEBUG: result1.success = {result1.success}")
+            print(f"  [{doc_index}] FORCE DEBUG: result1.data = {result1.data}")
+            print(f"  [{doc_index}] FORCE DEBUG: duplicate flag = {result1.data.get('duplicate') if result1.data else 'NO DATA'}")
+            
             # Check if document already exists (deduplication)
             print(f"  [{doc_index}] DEBUG: result1.success={result1.success}, duplicate={result1.data.get('duplicate')}")
-            if result1.success and result1.data.get('duplicate'):
+            print(f"  [{doc_index}] FORCE DEBUG: result1.data = {result1.data}")
+            
+            # FORCE SMART PROCESSING - Always use smart processing for existing documents
+            if result1.success and (result1.data.get('duplicate') or result1.data.get('document_id')):
                 # Document already exists - use Smart Processing for remaining stages
                 print(f"  [{doc_index}] Document exists - using Smart Processing for remaining stages")
                 document_id = result1.data.get('document_id')
