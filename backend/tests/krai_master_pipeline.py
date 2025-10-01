@@ -1081,6 +1081,35 @@ async def main():
             results = await pipeline.process_batch_hardware_waker(pdf_files)
             pipeline.print_status_summary(results)
             
+            # After processing new files, automatically process remaining stages for all pending documents
+            print("\n=== PROCESSING REMAINING STAGES FOR ALL PENDING DOCUMENTS ===")
+            pending_docs = await pipeline.get_documents_needing_processing()
+            
+            if pending_docs:
+                print(f"Found {len(pending_docs)} documents that need remaining stages (images, embeddings, etc.)")
+                response = input(f"Process remaining stages for {len(pending_docs)} documents? (y/n): ").lower().strip()
+                
+                if response == 'y':
+                    print("Processing remaining stages...")
+                    stage_results = {'successful': [], 'failed': [], 'total_files': len(pending_docs)}
+                    
+                    for i, doc in enumerate(pending_docs):
+                        print(f"\n[{i+1}/{len(pending_docs)}] Processing remaining stages: {doc['filename']}")
+                        result = await pipeline.process_document_remaining_stages(
+                            doc['id'], doc['filename'], doc['file_path']
+                        )
+                        
+                        if result['success']:
+                            stage_results['successful'].append(result)
+                        else:
+                            stage_results['failed'].append(result)
+                    
+                    stage_results['success_rate'] = len(stage_results['successful']) / len(pending_docs) * 100
+                    print("\n=== REMAINING STAGES SUMMARY ===")
+                    pipeline.print_status_summary(stage_results)
+            else:
+                print("No documents need remaining stages processing.")
+            
         elif choice == "4":
             # Single Document Processing
             print("\n=== EINZELNES DOKUMENT ===")
