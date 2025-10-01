@@ -98,6 +98,13 @@ class EmbeddingProcessor(BaseProcessor):
                     # Generate embedding using AI service
                     embedding_vector = await self.ai_service.generate_embeddings(chunk['text_chunk'])
                     
+                    # Check for existing embedding (DEDUPLICATION!)
+                    existing_embedding = await self.database_service.get_embedding_by_chunk_id(chunk['id'])
+                    if existing_embedding:
+                        self.logger.info(f"Embedding for chunk {chunk['id']} already exists, skipping")
+                        embedding_ids.append(existing_embedding['id'])
+                        continue
+                    
                     # Create embedding model
                     embedding_model = EmbeddingModel(
                         chunk_id=chunk['id'],
@@ -106,7 +113,7 @@ class EmbeddingProcessor(BaseProcessor):
                         model_version='1.0'
                     )
                     
-                    # Store in database (mock mode due to foreign key constraint issues)
+                    # Store in database
                     try:
                         embedding_id = await self.database_service.create_embedding(embedding_model)
                         embedding_ids.append(embedding_id)

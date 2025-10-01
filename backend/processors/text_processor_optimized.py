@@ -112,10 +112,11 @@ class OptimizedTextProcessor(BaseProcessor):
             
             MemoryMonitoring.log_memory_usage(self.logger, "after_streaming_setup")
             
-            # Process chunks in parallel
+            # Process chunks in parallel with deduplication
             chunk_ids = await self.parallel_processor.process_chunks_parallel(
                 chunk_stream, 
-                self.database_service
+                self.database_service,
+                enable_deduplication=True  # Enable chunk deduplication
             )
             
             MemoryMonitoring.log_memory_usage(self.logger, "after_parallel_processing")

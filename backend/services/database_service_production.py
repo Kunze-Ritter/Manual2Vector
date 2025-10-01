@@ -120,6 +120,24 @@ class DatabaseService:
             self.logger.error(f"Failed to get document by hash {file_hash[:16]}...: {e}")
             return None
     
+    async def get_image_by_hash(self, image_hash: str) -> Optional[Dict[str, Any]]:
+        """Get image by hash for deduplication"""
+        try:
+            result = self.client.table('images').select('*').eq('image_hash', image_hash).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            self.logger.error(f"Failed to get image by hash {image_hash[:16]}...: {e}")
+            return None
+    
+    async def get_embedding_by_chunk_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
+        """Get embedding by chunk_id for deduplication"""
+        try:
+            result = self.client.table('embeddings').select('*').eq('chunk_id', chunk_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            self.logger.error(f"Failed to get embedding by chunk_id {chunk_id[:16]}...: {e}")
+            return None
+    
     async def update_document(self, document_id: str, updates: Dict[str, Any]) -> bool:
         """Update document"""
         try:
@@ -135,7 +153,13 @@ class DatabaseService:
             return False
     
     async def create_manufacturer(self, manufacturer: ManufacturerModel) -> str:
-        """Create a new manufacturer"""
+        """Create a new manufacturer with deduplication"""
+        # Check if manufacturer already exists (DEDUPLICATION!)
+        existing_manufacturer = await self.get_manufacturer_by_name(manufacturer.name)
+        if existing_manufacturer:
+            self.logger.info(f"Manufacturer '{manufacturer.name}' already exists: {existing_manufacturer.id}")
+            return existing_manufacturer.id
+        
         manufacturer_data = manufacturer.model_dump(mode='json')
         
         try:

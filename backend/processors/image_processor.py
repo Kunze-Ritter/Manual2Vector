@@ -161,6 +161,12 @@ class ImageProcessor(BaseProcessor):
                         }
                         ai_descriptions.append(ai_analysis)
                     
+                    # Check for existing image with same hash (DEDUPLICATION!)
+                    existing_image = await self.database_service.get_image_by_hash(image_data['hash'])
+                    if existing_image:
+                        self.logger.info(f"Image with hash {image_data['hash'][:16]}... already exists, skipping")
+                        continue
+                    
                     # Determine if image contains text based on OCR results
                     contains_text = len(ocr_text.strip()) > 0 if ocr_text else False
                     
