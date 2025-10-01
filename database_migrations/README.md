@@ -18,17 +18,17 @@ Diese optimierte Version bietet eine **saubere 5-Schritt Migration** mit umfasse
 
 ## 🎯 **KONSOLIDIERTE STRUKTUR:**
 
-### **1️⃣ Complete Schema** (`01_krai_complete_schema.sql`)
+### **1️⃣ Complete Schema** (`01_schema_and_tables.sql`)
 - **Konsolidiert**: `00_schema_architecture` + `01_krai_core_tables` + `02-05_tables`
 - **Erstellt**: Alle 10 Schemas mit 31+ Tabellen
 - **Includes**: Extensions (uuid-ossp, pgvector), Optimized Indexes (No Duplicates)
 
-### **2️⃣ Security & RLS** (`02_security_and_rls.sql`) 
+### **2️⃣ Security & RLS** (`02_security_rls_triggers.sql`) 
 - **Konsolidiert**: `06_security_rls_policies` + `10_security_fixes`
 - **Erstellt**: RLS Policies, Security Roles, Permissions
 - **Includes**: Audit Functions, Security Views
 
-### **3️⃣ Performance & Indexes** (`03_performance_and_indexes.sql`)
+### **3️⃣ Performance & Indexes** (`03_indexes_performance.sql`)
 - **Umfasst**: HNSW Vector Indexes, GIN Full-Text, Composite Indexes
 - **Erstellt**: 32+ Foreign Key Indexes für optimale JOIN Performance  
 - **Includes**: Materialized Views, Search Functions, Analytics
@@ -56,9 +56,9 @@ cd database_migrations/
 ./run_krai_migration.sh
 
 # 3. Or run manually step by step:
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 01_krai_complete_schema.sql
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 02_security_and_rls.sql
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 03_performance_and_indexes.sql
+docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 01_schema_and_tables.sql
+docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 02_security_rls_triggers.sql
+docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 03_indexes_performance.sql
 docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 04_extensions_and_storage.sql
 docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 05_performance_test.sql
 

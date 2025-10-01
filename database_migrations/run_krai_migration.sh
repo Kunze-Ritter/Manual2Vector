@@ -22,7 +22,7 @@ echo "======================================"
 echo ""
 
 # Check if we're in the correct directory
-if [ ! -f "01_krai_complete_schema.sql" ]; then
+if [ ! -f "01_schema_and_tables.sql" ]; then
     echo "❌ ERROR: Please run this script from the database_migrations directory"
     exit 1
 fi
@@ -88,9 +88,9 @@ echo "🎬 Starting migration..."
 echo ""
 
 # Execute all 5 consolidated steps
-execute_sql "1" "01_krai_complete_schema.sql" "Complete Schema (10 schemas, 31+ tables, extensions)"
-execute_sql "2" "02_security_and_rls.sql" "Security & RLS (Policies, roles, permissions)"
-execute_sql "3" "03_performance_and_indexes.sql" "Performance (Indexes, functions, materialized views)"
+execute_sql "1" "01_schema_and_tables.sql" "Complete Schema (10 schemas, 31+ tables, extensions)"
+execute_sql "2" "02_security_rls_triggers.sql" "Security & RLS (Policies, roles, permissions)"
+execute_sql "3" "03_indexes_performance.sql" "Performance (Indexes, functions, materialized views)"
 execute_sql "4" "04_extensions_and_storage.sql" "Extensions & Storage (Buckets, samples, validation)"
 execute_sql "5" "05_performance_test.sql" "Performance Tests (Index verification, system health)"
 

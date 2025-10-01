@@ -10,9 +10,9 @@
 Die Datenbank-Migrationen wurden **neu strukturiert** und in **3 logische, fehlerfreie Dateien** aufgeteilt:
 
 ```
-CLEAN_01_schema_and_tables.sql    → Schemas, Tabellen, Foreign Keys, Views
-CLEAN_02_security_rls_triggers.sql → RLS, Policies, Roles, Triggers  
-CLEAN_03_indexes_performance.sql   → Indexes, Functions, Materialized Views
+01_schema_and_tables.sql          → Schemas, Tabellen, Foreign Keys, Views
+02_security_rls_triggers.sql      → RLS, Policies, Roles, Triggers  
+03_indexes_performance.sql        → Indexes, Functions, Materialized Views
 ```
 
 **Vorteile:**
@@ -32,15 +32,15 @@ CLEAN_03_indexes_performance.sql   → Indexes, Functions, Materialized Views
 
 ```sql
 -- 1. Schemas und Tabellen (ca. 2-3 Minuten)
--- Kopiere Inhalt von CLEAN_01_schema_and_tables.sql
+-- Kopiere Inhalt von 01_schema_and_tables.sql
 -- Klicke "Run"
 
 -- 2. Security und RLS (ca. 1 Minute)  
--- Kopiere Inhalt von CLEAN_02_security_rls_triggers.sql
+-- Kopiere Inhalt von 02_security_rls_triggers.sql
 -- Klicke "Run"
 
 -- 3. Indexes und Performance (ca. 2-5 Minuten)
--- Kopiere Inhalt von CLEAN_03_indexes_performance.sql
+-- Kopiere Inhalt von 03_indexes_performance.sql
 -- Klicke "Run"
 ```
 
@@ -53,9 +53,9 @@ CLEAN_03_indexes_performance.sql   → Indexes, Functions, Materialized Views
 psql "postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
 
 # Migrationen ausführen
-\i CLEAN_01_schema_and_tables.sql
-\i CLEAN_02_security_rls_triggers.sql
-\i CLEAN_03_indexes_performance.sql
+\i 01_schema_and_tables.sql
+\i 02_security_rls_triggers.sql
+\i 03_indexes_performance.sql
 ```
 
 ---
@@ -73,9 +73,9 @@ supabase = create_client(
 
 # Dateien einlesen und ausführen
 migrations = [
-    'CLEAN_01_schema_and_tables.sql',
-    'CLEAN_02_security_rls_triggers.sql',
-    'CLEAN_03_indexes_performance.sql'
+    '01_schema_and_tables.sql',
+    '02_security_rls_triggers.sql',
+    '03_indexes_performance.sql'
 ]
 
 for migration_file in migrations:
@@ -90,7 +90,7 @@ for migration_file in migrations:
 
 ## 📊 Was wird erstellt?
 
-### CLEAN_01: Schemas & Tabellen
+### 01_schema_and_tables.sql: Schemas & Tabellen
 
 **10 Schemas:**
 - `krai_core` - Manufacturers, Products, Documents
@@ -118,7 +118,7 @@ for migration_file in migrations:
 
 ---
 
-### CLEAN_02: Security & RLS
+### 02_security_rls_triggers.sql: Security & RLS
 
 **4 Roles:**
 - `krai_service_role` - Backend full access
@@ -136,7 +136,7 @@ for migration_file in migrations:
 
 ---
 
-### CLEAN_03: Indexes & Performance
+### 03_indexes_performance.sql: Indexes & Performance
 
 **100+ Indexes:**
 - Basic Indexes (manufacturer_id, document_id, etc.)
@@ -161,9 +161,9 @@ for migration_file in migrations:
 
 | Migration | Dauer | Beschreibung |
 |-----------|-------|--------------|
-| CLEAN_01 | 2-3 Min | Schemas, Tabellen, Foreign Keys |
-| CLEAN_02 | 1 Min | RLS, Policies, Triggers |
-| CLEAN_03 | 2-5 Min | Indexes (abhängig von Datenmenge) |
+| 01_schema_and_tables.sql | 2-3 Min | Schemas, Tabellen, Foreign Keys |
+| 02_security_rls_triggers.sql | 1 Min | RLS, Policies, Triggers |
+| 03_indexes_performance.sql | 2-5 Min | Indexes (abhängig von Datenmenge) |
 | **Total** | **5-9 Min** | Komplett-Setup |
 
 ---
@@ -275,11 +275,11 @@ add_links_and_figures.sql         ← Links
 - ❌ Duplikate und Konflikte
 - ❌ Storage-Fehler
 
-### Neue Struktur (CLEAN_01-03):
+### Neue Struktur (01-03):
 ```
-CLEAN_01_schema_and_tables.sql    ← ALLES: Schemas, Tabellen, FKs
-CLEAN_02_security_rls_triggers.sql ← RLS + Triggers
-CLEAN_03_indexes_performance.sql   ← Indexes + Functions
+01_schema_and_tables.sql          ← ALLES: Schemas, Tabellen, FKs
+02_security_rls_triggers.sql      ← RLS + Triggers
+03_indexes_performance.sql        ← Indexes + Functions
 ```
 
 **Vorteile:**
