@@ -90,7 +90,9 @@ passlib[bcrypt]>=1.7.0
 # ================================
 psutil>=5.9.0
 multiprocessing-logging>=0.3.0
-concurrent-futures>=3.1.1
+
+# concurrent-futures>=3.1.1
+# you're using Python 3.7+, where concurrent.futures is part of the standard library and should not be installed via pip
 
 # ================================
 # DEVELOPMENT & TESTING
