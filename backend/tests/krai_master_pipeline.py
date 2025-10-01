@@ -320,15 +320,88 @@ class KRMasterPipeline:
             print(f"Error getting documents: {e}")
             return []
     
-    async def process_document_remaining_stages(self, document_id: str, filename: str, file_path: str) -> Dict[str, Any]:
-        """Process remaining stages for a document"""
+    async def get_document_stage_status(self, document_id: str) -> Dict[str, bool]:
+        """Check which stages have been completed for a document"""
+        stage_status = {
+            'upload': False,
+            'text': False,
+            'image': False,
+            'classification': False,
+            'metadata': False,
+            'storage': False,
+            'embedding': False,
+            'search': False
+        }
+        
         try:
-            print(f"\nProcessing remaining stages for: {filename}")
+            # Check if document exists (upload stage)
+            doc_info = await self.database_service.get_document(document_id)
+            if doc_info:
+                stage_status['upload'] = True
+                
+                # Check if document is classified (classification stage)
+                if doc_info.manufacturer_id and doc_info.document_type != 'unknown':
+                    stage_status['classification'] = True
+            
+            # Check if chunks exist (text stage)
+            chunks_result = self.database_service.client.table('chunks').select('id').eq('document_id', document_id).limit(1).execute()
+            if chunks_result.data:
+                stage_status['text'] = True
+            
+            # Check if images exist (image stage)
+            images_result = self.database_service.client.table('images').select('id').eq('document_id', document_id).limit(1).execute()
+            if images_result.data:
+                stage_status['image'] = True
+            
+            # Check if embeddings exist (embedding stage)
+            embeddings_result = self.database_service.client.table('embeddings').select('id').eq('document_id', document_id).limit(1).execute()
+            if embeddings_result.data:
+                stage_status['embedding'] = True
+            
+            # Check if search analytics exist (search stage)
+            search_result = self.database_service.client.table('search_analytics').select('id').eq('document_id', document_id).limit(1).execute()
+            if search_result.data:
+                stage_status['search'] = True
+            
+            # For now, assume metadata and storage are done if other stages are done
+            if stage_status['image'] and stage_status['classification']:
+                stage_status['metadata'] = True
+                stage_status['storage'] = True
+            
+        except Exception as e:
+            print(f"Error checking stage status: {e}")
+        
+        return stage_status
+    
+    async def process_document_smart_stages(self, document_id: str, filename: str, file_path: str) -> Dict[str, Any]:
+        """Process only the missing stages for a document"""
+        try:
+            print(f"\nSmart Processing for: {filename}")
             print(f"  Document ID: {document_id}")
-            print(f"  Stages: Image → Classification → Metadata → Storage → Embedding → Search")
+            
+            # Check current stage status
+            stage_status = await self.get_document_stage_status(document_id)
+            
+            print(f"  Current Status:")
+            for stage, completed in stage_status.items():
+                status_icon = "✅" if completed else "❌"
+                print(f"    {stage.capitalize()}: {status_icon}")
+            
+            # Find missing stages
+            missing_stages = [stage for stage, completed in stage_status.items() if not completed]
+            
+            if not missing_stages:
+                print(f"  ✅ All stages already completed for {filename}")
+                return {
+                    'success': True,
+                    'filename': filename,
+                    'stages_completed': len(stage_status),
+                    'message': 'All stages already completed'
+                }
+            
+            print(f"  Missing stages: {', '.join(missing_stages)}")
             
             # Create processing context
-            print(f"  Using file_path: {file_path}")
             context = ProcessingContext(
                 file_path=file_path,
                 document_id=document_id,
@@ -343,56 +416,138 @@ class KRMasterPipeline:
             if doc_info:
                 context.file_hash = doc_info.file_hash if doc_info.file_hash else ''
                 context.document_type = doc_info.document_type if doc_info.document_type else ''
-                # Keep the constructed file_path, don't override with null storage_path
-                # context.file_path should remain as constructed above
             
-            # Stage 3: Image Processor (GPU intensive)
-            print(f"  [3/8] Image Processing: {filename}")
-            result3 = await self.processors['image'].process(context)
-            images_count = result3.data.get('images_processed', 0)
+            completed_stages = []
+            failed_stages = []
             
-            # Stage 4: Classification Processor
-            print(f"  [4/8] Classification: {filename}")
-            result4 = await self.processors['classification'].process(context)
+            # Process only missing stages
+            if 'text' in missing_stages:
+                print(f"  [2/8] Text Processing: {filename}")
+                try:
+                    result2 = await self.processors['text'].process(context)
+                    if result2.success:
+                        completed_stages.append('text')
+                        print(f"    ✅ Text processing completed")
+                    else:
+                        failed_stages.append('text')
+                        print(f"    ❌ Text processing failed: {result2.message}")
+                except Exception as e:
+                    failed_stages.append('text')
+                    print(f"    ❌ Text processing error: {e}")
             
-            # Stage 5: Metadata Processor
-            print(f"  [5/8] Metadata: {filename}")
-            result5 = await self.processors['metadata'].process(context)
+            if 'image' in missing_stages:
+                print(f"  [3/8] Image Processing: {filename}")
+                try:
+                    result3 = await self.processors['image'].process(context)
+                    if result3.success:
+                        completed_stages.append('image')
+                        images_count = result3.data.get('images_processed', 0)
+                        print(f"    ✅ Image processing completed: {images_count} images")
+                    else:
+                        failed_stages.append('image')
+                        print(f"    ❌ Image processing failed: {result3.message}")
+                except Exception as e:
+                    failed_stages.append('image')
+                    print(f"    ❌ Image processing error: {e}")
             
-            # Stage 6: Storage Processor
-            print(f"  [6/8] Storage: {filename}")
-            result6 = await self.processors['storage'].process(context)
+            if 'classification' in missing_stages:
+                print(f"  [4/8] Classification: {filename}")
+                try:
+                    result4 = await self.processors['classification'].process(context)
+                    if result4.success:
+                        completed_stages.append('classification')
+                        print(f"    ✅ Classification completed")
+                    else:
+                        failed_stages.append('classification')
+                        print(f"    ❌ Classification failed: {result4.message}")
+                except Exception as e:
+                    failed_stages.append('classification')
+                    print(f"    ❌ Classification error: {e}")
             
-            # Stage 7: Embedding Processor (GPU intensive)
-            print(f"  [7/8] Embeddings: {filename}")
-            result7 = await self.processors['embedding'].process(context)
+            if 'metadata' in missing_stages:
+                print(f"  [5/8] Metadata: {filename}")
+                try:
+                    result5 = await self.processors['metadata'].process(context)
+                    if result5.success:
+                        completed_stages.append('metadata')
+                        print(f"    ✅ Metadata processing completed")
+                    else:
+                        failed_stages.append('metadata')
+                        print(f"    ❌ Metadata processing failed: {result5.message}")
+                except Exception as e:
+                    failed_stages.append('metadata')
+                    print(f"    ❌ Metadata processing error: {e}")
             
-            # Stage 8: Search Processor
-            print(f"  [8/8] Search Index: {filename}")
-            result8 = await self.processors['search'].process(context)
+            if 'storage' in missing_stages:
+                print(f"  [6/8] Storage: {filename}")
+                try:
+                    result6 = await self.processors['storage'].process(context)
+                    if result6.success:
+                        completed_stages.append('storage')
+                        print(f"    ✅ Storage processing completed")
+                    else:
+                        failed_stages.append('storage')
+                        print(f"    ❌ Storage processing failed: {result6.message}")
+                except Exception as e:
+                    failed_stages.append('storage')
+                    print(f"    ❌ Storage processing error: {e}")
             
-            # Update document status to completed
-            await self.database_service.update_document(document_id, {'processing_status': 'completed'})
+            if 'embedding' in missing_stages:
+                print(f"  [7/8] Embeddings: {filename}")
+                try:
+                    result7 = await self.processors['embedding'].process(context)
+                    if result7.success:
+                        completed_stages.append('embedding')
+                        embeddings_count = result7.data.get('embeddings_created', 0)
+                        print(f"    ✅ Embedding processing completed: {embeddings_count} embeddings")
+                    else:
+                        failed_stages.append('embedding')
+                        print(f"    ❌ Embedding processing failed: {result7.message}")
+                except Exception as e:
+                    failed_stages.append('embedding')
+                    print(f"    ❌ Embedding processing error: {e}")
             
-            print(f"  [OK] Completed: {filename}")
+            if 'search' in missing_stages:
+                print(f"  [8/8] Search: {filename}")
+                try:
+                    result8 = await self.processors['search'].process(context)
+                    if result8.success:
+                        completed_stages.append('search')
+                        print(f"    ✅ Search processing completed")
+                    else:
+                        failed_stages.append('search')
+                        print(f"    ❌ Search processing failed: {result8.message}")
+                except Exception as e:
+                    failed_stages.append('search')
+                    print(f"    ❌ Search processing error: {e}")
+            
+            # Update document status
+            if not failed_stages:
+                await self.database_service.update_document_status(document_id, 'completed')
+                print(f"  ✅ Document {filename} fully processed!")
+            else:
+                await self.database_service.update_document_status(document_id, 'failed')
+                print(f"  ⚠️ Document {filename} partially processed (failed stages: {failed_stages})")
             
             return {
-                'success': True,
-                'document_id': document_id,
+                'success': len(failed_stages) == 0,
                 'filename': filename,
-                'images': images_count
+                'completed_stages': completed_stages,
+                'failed_stages': failed_stages,
+                'total_stages': len(completed_stages) + len(failed_stages)
             }
             
         except Exception as e:
-            print(f"  [ERROR] Error processing {filename}: {e}")
-            # Mark as failed
-            await self.database_service.update_document(document_id, {'processing_status': 'failed'})
-            
+            print(f"Error in smart processing: {e}")
             return {
                 'success': False,
-                'error': str(e),
-                'filename': filename
+                'filename': filename,
+                'error': str(e)
             }
+    
+    async def process_document_remaining_stages(self, document_id: str, filename: str, file_path: str) -> Dict[str, Any]:
+        """Process remaining stages for a document (legacy method - now uses smart processing)"""
+        return await self.process_document_smart_stages(document_id, filename, file_path)
     
     async def process_single_document_full_pipeline(self, file_path: str, doc_index: int, total_docs: int) -> Dict[str, Any]:
         """Process a single document through all 8 stages"""
@@ -979,7 +1134,7 @@ async def main():
     while True:
         print("\nMASTER PIPELINE MENU:")
         print("1. Status Check - Zeige aktuelle Dokument-Status")
-        print("2. Pipeline Reset - Verarbeite hängende Dokumente")
+        print("2. Smart Processing - Nur fehlende Stages verarbeiten")
         print("3. Hardware Waker - Verarbeite neue Dokumente (CPU/GPU)")
         print("4. Einzelnes Dokument verarbeiten")
         print("5. Batch Processing - Alle Dokumente verarbeiten")
@@ -999,33 +1154,38 @@ async def main():
             print(f"Processing: {status['processing']}")
             
         elif choice == "2":
-            # Pipeline Reset
-            print("\n=== PIPELINE RESET ===")
+            # Smart Processing - Only Missing Stages
+            print("\n=== SMART PROCESSING - MISSING STAGES ONLY ===")
             documents = await pipeline.get_documents_needing_processing()
             
             if not documents:
                 print("Keine Dokumente gefunden die weitere Verarbeitung brauchen!")
                 continue
             
-            print(f"Gefunden: {len(documents)} Dokumente (pending + failed) die weitere Stages brauchen")
-            print("Dokumente:")
-            for i, doc in enumerate(documents[:5]):  # Show first 5
-                status_icon = "[FAILED]" if doc['processing_status'] == 'failed' else "[PENDING]"
-                print(f"  {i+1}. {doc['filename']} {status_icon}")
+            print(f"Gefunden: {len(documents)} Dokumente - prüfe welche Stages fehlen...")
+            
+            # Show first few documents with their stage status
+            print("\nErste 5 Dokumente mit Stage-Status:")
+            for i, doc in enumerate(documents[:5]):
+                stage_status = await pipeline.get_document_stage_status(doc['id'])
+                missing_stages = [stage for stage, completed in stage_status.items() if not completed]
+                status_text = f"Missing: {', '.join(missing_stages)}" if missing_stages else "All complete"
+                print(f"  {i+1}. {doc['filename']} - {status_text}")
+            
             if len(documents) > 5:
                 print(f"  ... und {len(documents) - 5} weitere")
             
-            response = input(f"\nVerarbeite {len(documents)} Dokumente? (y/n): ").lower().strip()
+            response = input(f"\nSmart Process {len(documents)} Dokumente (nur fehlende Stages)? (y/n): ").lower().strip()
             if response != 'y':
-                print("Pipeline Reset abgebrochen.")
+                print("Smart Processing abgebrochen.")
                 continue
             
-            # Process documents
+            # Process documents with smart processing
             results = {'successful': [], 'failed': [], 'total_files': len(documents)}
             
             for i, doc in enumerate(documents):
-                print(f"\n[{i+1}/{len(documents)}] Processing: {doc['filename']}")
-                result = await pipeline.process_document_remaining_stages(
+                print(f"\n[{i+1}/{len(documents)}] Smart Processing: {doc['filename']}")
+                result = await pipeline.process_document_smart_stages(
                     doc['id'], doc['filename'], doc['file_path']
                 )
                 
@@ -1082,20 +1242,20 @@ async def main():
             pipeline.print_status_summary(results)
             
             # After processing new files, automatically process remaining stages for all pending documents
-            print("\n=== PROCESSING REMAINING STAGES FOR ALL PENDING DOCUMENTS ===")
+            print("\n=== SMART PROCESSING - MISSING STAGES ONLY ===")
             pending_docs = await pipeline.get_documents_needing_processing()
             
             if pending_docs:
-                print(f"Found {len(pending_docs)} documents that need remaining stages (images, embeddings, etc.)")
-                response = input(f"Process remaining stages for {len(pending_docs)} documents? (y/n): ").lower().strip()
+                print(f"Found {len(pending_docs)} documents - checking which stages are missing...")
+                response = input(f"Smart process {len(pending_docs)} documents (only missing stages)? (y/n): ").lower().strip()
                 
                 if response == 'y':
-                    print("Processing remaining stages...")
+                    print("Smart processing - will only run missing stages...")
                     stage_results = {'successful': [], 'failed': [], 'total_files': len(pending_docs)}
                     
                     for i, doc in enumerate(pending_docs):
-                        print(f"\n[{i+1}/{len(pending_docs)}] Processing remaining stages: {doc['filename']}")
-                        result = await pipeline.process_document_remaining_stages(
+                        print(f"\n[{i+1}/{len(pending_docs)}] Smart processing: {doc['filename']}")
+                        result = await pipeline.process_document_smart_stages(
                             doc['id'], doc['filename'], doc['file_path']
                         )
                         
@@ -1105,10 +1265,10 @@ async def main():
                             stage_results['failed'].append(result)
                     
                     stage_results['success_rate'] = len(stage_results['successful']) / len(pending_docs) * 100
-                    print("\n=== REMAINING STAGES SUMMARY ===")
+                    print("\n=== SMART PROCESSING SUMMARY ===")
                     pipeline.print_status_summary(stage_results)
             else:
-                print("No documents need remaining stages processing.")
+                print("No documents need processing.")
             
         elif choice == "4":
             # Single Document Processing
