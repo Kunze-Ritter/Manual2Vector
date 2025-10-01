@@ -1,0 +1,47 @@
+# 🚀 KR-AI-Engine - Minimal Requirements (Schnelle Installation)
+# Nur die wichtigsten Dependencies für den Start
+
+# ================================
+# CORE FRAMEWORK
+# ================================
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.4.0
+python-dotenv>=1.0.0
+
+# ================================
+# DATABASE
+# ================================
+supabase>=2.0.0
+psycopg2-binary>=2.9.0
+
+# ================================
+# DOCUMENT PROCESSING (KRITISCH!)
+# ================================
+PyMuPDF>=1.23.0
+Pillow>=10.0.0
+pytesseract>=0.3.0
+easyocr>=1.7.0
+
+# ================================
+# AI & MACHINE LEARNING
+# ================================
+ollama>=0.1.0
+numpy>=1.24.0
+
+# ================================
+# STORAGE
+# ================================
+boto3>=1.34.0
+
+# ================================
+# UTILITIES
+# ================================
+requests>=2.31.0
+psutil>=5.9.0
+tqdm>=4.66.0
+
+# ================================
+# TEXT PROCESSING
+# ================================
+regex>=2023.10.0
