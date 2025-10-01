@@ -722,3 +722,17 @@ class DatabaseService:
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat()
             }
+    
+    async def get_chunks_by_document_id(self, document_id: str) -> List[ChunkModel]:
+        """Get all chunks for a document"""
+        try:
+            result = self.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
+            
+            chunks = []
+            for chunk_data in result.data:
+                chunks.append(ChunkModel(**chunk_data))
+            return chunks
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get chunks by document ID: {e}")
+            return []

@@ -89,10 +89,27 @@ class ClassificationProcessor(BaseProcessor):
                 )
             
             # Read document text for classification
-            document_text = await self._extract_document_text(context.file_path)
+            self.logger.info(f"Classification processing for document {context.document_id}")
+            self.logger.info(f"File path: {context.file_path}")
+            document_text = self._extract_document_text(context.file_path)
+            
+            # If no PDF text available, use chunks from database
+            if not document_text:
+                self.logger.info(f"PDF not available for {context.document_id}, using chunks for classification")
+                chunks = await self.database_service.get_chunks_by_document_id(context.document_id)
+                if chunks:
+                    # Combine first few chunks for classification
+                    document_text = "\n".join([chunk.content[:500] for chunk in chunks[:5]])
+                    self.logger.info(f"Using {len(chunks)} chunks for classification")
+                else:
+                    self.logger.warning(f"No chunks found for document {context.document_id}")
+                    document_text = ""
             
             # AI-powered document classification
-            filename = context.processing_config.get('filename', os.path.basename(context.file_path))
+            filename = context.processing_config.get('filename', 'Unknown')
+            if not filename or filename == 'Unknown':
+                filename = document.filename if hasattr(document, 'filename') else 'Unknown'
+            
             classification_result = await self.ai_service.classify_document(
                 text=document_text,
                 filename=filename
@@ -196,9 +213,14 @@ class ClassificationProcessor(BaseProcessor):
                     "CLASSIFICATION_FAILED"
                 )
     
-    async def _extract_document_text(self, file_path: str) -> str:
+    def _extract_document_text(self, file_path: str) -> str:
         """Extract text from document for classification"""
         try:
+            # Check if file exists
+            if not file_path or not os.path.exists(file_path):
+                self.logger.warning(f"File not found: {file_path}, using document chunks for classification")
+                return ""
+            
             try:
                 import PyMuPDF as fitz
                 
@@ -214,9 +236,8 @@ class ClassificationProcessor(BaseProcessor):
                 return text_content[:5000]  # Limit for classification
                 
             except ImportError:
-                # Mock mode for testing
-                self.logger.info("Using mock document text for classification")
-                return "This is mock document text for testing classification. It contains technical information about printer maintenance and troubleshooting procedures."
+                self.logger.error("PyMuPDF not available - cannot extract text from PDF")
+                return ""
             
         except Exception as e:
             self.logger.error(f"Failed to extract document text: {e}")
