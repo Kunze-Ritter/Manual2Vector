@@ -1,0 +1,11 @@
+{
+  "id": "supabase-langchain",
+  "name": "Supabase LangChain",
+  "type": "supabaseApi",
+  "data": {
+    "host": "YOUR_SUPABASE_URL_HERE",
+    "serviceRole": "YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE"
+  },
+  "createdAt": "2024-10-01T08:00:00.000Z",
+  "updatedAt": "2024-10-01T08:00:00.000Z"
+}
