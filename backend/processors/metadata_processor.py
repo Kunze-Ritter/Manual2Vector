@@ -154,7 +154,7 @@ class MetadataProcessor(BaseProcessor):
         """Extract text from document for metadata processing"""
         try:
             try:
-                import pymupdf as fitz
+                import fitz
                 
                 doc = fitz.open(file_path)
                 text_content = ""

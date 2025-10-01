@@ -9,7 +9,7 @@ from datetime import datetime
 import io
 
 try:
-    import pymupdf as fitz
+    import fitz
     FITZ_AVAILABLE = True
 except ImportError:
     fitz = None

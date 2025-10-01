@@ -222,7 +222,7 @@ class ClassificationProcessor(BaseProcessor):
                 return ""
             
             try:
-                import PyMuPDF as fitz
+                import fitz
                 
                 doc = fitz.open(file_path)
                 text_content = ""
