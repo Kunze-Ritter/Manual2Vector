@@ -85,8 +85,7 @@ class UploadProcessor(BaseProcessor):
             existing_doc = await self.database_service.get_document_by_hash(file_hash)
             if existing_doc:
                 self.logger.info(f"Document with hash {file_hash[:16]}... already exists: {existing_doc['id']}")
-                return ProcessingResult(
-                    success=True,
+                return self.create_success_result(
                     data={
                         'document_id': existing_doc['id'],
                         'file_hash': file_hash,
@@ -94,7 +93,12 @@ class UploadProcessor(BaseProcessor):
                         'file_size': existing_doc.get('file_size', 0),
                         'duplicate': True
                     },
-                    message="Document already exists (deduplication)"
+                    metadata={
+                        'message': 'Document already exists (deduplication)',
+                        'deduplication': True,
+                        'original_filename': existing_doc.get('filename', ''),
+                        'upload_timestamp': datetime.utcnow().isoformat()
+                    }
                 )
             
             # Get file metadata

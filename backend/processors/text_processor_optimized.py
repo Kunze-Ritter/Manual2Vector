@@ -115,8 +115,7 @@ class OptimizedTextProcessor(BaseProcessor):
             # Process chunks in parallel with deduplication
             chunk_ids = await self.parallel_processor.process_chunks_parallel(
                 chunk_stream, 
-                self.database_service,
-                enable_deduplication=True  # Enable chunk deduplication
+                self.database_service
             )
             
             MemoryMonitoring.log_memory_usage(self.logger, "after_parallel_processing")
@@ -157,13 +156,7 @@ class OptimizedTextProcessor(BaseProcessor):
                 'chunking_strategy': 'streaming_chunking'
             }
             
-            return ProcessingResult(
-                success=True,
-                processor=self.name,
-                status='completed',
-                data=data,
-                metadata=metadata
-            )
+            return self.create_success_result(data, metadata)
         
         except ProcessingError:
             raise

@@ -7,8 +7,9 @@ import logging
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse, urljoin
 from dataclasses import dataclass
+from datetime import datetime
 
-from core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult
+from core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult, ProcessingError
 from core.data_models import DocumentModel
 
 @dataclass
@@ -88,10 +89,12 @@ class LinkExtractionProcessor(BaseProcessor):
             # Get document content (this would come from previous processing stages)
             document_content = await self._get_document_content(context)
             if not document_content:
-                return ProcessingResult(
-                    success=False,
-                    error="No document content available for link extraction"
+                error = ProcessingError(
+                    "No document content available for link extraction",
+                    self.name,
+                    "NO_CONTENT"
                 )
+                return self.create_error_result(error)
             
             # Extract links from content
             extracted_links = await self._extract_links_from_content(
@@ -113,22 +116,26 @@ class LinkExtractionProcessor(BaseProcessor):
             
             self.logger.info(f"Extracted {len(categorized_links)} links from document")
             
-            return ProcessingResult(
-                success=True,
+            return self.create_success_result(
                 data={
                     'links_extracted': len(categorized_links),
                     'link_ids': link_ids,
                     'link_types': self._get_link_type_summary(categorized_links),
                     'external_domains': self._get_external_domains(categorized_links)
+                },
+                metadata={
+                    'processing_timestamp': datetime.utcnow().isoformat()
                 }
             )
             
         except Exception as e:
             self.logger.error(f"Link extraction failed: {e}")
-            return ProcessingResult(
-                success=False,
-                error=f"Link extraction failed: {str(e)}"
+            error = ProcessingError(
+                f"Link extraction failed: {str(e)}",
+                self.name,
+                "EXTRACTION_FAILED"
             )
+            return self.create_error_result(error)
     
     async def _get_document_content(self, context: ProcessingContext) -> Optional[str]:
         """Get document content for link extraction"""
