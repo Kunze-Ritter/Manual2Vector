@@ -95,30 +95,76 @@ END $$;
 -- STEP 5: ADD FOREIGN KEY CONSTRAINTS (CORRECT ORDER)
 -- ======================================================================
 
--- Link technicians to users (if users table exists)
-ALTER TABLE krai_service.technicians 
-ADD CONSTRAINT fk_technicians_user_id 
-FOREIGN KEY (user_id) REFERENCES krai_users.users(id) ON DELETE SET NULL;
+-- Add foreign key constraints only if they don't exist
+DO $$
+BEGIN
+    -- Link technicians to users (if users table exists)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_technicians_user_id' 
+        AND table_name = 'technicians'
+        AND table_schema = 'krai_service'
+    ) THEN
+        ALTER TABLE krai_service.technicians 
+        ADD CONSTRAINT fk_technicians_user_id 
+        FOREIGN KEY (user_id) REFERENCES krai_users.users(id) ON DELETE SET NULL;
+    END IF;
 
--- Link service_calls to technicians (fix circular reference)
-ALTER TABLE krai_service.service_calls
-ADD CONSTRAINT fk_service_calls_technician
-FOREIGN KEY (assigned_technician_id) REFERENCES krai_service.technicians(id) ON DELETE SET NULL;
+    -- Link service_calls to technicians (fix circular reference)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_service_calls_technician' 
+        AND table_name = 'service_calls'
+        AND table_schema = 'krai_service'
+    ) THEN
+        ALTER TABLE krai_service.service_calls
+        ADD CONSTRAINT fk_service_calls_technician
+        FOREIGN KEY (assigned_technician_id) REFERENCES krai_service.technicians(id) ON DELETE SET NULL;
+    END IF;
 
--- Link service_history to technicians (instead of users)
-ALTER TABLE krai_service.service_history
-ADD CONSTRAINT fk_service_history_performed_by
-FOREIGN KEY (performed_by) REFERENCES krai_service.technicians(id) ON DELETE SET NULL;
+    -- Link service_history to technicians (instead of users)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_service_history_performed_by' 
+        AND table_name = 'service_history'
+        AND table_schema = 'krai_service'
+    ) THEN
+        ALTER TABLE krai_service.service_history
+        ADD CONSTRAINT fk_service_history_performed_by
+        FOREIGN KEY (performed_by) REFERENCES krai_service.technicians(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- ======================================================================
 -- STEP 6: ENABLE RLS ON NEW TABLE
 -- ======================================================================
 
-ALTER TABLE krai_service.technicians ENABLE ROW LEVEL SECURITY;
+-- Enable RLS if not already enabled
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_tables 
+        WHERE schemaname = 'krai_service' 
+        AND tablename = 'technicians' 
+        AND rowsecurity = true
+    ) THEN
+        ALTER TABLE krai_service.technicians ENABLE ROW LEVEL SECURITY;
+    END IF;
+END $$;
 
--- Create RLS policy for technicians
-CREATE POLICY "service_role_technicians_all" ON krai_service.technicians FOR ALL
-    USING (true);
+-- Create RLS policy for technicians (only if doesn't exist)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'krai_service' 
+        AND tablename = 'technicians' 
+        AND policyname = 'service_role_technicians_all'
+    ) THEN
+        CREATE POLICY "service_role_technicians_all" ON krai_service.technicians FOR ALL
+            USING (true);
+    END IF;
+END $$;
 
 -- ======================================================================
 -- STEP 7: CREATE INDEXES FOR PERFORMANCE
@@ -149,20 +195,39 @@ CREATE INDEX IF NOT EXISTS idx_service_history_service_date
 -- STEP 8: CREATE UPDATE TRIGGER FOR TIMESTAMP
 -- ======================================================================
 
--- Trigger for technicians
-CREATE TRIGGER update_technicians_updated_at 
-    BEFORE UPDATE ON krai_service.technicians 
-    FOR EACH ROW EXECUTE FUNCTION krai_system.update_updated_at_column();
+-- Create triggers only if they don't exist
+DO $$
+BEGIN
+    -- Trigger for technicians
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'update_technicians_updated_at'
+    ) THEN
+        CREATE TRIGGER update_technicians_updated_at 
+            BEFORE UPDATE ON krai_service.technicians 
+            FOR EACH ROW EXECUTE FUNCTION krai_system.update_updated_at_column();
+    END IF;
 
--- Trigger for service_calls
-CREATE TRIGGER update_service_calls_updated_at 
-    BEFORE UPDATE ON krai_service.service_calls 
-    FOR EACH ROW EXECUTE FUNCTION krai_system.update_updated_at_column();
+    -- Trigger for service_calls
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'update_service_calls_updated_at'
+    ) THEN
+        CREATE TRIGGER update_service_calls_updated_at 
+            BEFORE UPDATE ON krai_service.service_calls 
+            FOR EACH ROW EXECUTE FUNCTION krai_system.update_updated_at_column();
+    END IF;
 
--- Trigger for service_history
-CREATE TRIGGER update_service_history_updated_at 
-    BEFORE UPDATE ON krai_service.service_history 
-    FOR EACH ROW EXECUTE FUNCTION krai_system.update_updated_at_column();
+    -- Trigger for service_history
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'update_service_history_updated_at'
+    ) THEN
+        CREATE TRIGGER update_service_history_updated_at 
+            BEFORE UPDATE ON krai_service.service_history 
+            FOR EACH ROW EXECUTE FUNCTION krai_system.update_updated_at_column();
+    END IF;
+END $$;
 
 -- ======================================================================
 -- STEP 9: GRANT PERMISSIONS
