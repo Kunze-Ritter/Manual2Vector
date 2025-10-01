@@ -138,6 +138,9 @@ class KRMasterPipeline:
             # Try to create .env files from templates if available
             self._try_create_env_from_templates()
             raise RuntimeError("Environment files not found")
+        
+        # Initialize services after environment is loaded
+        await self._initialize_services_after_env_loaded()
     
     def _try_create_env_from_templates(self):
         """Try to create .env files from templates if available"""
@@ -201,7 +204,9 @@ class KRMasterPipeline:
         except Exception as e:
             print(f"❌ Failed to create .env files from templates: {e}")
             return False
-        
+    
+    async def _initialize_services_after_env_loaded(self):
+        """Initialize services after environment variables are loaded"""
         # Debug: Show loaded environment variables
         supabase_url = os.getenv('SUPABASE_URL')
         supabase_key = os.getenv('SUPABASE_ANON_KEY')
