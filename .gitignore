@@ -59,6 +59,7 @@ Thumbs.db
 *.log
 logs/
 log/
+error.md
 
 # Database
 *.db

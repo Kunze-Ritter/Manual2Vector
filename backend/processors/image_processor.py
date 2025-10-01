@@ -85,7 +85,7 @@ class ImageProcessor(BaseProcessor):
             'gpu_required': True,
             'estimated_ram_gb': 4.0,
             'estimated_gpu_gb': 2.0,
-            'parallel_safe': False  # GPU intensive
+            'parallel_safe': True  # Enable parallel processing for better performance
         }
     
     async def process(self, context: ProcessingContext) -> ProcessingResult:
@@ -273,44 +273,72 @@ class ImageProcessor(BaseProcessor):
             doc = fitz.open(file_path)
             images_data = []
             
-            for page_num in range(len(doc)):
-                page = doc.load_page(page_num)
-                image_list = page.get_images()
+            # Process pages in parallel for better performance
+            import asyncio
+            import concurrent.futures
+            
+            def extract_page_images(page_num):
+                """Extract images from a single page"""
+                page_images = []
+                try:
+                    page = doc.load_page(page_num)
+                    image_list = page.get_images()
+                    
+                    for img_index, img in enumerate(image_list):
+                        try:
+                            # Get image data
+                            xref = img[0]
+                            pix = fitz.Pixmap(doc, xref)
+                            
+                            # Skip very small images (likely UI elements)
+                            if pix.width < 50 or pix.height < 50:
+                                pix = None
+                                continue
+                            
+                            # Advanced image extraction with format preservation
+                            img_data, original_format, is_vector = self._extract_image_with_format_preservation(pix, doc, xref)
+                            
+                            # Generate filename as hash for uniqueness with correct extension
+                            import hashlib
+                            file_hash = hashlib.sha256(img_data).hexdigest()
+                            filename = f"{file_hash}.{original_format}"
+                            
+                            image_data = {
+                                'content': img_data,
+                                'filename': filename,
+                                'format': original_format,
+                                'width': pix.width,
+                                'height': pix.height,
+                                'page_number': page_num + 1,
+                                'image_index': img_index + 1,
+                                'hash': file_hash,
+                                'is_vector': is_vector,
+                                'color_space': pix.n - pix.alpha,
+                                'has_alpha': pix.alpha > 0
+                            }
+                            
+                            page_images.append(image_data)
+                            pix = None
+                            
+                        except Exception as e:
+                            self.logger.warning(f"Failed to extract image {img_index} from page {page_num + 1}: {e}")
+                            continue
+                            
+                except Exception as e:
+                    self.logger.warning(f"Failed to process page {page_num + 1}: {e}")
                 
-                for img_index, img in enumerate(image_list):
+                return page_images
+            
+            # Use ThreadPoolExecutor for parallel page processing
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                futures = [executor.submit(extract_page_images, page_num) for page_num in range(len(doc))]
+                
+                for future in concurrent.futures.as_completed(futures):
                     try:
-                        # Get image data
-                        xref = img[0]
-                        pix = fitz.Pixmap(doc, xref)
-                        
-                        # Advanced image extraction with format preservation
-                        img_data, original_format, is_vector = self._extract_image_with_format_preservation(pix, doc, xref)
-                        
-                        # Generate filename as hash for uniqueness with correct extension
-                        import hashlib
-                        file_hash = hashlib.sha256(img_data).hexdigest()
-                        filename = f"{file_hash}.{original_format}"
-                        
-                        image_data = {
-                            'content': img_data,
-                            'filename': filename,
-                            'format': original_format,
-                            'width': pix.width,
-                            'height': pix.height,
-                            'page_number': page_num + 1,
-                            'image_index': img_index + 1,
-                            'hash': file_hash,
-                            'is_vector': is_vector,
-                            'color_space': pix.n - pix.alpha,
-                            'has_alpha': pix.alpha > 0
-                        }
-                        
-                        images_data.append(image_data)
-                        pix = None
-                        
+                        page_images = future.result()
+                        images_data.extend(page_images)
                     except Exception as e:
-                        self.logger.warning(f"Failed to extract image {img_index} from page {page_num + 1}: {e}")
-                        continue
+                        self.logger.warning(f"Failed to get page extraction result: {e}")
             
             doc.close()
             self.logger.info(f"Extracted {len(images_data)} images from PDF")
@@ -319,6 +347,24 @@ class ImageProcessor(BaseProcessor):
         except Exception as e:
             self.logger.error(f"Failed to extract images from PDF: {e}")
             raise
+    
+    async def _perform_ai_analysis(self, image_data: Dict[str, Any], index: int) -> Dict[str, Any]:
+        """Perform AI analysis on image"""
+        try:
+            ai_analysis = await self.ai_service.analyze_image(
+                image=image_data['content'],
+                description=f"Technical image from page {image_data['page_number']}"
+            )
+            return ai_analysis
+        except Exception as ai_error:
+            self.logger.warning(f"AI analysis failed for image {index+1}: {ai_error}")
+            return {
+                'image_type': 'diagram',
+                'description': f'Technical image from page {image_data["page_number"]}',
+                'confidence': 0.5,
+                'contains_text': False,
+                'tags': ['technical', 'diagram']
+            }
     
     async def _perform_ocr(self, image_content: bytes) -> str:
         """
