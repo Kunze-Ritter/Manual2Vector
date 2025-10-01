@@ -613,16 +613,19 @@ class KRMasterPipeline:
                 current_classified_count = pipeline_status['classified_docs']
                 current_chunk_count = pipeline_status['total_chunks']
                 
-                # Check for keyboard input (non-blocking)
-                import select
-                import sys
-                if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                    user_input = sys.stdin.readline().strip().lower()
-                    if user_input == 'd':
-                        show_detailed_view = True
-                    elif user_input == 'q':
-                        print(f"\n🛑 Monitoring stopped by user")
-                        break
+                # Check for keyboard input (Windows compatible)
+                try:
+                    import msvcrt
+                    if msvcrt.kbhit():
+                        key = msvcrt.getch().decode('utf-8').lower()
+                        if key == 'd':
+                            show_detailed_view = True
+                        elif key == 'q':
+                            print(f"\n🛑 Monitoring stopped by user")
+                            break
+                except:
+                    # Fallback: skip keyboard input on non-Windows or if msvcrt not available
+                    pass
                 
                 if (current_doc_count != last_doc_count or 
                     current_classified_count != last_classified_count or 
@@ -783,21 +786,17 @@ class KRMasterPipeline:
     async def _get_error_count(self) -> int:
         """Get count of failed documents"""
         try:
-            # Count documents that failed processing (no classification but have chunks)
-            error_query = """
-                SELECT COUNT(*) as error_count
-                FROM krai_core.documents d
-                WHERE d.manufacturer IS NULL 
-                AND d.id IN (SELECT DISTINCT document_id FROM krai_content.chunks)
-                AND d.created_at < NOW() - INTERVAL '10 minutes'
-            """
-            
-            result = await self.database_service.execute_query(error_query)
-            return result[0]['error_count'] if result else 0
+            # Use Supabase client directly for error count
+            result = self.database_service.client.rpc('get_error_document_count').execute()
+            return result.data if result.data else 0
             
         except Exception as e:
-            print(f"Error count query failed: {e}")
-            return 0
+            # Fallback: simple count of documents without classification
+            try:
+                docs_result = self.database_service.client.table('documents').select('id').is_('manufacturer', 'null').execute()
+                return len(docs_result.data) if docs_result.data else 0
+            except:
+                return 0
     
     async def _print_detailed_pipeline_view(self, pipeline_status: Dict[str, Any], error_count: int):
         """Print detailed pipeline overview with progress bars for each stage"""
