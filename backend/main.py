@@ -8,11 +8,19 @@ import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
-# Load environment variables from .env file
+# Load environment variables from central .env file
 try:
     from dotenv import load_dotenv
-    load_dotenv()
-    print("✅ Environment variables loaded from .env file")
+    # Try to load from root .env first, then fallback to local
+    if os.path.exists('.env'):
+        load_dotenv('.env')
+        print("✅ Environment variables loaded from root .env file")
+    elif os.path.exists('../.env'):
+        load_dotenv('../.env')
+        print("✅ Environment variables loaded from parent .env file")
+    else:
+        load_dotenv()
+        print("✅ Environment variables loaded from local .env file")
 except ImportError:
     print("⚠️ python-dotenv not installed, using system environment variables")
     pass

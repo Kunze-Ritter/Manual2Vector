@@ -70,8 +70,8 @@ class KRMasterPipeline:
         """Initialize all services"""
         print("Initializing KR Master Pipeline Services...")
         
-        # Load environment variables
-        load_dotenv('../credentials.txt')
+        # Load environment variables from central .env file
+        load_dotenv('../.env')
         
         # Initialize database service
         self.database_service = DatabaseService(
