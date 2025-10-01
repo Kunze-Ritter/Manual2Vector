@@ -162,7 +162,7 @@ class UploadProcessor(BaseProcessor):
         filename_lower = filename.lower()
         
         # Service Manual patterns
-        if any(keyword in filename_lower for keyword in ['service', 'manual', 'repair', 'troubleshooting', 'sm_', '_sm', 'sm.', 'bizhub']):
+        if any(keyword in filename_lower for keyword in ['service', 'manual', 'repair', 'troubleshooting', 'sm_', '_sm', 'sm.']):
             return DocumentType.SERVICE_MANUAL
         
         # Parts Catalog patterns
@@ -189,9 +189,6 @@ class UploadProcessor(BaseProcessor):
         elif any(keyword in filename_lower for keyword in ['troubleshoot', 'diagnostic', 'problem', 'issue']):
             return DocumentType.TROUBLESHOOTING_GUIDE
         
-        # Konica Minolta specific patterns (typically parts guides/manuals)
-        elif any(pattern in filename_lower for pattern in ['a93e', 'aajn', 'aaq', 'aam', 'aap']):
-            return DocumentType.PARTS_CATALOG
         
         # Default to service manual
         else:
