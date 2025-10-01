@@ -431,14 +431,27 @@ class KRMasterPipeline:
             print(f"⚠️  Cannot read directory: {directory} - {e}")
             return []
         
+        # Supported document formats
+        supported_extensions = ['.pdf', '.pdfz', '.docx', '.doc', '.txt', '.rtf']
+        
         for root, dirs, files in os.walk(directory):
             for file in files:
-                if file.lower().endswith('.pdf'):
+                file_ext = os.path.splitext(file)[1].lower()
+                if file_ext in supported_extensions:
                     pdf_files.append(os.path.join(root, file))
                     if limit and len(pdf_files) >= limit:
                         return sorted(pdf_files)
         
-        print(f"📁 Found {len(pdf_files)} PDF files in {directory}")
+        # Count by extension
+        extension_counts = {}
+        for file in pdf_files:
+            ext = os.path.splitext(file)[1].lower()
+            extension_counts[ext] = extension_counts.get(ext, 0) + 1
+        
+        print(f"📁 Found {len(pdf_files)} document files in {directory}")
+        for ext, count in extension_counts.items():
+            print(f"   {ext}: {count} files")
+        
         return sorted(pdf_files)
     
     def find_service_documents_directory(self) -> str:
@@ -459,12 +472,15 @@ class KRMasterPipeline:
                 # Check if it contains PDF files
                 try:
                     files = os.listdir(path)
-                    pdf_count = sum(1 for f in files if f.lower().endswith('.pdf'))
-                    if pdf_count > 0:
-                        print(f"✅ Found service_documents with {pdf_count} PDF files: {os.path.abspath(path)}")
+                    # Count all supported document types
+                    supported_extensions = ['.pdf', '.pdfz', '.docx', '.doc', '.txt', '.rtf']
+                    doc_count = sum(1 for f in files if os.path.splitext(f)[1].lower() in supported_extensions)
+                    
+                    if doc_count > 0:
+                        print(f"✅ Found service_documents with {doc_count} document files: {os.path.abspath(path)}")
                         return path
                     else:
-                        print(f"📁 Found directory but no PDFs: {os.path.abspath(path)}")
+                        print(f"📁 Found directory but no supported documents: {os.path.abspath(path)}")
                 except Exception as e:
                     print(f"⚠️  Cannot read directory {path}: {e}")
             else:
@@ -503,9 +519,9 @@ async def main():
         print("\nMASTER PIPELINE MENU:")
         print("1. Status Check - Zeige aktuelle Dokument-Status")
         print("2. Pipeline Reset - Verarbeite hängende Dokumente")
-        print("3. Hardware Waker - Verarbeite neue PDFs (CPU/GPU)")
+        print("3. Hardware Waker - Verarbeite neue Dokumente (CPU/GPU)")
         print("4. Einzelnes Dokument verarbeiten")
-        print("5. Batch Processing - Alle PDFs verarbeiten")
+        print("5. Batch Processing - Alle Dokumente verarbeiten")
         print("6. Debug - Zeige Pfad-Informationen")
         print("7. Exit")
         
@@ -572,9 +588,9 @@ async def main():
                 continue
             
             print("Options:")
-            print("1. Test mit 3 PDFs (schneller Test)")
-            print("2. Test mit 5 PDFs (mittlerer Test)")
-            print("3. Verarbeite alle PDFs (vollständig)")
+            print("1. Test mit 3 Dokumenten (schneller Test)")
+            print("2. Test mit 5 Dokumenten (mittlerer Test)")
+            print("3. Verarbeite alle Dokumente (vollständig)")
             
             sub_choice = input("Wähle Option (1-3): ").strip()
             
@@ -588,14 +604,14 @@ async def main():
                 pdf_files = pipeline.find_pdf_files(pdf_directory, limit=3)
             
             if not pdf_files:
-                print(f"Keine PDF-Dateien in {pdf_directory} gefunden!")
+                print(f"Keine Dokumente in {pdf_directory} gefunden!")
                 continue
             
-            print(f"\nAusgewählt: {len(pdf_files)} Dateien für Hardware Waker")
+            print(f"\nAusgewählt: {len(pdf_files)} Dokumente für Hardware Waker")
             print(f"Verarbeite {pipeline.max_concurrent} Dokumente gleichzeitig!")
             print("Das SOLLTE deine Hardware aufwecken!")
             
-            response = input(f"\nWAKE UP HARDWARE und verarbeite {len(pdf_files)} Dateien? (y/n): ").lower().strip()
+            response = input(f"\nWAKE UP HARDWARE und verarbeite {len(pdf_files)} Dokumente? (y/n): ").lower().strip()
             if response != 'y':
                 print("Hardware Waker abgebrochen.")
                 continue
@@ -652,11 +668,11 @@ async def main():
             pdf_files = pipeline.find_pdf_files(pdf_directory)
             
             if not pdf_files:
-                print(f"Keine PDF-Dateien in {pdf_directory} gefunden!")
+                print(f"Keine Dokumente in {pdf_directory} gefunden!")
                 continue
             
-            print(f"Gefunden: {len(pdf_files)} PDF-Dateien")
-            response = input(f"\nVerarbeite ALLE {len(pdf_files)} PDFs? (y/n): ").lower().strip()
+            print(f"Gefunden: {len(pdf_files)} Dokumente")
+            response = input(f"\nVerarbeite ALLE {len(pdf_files)} Dokumente? (y/n): ").lower().strip()
             if response != 'y':
                 print("Batch Processing abgebrochen.")
                 continue
@@ -677,9 +693,9 @@ async def main():
             if pdf_directory:
                 print(f"\n✅ Service Documents Directory: {os.path.abspath(pdf_directory)}")
                 pdf_files = pipeline.find_pdf_files(pdf_directory)
-                print(f"📁 PDF Files found: {len(pdf_files)}")
+                print(f"📁 Document Files found: {len(pdf_files)}")
                 if pdf_files:
-                    print("First 5 PDF files:")
+                    print("First 5 document files:")
                     for i, pdf in enumerate(pdf_files[:5]):
                         print(f"  {i+1}. {os.path.basename(pdf)}")
             else:
