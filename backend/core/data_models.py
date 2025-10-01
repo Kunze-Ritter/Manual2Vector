@@ -5,7 +5,7 @@ Pydantic models for all data structures in the processing pipeline
 
 from pydantic import BaseModel, Field, validator
 from typing import Dict, List, Optional, Any, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import uuid
 
@@ -63,8 +63,8 @@ class DocumentModel(BaseModel):
     series: Optional[str] = None
     models: List[str] = Field(default_factory=list)
     version: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     class Config:
         use_enum_values = True
@@ -75,8 +75,8 @@ class ManufacturerModel(BaseModel):
     name: str
     website: Optional[str] = None
     country: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ProductSeriesModel(BaseModel):
     """Product series model for krai_core.product_series"""
@@ -92,8 +92,8 @@ class ProductSeriesModel(BaseModel):
     series_description: Optional[str] = None
     marketing_name: Optional[str] = None
     successor_series_id: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ProductModel(BaseModel):
     """Product model for krai_core.products"""
@@ -128,8 +128,8 @@ class ProductModel(BaseModel):
     option_dependencies: Dict[str, Any] = Field(default_factory=dict)  # JSONB
     replacement_parts: Dict[str, Any] = Field(default_factory=dict)  # JSONB
     common_issues: Dict[str, Any] = Field(default_factory=dict)  # JSONB
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Content Models
 class ChunkModel(BaseModel):
@@ -143,7 +143,7 @@ class ChunkModel(BaseModel):
     section_title: Optional[str] = None
     confidence_score: float = 0.0
     language: str = "en"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ImageModel(BaseModel):
     """Image model for krai_content.images"""
@@ -167,7 +167,7 @@ class ImageModel(BaseModel):
     ocr_confidence: float = 0.0
     tags: List[str] = Field(default_factory=list)
     file_hash: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Intelligence Models
 class IntelligenceChunkModel(BaseModel):
@@ -181,7 +181,7 @@ class IntelligenceChunkModel(BaseModel):
     processing_status: ProcessingStatus = ProcessingStatus.PENDING
     fingerprint: str
     metadata: Dict[str, Any] = Field(default_factory=dict)  # JSONB
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class EmbeddingModel(BaseModel):
     """Embedding model for krai_intelligence.embeddings"""
@@ -190,7 +190,7 @@ class EmbeddingModel(BaseModel):
     embedding: List[float]  # 768-dimensional vector
     model_name: str
     model_version: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ErrorCodeModel(BaseModel):
     """Error code model for krai_intelligence.error_codes"""
@@ -206,7 +206,7 @@ class ErrorCodeModel(BaseModel):
     requires_parts: bool = False
     estimated_fix_time_minutes: Optional[int] = None
     severity_level: str = "low"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class SearchAnalyticsModel(BaseModel):
     """Search analytics model for krai_intelligence.search_analytics"""
@@ -216,7 +216,7 @@ class SearchAnalyticsModel(BaseModel):
     processing_time_ms: float
     user_id: Optional[str] = None
     session_id: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # System Models
 class ProcessingQueueModel(BaseModel):
@@ -231,7 +231,7 @@ class ProcessingQueueModel(BaseModel):
     error_message: Optional[str] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class AuditLogModel(BaseModel):
     """Audit log model for krai_system.audit_log"""
@@ -243,7 +243,7 @@ class AuditLogModel(BaseModel):
     details: Dict[str, Any] = Field(default_factory=dict)  # JSONB
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class SystemMetricsModel(BaseModel):
     """System metrics model for krai_system.system_metrics"""
@@ -267,7 +267,7 @@ class PrintDefectModel(BaseModel):
     difficulty_level: str = "easy"
     related_error_codes: List[str] = Field(default_factory=list)
     similar_cases: List[Dict[str, Any]] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # API Models
 class DocumentUploadRequest(BaseModel):

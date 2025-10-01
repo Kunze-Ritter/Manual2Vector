@@ -81,7 +81,7 @@ class DatabaseService:
     
     async def create_document(self, document: DocumentModel) -> str:
         """Create a new document"""
-        document_data = document.model_dump()
+        document_data = document.model_dump(mode='json')
         
         try:
             # Insert document into krai_core.documents
@@ -127,7 +127,7 @@ class DatabaseService:
     
     async def create_manufacturer(self, manufacturer: ManufacturerModel) -> str:
         """Create a new manufacturer"""
-        manufacturer_data = manufacturer.model_dump()
+        manufacturer_data = manufacturer.model_dump(mode='json')
         
         try:
             result = self.client.table('manufacturers').insert(manufacturer_data).execute()
@@ -158,7 +158,7 @@ class DatabaseService:
     
     async def create_product_series(self, series: ProductSeriesModel) -> str:
         """Create a new product series"""
-        series_data = series.model_dump()
+        series_data = series.model_dump(mode='json')
         
         try:
             result = self.client.table('product_series').insert(series_data).execute()
@@ -189,7 +189,7 @@ class DatabaseService:
     
     async def create_product(self, product: ProductModel) -> str:
         """Create a new product"""
-        product_data = product.model_dump()
+        product_data = product.model_dump(mode='json')
         
         try:
             result = self.client.table('products').insert(product_data).execute()
@@ -207,7 +207,7 @@ class DatabaseService:
     
     async def create_chunk(self, chunk: ChunkModel) -> str:
         """Create a new chunk"""
-        chunk_data = chunk.model_dump()
+        chunk_data = chunk.model_dump(mode='json')
         
         try:
             result = self.client.table('chunks').insert(chunk_data).execute()
@@ -225,7 +225,7 @@ class DatabaseService:
     
     async def create_chunk_async(self, chunk: ChunkModel) -> str:
         """Create a new chunk asynchronously"""
-        chunk_data = chunk.model_dump()
+        chunk_data = chunk.model_dump(mode='json')
         
         try:
             result = self.client.table('chunks').insert(chunk_data).execute()
@@ -256,7 +256,7 @@ class DatabaseService:
     
     async def create_image(self, image: ImageModel) -> str:
         """Create a new image"""
-        image_data = image.model_dump()
+        image_data = image.model_dump(mode='json')
         
         try:
             result = self.client.table('images').insert(image_data).execute()
@@ -274,7 +274,7 @@ class DatabaseService:
     
     async def create_intelligence_chunk(self, chunk: IntelligenceChunkModel) -> str:
         """Create a new intelligence chunk"""
-        chunk_data = chunk.model_dump()
+        chunk_data = chunk.model_dump(mode='json')
         
         try:
             result = self.client.table('intelligence_chunks').insert(chunk_data).execute()
@@ -292,7 +292,7 @@ class DatabaseService:
     
     async def create_embedding(self, embedding: EmbeddingModel) -> str:
         """Create a new embedding"""
-        embedding_data = embedding.model_dump()
+        embedding_data = embedding.model_dump(mode='json')
         
         try:
             result = self.client.table('embeddings').insert(embedding_data).execute()
@@ -326,7 +326,7 @@ class DatabaseService:
     
     async def create_error_code(self, error_code: ErrorCodeModel) -> str:
         """Create a new error code"""
-        error_code_data = error_code.model_dump()
+        error_code_data = error_code.model_dump(mode='json')
         
         try:
             result = self.client.table('error_codes').insert(error_code_data).execute()
@@ -344,7 +344,7 @@ class DatabaseService:
     
     async def create_search_analytics(self, analytics: SearchAnalyticsModel) -> str:
         """Create a new search analytics record"""
-        analytics_data = analytics.model_dump()
+        analytics_data = analytics.model_dump(mode='json')
         
         try:
             result = self.client.table('search_analytics').insert(analytics_data).execute()
@@ -362,7 +362,7 @@ class DatabaseService:
     
     async def create_processing_queue_item(self, item: ProcessingQueueModel) -> str:
         """Create a new processing queue item"""
-        item_data = item.model_dump()
+        item_data = item.model_dump(mode='json')
         
         try:
             result = self.client.table('processing_queue').insert(item_data).execute()
