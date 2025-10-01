@@ -71,12 +71,49 @@ class KRMasterPipeline:
         print("Initializing KR Master Pipeline Services...")
         
         # Load environment variables from central .env file
-        load_dotenv('../.env')
+        # Try multiple possible locations for .env file
+        env_paths = [
+            '.env',                    # Same directory
+            '../.env',                 # Parent directory
+            '../../.env',              # Two levels up
+            '../../../.env',           # Three levels up
+            os.path.join(os.getcwd(), '.env'),  # Current working directory
+        ]
+        
+        env_loaded = False
+        for env_path in env_paths:
+            if os.path.exists(env_path):
+                load_dotenv(env_path)
+                print(f"✅ Environment loaded from: {os.path.abspath(env_path)}")
+                env_loaded = True
+                break
+        
+        if not env_loaded:
+            print("⚠️  No .env file found in any expected location!")
+            print("💡 Please ensure .env file exists in project root")
+            print("🔍 Searched paths:")
+            for path in env_paths:
+                print(f"   - {os.path.abspath(path)}")
+            raise RuntimeError("Environment file not found")
+        
+        # Debug: Show loaded environment variables
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_key = os.getenv('SUPABASE_ANON_KEY')
+        
+        if not supabase_url:
+            print("❌ SUPABASE_URL not found in environment variables!")
+        else:
+            print(f"✅ SUPABASE_URL: {supabase_url[:30]}...")
+            
+        if not supabase_key:
+            print("❌ SUPABASE_ANON_KEY not found in environment variables!")
+        else:
+            print(f"✅ SUPABASE_ANON_KEY: {supabase_key[:20]}...")
         
         # Initialize database service
         self.database_service = DatabaseService(
-            supabase_url=os.getenv('SUPABASE_URL'),
-            supabase_key=os.getenv('SUPABASE_ANON_KEY')
+            supabase_url=supabase_url,
+            supabase_key=supabase_key
         )
         await self.database_service.connect()
         
