@@ -536,9 +536,13 @@ class KRMasterPipeline:
     
     async def monitor_hardware(self):
         """Monitor hardware usage and pipeline progress during processing"""
+        last_doc_count = 0
+        last_classified_count = 0
+        last_chunk_count = 0
+        
         while True:
             try:
-                await asyncio.sleep(10)  # Update every 10 seconds
+                await asyncio.sleep(5)  # Update every 5 seconds
                 
                 # Get hardware status
                 cpu_percent = psutil.cpu_percent(interval=0.1)
@@ -552,35 +556,63 @@ class KRMasterPipeline:
                 # Get pipeline progress
                 pipeline_status = await self._get_pipeline_status()
                 
-                print(f"\n{'='*60}")
-                print(f"--- HARDWARE STATUS ---")
-                print(f"CPU: {cpu_percent:5.1f}% | RAM: {ram_percent:5.1f}% ({ram_used_gb:.1f}GB)")
-                
+                # Create compact status line
+                gpu_status = ""
                 if gpu_info:
-                    print(f"GPU: {gpu_info['name']} | VRAM: {gpu_info['memory_used']:.1f}/{gpu_info['memory_total']:.1f}GB ({gpu_info['memory_percent']:.1f}%)")
+                    gpu_status = f" | GPU: {gpu_info['memory_used']:.1f}/{gpu_info['memory_total']:.1f}GB"
                     if gpu_info['utilization'] > 0:
-                        print(f"GPU Utilization: {gpu_info['utilization']:.1f}%")
+                        gpu_status += f" ({gpu_info['utilization']:.1f}%)"
                 else:
-                    print("GPU: Not Available")
+                    gpu_status = " | GPU: N/A"
                 
-                print(f"\n--- PIPELINE STATUS ---")
-                print(f"Documents: {pipeline_status['total_docs']} total | {pipeline_status['classified_docs']} classified | {pipeline_status['pending_docs']} pending")
-                print(f"Chunks: {pipeline_status['total_chunks']:,} | Images: {pipeline_status['total_images']:,}")
-                print(f"Progress: {pipeline_status['overall_progress']:.1f}% complete")
-                
-                # Show current processing stage
-                if pipeline_status['current_stage']:
-                    print(f"Current Stage: {pipeline_status['current_stage']}")
-                
-                # Check if hardware is waking up
+                # Create activity indicators
+                activity_indicators = []
                 if cpu_percent > 50:
-                    print("🔥 CPU IS WAKING UP!")
+                    activity_indicators.append("🔥CPU")
                 if ram_percent > 60:
-                    print("💾 RAM IS BEING USED!")
+                    activity_indicators.append("💾RAM")
                 if gpu_info and gpu_info['utilization'] > 10:
-                    print("🎮 GPU IS WORKING!")
+                    activity_indicators.append("🎮GPU")
                 
-                print(f"{'='*60}")
+                activity_str = " [" + ",".join(activity_indicators) + "]" if activity_indicators else ""
+                
+                # Create progress bar
+                progress_bar_length = 30
+                progress_filled = int((pipeline_status['overall_progress'] / 100) * progress_bar_length)
+                progress_bar = "█" * progress_filled + "░" * (progress_bar_length - progress_filled)
+                
+                # Create compact status line
+                status_line = (
+                    f"🔄 KR-AI Pipeline | "
+                    f"CPU:{cpu_percent:4.1f}% RAM:{ram_percent:4.1f}%{gpu_status} | "
+                    f"Docs:{pipeline_status['total_docs']} Class:{pipeline_status['classified_docs']} | "
+                    f"Progress: {progress_bar} {pipeline_status['overall_progress']:4.1f}%{activity_str}"
+                )
+                
+                # Clear line and print new status (overwrite previous line)
+                print(f"\r{' ' * 120}", end="")  # Clear line
+                print(f"\r{status_line}", end="", flush=True)
+                
+                # Show detailed status only when significant changes occur
+                current_doc_count = pipeline_status['total_docs']
+                current_classified_count = pipeline_status['classified_docs']
+                current_chunk_count = pipeline_status['total_chunks']
+                
+                if (current_doc_count != last_doc_count or 
+                    current_classified_count != last_classified_count or 
+                    current_chunk_count != last_chunk_count):
+                    
+                    # Print detailed update on new line
+                    print(f"\n📊 Pipeline Update:")
+                    print(f"  Documents: {current_doc_count} total | {current_classified_count} classified | {pipeline_status['pending_docs']} pending")
+                    print(f"  Chunks: {current_chunk_count:,} | Images: {pipeline_status['total_images']:,}")
+                    if pipeline_status['current_stage']:
+                        print(f"  Current: {pipeline_status['current_stage']}")
+                    
+                    # Update tracking variables
+                    last_doc_count = current_doc_count
+                    last_classified_count = current_classified_count
+                    last_chunk_count = current_chunk_count
                 
             except asyncio.CancelledError:
                 break
@@ -665,16 +697,29 @@ class KRMasterPipeline:
             # Get recent documents
             recent_docs = sorted(docs_result.data, key=lambda x: x.get('created_at', ''), reverse=True)[:3] if docs_result.data else []
             
-            # Calculate overall progress
-            if total_docs > 0:
-                if classified_docs > 0:
-                    overall_progress = (classified_docs / total_docs) * 50  # Classification = 50% complete
-                elif total_chunks > 0:
-                    overall_progress = min(37.5, (total_chunks / (total_docs * 100)) * 37.5)  # Text/Image processing
+                # Calculate overall progress based on actual pipeline stages
+                if total_docs > 0:
+                    # Stage 1: Upload (always 100% if documents exist)
+                    upload_progress = 100.0
+                    
+                    # Stage 2-3: Text & Image Processing (based on chunks and images)
+                    text_image_progress = 0
+                    if total_chunks > 0:
+                        # Assume ~1000 chunks per document average
+                        expected_chunks = total_docs * 1000
+                        text_image_progress = min(100, (total_chunks / expected_chunks) * 100)
+                    
+                    # Stage 4: Classification (based on classified documents)
+                    classification_progress = (classified_docs / total_docs) * 100
+                    
+                    # Overall progress: Weighted average
+                    overall_progress = (
+                        upload_progress * 0.1 +           # 10% for upload
+                        text_image_progress * 0.4 +       # 40% for text/image processing
+                        classification_progress * 0.5     # 50% for classification
+                    )
                 else:
-                    overall_progress = 12.5  # Upload stage
-            else:
-                overall_progress = 0
+                    overall_progress = 0
             
             # Determine current stage
             current_stage = None
