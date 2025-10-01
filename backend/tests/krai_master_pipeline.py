@@ -70,81 +70,136 @@ class KRMasterPipeline:
         """Initialize all services"""
         print("Initializing KR Master Pipeline Services...")
         
-        # Load environment variables from central .env file
-        # Try multiple possible locations for .env file (universal approach)
+        # Load environment variables from specific .env files
+        # Try multiple possible locations for .env files (universal approach)
         script_dir = os.path.dirname(os.path.abspath(__file__))
         current_dir = os.getcwd()
         
-        env_paths = [
-            # Relative to script location
-            os.path.join(script_dir, '.env'),                    # Same as script
-            os.path.join(script_dir, '..', '.env'),              # Parent of script
-            os.path.join(script_dir, '..', '..', '.env'),        # Two levels up from script
-            os.path.join(script_dir, '..', '..', '..', '.env'),  # Three levels up from script
-            
-            # Relative to current working directory
-            os.path.join(current_dir, '.env'),                   # Current directory
-            os.path.join(current_dir, '..', '.env'),             # Parent of current
-            os.path.join(current_dir, '..', '..', '.env'),       # Two levels up from current
-            
-            # Absolute paths (fallback)
-            '.env',                    # Same directory (relative)
-            '../.env',                 # Parent directory (relative)
-            '../../.env',              # Two levels up (relative)
+        # Define specific .env files to load
+        env_files = [
+            'env.database',      # Database configuration
+            'env.storage',       # Storage configuration  
+            'env.ai',           # AI configuration
+            'env.system',       # System configuration
+            '.env'              # Legacy fallback
         ]
         
+        # Build search paths for each .env file
+        base_paths = [
+            # Relative to script location
+            script_dir,                                         # Same as script
+            os.path.join(script_dir, '..'),                     # Parent of script
+            os.path.join(script_dir, '..', '..'),               # Two levels up from script
+            os.path.join(script_dir, '..', '..', '..'),         # Three levels up from script
+            
+            # Relative to current working directory
+            current_dir,                                        # Current directory
+            os.path.join(current_dir, '..'),                    # Parent of current
+            os.path.join(current_dir, '..', '..'),              # Two levels up from current
+            
+            # Absolute paths (fallback)
+            '.',                                                # Same directory (relative)
+            '..',                                               # Parent directory (relative)
+            '../..',                                            # Two levels up (relative)
+        ]
+        
+        env_paths = []
+        for env_file in env_files:
+            for base_path in base_paths:
+                env_paths.append(os.path.join(base_path, env_file))
+        
         env_loaded = False
+        loaded_files = []
+        
+        # Load all found .env files (not just the first one)
         for env_path in env_paths:
             if os.path.exists(env_path):
                 load_dotenv(env_path)
-                print(f"✅ Environment loaded from: {os.path.abspath(env_path)}")
+                loaded_files.append(os.path.abspath(env_path))
                 env_loaded = True
-                break
+        
+        if loaded_files:
+            print(f"✅ Environment loaded from {len(loaded_files)} file(s):")
+            for file_path in loaded_files:
+                print(f"   📄 {file_path}")
+        else:
+            env_loaded = False
         
         if not env_loaded:
             print("⚠️  No .env file found in any expected location!")
-            print("💡 Please ensure .env file exists in project root")
-            print("🔍 Searched paths:")
-            for path in env_paths:
-                print(f"   - {os.path.abspath(path)}")
+            print("💡 Please ensure .env files exist in project root")
+            print("🔍 Searched for these files:")
+            for env_file in env_files:
+                print(f"   - {env_file}")
+            print("🔍 In these locations:")
+            for base_path in base_paths[:3]:  # Show first 3 paths
+                print(f"   - {os.path.abspath(base_path)}")
             
-            # Try to create .env from template if available
-            self._try_create_env_from_template(env_paths[0])  # Try in script directory first
-            raise RuntimeError("Environment file not found")
+            # Try to create .env files from templates if available
+            self._try_create_env_from_templates()
+            raise RuntimeError("Environment files not found")
     
-    def _try_create_env_from_template(self, target_path: str):
-        """Try to create .env file from template if available"""
+    def _try_create_env_from_templates(self):
+        """Try to create .env files from templates if available"""
         try:
-            # Look for template files
-            template_paths = [
-                'env.template',
-                '../env.template',
-                '../../env.template',
-                'backend/env.example',
-                '../backend/env.example'
-            ]
+            # Template mappings
+            template_mappings = {
+                'env.database': ['env.database.template', 'env.template'],
+                'env.storage': ['env.storage.template', 'env.template'],
+                'env.ai': ['env.ai.template', 'env.template'],
+                'env.system': ['env.system.template', 'env.template'],
+                '.env': ['env.template', 'backend/env.example']
+            }
             
-            for template_path in template_paths:
-                if os.path.exists(template_path):
-                    print(f"📋 Found template: {template_path}")
-                    print(f"💡 Copying template to: {target_path}")
-                    
-                    # Create directory if it doesn't exist
-                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                    
-                    # Copy template to .env
-                    import shutil
-                    shutil.copy2(template_path, target_path)
-                    
-                    print("✅ .env file created from template!")
-                    print("⚠️  Please edit .env file with your actual credentials")
-                    return True
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.join(script_dir, '..', '..')
             
-            print("❌ No template file found to create .env from")
-            return False
+            created_files = []
             
+            for env_file, template_options in template_mappings.items():
+                target_path = os.path.join(project_root, env_file)
+                
+                # Skip if file already exists
+                if os.path.exists(target_path):
+                    continue
+                
+                # Look for template files
+                for template_name in template_options:
+                    template_paths = [
+                        os.path.join(project_root, template_name),
+                        os.path.join(project_root, '..', template_name),
+                        os.path.join(script_dir, template_name),
+                        template_name  # Relative path
+                    ]
+                    
+                    for template_path in template_paths:
+                        if os.path.exists(template_path):
+                            print(f"📋 Found template: {template_path}")
+                            print(f"💡 Creating: {env_file}")
+                            
+                            # Create directory if it doesn't exist
+                            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                            
+                            # Copy template to target
+                            import shutil
+                            shutil.copy2(template_path, target_path)
+                            
+                            created_files.append(env_file)
+                            break
+                    else:
+                        continue  # No template found, try next template
+                    break  # Template found and copied, move to next env file
+            
+            if created_files:
+                print(f"✅ Created {len(created_files)} .env file(s): {', '.join(created_files)}")
+                print("⚠️  Please edit these files with your actual credentials")
+                return True
+            else:
+                print("❌ No template files found to create .env files from")
+                return False
+                
         except Exception as e:
-            print(f"❌ Failed to create .env from template: {e}")
+            print(f"❌ Failed to create .env files from templates: {e}")
             return False
         
         # Debug: Show loaded environment variables
