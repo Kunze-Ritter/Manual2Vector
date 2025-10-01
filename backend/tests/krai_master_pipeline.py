@@ -535,10 +535,10 @@ class KRMasterPipeline:
         return results
     
     async def monitor_hardware(self):
-        """Monitor hardware usage during processing"""
+        """Monitor hardware usage and pipeline progress during processing"""
         while True:
             try:
-                await asyncio.sleep(5)  # Update every 5 seconds
+                await asyncio.sleep(10)  # Update every 10 seconds
                 
                 # Get hardware status
                 cpu_percent = psutil.cpu_percent(interval=0.1)
@@ -549,7 +549,11 @@ class KRMasterPipeline:
                 # Get GPU status
                 gpu_info = self._get_gpu_status()
                 
-                print(f"\n--- HARDWARE STATUS ---")
+                # Get pipeline progress
+                pipeline_status = await self._get_pipeline_status()
+                
+                print(f"\n{'='*60}")
+                print(f"--- HARDWARE STATUS ---")
                 print(f"CPU: {cpu_percent:5.1f}% | RAM: {ram_percent:5.1f}% ({ram_used_gb:.1f}GB)")
                 
                 if gpu_info:
@@ -559,6 +563,15 @@ class KRMasterPipeline:
                 else:
                     print("GPU: Not Available")
                 
+                print(f"\n--- PIPELINE STATUS ---")
+                print(f"Documents: {pipeline_status['total_docs']} total | {pipeline_status['classified_docs']} classified | {pipeline_status['pending_docs']} pending")
+                print(f"Chunks: {pipeline_status['total_chunks']:,} | Images: {pipeline_status['total_images']:,}")
+                print(f"Progress: {pipeline_status['overall_progress']:.1f}% complete")
+                
+                # Show current processing stage
+                if pipeline_status['current_stage']:
+                    print(f"Current Stage: {pipeline_status['current_stage']}")
+                
                 # Check if hardware is waking up
                 if cpu_percent > 50:
                     print("🔥 CPU IS WAKING UP!")
@@ -567,9 +580,12 @@ class KRMasterPipeline:
                 if gpu_info and gpu_info['utilization'] > 10:
                     print("🎮 GPU IS WORKING!")
                 
+                print(f"{'='*60}")
+                
             except asyncio.CancelledError:
                 break
-            except Exception:
+            except Exception as e:
+                print(f"Monitor error: {e}")
                 pass
     
     def _get_gpu_status(self) -> Dict[str, Any]:
@@ -631,6 +647,69 @@ class KRMasterPipeline:
             pass
         
         return None
+    
+    async def _get_pipeline_status(self) -> Dict[str, Any]:
+        """Get comprehensive pipeline processing status"""
+        try:
+            # Use simple table queries for status
+            docs_result = self.database_service.client.table('documents').select('*').execute()
+            chunks_result = self.database_service.client.table('chunks').select('*').execute()
+            images_result = self.database_service.client.table('images').select('*').execute()
+            
+            # Process results
+            total_docs = len(docs_result.data) if docs_result.data else 0
+            classified_docs = len([d for d in docs_result.data if d.get('manufacturer')]) if docs_result.data else 0
+            total_chunks = len(chunks_result.data) if chunks_result.data else 0
+            total_images = len(images_result.data) if images_result.data else 0
+            
+            # Get recent documents
+            recent_docs = sorted(docs_result.data, key=lambda x: x.get('created_at', ''), reverse=True)[:3] if docs_result.data else []
+            
+            # Calculate overall progress
+            if total_docs > 0:
+                if classified_docs > 0:
+                    overall_progress = (classified_docs / total_docs) * 50  # Classification = 50% complete
+                elif total_chunks > 0:
+                    overall_progress = min(37.5, (total_chunks / (total_docs * 100)) * 37.5)  # Text/Image processing
+                else:
+                    overall_progress = 12.5  # Upload stage
+            else:
+                overall_progress = 0
+            
+            # Determine current stage
+            current_stage = None
+            if recent_docs:
+                latest_doc = recent_docs[0]
+                if latest_doc.get('manufacturer'):
+                    current_stage = f"Classification Complete - {latest_doc.get('filename', 'Unknown')}"
+                elif latest_doc.get('id') in [c.get('document_id') for c in chunks_result.data]:
+                    current_stage = f"Text Processing Complete - {latest_doc.get('filename', 'Unknown')}"
+                else:
+                    current_stage = f"Upload Complete - {latest_doc.get('filename', 'Unknown')}"
+            
+            return {
+                'total_docs': total_docs,
+                'classified_docs': classified_docs,
+                'pending_docs': total_docs - classified_docs,
+                'total_chunks': total_chunks,
+                'total_images': total_images,
+                'overall_progress': overall_progress,
+                'current_stage': current_stage,
+                'recent_activity': recent_docs
+            }
+            
+        except Exception as e:
+            print(f"Pipeline status error: {e}")
+            return {
+                'total_docs': 0,
+                'classified_docs': 0,
+                'pending_docs': 0,
+                'total_chunks': 0,
+                'total_images': 0,
+                'overall_progress': 0,
+                'current_stage': 'Status unavailable',
+                'recent_activity': []
+            }
     
     def find_pdf_files(self, directory: str, limit: int = None) -> List[str]:
         """Find PDF files in directory with optional limit"""
