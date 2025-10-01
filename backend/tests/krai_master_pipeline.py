@@ -721,29 +721,29 @@ class KRMasterPipeline:
             # Get recent documents
             recent_docs = sorted(docs_result.data, key=lambda x: x.get('created_at', ''), reverse=True)[:3] if docs_result.data else []
             
-                # Calculate overall progress based on actual pipeline stages
-                if total_docs > 0:
-                    # Stage 1: Upload (always 100% if documents exist)
-                    upload_progress = 100.0
-                    
-                    # Stage 2-3: Text & Image Processing (based on chunks and images)
-                    text_image_progress = 0
-                    if total_chunks > 0:
-                        # Assume ~1000 chunks per document average
-                        expected_chunks = total_docs * 1000
-                        text_image_progress = min(100, (total_chunks / expected_chunks) * 100)
-                    
-                    # Stage 4: Classification (based on classified documents)
-                    classification_progress = (classified_docs / total_docs) * 100
-                    
-                    # Overall progress: Weighted average
-                    overall_progress = (
-                        upload_progress * 0.1 +           # 10% for upload
-                        text_image_progress * 0.4 +       # 40% for text/image processing
-                        classification_progress * 0.5     # 50% for classification
-                    )
-                else:
-                    overall_progress = 0
+            # Calculate overall progress based on actual pipeline stages
+            if total_docs > 0:
+                # Stage 1: Upload (always 100% if documents exist)
+                upload_progress = 100.0
+                
+                # Stage 2-3: Text & Image Processing (based on chunks and images)
+                text_image_progress = 0
+                if total_chunks > 0:
+                    # Assume ~1000 chunks per document average
+                    expected_chunks = total_docs * 1000
+                    text_image_progress = min(100, (total_chunks / expected_chunks) * 100)
+                
+                # Stage 4: Classification (based on classified documents)
+                classification_progress = (classified_docs / total_docs) * 100
+                
+                # Overall progress: Weighted average
+                overall_progress = (
+                    upload_progress * 0.1 +           # 10% for upload
+                    text_image_progress * 0.4 +       # 40% for text/image processing
+                    classification_progress * 0.5     # 50% for classification
+                )
+            else:
+                overall_progress = 0
             
             # Determine current stage
             current_stage = None
@@ -769,16 +769,16 @@ class KRMasterPipeline:
             
         except Exception as e:
             print(f"Pipeline status error: {e}")
-                return {
-                    'total_docs': 0,
-                    'classified_docs': 0,
-                    'pending_docs': 0,
-                    'total_chunks': 0,
-                    'total_images': 0,
-                    'overall_progress': 0,
-                    'current_stage': 'Status unavailable',
-                    'recent_activity': []
-                }
+            return {
+                'total_docs': 0,
+                'classified_docs': 0,
+                'pending_docs': 0,
+                'total_chunks': 0,
+                'total_images': 0,
+                'overall_progress': 0,
+                'current_stage': 'Status unavailable',
+                'recent_activity': []
+            }
     
     async def _get_error_count(self) -> int:
         """Get count of failed documents"""
