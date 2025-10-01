@@ -1,10 +1,10 @@
 Hardware Detection:
-   RAM: 31.7 GB
-   CPU: 20 cores, 28 threads
-   GPU: Not Available
-   Recommended Tier: balanced
-   GPU Acceleration: Disabled
-   Selected Models: llama3.2:13b, embeddinggemma:2b, llava:13b
+#  RAM: 31.7 GB
+#   CPU: 20 cores, 28 threads
+#   GPU: Not Available
+#   Recommended Tier: balanced
+#   GPU Acceleration: Disabled
+#   Selected Models: llama3.2:13b, embeddinggemma:2b, llava:13b
 
 --- HARDWARE STATUS ---
 CPU:   0.0% | RAM:  44.0% (13.9GB)
