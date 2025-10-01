@@ -1,33 +1,45 @@
-INFO:krai.database:Audit event (disabled): images_processed on document mock_doc_c19c8bce-d3aa-4b5f-9ae3-4aad2cb5b111
-  [2] Classification: A93E017.pdf
-2025-10-01 13:47:57,085 - classification_processor - INFO - Classification processing for document mock_doc_c19c8bce-d3aa-4b5f-9ae3-4aad2cb5b111
-INFO:krai.classification_processor:Classification processing for document mock_doc_c19c8bce-d3aa-4b5f-9ae3-4aad2cb5b111
-2025-10-01 13:47:57,085 - classification_processor - INFO - File path: service_documents\A93E017.pdf
-INFO:krai.classification_processor:File path: service_documents\A93E017.pdf
-2025-10-01 13:47:57,086 - classification_processor - ERROR - PyMuPDF not available - cannot extract text from PDF
-ERROR:krai.classification_processor:PyMuPDF not available - cannot extract text from PDF
-2025-10-01 13:47:57,086 - classification_processor - INFO - PDF not available for mock_doc_c19c8bce-d3aa-4b5f-9ae3-4aad2cb5b111, using chunks for classification
-INFO:krai.classification_processor:PDF not available for mock_doc_c19c8bce-d3aa-4b5f-9ae3-4aad2cb5b111, using chunks for classification
-2025-10-01 13:47:57,086 - Database - ERROR - Failed to get chunks by document ID: 'NoneType' object has no attribute 'table'
-ERROR:krai.database:Failed to get chunks by document ID: 'NoneType' object has no attribute 'table'
-2025-10-01 13:47:57,086 - classification_processor - WARNING - No chunks found for document mock_doc_c19c8bce-d3aa-4b5f-9ae3-4aad2cb5b111
-WARNING:krai.classification_processor:No chunks found for document mock_doc_c19c8bce-d3aa-4b5f-9ae3-4aad2cb5b111
+=== BATCH PROCESSING ===
+🔍 Searching for service_documents directory...
+❌ Not found: service_documents
+❌ Not found: ../service_documents
+✅ Found service_documents with 5 document files: C:\service_documents
+📁 Found 5 document files in ../../service_documents
+   .pdf: 5 files
+Gefunden: 5 Dokumente
 
---- HARDWARE STATUS ---
-CPU:   9.1% | RAM:  46.7% (14.8GB)
-2025-10-01 13:47:58,985 - AI - INFO - Document classified: service_manual (Unknown)
-INFO:krai.ai:Document classified: service_manual (Unknown)
-2025-10-01 13:47:58,985 - Database - INFO - Created manufacturer mock_manufacturer_24ec9611-3087-4dba-b2eb-221202720ad7 (mock)
-INFO:krai.database:Created manufacturer mock_manufacturer_24ec9611-3087-4dba-b2eb-221202720ad7 (mock)
-2025-10-01 13:47:58,986 - classification_processor - INFO - Created new manufacturer: Unknown
-INFO:krai.classification_processor:Created new manufacturer: Unknown
-2025-10-01 13:47:58,986 - Database - INFO - Created product series mock_series_db1aaedb-70cf-4a7c-91d7-0c80d86a5c1c (mock)
-INFO:krai.database:Created product series mock_series_db1aaedb-70cf-4a7c-91d7-0c80d86a5c1c (mock)
-2025-10-01 13:47:58,986 - classification_processor - INFO - Created product series: Unknown
-INFO:krai.classification_processor:Created product series: Unknown
-2025-10-01 13:47:58,986 - classification_processor - INFO - Creating products for 0 models: []
-INFO:krai.classification_processor:Creating products for 0 models: []
-2025-10-01 13:47:58,986 - classification_processor - INFO - Total products created/found: 0
-INFO:krai.classification_processor:Total products created/found: 0
-2025-10-01 13:48:00,791 - AI - INFO - Document classified: service_manual (Unknown)
-INFO:krai.ai:Document classified: service_manual (Unknown)
+Verarbeite ALLE 5 Dokumente? (y/n): y
+HARDWARE WAKER - Processing 5 files with 8 concurrent documents!
+This WILL wake up your CPU and GPU!
+Starting HARDWARE WAKER processing of 5 files...
+Multiple documents will be processed simultaneously - CPU and GPU will be busy!
+[1/5] Processing: A93E.pdf (21.6MB)
+  [1] Upload: A93E.pdf
+2025-10-01 14:19:56,532 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
+ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
+[2/5] Processing: A93E017.pdf (17.1MB)
+  [2] Upload: A93E017.pdf
+2025-10-01 14:19:56,555 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
+ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
+[3/5] Processing: AAJN.pdf (21.7MB)
+  [3] Upload: AAJN.pdf
+2025-10-01 14:19:56,575 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
+ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
+[4/5] Processing: AAJN007.pdf (17.2MB)
+  [4] Upload: AAJN007.pdf
+2025-10-01 14:19:56,593 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
+ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
+[5/5] Processing: bizhub_C750i_C751i_SM_EN_20250729.pdf (104.0MB)
+  [5] Upload: bizhub_C750i_C751i_SM_EN_20250729.pdf
+2025-10-01 14:19:56,691 - krai.database - ERROR - Failed to create document: Object of type datetime is not JSON serializable
+ERROR:krai.database:Failed to create document: Object of type datetime is not JSON serializable
+
+================================================================================
+KR MASTER PIPELINE SUMMARY
+================================================================================
+Total Files: 5
+Successful: 0
+Failed: 5
+Success Rate: 0.0%
+Total Duration: 0.2s (0.0m)
+Average per File: 0.0s
+================================================================================
