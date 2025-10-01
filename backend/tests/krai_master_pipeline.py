@@ -1,3 +1,11 @@
+Hardware Detection:
+   RAM: 31.7 GB
+   CPU: 20 cores, 28 threads
+   GPU: Not Available
+   Recommended Tier: balanced
+   GPU Acceleration: Disabled
+   Selected Models: llama3.2:13b, embeddinggemma:2b, llava:13b
+
 --- HARDWARE STATUS ---
 CPU:   0.0% | RAM:  44.0% (13.9GB)
 2025-10-01 14:46:07,891 - optimized_text_processor - INFO - Memory usage at after_parallel_processing: 294.9 MB
