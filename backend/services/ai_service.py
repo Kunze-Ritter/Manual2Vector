@@ -113,7 +113,34 @@ class AIService:
                 
         except Exception as e:
             self.logger.error(f"Failed to call Ollama model {model}: {e}")
+            # Try fallback models if primary model fails
+            fallback_models = self._get_fallback_model(model)
+            if fallback_models:
+                for fallback in fallback_models:
+                    try:
+                        self.logger.info(f"Trying fallback model: {fallback}")
+                        response = await self._call_ollama_model(fallback, prompt)
+                        return response
+                    except Exception as fallback_error:
+                        self.logger.warning(f"Fallback model {fallback} also failed: {fallback_error}")
+                        continue
             raise
+    
+    def _get_fallback_model(self, model: str) -> List[str]:
+        """Get fallback models for when primary model fails"""
+        fallbacks = {
+            # Text classification fallbacks
+            'llama3.2:latest': ['llama3.2:3b', 'llama3.1:8b'],
+            'llama3.2:3b': ['llama3.1:8b', 'llama3.1:7b'],
+            
+            # Embedding fallbacks  
+            'embeddinggemma:latest': ['embeddinggemma:300m', 'nomic-embed-text'],
+            
+            # Vision fallbacks
+            'llava:latest': ['llava:7b', 'llava:13b'],
+            'llava:7b': ['llava:13b', 'bakllava:7b'],
+        }
+        return fallbacks.get(model, [])
     
     async def classify_document(self, text: str, filename: str = None) -> Dict[str, Any]:
         """

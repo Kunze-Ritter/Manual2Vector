@@ -167,8 +167,8 @@ class HardwareDetector:
         
         configs = {
             ModelTier.CONSERVATIVE: ModelConfig(
-                text_classification="llama3.2:7b",
-                embeddings="embeddinggemma:2b", 
+                text_classification="llama3.2:3b",
+                embeddings="embeddinggemma:300m", 
                 vision="llava:7b",
                 tier=ModelTier.CONSERVATIVE,
                 estimated_ram_usage_gb=8.0,
@@ -177,9 +177,9 @@ class HardwareDetector:
                 estimated_gpu_usage_gb=4.0 if gpu_available else 0.0
             ),
             ModelTier.BALANCED: ModelConfig(
-                text_classification="llama3.2:13b",
-                embeddings="embeddinggemma:2b",
-                vision="llava:13b", 
+                text_classification="llama3.2:latest",
+                embeddings="embeddinggemma:latest",
+                vision="llava:latest", 
                 tier=ModelTier.BALANCED,
                 estimated_ram_usage_gb=16.0,
                 parallel_processing=True,
@@ -275,7 +275,7 @@ OLLAMA_MODELS = {
             'languages': ['en', 'de'],
             'specialization': 'general'
         },
-        'llama3.2:13b': {
+        'llama3.2:latest': {
             'ram_usage_gb': 8.0,
             'context_length': 8192,
             'languages': ['en', 'de'],
@@ -289,7 +289,7 @@ OLLAMA_MODELS = {
         }
     },
     'embeddings': {
-        'embeddinggemma:2b': {
+        'embeddinggemma:latest': {
             'ram_usage_gb': 2.0,
             'embedding_dimensions': 768,
             'languages': ['en', 'de'],
@@ -303,7 +303,7 @@ OLLAMA_MODELS = {
             'languages': ['en', 'de'],
             'specialization': 'general_vision'
         },
-        'llava:13b': {
+        'llava:latest': {
             'ram_usage_gb': 8.0,
             'image_resolution': '336x336',
             'languages': ['en', 'de'],
