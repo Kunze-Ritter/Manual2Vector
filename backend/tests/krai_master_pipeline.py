@@ -550,7 +550,7 @@ class KRMasterPipeline:
         return await self.process_document_smart_stages(document_id, filename, file_path)
     
     async def process_single_document_full_pipeline(self, file_path: str, doc_index: int, total_docs: int) -> Dict[str, Any]:
-        """Process a single document through all 8 stages"""
+        """Process a single document through all 8 stages - Smart version that handles existing documents"""
         try:
             if not os.path.exists(file_path):
                 return {'success': False, 'error': f'File not found: {file_path}'}
@@ -577,9 +577,22 @@ class KRMasterPipeline:
             # Stage 1: Upload Processor
             print(f"  [{doc_index}] Upload: {filename}")
             result1 = await self.processors['upload'].process(context)
-            context.document_id = result1.data.get('document_id')
-            context.file_hash = result1.data.get('file_hash', '')
-            context.document_type = result1.data.get('document_type', '')
+            
+            # Check if document already exists (deduplication)
+            if result1.success and result1.data.get('duplicate'):
+                # Document already exists - get its ID and continue with remaining stages
+                print(f"  [{doc_index}] Document exists - continuing with remaining stages")
+                context.document_id = result1.data.get('document_id')
+                context.file_hash = result1.data.get('file_hash', '')
+                context.document_type = result1.data.get('document_type', '')
+            elif result1.success:
+                # New document - get info from upload result
+                context.document_id = result1.data.get('document_id')
+                context.file_hash = result1.data.get('file_hash', '')
+                context.document_type = result1.data.get('document_type', '')
+            else:
+                # Upload failed
+                return {'success': False, 'error': f'Upload failed: {result1.message}'}
             
             # Stage 2: Text Processor (This will wake up CPU!)
             print(f"  [{doc_index}] Text Processing: {filename}")
@@ -1242,33 +1255,30 @@ async def main():
             pipeline.print_status_summary(results)
             
             # After processing new files, automatically process remaining stages for all pending documents
-            print("\n=== SMART PROCESSING - MISSING STAGES ONLY ===")
+            print("\n=== AUTOMATIC SMART PROCESSING - MISSING STAGES ONLY ===")
             pending_docs = await pipeline.get_documents_needing_processing()
             
             if pending_docs:
-                print(f"Found {len(pending_docs)} documents - checking which stages are missing...")
-                response = input(f"Smart process {len(pending_docs)} documents (only missing stages)? (y/n): ").lower().strip()
+                print(f"Found {len(pending_docs)} documents - automatically processing missing stages...")
+                print("Smart processing - will only run missing stages...")
+                stage_results = {'successful': [], 'failed': [], 'total_files': len(pending_docs)}
                 
-                if response == 'y':
-                    print("Smart processing - will only run missing stages...")
-                    stage_results = {'successful': [], 'failed': [], 'total_files': len(pending_docs)}
+                for i, doc in enumerate(pending_docs):
+                    print(f"\n[{i+1}/{len(pending_docs)}] Smart processing: {doc['filename']}")
+                    result = await pipeline.process_document_smart_stages(
+                        doc['id'], doc['filename'], doc['file_path']
+                    )
                     
-                    for i, doc in enumerate(pending_docs):
-                        print(f"\n[{i+1}/{len(pending_docs)}] Smart processing: {doc['filename']}")
-                        result = await pipeline.process_document_smart_stages(
-                            doc['id'], doc['filename'], doc['file_path']
-                        )
-                        
-                        if result['success']:
-                            stage_results['successful'].append(result)
-                        else:
-                            stage_results['failed'].append(result)
-                    
-                    stage_results['success_rate'] = len(stage_results['successful']) / len(pending_docs) * 100
-                    print("\n=== SMART PROCESSING SUMMARY ===")
-                    pipeline.print_status_summary(stage_results)
+                    if result['success']:
+                        stage_results['successful'].append(result)
+                    else:
+                        stage_results['failed'].append(result)
+                
+                stage_results['success_rate'] = len(stage_results['successful']) / len(pending_docs) * 100
+                print("\n=== SMART PROCESSING SUMMARY ===")
+                pipeline.print_status_summary(stage_results)
             else:
-                print("No documents need processing.")
+                print("No documents need processing - all stages completed!")
             
         elif choice == "4":
             # Single Document Processing
