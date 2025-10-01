@@ -1,0 +1,11 @@
+{
+  "id": "supabase-auth",
+  "name": "Supabase Auth",
+  "type": "httpHeaderAuth",
+  "data": {
+    "name": "Authorization",
+    "value": "Bearer YOUR_SUPABASE_ANON_KEY_HERE"
+  },
+  "createdAt": "2024-10-01T08:00:00.000Z",
+  "updatedAt": "2024-10-01T08:00:00.000Z"
+}
