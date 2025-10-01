@@ -542,9 +542,18 @@ class KRMasterPipeline:
         last_error_count = 0
         show_detailed_view = False
         
-        # Print initial instructions
-        print(f"\n💡 Press 'd' + Enter for detailed view, 'q' + Enter to quit monitoring")
+        # PowerShell-optimized initial setup
+        print(f"\n💡 PowerShell Mode: Press 'd' for detailed view, 'q' to quit")
         print(f"{'='*80}")
+        
+        # Set PowerShell console properties if available
+        try:
+            import os
+            if os.name == 'nt':  # Windows
+                # Enable ANSI color support in PowerShell
+                os.system('powershell -Command "& {$Host.UI.RawUI.OutputEncoding = [System.Text.Encoding]::UTF8}"')
+        except:
+            pass
         
         while True:
             try:
@@ -590,8 +599,8 @@ class KRMasterPipeline:
                 
                 activity_str = " [" + ",".join(activity_indicators) + "]" if activity_indicators else ""
                 
-                # Create progress bar
-                progress_bar_length = 30
+                # PowerShell-optimized progress bar (use simpler characters)
+                progress_bar_length = 25
                 progress_filled = int((pipeline_status['overall_progress'] / 100) * progress_bar_length)
                 progress_bar = "█" * progress_filled + "░" * (progress_bar_length - progress_filled)
                 
@@ -604,9 +613,16 @@ class KRMasterPipeline:
                     f"Progress: {progress_bar} {pipeline_status['overall_progress']:4.1f}%{activity_str}"
                 )
                 
-                # Clear line and print new status (overwrite previous line)
-                print(f"\r{' ' * 150}", end="")  # Clear line
+                # PowerShell-optimized status display
+                # Use carriage return to overwrite the same line
                 print(f"\r{status_line}", end="", flush=True)
+                
+                # Add newline only for detailed updates to prevent PowerShell line wrapping issues
+                if (current_doc_count != last_doc_count or 
+                    current_classified_count != last_classified_count or 
+                    current_chunk_count != last_chunk_count or
+                    show_detailed_view):
+                    print()  # New line before detailed view
                 
                 # Show detailed status only when significant changes occur
                 current_doc_count = pipeline_status['total_docs']
@@ -799,62 +815,59 @@ class KRMasterPipeline:
                 return 0
     
     async def _print_detailed_pipeline_view(self, pipeline_status: Dict[str, Any], error_count: int):
-        """Print detailed pipeline overview with progress bars for each stage"""
-        print(f"\n{'='*80}")
+        """Print detailed pipeline overview with progress bars for each stage (PowerShell optimized)"""
+        print(f"\n{'='*70}")
         print(f"📊 KR-AI PIPELINE OVERVIEW")
-        print(f"{'='*80}")
+        print(f"{'='*70}")
         
         # Stage 1: Upload
         upload_progress = 100.0 if pipeline_status['total_docs'] > 0 else 0
-        upload_bar = "█" * 20 + "░" * 0 if upload_progress == 100 else "░" * 20
-        print(f"📤 Stage 1 - Upload:        {upload_bar} {upload_progress:5.1f}% ({pipeline_status['total_docs']} docs)")
+        upload_bar = "█" * 15 + "░" * 0 if upload_progress == 100 else "░" * 15
+        print(f"📤 Upload:        {upload_bar} {upload_progress:5.1f}% ({pipeline_status['total_docs']} docs)")
         
         # Stage 2: Text Processing
         text_progress = 0
         if pipeline_status['total_docs'] > 0:
-            # Estimate based on chunks per document
             expected_chunks = pipeline_status['total_docs'] * 1000
             text_progress = min(100, (pipeline_status['total_chunks'] / expected_chunks) * 100)
         
-        text_bar_length = int((text_progress / 100) * 20)
-        text_bar = "█" * text_bar_length + "░" * (20 - text_bar_length)
-        print(f"📄 Stage 2 - Text:          {text_bar} {text_progress:5.1f}% ({pipeline_status['total_chunks']:,} chunks)")
+        text_bar_length = int((text_progress / 100) * 15)
+        text_bar = "█" * text_bar_length + "░" * (15 - text_bar_length)
+        print(f"📄 Text:          {text_bar} {text_progress:5.1f}% ({pipeline_status['total_chunks']:,} chunks)")
         
         # Stage 3: Image Processing
         image_progress = 0
         if pipeline_status['total_docs'] > 0:
-            # Estimate based on images per document
             expected_images = pipeline_status['total_docs'] * 100
             image_progress = min(100, (pipeline_status['total_images'] / expected_images) * 100)
         
-        image_bar_length = int((image_progress / 100) * 20)
-        image_bar = "█" * image_bar_length + "░" * (20 - image_bar_length)
-        print(f"🖼️  Stage 3 - Images:        {image_bar} {image_progress:5.1f}% ({pipeline_status['total_images']:,} images)")
+        image_bar_length = int((image_progress / 100) * 15)
+        image_bar = "█" * image_bar_length + "░" * (15 - image_bar_length)
+        print(f"🖼️  Images:        {image_bar} {image_progress:5.1f}% ({pipeline_status['total_images']:,} images)")
         
         # Stage 4: Classification
         class_progress = 0
         if pipeline_status['total_docs'] > 0:
             class_progress = (pipeline_status['classified_docs'] / pipeline_status['total_docs']) * 100
         
-        class_bar_length = int((class_progress / 100) * 20)
-        class_bar = "█" * class_bar_length + "░" * (20 - class_bar_length)
-        print(f"🏷️  Stage 4 - Classification: {class_bar} {class_progress:5.1f}% ({pipeline_status['classified_docs']}/{pipeline_status['total_docs']} docs)")
+        class_bar_length = int((class_progress / 100) * 15)
+        class_bar = "█" * class_bar_length + "░" * (15 - class_bar_length)
+        print(f"🏷️  Classification: {class_bar} {class_progress:5.1f}% ({pipeline_status['classified_docs']}/{pipeline_status['total_docs']} docs)")
         
         # Overall Progress
-        overall_bar_length = int((pipeline_status['overall_progress'] / 100) * 30)
-        overall_bar = "█" * overall_bar_length + "░" * (30 - overall_bar_length)
-        print(f"\n🎯 OVERALL PROGRESS:         {overall_bar} {pipeline_status['overall_progress']:5.1f}%")
+        overall_bar_length = int((pipeline_status['overall_progress'] / 100) * 20)
+        overall_bar = "█" * overall_bar_length + "░" * (20 - overall_bar_length)
+        print(f"\n🎯 OVERALL:       {overall_bar} {pipeline_status['overall_progress']:5.1f}%")
         
         # Error Status
         if error_count > 0:
-            print(f"❌ ERRORS DETECTED:          {error_count} documents stuck in pipeline")
-            print(f"💡 Run: python backend/tests/pipeline_recovery.py")
+            print(f"❌ ERRORS: {error_count} docs stuck | 💡 Run: python backend/tests/pipeline_recovery.py")
         
         # Current Activity
         if pipeline_status['current_stage']:
-            print(f"🔄 CURRENT ACTIVITY:        {pipeline_status['current_stage']}")
+            print(f"🔄 CURRENT: {pipeline_status['current_stage']}")
         
-        print(f"{'='*80}")
+        print(f"{'='*70}")
     
     def find_pdf_files(self, directory: str, limit: int = None) -> List[str]:
         """Find PDF files in directory with optional limit"""
