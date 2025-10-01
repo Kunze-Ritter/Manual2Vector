@@ -58,8 +58,7 @@ class DatabaseService:
         """Connect to Supabase database"""
         try:
             if not SUPABASE_AVAILABLE:
-                self.logger.warning("Supabase client not available. Running in mock mode.")
-                return
+                raise ImportError("Supabase client not available. Please install: pip install supabase")
             
             self.client = create_client(self.supabase_url, self.supabase_key)
             self.logger.info("Connected to Supabase database")
@@ -69,15 +68,13 @@ class DatabaseService:
             
         except Exception as e:
             self.logger.error(f"Failed to connect to database: {e}")
-            # Don't raise - continue in mock mode for testing
-            self.logger.warning("Continuing in mock mode due to connection error")
+            raise RuntimeError(f"Cannot connect to Supabase database: {e}")
     
     async def test_connection(self):
         """Test database connection"""
         try:
             if self.client is None:
-                self.logger.info("Database connection test skipped (mock mode)")
-                return
+                raise RuntimeError("Database client not connected")
             
             # Simple query to test connection
             result = self.client.table("system_metrics").select("id").limit(1).execute()

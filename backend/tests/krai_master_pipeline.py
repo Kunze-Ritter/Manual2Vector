@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 
 # Import services
-from services.database_service import DatabaseService
+from services.database_service_production import DatabaseService
 from services.object_storage_service import ObjectStorageService
 from services.ai_service import AIService
 from services.config_service import ConfigService
