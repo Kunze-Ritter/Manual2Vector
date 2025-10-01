@@ -392,28 +392,23 @@ BEGIN
 END $$;
 
 -- Execute the main performance test suite
-SELECT * FROM krai_system.run_performance_test_suite();
+-- SELECT * FROM krai_system.run_performance_test_suite();
 
-RAISE NOTICE '';
-RAISE NOTICE '⚡ INDEX PERFORMANCE TESTS:';
-RAISE NOTICE '================================';
-
--- Execute index performance tests
-SELECT * FROM krai_system.test_index_performance();
-
-RAISE NOTICE '';
-RAISE NOTICE '🔍 VECTOR PERFORMANCE TESTS:';
-RAISE NOTICE '===============================';
-
--- Execute vector performance tests  
-SELECT * FROM krai_system.test_vector_performance();
-
-RAISE NOTICE '';
-RAISE NOTICE '💚 SYSTEM HEALTH CHECK:';
-RAISE NOTICE '==========================';
-
--- Execute system health check
-SELECT * FROM krai_system.system_health_check();
+-- NOTE: Die Performance Tests können manuell ausgeführt werden:
+-- 
+-- 1. Main Performance Test Suite:
+--    SELECT * FROM krai_system.run_performance_test_suite();
+--
+-- 2. Index Performance Tests:
+--    SELECT * FROM krai_system.test_index_performance();
+--
+-- 3. Vector Performance Tests:
+--    SELECT * FROM krai_system.test_vector_performance();
+--
+-- 4. System Health Check:
+--    SELECT * FROM krai_system.system_health_check();
+--
+-- Diese Tests sind optional und müssen nicht bei jeder Migration ausgeführt werden.
 
 -- ======================================================================
 -- COMPLETION MESSAGE
