@@ -49,6 +49,7 @@ ALTER TABLE krai_ml.model_registry ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_ml.model_performance_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_parts.parts_catalog ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_parts.inventory_levels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE krai_service.technicians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_service.service_calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_service.service_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE krai_users.users ENABLE ROW LEVEL SECURITY;
@@ -186,6 +187,10 @@ CREATE POLICY "service_role_parts_catalog_all" ON krai_parts.parts_catalog FOR A
 
 -- Inventory levels policies
 CREATE POLICY "service_role_inventory_levels_all" ON krai_parts.inventory_levels FOR ALL
+    USING (true);
+
+-- Technicians policies
+CREATE POLICY "service_role_technicians_all" ON krai_service.technicians FOR ALL
     USING (true);
 
 -- Service calls policies

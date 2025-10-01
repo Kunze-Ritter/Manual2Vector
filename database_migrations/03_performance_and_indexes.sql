@@ -366,9 +366,13 @@ CREATE INDEX IF NOT EXISTS idx_print_defects_original_image_id ON krai_content.p
 CREATE INDEX IF NOT EXISTS idx_model_performance_history_model_id ON krai_ml.model_performance_history(model_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_levels_part_id ON krai_parts.inventory_levels(part_id);
 CREATE INDEX IF NOT EXISTS idx_parts_catalog_manufacturer_id ON krai_parts.parts_catalog(manufacturer_id);
+CREATE INDEX IF NOT EXISTS idx_technicians_user_id ON krai_service.technicians(user_id);
+CREATE INDEX IF NOT EXISTS idx_technicians_employee_id ON krai_service.technicians(employee_id);
 CREATE INDEX IF NOT EXISTS idx_service_calls_manufacturer_id ON krai_service.service_calls(manufacturer_id);
 CREATE INDEX IF NOT EXISTS idx_service_calls_product_id ON krai_service.service_calls(product_id);
+CREATE INDEX IF NOT EXISTS idx_service_calls_assigned_technician_id ON krai_service.service_calls(assigned_technician_id);
 CREATE INDEX IF NOT EXISTS idx_service_history_service_call_id ON krai_service.service_history(service_call_id);
+CREATE INDEX IF NOT EXISTS idx_service_history_performed_by ON krai_service.service_history(performed_by);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON krai_users.user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_preferred_manufacturer_id ON krai_users.users(preferred_manufacturer_id);
 

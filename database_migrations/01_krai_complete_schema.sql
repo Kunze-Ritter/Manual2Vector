@@ -498,25 +498,52 @@ CREATE TABLE IF NOT EXISTS krai_parts.inventory_levels (
 );
 
 -- Service Schema Tables
+-- First create technicians table (no dependencies)
+CREATE TABLE IF NOT EXISTS krai_service.technicians (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,  -- Will be linked to krai_users.users later via ALTER TABLE
+    technician_name VARCHAR(255) NOT NULL,
+    employee_id VARCHAR(50) UNIQUE,
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    certification_level VARCHAR(50),
+    specializations TEXT[],
+    is_active BOOLEAN DEFAULT true,
+    hired_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Service Calls table (references technicians)
 CREATE TABLE IF NOT EXISTS krai_service.service_calls (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     manufacturer_id UUID NOT NULL REFERENCES krai_core.manufacturers(id),
     product_id UUID REFERENCES krai_core.products(id),
-    assigned_technician_id UUID REFERENCES krai_service.service_history(id),
+    assigned_technician_id UUID REFERENCES krai_service.technicians(id),
     call_status VARCHAR(50) DEFAULT 'open',
     priority_level INTEGER DEFAULT 3,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    customer_name VARCHAR(255),
+    customer_contact TEXT,
+    issue_description TEXT,
+    scheduled_date TIMESTAMP WITH TIME ZONE,
+    completed_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Service History table (references service_calls and technicians)
 CREATE TABLE IF NOT EXISTS krai_service.service_history (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    service_call_id UUID REFERENCES krai_service.service_calls(id),
-    performed_by UUID REFERENCES krai_service.service_history(id),
-    service_date TIMESTAMP WITH TIME ZONE,
+    service_call_id UUID REFERENCES krai_service.service_calls(id) ON DELETE CASCADE,
+    performed_by UUID REFERENCES krai_service.technicians(id),
+    service_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     service_notes TEXT,
     parts_used JSONB DEFAULT '[]',
     labor_hours DECIMAL(4,2),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    service_type VARCHAR(50),
+    outcome VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Users Schema Tables  
@@ -554,6 +581,15 @@ CREATE TABLE IF NOT EXISTS krai_integrations.webhook_logs (
     response_body TEXT,
     processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- ======================================================================
+-- FOREIGN KEY CONSTRAINTS (Added after all tables are created)
+-- ======================================================================
+
+-- Link technicians to users (added after users table is created)
+ALTER TABLE krai_service.technicians 
+ADD CONSTRAINT fk_technicians_user_id 
+FOREIGN KEY (user_id) REFERENCES krai_users.users(id) ON DELETE SET NULL;
 
 -- ======================================================================
 -- Basic Indexes for Performance  
