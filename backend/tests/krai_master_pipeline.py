@@ -580,13 +580,34 @@ class KRMasterPipeline:
             
             # Check if document already exists (deduplication)
             if result1.success and result1.data.get('duplicate'):
-                # Document already exists - get its ID and continue with remaining stages
-                print(f"  [{doc_index}] Document exists - continuing with remaining stages")
-                context.document_id = result1.data.get('document_id')
-                context.file_hash = result1.data.get('file_hash', '')
-                context.document_type = result1.data.get('document_type', '')
+                # Document already exists - use Smart Processing for remaining stages
+                print(f"  [{doc_index}] Document exists - using Smart Processing for remaining stages")
+                document_id = result1.data.get('document_id')
+                file_path = f"../service_documents/{filename}"
+                
+                # Use Smart Processing to handle only missing stages
+                smart_result = await self.process_document_smart_stages(document_id, filename, file_path)
+                
+                if smart_result['success']:
+                    return {
+                        'success': True,
+                        'document_id': document_id,
+                        'filename': filename,
+                        'file_size': file_size,
+                        'chunks': 0,  # Smart processing handles this
+                        'images': 0,  # Smart processing handles this
+                        'smart_processing': True,
+                        'completed_stages': smart_result.get('completed_stages', []),
+                        'message': 'Smart processing completed'
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': f'Smart processing failed: {smart_result.get("error", "Unknown error")}',
+                        'filename': filename
+                    }
             elif result1.success:
-                # New document - get info from upload result
+                # New document - get info from upload result and continue with all stages
                 context.document_id = result1.data.get('document_id')
                 context.file_hash = result1.data.get('file_hash', '')
                 context.document_type = result1.data.get('document_type', '')
@@ -594,6 +615,7 @@ class KRMasterPipeline:
                 # Upload failed
                 return {'success': False, 'error': f'Upload failed: {result1.message}'}
             
+            # For new documents, continue with all stages
             # Stage 2: Text Processor (This will wake up CPU!)
             print(f"  [{doc_index}] Text Processing: {filename}")
             result2 = await self.processors['text'].process(context)
@@ -632,7 +654,8 @@ class KRMasterPipeline:
                 'filename': filename,
                 'file_size': file_size,
                 'chunks': chunks_count,
-                'images': images_count
+                'images': images_count,
+                'smart_processing': False
             }
             
         except Exception as e:
