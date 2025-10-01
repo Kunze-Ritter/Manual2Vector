@@ -86,7 +86,7 @@ class HardwareDetector:
         try:
             import torch
             if torch.cuda.is_available():
-                print(f"   ✅ CUDA GPU detected: {torch.cuda.get_device_name(0)}")
+                print(f"   [OK] CUDA GPU detected: {torch.cuda.get_device_name(0)}")
                 gpu_found = True
         except ImportError:
             pass
@@ -97,7 +97,7 @@ class HardwareDetector:
                 import subprocess
                 result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
                 if result.returncode == 0:
-                    print(f"   ✅ NVIDIA GPU detected via nvidia-smi")
+                    print(f"   [OK] NVIDIA GPU detected via nvidia-smi")
                     gpu_found = True
             except:
                 pass
@@ -109,7 +109,7 @@ class HardwareDetector:
                 result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name'], 
                                       capture_output=True, text=True)
                 if result.returncode == 0 and 'Intel' in result.stdout:
-                    print(f"   ✅ Intel GPU detected via wmic")
+                    print(f"   [OK] Intel GPU detected via wmic")
                     gpu_found = True
             except:
                 pass
@@ -121,7 +121,7 @@ class HardwareDetector:
                 result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name'], 
                                       capture_output=True, text=True)
                 if result.returncode == 0 and any(keyword in result.stdout for keyword in ['AMD', 'Radeon']):
-                    print(f"   ✅ AMD GPU detected via wmic")
+                    print(f"   [OK] AMD GPU detected via wmic")
                     gpu_found = True
             except:
                 pass
@@ -135,13 +135,13 @@ class HardwareDetector:
                 if result.returncode == 0:
                     gpu_lines = [line.strip() for line in result.stdout.split('\n') if line.strip() and line.strip() != 'Name']
                     if gpu_lines:
-                        print(f"   ✅ GPU detected via wmic: {gpu_lines[0]}")
+                        print(f"   [OK] GPU detected via wmic: {gpu_lines[0]}")
                         gpu_found = True
             except:
                 pass
         
         if not gpu_found:
-            print(f"   ❌ No GPU detected")
+            print(f"   [NO] No GPU detected")
         
         return gpu_found
     
@@ -152,7 +152,7 @@ class HardwareDetector:
             import torch
             if torch.cuda.is_available():
                 memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-                print(f"   📊 GPU Memory: {memory_gb:.1f} GB (CUDA)")
+                print(f"   [MEM] GPU Memory: {memory_gb:.1f} GB (CUDA)")
                 return memory_gb
         except:
             pass
@@ -165,7 +165,7 @@ class HardwareDetector:
             if result.returncode == 0:
                 memory_mb = int(result.stdout.strip())
                 memory_gb = memory_mb / 1024
-                print(f"   📊 GPU Memory: {memory_gb:.1f} GB (nvidia-smi)")
+                print(f"   [MEM] GPU Memory: {memory_gb:.1f} GB (nvidia-smi)")
                 return memory_gb
         except:
             pass
@@ -179,15 +179,15 @@ class HardwareDetector:
                 lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
                 for line in lines:
                     if 'Name' not in line and 'Intel' in line:
-                        print(f"   📊 GPU Memory: ~2.0 GB (Intel GPU estimate)")
+                        print(f"   [MEM] GPU Memory: ~2.0 GB (Intel GPU estimate)")
                         return 2.0
                     elif 'Name' not in line and any(keyword in line for keyword in ['AMD', 'Radeon']):
-                        print(f"   📊 GPU Memory: ~4.0 GB (AMD GPU estimate)")
+                        print(f"   [MEM] GPU Memory: ~4.0 GB (AMD GPU estimate)")
                         return 4.0
         except:
             pass
         
-        print(f"   📊 GPU Memory: Unknown")
+        print(f"   [MEM] GPU Memory: Unknown")
         return None
     
     def _get_gpu_name(self) -> Optional[str]:
@@ -197,7 +197,7 @@ class HardwareDetector:
             import torch
             if torch.cuda.is_available():
                 gpu_name = torch.cuda.get_device_name(0)
-                print(f"   🎮 GPU Name: {gpu_name} (CUDA)")
+                print(f"   [GPU] GPU Name: {gpu_name} (CUDA)")
                 return gpu_name
         except:
             pass
@@ -209,7 +209,7 @@ class HardwareDetector:
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 gpu_name = result.stdout.strip()
-                print(f"   🎮 GPU Name: {gpu_name} (nvidia-smi)")
+                print(f"   [GPU] GPU Name: {gpu_name} (nvidia-smi)")
                 return gpu_name
         except:
             pass
@@ -223,12 +223,12 @@ class HardwareDetector:
                 lines = [line.strip() for line in result.stdout.split('\n') if line.strip() and line.strip() != 'Name']
                 if lines:
                     gpu_name = lines[0]
-                    print(f"   🎮 GPU Name: {gpu_name} (wmic)")
+                    print(f"   [GPU] GPU Name: {gpu_name} (wmic)")
                     return gpu_name
         except:
             pass
         
-        print(f"   🎮 GPU Name: Unknown")
+        print(f"   [GPU] GPU Name: Unknown")
         return None
     
     def _get_gpu_driver_version(self) -> Optional[str]:
