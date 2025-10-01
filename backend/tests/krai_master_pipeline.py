@@ -415,13 +415,64 @@ class KRMasterPipeline:
     def find_pdf_files(self, directory: str, limit: int = None) -> List[str]:
         """Find PDF files in directory with optional limit"""
         pdf_files = []
+        
+        # Check if directory exists
+        if not os.path.exists(directory):
+            print(f"⚠️  Directory not found: {directory}")
+            return []
+        
+        # Check if directory is empty
+        try:
+            files_in_dir = os.listdir(directory)
+            if not files_in_dir:
+                print(f"⚠️  Directory is empty: {directory}")
+                return []
+        except Exception as e:
+            print(f"⚠️  Cannot read directory: {directory} - {e}")
+            return []
+        
         for root, dirs, files in os.walk(directory):
             for file in files:
                 if file.lower().endswith('.pdf'):
                     pdf_files.append(os.path.join(root, file))
                     if limit and len(pdf_files) >= limit:
                         return sorted(pdf_files)
+        
+        print(f"📁 Found {len(pdf_files)} PDF files in {directory}")
         return sorted(pdf_files)
+    
+    def find_service_documents_directory(self) -> str:
+        """Find the service_documents directory with intelligent path detection"""
+        possible_paths = [
+            "service_documents",  # Same directory
+            "../service_documents",  # Parent directory
+            "../../service_documents",  # Two levels up
+            "./service_documents",  # Explicit current directory
+            os.path.join(os.getcwd(), "service_documents"),  # Absolute current + service_documents
+            os.path.join(os.path.dirname(os.getcwd()), "service_documents"),  # Parent + service_documents
+        ]
+        
+        print("🔍 Searching for service_documents directory...")
+        
+        for path in possible_paths:
+            if os.path.exists(path) and os.path.isdir(path):
+                # Check if it contains PDF files
+                try:
+                    files = os.listdir(path)
+                    pdf_count = sum(1 for f in files if f.lower().endswith('.pdf'))
+                    if pdf_count > 0:
+                        print(f"✅ Found service_documents with {pdf_count} PDF files: {os.path.abspath(path)}")
+                        return path
+                    else:
+                        print(f"📁 Found directory but no PDFs: {os.path.abspath(path)}")
+                except Exception as e:
+                    print(f"⚠️  Cannot read directory {path}: {e}")
+            else:
+                print(f"❌ Not found: {path}")
+        
+        print("⚠️  No service_documents directory with PDFs found!")
+        print("💡 Please create a 'service_documents' directory and add PDF files")
+        return None
     
     def print_status_summary(self, results: Dict[str, Any]):
         """Print status summary"""
@@ -455,9 +506,10 @@ async def main():
         print("3. Hardware Waker - Verarbeite neue PDFs (CPU/GPU)")
         print("4. Einzelnes Dokument verarbeiten")
         print("5. Batch Processing - Alle PDFs verarbeiten")
-        print("6. Exit")
+        print("6. Debug - Zeige Pfad-Informationen")
+        print("7. Exit")
         
-        choice = input("\nWähle Option (1-6): ").strip()
+        choice = input("\nWähle Option (1-7): ").strip()
         
         if choice == "1":
             # Status Check
@@ -511,7 +563,13 @@ async def main():
         elif choice == "3":
             # Hardware Waker
             print("\n=== HARDWARE WAKER ===")
-            pdf_directory = "../service_documents"
+            
+            # Find service_documents directory intelligently
+            pdf_directory = pipeline.find_service_documents_directory()
+            if not pdf_directory:
+                print("❌ Cannot find service_documents directory with PDFs!")
+                print("💡 Please create a 'service_documents' directory and add PDF files")
+                continue
             
             print("Options:")
             print("1. Test mit 3 PDFs (schneller Test)")
@@ -583,7 +641,14 @@ async def main():
         elif choice == "5":
             # Batch Processing
             print("\n=== BATCH PROCESSING ===")
-            pdf_directory = "../service_documents"
+            
+            # Find service_documents directory intelligently
+            pdf_directory = pipeline.find_service_documents_directory()
+            if not pdf_directory:
+                print("❌ Cannot find service_documents directory with PDFs!")
+                print("💡 Please create a 'service_documents' directory and add PDF files")
+                continue
+            
             pdf_files = pipeline.find_pdf_files(pdf_directory)
             
             if not pdf_files:
@@ -600,12 +665,34 @@ async def main():
             pipeline.print_status_summary(results)
             
         elif choice == "6":
+            # Debug
+            print("\n=== DEBUG INFORMATIONEN ===")
+            print(f"Current Working Directory: {os.getcwd()}")
+            print(f"Script Location: {os.path.abspath(__file__)}")
+            print(f"Script Directory: {os.path.dirname(os.path.abspath(__file__))}")
+            
+            print("\n🔍 Searching for service_documents...")
+            pdf_directory = pipeline.find_service_documents_directory()
+            
+            if pdf_directory:
+                print(f"\n✅ Service Documents Directory: {os.path.abspath(pdf_directory)}")
+                pdf_files = pipeline.find_pdf_files(pdf_directory)
+                print(f"📁 PDF Files found: {len(pdf_files)}")
+                if pdf_files:
+                    print("First 5 PDF files:")
+                    for i, pdf in enumerate(pdf_files[:5]):
+                        print(f"  {i+1}. {os.path.basename(pdf)}")
+            else:
+                print("\n❌ No service_documents directory found!")
+                print("💡 Create a 'service_documents' directory and add PDF files")
+            
+        elif choice == "7":
             # Exit
             print("\nAuf Wiedersehen! KR-AI-Engine Master Pipeline beendet.")
             break
             
         else:
-            print("Ungültige Option. Bitte 1-6 wählen.")
+            print("Ungültige Option. Bitte 1-7 wählen.")
 
 if __name__ == "__main__":
     asyncio.run(main())
