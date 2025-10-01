@@ -81,6 +81,22 @@ class UploadProcessor(BaseProcessor):
             # Generate file hash for deduplication
             file_hash = hashlib.sha256(file_content).hexdigest()
             
+            # Check for existing document with same hash (DEDUPLICATION!)
+            existing_doc = await self.database_service.get_document_by_hash(file_hash)
+            if existing_doc:
+                self.logger.info(f"Document with hash {file_hash[:16]}... already exists: {existing_doc['id']}")
+                return ProcessingResult(
+                    success=True,
+                    data={
+                        'document_id': existing_doc['id'],
+                        'file_hash': file_hash,
+                        'document_type': existing_doc.get('document_type', 'unknown'),
+                        'file_size': existing_doc.get('file_size', 0),
+                        'duplicate': True
+                    },
+                    message="Document already exists (deduplication)"
+                )
+            
             # Get file metadata
             file_size = len(file_content)
             content_type = mimetypes.guess_type(context.file_path)[0] or 'application/octet-stream'

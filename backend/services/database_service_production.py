@@ -111,6 +111,15 @@ class DatabaseService:
             self.logger.error(f"Failed to get document: {e}")
             return None
     
+    async def get_document_by_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
+        """Get document by file hash for deduplication"""
+        try:
+            result = self.client.table('documents').select('*').eq('file_hash', file_hash).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            self.logger.error(f"Failed to get document by hash {file_hash[:16]}...: {e}")
+            return None
+    
     async def update_document(self, document_id: str, updates: Dict[str, Any]) -> bool:
         """Update document"""
         try:
