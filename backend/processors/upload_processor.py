@@ -162,11 +162,11 @@ class UploadProcessor(BaseProcessor):
         filename_lower = filename.lower()
         
         # Service Manual patterns
-        if any(keyword in filename_lower for keyword in ['service', 'manual', 'repair', 'troubleshooting']):
+        if any(keyword in filename_lower for keyword in ['service', 'manual', 'repair', 'troubleshooting', 'sm_', '_sm', 'sm.']):
             return DocumentType.SERVICE_MANUAL
         
         # Parts Catalog patterns
-        elif any(keyword in filename_lower for keyword in ['parts', 'catalog', 'spare', 'replacement']):
+        elif any(keyword in filename_lower for keyword in ['parts', 'catalog', 'spare', 'replacement', 'a93e', 'aajn']):
             return DocumentType.PARTS_CATALOG
         
         # Technical Bulletin patterns
