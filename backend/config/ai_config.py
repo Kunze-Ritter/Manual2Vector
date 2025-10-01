@@ -80,49 +80,155 @@ class HardwareDetector:
     
     def _detect_gpu(self) -> bool:
         """Detect if GPU is available"""
-        try:
-            import torch
-            return torch.cuda.is_available()
-        except ImportError:
-            # Fallback: Check nvidia-smi
-            try:
-                import subprocess
-                result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
-                return result.returncode == 0
-            except:
-                return False
-    
-    def _get_gpu_memory(self) -> Optional[float]:
-        """Get GPU memory in GB"""
+        gpu_found = False
+        
+        # Method 1: Check CUDA (NVIDIA)
         try:
             import torch
             if torch.cuda.is_available():
-                return torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                print(f"   ✅ CUDA GPU detected: {torch.cuda.get_device_name(0)}")
+                gpu_found = True
+        except ImportError:
+            pass
+        
+        # Method 2: Check nvidia-smi (NVIDIA)
+        if not gpu_found:
+            try:
+                import subprocess
+                result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"   ✅ NVIDIA GPU detected via nvidia-smi")
+                    gpu_found = True
+            except:
+                pass
+        
+        # Method 3: Check Intel GPU (Windows)
+        if not gpu_found:
+            try:
+                import subprocess
+                result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0 and 'Intel' in result.stdout:
+                    print(f"   ✅ Intel GPU detected via wmic")
+                    gpu_found = True
+            except:
+                pass
+        
+        # Method 4: Check AMD GPU (Windows)
+        if not gpu_found:
+            try:
+                import subprocess
+                result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0 and any(keyword in result.stdout for keyword in ['AMD', 'Radeon']):
+                    print(f"   ✅ AMD GPU detected via wmic")
+                    gpu_found = True
+            except:
+                pass
+        
+        # Method 5: Generic GPU detection (Windows)
+        if not gpu_found:
+            try:
+                import subprocess
+                result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0:
+                    gpu_lines = [line.strip() for line in result.stdout.split('\n') if line.strip() and line.strip() != 'Name']
+                    if gpu_lines:
+                        print(f"   ✅ GPU detected via wmic: {gpu_lines[0]}")
+                        gpu_found = True
+            except:
+                pass
+        
+        if not gpu_found:
+            print(f"   ❌ No GPU detected")
+        
+        return gpu_found
+    
+    def _get_gpu_memory(self) -> Optional[float]:
+        """Get GPU memory in GB"""
+        # Method 1: CUDA
+        try:
+            import torch
+            if torch.cuda.is_available():
+                memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                print(f"   📊 GPU Memory: {memory_gb:.1f} GB (CUDA)")
+                return memory_gb
         except:
             pass
         
-        # Fallback: Parse nvidia-smi output
+        # Method 2: nvidia-smi
         try:
             import subprocess
             result = subprocess.run(['nvidia-smi', '--query-gpu=memory.total', '--format=csv,noheader,nounits'], 
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 memory_mb = int(result.stdout.strip())
-                return memory_mb / 1024  # Convert MB to GB
+                memory_gb = memory_mb / 1024
+                print(f"   📊 GPU Memory: {memory_gb:.1f} GB (nvidia-smi)")
+                return memory_gb
         except:
             pass
+        
+        # Method 3: wmic (Windows) - estimate based on GPU name
+        try:
+            import subprocess
+            result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name,AdapterRAM'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
+                for line in lines:
+                    if 'Name' not in line and 'Intel' in line:
+                        print(f"   📊 GPU Memory: ~2.0 GB (Intel GPU estimate)")
+                        return 2.0
+                    elif 'Name' not in line and any(keyword in line for keyword in ['AMD', 'Radeon']):
+                        print(f"   📊 GPU Memory: ~4.0 GB (AMD GPU estimate)")
+                        return 4.0
+        except:
+            pass
+        
+        print(f"   📊 GPU Memory: Unknown")
         return None
     
     def _get_gpu_name(self) -> Optional[str]:
         """Get GPU name"""
+        # Method 1: CUDA
+        try:
+            import torch
+            if torch.cuda.is_available():
+                gpu_name = torch.cuda.get_device_name(0)
+                print(f"   🎮 GPU Name: {gpu_name} (CUDA)")
+                return gpu_name
+        except:
+            pass
+        
+        # Method 2: nvidia-smi
         try:
             import subprocess
             result = subprocess.run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'], 
                                   capture_output=True, text=True)
             if result.returncode == 0:
-                return result.stdout.strip()
+                gpu_name = result.stdout.strip()
+                print(f"   🎮 GPU Name: {gpu_name} (nvidia-smi)")
+                return gpu_name
         except:
             pass
+        
+        # Method 3: wmic (Windows)
+        try:
+            import subprocess
+            result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                lines = [line.strip() for line in result.stdout.split('\n') if line.strip() and line.strip() != 'Name']
+                if lines:
+                    gpu_name = lines[0]
+                    print(f"   🎮 GPU Name: {gpu_name} (wmic)")
+                    return gpu_name
+        except:
+            pass
+        
+        print(f"   🎮 GPU Name: Unknown")
         return None
     
     def _get_gpu_driver_version(self) -> Optional[str]:
