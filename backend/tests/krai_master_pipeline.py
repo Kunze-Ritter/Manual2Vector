@@ -71,13 +71,26 @@ class KRMasterPipeline:
         print("Initializing KR Master Pipeline Services...")
         
         # Load environment variables from central .env file
-        # Try multiple possible locations for .env file
+        # Try multiple possible locations for .env file (universal approach)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        current_dir = os.getcwd()
+        
         env_paths = [
-            '.env',                    # Same directory
-            '../.env',                 # Parent directory
-            '../../.env',              # Two levels up
-            '../../../.env',           # Three levels up
-            os.path.join(os.getcwd(), '.env'),  # Current working directory
+            # Relative to script location
+            os.path.join(script_dir, '.env'),                    # Same as script
+            os.path.join(script_dir, '..', '.env'),              # Parent of script
+            os.path.join(script_dir, '..', '..', '.env'),        # Two levels up from script
+            os.path.join(script_dir, '..', '..', '..', '.env'),  # Three levels up from script
+            
+            # Relative to current working directory
+            os.path.join(current_dir, '.env'),                   # Current directory
+            os.path.join(current_dir, '..', '.env'),             # Parent of current
+            os.path.join(current_dir, '..', '..', '.env'),       # Two levels up from current
+            
+            # Absolute paths (fallback)
+            '.env',                    # Same directory (relative)
+            '../.env',                 # Parent directory (relative)
+            '../../.env',              # Two levels up (relative)
         ]
         
         env_loaded = False
@@ -94,7 +107,45 @@ class KRMasterPipeline:
             print("🔍 Searched paths:")
             for path in env_paths:
                 print(f"   - {os.path.abspath(path)}")
+            
+            # Try to create .env from template if available
+            self._try_create_env_from_template(env_paths[0])  # Try in script directory first
             raise RuntimeError("Environment file not found")
+    
+    def _try_create_env_from_template(self, target_path: str):
+        """Try to create .env file from template if available"""
+        try:
+            # Look for template files
+            template_paths = [
+                'env.template',
+                '../env.template',
+                '../../env.template',
+                'backend/env.example',
+                '../backend/env.example'
+            ]
+            
+            for template_path in template_paths:
+                if os.path.exists(template_path):
+                    print(f"📋 Found template: {template_path}")
+                    print(f"💡 Copying template to: {target_path}")
+                    
+                    # Create directory if it doesn't exist
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    
+                    # Copy template to .env
+                    import shutil
+                    shutil.copy2(template_path, target_path)
+                    
+                    print("✅ .env file created from template!")
+                    print("⚠️  Please edit .env file with your actual credentials")
+                    return True
+            
+            print("❌ No template file found to create .env from")
+            return False
+            
+        except Exception as e:
+            print(f"❌ Failed to create .env from template: {e}")
+            return False
         
         # Debug: Show loaded environment variables
         supabase_url = os.getenv('SUPABASE_URL')
