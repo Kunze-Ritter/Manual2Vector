@@ -1278,19 +1278,20 @@ async def main():
             results = await pipeline.process_batch_hardware_waker(pdf_files)
             pipeline.print_status_summary(results)
             
-            # After processing new files, automatically process remaining stages for all pending documents
-            print("\n=== AUTOMATIC SMART PROCESSING - MISSING STAGES ONLY ===")
-            pending_docs = await pipeline.get_documents_needing_processing()
+            # FORCE Smart Processing for all documents (regardless of upload results)
+            print("\n=== FORCED SMART PROCESSING - ALL DOCUMENTS ===")
+            all_docs = pipeline.database_service.client.table('documents').select('*').execute()
             
-            if pending_docs:
-                print(f"Found {len(pending_docs)} documents - automatically processing missing stages...")
-                print("Smart processing - will only run missing stages...")
-                stage_results = {'successful': [], 'failed': [], 'total_files': len(pending_docs)}
+            if all_docs.data:
+                print(f"Found {len(all_docs.data)} total documents - forcing smart processing...")
+                stage_results = {'successful': [], 'failed': [], 'total_files': len(all_docs.data)}
                 
-                for i, doc in enumerate(pending_docs):
-                    print(f"\n[{i+1}/{len(pending_docs)}] Smart processing: {doc['filename']}")
+                for i, doc in enumerate(all_docs.data):
+                    print(f"\n[{i+1}/{len(all_docs.data)}] Forced Smart processing: {doc['filename']}")
+                    file_path = f"../service_documents/{doc['filename']}"
+                    
                     result = await pipeline.process_document_smart_stages(
-                        doc['id'], doc['filename'], doc['file_path']
+                        doc['id'], doc['filename'], file_path
                     )
                     
                     if result['success']:
@@ -1298,11 +1299,11 @@ async def main():
                     else:
                         stage_results['failed'].append(result)
                 
-                stage_results['success_rate'] = len(stage_results['successful']) / len(pending_docs) * 100
-                print("\n=== SMART PROCESSING SUMMARY ===")
+                stage_results['success_rate'] = len(stage_results['successful']) / len(all_docs.data) * 100
+                print("\n=== FORCED SMART PROCESSING SUMMARY ===")
                 pipeline.print_status_summary(stage_results)
             else:
-                print("No documents need processing - all stages completed!")
+                print("No documents found in database!")
             
         elif choice == "4":
             # Single Document Processing
