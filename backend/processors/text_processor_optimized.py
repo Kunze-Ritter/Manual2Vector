@@ -130,8 +130,8 @@ class OptimizedTextProcessor(BaseProcessor):
                 entity_id=context.document_id,
                 details={
                     'chunks_created': len(chunk_ids),
-                    'chunk_size': self.memory_chunker.chunk_size,
-                    'overlap_size': self.memory_chunker.overlap,
+                    'chunk_size': self.smart_chunker.chunk_size,
+                    'overlap_size': self.smart_chunker.overlap,
                     'parallel_workers': self.parallel_processor.max_workers,
                     'memory_optimized': True
                 }
@@ -145,8 +145,8 @@ class OptimizedTextProcessor(BaseProcessor):
                 'total_chunks': len(chunk_ids),
                 'extraction_method': 'optimized_streaming',
                 'memory_usage_mb': MemoryMonitoring.get_memory_usage(),
-                'chunk_size': self.memory_chunker.chunk_size,
-                'overlap_size': self.memory_chunker.overlap
+                'chunk_size': self.smart_chunker.chunk_size,
+                'overlap_size': self.smart_chunker.overlap
             }
             
             metadata = {
