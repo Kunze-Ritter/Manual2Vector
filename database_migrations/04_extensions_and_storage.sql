@@ -138,60 +138,27 @@ $$ LANGUAGE plpgsql;
 -- SUPABASE STORAGE BUCKETS
 -- ======================================================================
 
--- COMPREHENSIVE IMAGE STORAGE STRATEGY:
--- 3 distinct use cases require image storage for AI/ML and Agent context
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types, created_at, updated_at) 
-VALUES 
-  (
-    'krai-error-images', 
-    'krai-error-images', 
-    false, 
-    52428800,  -- 50MB limit for defect images (AI/ML learning)
-    ARRAY[
-      'image/jpeg', 
-      'image/png', 
-      'image/gif', 
-      'image/webp',
-      'image/svg+xml'
-    ],
-    NOW(),
-    NOW()
-  ),
-  (
-    'krai-document-images', 
-    'krai-document-images', 
-    false, 
-    52428800,  -- 50MB limit for extracted document images (Agent context)
-    ARRAY[
-      'image/jpeg', 
-      'image/png', 
-      'image/gif', 
-      'image/webp',
-      'image/svg+xml'
-    ],
-    NOW(),
-    NOW()
-  ),
-  (
-    'krai-parts-images', 
-    'krai-parts-images', 
-    false, 
-    52428800,  -- 50MB limit for parts catalog images (Technical drawings)
-    ARRAY[
-      'image/jpeg', 
-      'image/png', 
-      'image/gif', 
-      'image/webp',
-      'image/svg+xml'
-    ],
-    NOW(),
-    NOW()
-  )
-ON CONFLICT (id) DO UPDATE SET 
-  file_size_limit = EXCLUDED.file_size_limit,
-  allowed_mime_types = EXCLUDED.allowed_mime_types,
-  updated_at = NOW();
-
+-- WICHTIG: Storage Buckets MÜSSEN über Supabase Dashboard erstellt werden!
+-- SQL INSERT INTO storage.buckets benötigt Owner-Rechte und funktioniert nicht.
+--
+-- MANUELLE SCHRITTE (über Supabase Dashboard):
+-- 1. Gehe zu: https://supabase.com/dashboard → Storage
+-- 2. Erstelle folgende Buckets:
+--
+-- ┌─────────────────────────────────────────────────────────────────┐
+-- │ Bucket Name            │ Public │ File Size │ Allowed Types    │
+-- ├─────────────────────────────────────────────────────────────────┤
+-- │ krai-error-images      │ No     │ 50 MB     │ image/*          │
+-- │ krai-document-images   │ No     │ 50 MB     │ image/*          │
+-- │ krai-parts-images      │ No     │ 50 MB     │ image/*          │
+-- └─────────────────────────────────────────────────────────────────┘
+--
+-- Oder via Supabase Management API:
+-- curl -X POST 'https://api.supabase.com/v1/projects/{project_ref}/storage/buckets' \
+--   -H 'Authorization: Bearer {management_api_key}' \
+--   -H 'Content-Type: application/json' \
+--   -d '{"name": "krai-error-images", "public": false, "file_size_limit": 52428800}'
+--
 -- IMAGE STORAGE USE CASES:
 -- 🚨 krai-error-images: Techniker-uploaded defect images → AI/ML training (DSGVO anonymized)
 -- 📖 krai-document-images: Service Manual extracted images → Agent context ("How to remove part XYZ")  
@@ -200,29 +167,32 @@ ON CONFLICT (id) DO UPDATE SET
 -- COST OPTIMIZATION NOTES:
 -- ✅ Documents: Processed in-memory only, deleted after processing
 -- ✅ Videos: Only URLs/links stored in database, no file hosting
+--
+-- NOTE: Die Buckets werden bereits im System verwendet, müssen aber manuell erstellt werden!
 
 -- ======================================================================
 -- STORAGE POLICIES (RLS for Storage)
 -- ======================================================================
 
--- Enable RLS on storage buckets
-ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
--- Allow service role full access to all buckets
-CREATE POLICY "service_role_storage_buckets_all" ON storage.buckets FOR ALL 
-    USING (true);
-
-CREATE POLICY "service_role_storage_objects_all" ON storage.objects FOR ALL 
-    USING (true);
-
--- Allow authenticated users to read KRAI buckets
-CREATE POLICY "authenticated_users_read_krai_buckets" ON storage.objects FOR SELECT
-    USING (bucket_id LIKE 'krai-%' AND auth.role() = 'authenticated');
-
--- Allow service role to insert/update/delete in KRAI buckets
-CREATE POLICY "service_role_krai_objects_write" ON storage.objects FOR ALL
-    USING (bucket_id LIKE 'krai-%');
+-- WICHTIG: Storage Policies werden automatisch erstellt, wenn Buckets über
+-- das Supabase Dashboard angelegt werden. Folgende Policies werden empfohlen:
+--
+-- Für storage.objects:
+--
+-- 1. service_role_access (ALL operations):
+--    USING: true
+--    → Service Role hat vollen Zugriff
+--
+-- 2. authenticated_read (SELECT):
+--    USING: bucket_id LIKE 'krai-%' AND auth.role() = 'authenticated'
+--    → Authentifizierte User können KRAI Buckets lesen
+--
+-- 3. authenticated_upload (INSERT):
+--    USING: bucket_id = 'krai-error-images' AND auth.role() = 'authenticated'
+--    → Nur für Error-Images Upload durch Techniker
+--
+-- Diese Policies können über das Supabase Dashboard → Storage → Policies
+-- konfiguriert werden.
 
 -- ======================================================================
 -- SAMPLE ERROR CODES FOR TESTING
