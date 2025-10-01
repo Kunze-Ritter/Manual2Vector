@@ -539,6 +539,12 @@ class KRMasterPipeline:
         last_doc_count = 0
         last_classified_count = 0
         last_chunk_count = 0
+        last_error_count = 0
+        show_detailed_view = False
+        
+        # Print initial instructions
+        print(f"\n💡 Press 'd' + Enter for detailed view, 'q' + Enter to quit monitoring")
+        print(f"{'='*80}")
         
         while True:
             try:
@@ -555,6 +561,14 @@ class KRMasterPipeline:
                 
                 # Get pipeline progress
                 pipeline_status = await self._get_pipeline_status()
+                
+                # Get error count
+                error_count = await self._get_error_count()
+                
+                # Check if we should show detailed view
+                if error_count > last_error_count:
+                    show_detailed_view = True
+                    last_error_count = error_count
                 
                 # Create compact status line
                 gpu_status = ""
@@ -581,16 +595,17 @@ class KRMasterPipeline:
                 progress_filled = int((pipeline_status['overall_progress'] / 100) * progress_bar_length)
                 progress_bar = "█" * progress_filled + "░" * (progress_bar_length - progress_filled)
                 
-                # Create compact status line
+                # Create compact status line with error indicator
+                error_indicator = f" ❌{error_count}" if error_count > 0 else ""
                 status_line = (
                     f"🔄 KR-AI Pipeline | "
                     f"CPU:{cpu_percent:4.1f}% RAM:{ram_percent:4.1f}%{gpu_status} | "
-                    f"Docs:{pipeline_status['total_docs']} Class:{pipeline_status['classified_docs']} | "
+                    f"Docs:{pipeline_status['total_docs']} Class:{pipeline_status['classified_docs']}{error_indicator} | "
                     f"Progress: {progress_bar} {pipeline_status['overall_progress']:4.1f}%{activity_str}"
                 )
                 
                 # Clear line and print new status (overwrite previous line)
-                print(f"\r{' ' * 120}", end="")  # Clear line
+                print(f"\r{' ' * 150}", end="")  # Clear line
                 print(f"\r{status_line}", end="", flush=True)
                 
                 # Show detailed status only when significant changes occur
@@ -598,21 +613,30 @@ class KRMasterPipeline:
                 current_classified_count = pipeline_status['classified_docs']
                 current_chunk_count = pipeline_status['total_chunks']
                 
+                # Check for keyboard input (non-blocking)
+                import select
+                import sys
+                if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+                    user_input = sys.stdin.readline().strip().lower()
+                    if user_input == 'd':
+                        show_detailed_view = True
+                    elif user_input == 'q':
+                        print(f"\n🛑 Monitoring stopped by user")
+                        break
+                
                 if (current_doc_count != last_doc_count or 
                     current_classified_count != last_classified_count or 
-                    current_chunk_count != last_chunk_count):
+                    current_chunk_count != last_chunk_count or
+                    show_detailed_view):
                     
-                    # Print detailed update on new line
-                    print(f"\n📊 Pipeline Update:")
-                    print(f"  Documents: {current_doc_count} total | {current_classified_count} classified | {pipeline_status['pending_docs']} pending")
-                    print(f"  Chunks: {current_chunk_count:,} | Images: {pipeline_status['total_images']:,}")
-                    if pipeline_status['current_stage']:
-                        print(f"  Current: {pipeline_status['current_stage']}")
+                    # Print detailed pipeline overview
+                    await self._print_detailed_pipeline_view(pipeline_status, error_count)
                     
                     # Update tracking variables
                     last_doc_count = current_doc_count
                     last_classified_count = current_classified_count
                     last_chunk_count = current_chunk_count
+                    show_detailed_view = False
                 
             except asyncio.CancelledError:
                 break
@@ -745,16 +769,93 @@ class KRMasterPipeline:
             
         except Exception as e:
             print(f"Pipeline status error: {e}")
-            return {
-                'total_docs': 0,
-                'classified_docs': 0,
-                'pending_docs': 0,
-                'total_chunks': 0,
-                'total_images': 0,
-                'overall_progress': 0,
-                'current_stage': 'Status unavailable',
-                'recent_activity': []
-            }
+                return {
+                    'total_docs': 0,
+                    'classified_docs': 0,
+                    'pending_docs': 0,
+                    'total_chunks': 0,
+                    'total_images': 0,
+                    'overall_progress': 0,
+                    'current_stage': 'Status unavailable',
+                    'recent_activity': []
+                }
+    
+    async def _get_error_count(self) -> int:
+        """Get count of failed documents"""
+        try:
+            # Count documents that failed processing (no classification but have chunks)
+            error_query = """
+                SELECT COUNT(*) as error_count
+                FROM krai_core.documents d
+                WHERE d.manufacturer IS NULL 
+                AND d.id IN (SELECT DISTINCT document_id FROM krai_content.chunks)
+                AND d.created_at < NOW() - INTERVAL '10 minutes'
+            """
+            
+            result = await self.database_service.execute_query(error_query)
+            return result[0]['error_count'] if result else 0
+            
+        except Exception as e:
+            print(f"Error count query failed: {e}")
+            return 0
+    
+    async def _print_detailed_pipeline_view(self, pipeline_status: Dict[str, Any], error_count: int):
+        """Print detailed pipeline overview with progress bars for each stage"""
+        print(f"\n{'='*80}")
+        print(f"📊 KR-AI PIPELINE OVERVIEW")
+        print(f"{'='*80}")
+        
+        # Stage 1: Upload
+        upload_progress = 100.0 if pipeline_status['total_docs'] > 0 else 0
+        upload_bar = "█" * 20 + "░" * 0 if upload_progress == 100 else "░" * 20
+        print(f"📤 Stage 1 - Upload:        {upload_bar} {upload_progress:5.1f}% ({pipeline_status['total_docs']} docs)")
+        
+        # Stage 2: Text Processing
+        text_progress = 0
+        if pipeline_status['total_docs'] > 0:
+            # Estimate based on chunks per document
+            expected_chunks = pipeline_status['total_docs'] * 1000
+            text_progress = min(100, (pipeline_status['total_chunks'] / expected_chunks) * 100)
+        
+        text_bar_length = int((text_progress / 100) * 20)
+        text_bar = "█" * text_bar_length + "░" * (20 - text_bar_length)
+        print(f"📄 Stage 2 - Text:          {text_bar} {text_progress:5.1f}% ({pipeline_status['total_chunks']:,} chunks)")
+        
+        # Stage 3: Image Processing
+        image_progress = 0
+        if pipeline_status['total_docs'] > 0:
+            # Estimate based on images per document
+            expected_images = pipeline_status['total_docs'] * 100
+            image_progress = min(100, (pipeline_status['total_images'] / expected_images) * 100)
+        
+        image_bar_length = int((image_progress / 100) * 20)
+        image_bar = "█" * image_bar_length + "░" * (20 - image_bar_length)
+        print(f"🖼️  Stage 3 - Images:        {image_bar} {image_progress:5.1f}% ({pipeline_status['total_images']:,} images)")
+        
+        # Stage 4: Classification
+        class_progress = 0
+        if pipeline_status['total_docs'] > 0:
+            class_progress = (pipeline_status['classified_docs'] / pipeline_status['total_docs']) * 100
+        
+        class_bar_length = int((class_progress / 100) * 20)
+        class_bar = "█" * class_bar_length + "░" * (20 - class_bar_length)
+        print(f"🏷️  Stage 4 - Classification: {class_bar} {class_progress:5.1f}% ({pipeline_status['classified_docs']}/{pipeline_status['total_docs']} docs)")
+        
+        # Overall Progress
+        overall_bar_length = int((pipeline_status['overall_progress'] / 100) * 30)
+        overall_bar = "█" * overall_bar_length + "░" * (30 - overall_bar_length)
+        print(f"\n🎯 OVERALL PROGRESS:         {overall_bar} {pipeline_status['overall_progress']:5.1f}%")
+        
+        # Error Status
+        if error_count > 0:
+            print(f"❌ ERRORS DETECTED:          {error_count} documents stuck in pipeline")
+            print(f"💡 Run: python backend/tests/pipeline_recovery.py")
+        
+        # Current Activity
+        if pipeline_status['current_stage']:
+            print(f"🔄 CURRENT ACTIVITY:        {pipeline_status['current_stage']}")
+        
+        print(f"{'='*80}")
     
     def find_pdf_files(self, directory: str, limit: int = None) -> List[str]:
         """Find PDF files in directory with optional limit"""
