@@ -683,9 +683,9 @@ class DatabaseService:
                 except Exception as pg_err:
                     self.logger.warning(f"asyncpg count failed: {pg_err}, trying PostgREST...")
             
-            # Method 2: PostgREST
+            # Method 2: PostgREST via vw_links view
             client = self.service_client if self.service_client else self.client
-            result = client.schema('krai_content').table('links').select('id', count='exact').eq('document_id', document_id).execute()
+            result = client.from_('vw_links').select('id', count='exact').eq('document_id', document_id).execute()
             return result.count or 0
             
         except Exception as e:

@@ -386,9 +386,9 @@ class KRMasterPipeline:
                 stage_status['links'] = True
             
             # Check if error codes exist (metadata stage) - krai_intelligence.error_codes
-            if self.pg_pool:
+            if hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
                 try:
-                    async with self.pg_pool.acquire() as conn:
+                    async with self.database_service.pg_pool.acquire() as conn:
                         error_codes_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_intelligence.error_codes WHERE document_id = $1",
                             document_id
