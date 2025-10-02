@@ -31,6 +31,7 @@ from services.object_storage_service import ObjectStorageService
 from services.ai_service import AIService
 from services.config_service import ConfigService
 from services.features_service import FeaturesService
+from services.quality_check_service import QualityCheckService
 
 from processors.upload_processor import UploadProcessor
 from processors.text_processor_optimized import OptimizedTextProcessor
@@ -271,6 +272,9 @@ class KRMasterPipeline:
         # Initialize features service
         self.features_service = FeaturesService(self.ai_service, self.database_service)
         
+        # Initialize quality check service
+        self.quality_service = QualityCheckService(self.database_service)
+        
         # Initialize all processors
         self.processors = {
             'upload': UploadProcessor(self.database_service),
@@ -344,6 +348,15 @@ class KRMasterPipeline:
             
         except Exception as e:
             print(f"Error getting documents: {e}")
+            return []
+    
+    async def get_all_documents(self) -> List[Dict[str, Any]]:
+        """Get all documents"""
+        try:
+            all_docs = self.database_service.client.table('documents').select('*').execute()
+            return all_docs.data or []
+        except Exception as e:
+            print(f"Error getting all documents: {e}")
             return []
     
     async def get_document_stage_status(self, document_id: str) -> Dict[str, bool]:
@@ -614,12 +627,25 @@ class KRMasterPipeline:
                 await self.database_service.update_document_status(document_id, 'failed')
                 print(f"  ❌ Document {filename} completely failed (all stages failed)")
             
+            # Run quality check
+            print(f"\n  🔍 Running quality check...")
+            quality_result = await self.quality_service.check_document_quality(document_id)
+            
+            if quality_result['score'] >= 80:
+                print(f"  ✅ Quality: {quality_result['score']}/100")
+            else:
+                print(f"  ⚠️  Quality: {quality_result['score']}/100")
+                for issue in quality_result['issues'][:3]:  # Show first 3 issues
+                    print(f"      {issue}")
+            
             return {
                 'success': len(completed_stages) > 0,  # Success if ANY stage completed
                 'filename': filename,
                 'completed_stages': completed_stages,
                 'failed_stages': failed_stages,
-                'total_stages': len(completed_stages) + len(failed_stages)
+                'total_stages': len(completed_stages) + len(failed_stages),
+                'quality_score': quality_result['score'],
+                'quality_passed': quality_result['passed']
             }
             
         except Exception as e:
@@ -1287,9 +1313,11 @@ async def main():
         print("4. Einzelnes Dokument verarbeiten")
         print("5. Batch Processing - Alle Dokumente verarbeiten")
         print("6. Debug - Zeige Pfad-Informationen")
+        print("8. Quality Check - Prüfe Verarbeitungsqualität ⭐ NEW")
+        print("9. Force Smart Processing - Alle Dokumente (mit Quality Check) ⭐ NEW")
         print("7. Exit")
         
-        choice = input("\nWähle Option (1-7): ").strip()
+        choice = input("\nWähle Option (1-9): ").strip()
         
         if choice == "1":
             # Status Check
@@ -1500,13 +1528,105 @@ async def main():
                 print("\n❌ No service_documents directory found!")
                 print("💡 Create a 'service_documents' directory and add PDF files")
             
+        elif choice == "8":
+            # Quality Check
+            print("\n=== QUALITY CHECK ===")
+            print("1. Check single document")
+            print("2. Check pipeline health")
+            print("3. Check all documents")
+            
+            qc_choice = input("\nWähle (1-3): ").strip()
+            
+            if qc_choice == "1":
+                doc_id = input("Document ID (or 'first' for first document): ").strip()
+                if doc_id == 'first':
+                    docs = await pipeline.get_all_documents()
+                    if docs:
+                        doc_id = docs[0]['id']
+                        print(f"Using: {docs[0]['filename']}")
+
+                quality_result = await pipeline.quality_service.check_document_quality(doc_id)
+                pipeline.quality_service.print_quality_report(doc_id, quality_result)
+            
+            elif qc_choice == "2":
+                health = await pipeline.quality_service.check_pipeline_health()
+                print(f"\nPipeline Status: {health['status'].upper()}")
+                print(f"Documents: {health['checks'].get('documents_count', 0)}")
+                print(f"Content Chunks: {health['checks'].get('content_chunks_count', 0)}")
+                print(f"Intelligence Chunks: {health['checks'].get('intelligence_chunks_count', 0)}")
+                
+                if health['issues']:
+                    print(f"\n❌ Issues:")
+                    for issue in health['issues']:
+                        print(f"  {issue}")
+                
+                if health['warnings']:
+                    print(f"\n⚠️  Warnings:")
+                    for warning in health['warnings']:
+                        print(f"  {warning}")
+            
+            elif qc_choice == "3":
+                print("\nChecking all documents...")
+                docs = await pipeline.get_all_documents()
+                total_score = 0
+                passed_count = 0
+                
+                for i, doc in enumerate(docs[:10]):  # First 10 for demo
+                    quality_result = await pipeline.quality_service.check_document_quality(doc['id'])
+                    total_score += quality_result['score']
+                    if quality_result['passed']:
+                        passed_count += 1
+                    
+                    status = "✅" if quality_result['passed'] else "⚠️"
+                    print(f"{i+1}. {status} {doc['filename'][:40]:40} Score: {quality_result['score']}/100")
+                
+                avg_score = total_score / min(len(docs), 10)
+                print(f"\nAverage Quality Score: {avg_score:.1f}/100")
+                print(f"Passed: {passed_count}/{min(len(docs), 10)}")
+        
+        elif choice == "9":
+            # Force Smart Processing with Quality Check
+            print("\n=== FORCE SMART PROCESSING (with Quality Check) ===")
+            
+            docs = await pipeline.get_all_documents()
+            print(f"Found {len(docs)} documents")
+            
+            response = input(f"\nProcess ALL {len(docs)} documents with quality checks? (y/n): ").strip().lower()
+            if response != 'y':
+                print("Abgebrochen.")
+                continue
+            
+            quality_scores = []
+            passed_count = 0
+            
+            for i, doc in enumerate(docs):
+                print(f"\n[{i+1}/{len(docs)}] {doc['filename']}")
+                
+                # Smart processing
+                file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", doc['filename']))
+                result = await pipeline.process_document_smart_stages(doc['id'], doc['filename'], file_path)
+                
+                if result.get('quality_passed'):
+                    passed_count += 1
+                    quality_scores.append(result.get('quality_score', 0))
+            
+            # Summary
+            print(f"\n{'='*60}")
+            print(f"📊 QUALITY SUMMARY")
+            print(f"{'='*60}")
+            print(f"Documents Processed: {len(docs)}")
+            print(f"Quality Passed: {passed_count}/{len(docs)} ({passed_count/len(docs)*100:.1f}%)")
+            if quality_scores:
+                print(f"Average Score: {sum(quality_scores)/len(quality_scores):.1f}/100")
+            print(f"{'='*60}")
+        
         elif choice == "7":
-            # Exit
+            print("\nExiting...")
             print("\nAuf Wiedersehen! KR-AI-Engine Master Pipeline beendet.")
             break
             
         else:
-            print("Ungültige Option. Bitte 1-7 wählen.")
+            print("Ungültige Option. Bitte 1-9 wählen.")
 
 if __name__ == "__main__":
     asyncio.run(main())
