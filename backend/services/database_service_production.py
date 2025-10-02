@@ -250,7 +250,8 @@ class DatabaseService:
     async def get_product_series_by_name(self, name: str, manufacturer_id: str) -> Optional[ProductSeriesModel]:
         """Get product series by name and manufacturer"""
         try:
-            result = self.client.table('product_series').select('*').eq('name', name).eq('manufacturer_id', manufacturer_id).execute()
+            # Column is 'series_name', not 'name'
+            result = self.client.table('product_series').select('*').eq('series_name', name).eq('manufacturer_id', manufacturer_id).execute()
             
             if result.data:
                 return ProductSeriesModel(**result.data[0])
