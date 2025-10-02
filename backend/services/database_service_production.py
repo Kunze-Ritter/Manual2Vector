@@ -819,6 +819,15 @@ class DatabaseService:
     async def create_link(self, link_data: Dict[str, Any]) -> Optional[str]:
         """Create a link in krai_content.links"""
         try:
+            # Ensure position_data is JSON serializable (convert Rect objects)
+            if 'position_data' in link_data and link_data['position_data']:
+                pos_data = link_data['position_data']
+                if isinstance(pos_data, dict) and 'rect' in pos_data:
+                    rect = pos_data['rect']
+                    # Convert Rect/tuple to list for JSON
+                    if hasattr(rect, '__iter__') and not isinstance(rect, (str, dict, list)):
+                        pos_data['rect'] = list(rect)
+            
             # Use PostgREST (works with both service_client and regular client)
             client = self.service_client if self.service_client else self.client
             
@@ -838,7 +847,10 @@ class DatabaseService:
                                             title: Optional[str] = None, 
                                             description: Optional[str] = None,
                                             metadata: Optional[Dict] = None) -> Optional[str]:
-        """Find existing video by URL or create new one"""
+        """
+        Find existing video by URL or create new one
+        Note: videos table is optional - returns None if table doesn't exist
+        """
         try:
             # Use SQL function we created in migration
             if self.pg_pool:
