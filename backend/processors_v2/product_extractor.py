@@ -19,8 +19,8 @@ logger = get_logger()
 # HP Product Model Patterns
 HP_PATTERNS = {
     'laserjet': re.compile(
-        r'\b(?:Color\s+)?LaserJet\s+(?:Pro\s+|Enterprise\s+|Managed\s+)?'
-        r'[A-Z]?\d{3,4}[a-z]{0,3}(?:\s*[a-z]{1,3})?\b',
+        r'\b(?:Color\s+)?LaserJet\s+(?:Pro\s+|Enterprise\s+|Managed\s+|Flow\s+)?'
+        r'(?:MFP\s+)?[A-Z]?\d{3,5}[a-z]{0,3}(?:\s*[a-z]{1,3})?\b',
         re.IGNORECASE
     ),
     'officejet': re.compile(
@@ -36,20 +36,150 @@ HP_PATTERNS = {
         re.IGNORECASE
     ),
     'simple_model': re.compile(
-        r'\b[EM]\d{3,4}[a-z]{0,2}\b'  # E877, M455, etc.
+        r'\b[EM]\d{3,5}[a-z]{0,2}\b'  # E877, E87740, M455, etc.
     ),
 }
 
 # Canon Patterns
 CANON_PATTERNS = {
     'imagerunner': re.compile(
-        r'\bimageRUNNER\s+(?:ADVANCE\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b',
+        r'\bimageRUNNER\s+(?:ADVANCE\s+)?(?:DX\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b',
         re.IGNORECASE
     ),
     'pixma': re.compile(
         r'\bPIXMA\s+[A-Z]{2}\d{3,4}\b',
         re.IGNORECASE
     ),
+    'imageclass': re.compile(
+        r'\bimageCLASS\s+(?:MF|LBP|D)\d{3,4}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Konica Minolta Patterns
+KONICA_MINOLTA_PATTERNS = {
+    'accuriopress': re.compile(
+        r'\bAccurioPress\s+C\d{4}(?:P|hc)?\b',
+        re.IGNORECASE
+    ),
+    'accurioprint': re.compile(
+        r'\bAccurioPrint\s+C\d{4}(?:P)?\b',
+        re.IGNORECASE
+    ),
+    'bizhub': re.compile(
+        r'\bbizhub\s+(?:C|PRESS\s+)?C?\d{3,4}[a-z]{0,2}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Ricoh Patterns
+RICOH_PATTERNS = {
+    'aficio': re.compile(
+        r'\bAficio\s+(?:MP|SP)\s?\d{3,4}[A-Z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'pro_c': re.compile(
+        r'\bPro\s+C\d{3,4}[a-z]{0,2}\b',
+        re.IGNORECASE
+    ),
+    'im_c': re.compile(
+        r'\bIM\s+C\d{3,4}[A-Z]{0,2}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Xerox Patterns
+XEROX_PATTERNS = {
+    'workcentre': re.compile(
+        r'\bWorkCentre\s+\d{3,4}[a-z]{0,2}\b',
+        re.IGNORECASE
+    ),
+    'versalink': re.compile(
+        r'\bVersaLink\s+[CB]\d{3,4}\b',
+        re.IGNORECASE
+    ),
+    'altalink': re.compile(
+        r'\bAltaLink\s+[CB]\d{3,4}\b',
+        re.IGNORECASE
+    ),
+    'phaser': re.compile(
+        r'\bPhaser\s+\d{3,4}[A-Z]{0,2}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Kyocera Patterns
+KYOCERA_PATTERNS = {
+    'ecosys': re.compile(
+        r'\bECOSYS\s+[PM]\d{3,4}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'taskalfa': re.compile(
+        r'\bTASKalfa\s+\d{3,4}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Brother Patterns
+BROTHER_PATTERNS = {
+    'mfc': re.compile(
+        r'\bMFC-[LJ]?\d{3,4}[A-Z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'hl': re.compile(
+        r'\bHL-[LJ]?\d{3,4}[A-Z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'dcp': re.compile(
+        r'\bDCP-[LJ]?\d{3,4}[A-Z]{0,3}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Epson Patterns
+EPSON_PATTERNS = {
+    'workforce': re.compile(
+        r'\bWorkForce\s+(?:Pro\s+)?[A-Z]{2,3}-\d{3,4}\b',
+        re.IGNORECASE
+    ),
+    'ecotank': re.compile(
+        r'\bEcoTank\s+[A-Z]{1,2}\d{3,4}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Sharp Patterns
+SHARP_PATTERNS = {
+    'mx': re.compile(
+        r'\bMX-[A-Z]?\d{3,4}[A-Z]{0,2}\b',
+        re.IGNORECASE
+    ),
+}
+
+# Lexmark Patterns
+LEXMARK_PATTERNS = {
+    'cx': re.compile(
+        r'\bCX\d{3}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'mx': re.compile(
+        r'\bMX\d{3}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+}
+
+# All patterns by manufacturer
+ALL_MANUFACTURER_PATTERNS = {
+    'HP': HP_PATTERNS,
+    'CANON': CANON_PATTERNS,
+    'KONICA MINOLTA': KONICA_MINOLTA_PATTERNS,
+    'RICOH': RICOH_PATTERNS,
+    'XEROX': XEROX_PATTERNS,
+    'KYOCERA': KYOCERA_PATTERNS,
+    'BROTHER': BROTHER_PATTERNS,
+    'EPSON': EPSON_PATTERNS,
+    'SHARP': SHARP_PATTERNS,
+    'LEXMARK': LEXMARK_PATTERNS,
 }
 
 # Words to REJECT (not product models)
@@ -94,16 +224,27 @@ class ProductExtractor:
             return []
         
         # Select patterns based on manufacturer
-        if self.manufacturer_name.upper() == "HP":
-            patterns = HP_PATTERNS
-        elif self.manufacturer_name.upper() == "CANON":
-            patterns = CANON_PATTERNS
+        manufacturer_upper = self.manufacturer_name.upper()
+        
+        # If "AUTO", try all manufacturers
+        if manufacturer_upper == "AUTO":
+            all_patterns = []
+            for mfr_name, mfr_patterns in ALL_MANUFACTURER_PATTERNS.items():
+                for pattern_name, pattern in mfr_patterns.items():
+                    all_patterns.append((mfr_name, pattern_name, pattern))
+            # Use all patterns
+            patterns_to_use = all_patterns
+        elif manufacturer_upper in ALL_MANUFACTURER_PATTERNS:
+            patterns = ALL_MANUFACTURER_PATTERNS[manufacturer_upper]
+            patterns_to_use = [(manufacturer_upper, pn, p) for pn, p in patterns.items()]
         else:
-            patterns = HP_PATTERNS  # Default to HP
+            # Default to HP
+            patterns = HP_PATTERNS
+            patterns_to_use = [("HP", pn, p) for pn, p in patterns.items()]
         
         found_models = []
         
-        for pattern_name, pattern in patterns.items():
+        for mfr_name, pattern_name, pattern in patterns_to_use:
             matches = pattern.finditer(text)
             
             for match in matches:
@@ -124,7 +265,7 @@ class ProductExtractor:
                             model_number=model,
                             model_name=model,  # Can be enhanced later
                             product_type=product_type,
-                            manufacturer_name=self.manufacturer_name,
+                            manufacturer_name=mfr_name,  # Use detected manufacturer
                             confidence=confidence,
                             source_page=page_number,
                             extraction_method=f"regex_{pattern_name}"

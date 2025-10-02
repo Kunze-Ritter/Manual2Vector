@@ -25,7 +25,7 @@ class DocumentProcessor:
     
     def __init__(
         self,
-        manufacturer: str = "HP",
+        manufacturer: str = "AUTO",
         chunk_size: int = 1000,
         chunk_overlap: int = 100,
         pdf_engine: str = "pymupdf"
@@ -34,7 +34,7 @@ class DocumentProcessor:
         Initialize document processor
         
         Args:
-            manufacturer: Manufacturer name (HP, Canon, etc.)
+            manufacturer: Manufacturer name (HP, Canon, AUTO, etc.)
             chunk_size: Target chunk size
             chunk_overlap: Overlap between chunks
             pdf_engine: PDF extraction engine
@@ -51,7 +51,10 @@ class DocumentProcessor:
             overlap_size=chunk_overlap
         )
         
-        self.logger.info(f"Initialized processor for {manufacturer}")
+        if manufacturer == "AUTO":
+            self.logger.info("Initialized processor with AUTO manufacturer detection")
+        else:
+            self.logger.info(f"Initialized processor for {manufacturer}")
         self.logger.info(f"PDF Engine: {pdf_engine}, Chunk Size: {chunk_size}")
     
     def process_document(
