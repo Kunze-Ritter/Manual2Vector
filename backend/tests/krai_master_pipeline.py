@@ -55,19 +55,16 @@ class KRMasterPipeline:
         self.config_service = None
         self.features_service = None
         self.processors = {}
-        self.force_continue_on_errors = force_continue_on_errors  # For overnight processing
+        self.force_continue_on_errors = force_continue_on_errors
         
         # Setup logging (minimal)
         logging.basicConfig(level=logging.ERROR)
         self.logger = logging.getLogger("krai.master_pipeline")
         
-        # Get hardware info - OPTIMIZED for overnight processing
+        # Get hardware info
         cpu_count = mp.cpu_count()
-        # Use 75% of cores for concurrent docs (was hardcoded to 8)
+        # Use 75% of cores for concurrent docs
         self.max_concurrent = max(4, int(cpu_count * 0.75))  # Min 4, max 75% of cores
-        
-        if self.force_continue_on_errors:
-            print("🌙 OVERNIGHT MODE: Dokumente werden als 'completed' markiert wenn mindestens 1 Stage erfolgreich")
         
         print(f"⚡ PERFORMANCE: {self.max_concurrent} concurrent documents on {cpu_count} CPU cores")
         
@@ -228,18 +225,26 @@ class KRMasterPipeline:
         else:
             print(f"✅ SUPABASE_ANON_KEY: {supabase_key[:20]}...")
         
-        # Get PostgreSQL URL for direct connection (cross-schema queries)
+        # Get Service Role Key for elevated permissions (cross-schema via PostgREST)
+        service_role_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        if service_role_key:
+            print(f"✅ SUPABASE_SERVICE_ROLE_KEY: {service_role_key[:20]}... (PostgREST cross-schema enabled)")
+        else:
+            print("⚠️  SUPABASE_SERVICE_ROLE_KEY not found - Will try POSTGRES_URL fallback")
+        
+        # Get PostgreSQL URL for direct connection (alternative method)
         postgres_url = os.getenv('POSTGRES_URL') or os.getenv('DATABASE_URL')
         if postgres_url:
-            print(f"✅ POSTGRES_URL: {postgres_url[:40]}... (Cross-schema queries enabled)")
+            print(f"✅ POSTGRES_URL: {postgres_url[:40]}... (asyncpg fallback enabled)")
         else:
-            print("⚠️  POSTGRES_URL not found - Image deduplication will be limited")
+            print("⚠️  POSTGRES_URL not found - Using PostgREST only")
         
-        # Initialize database service
+        # Initialize database service with multiple connection options
         self.database_service = DatabaseService(
             supabase_url=supabase_url,
             supabase_key=supabase_key,
-            postgres_url=postgres_url  # Direct PostgreSQL for cross-schema
+            postgres_url=postgres_url,  # asyncpg (if connection works)
+            service_role_key=service_role_key  # PostgREST with elevated permissions
         )
         await self.database_service.connect()
         
@@ -536,14 +541,13 @@ class KRMasterPipeline:
                     failed_stages.append('search')
                     print(f"    ❌ Search processing error: {e}")
             
-            # Update document status - ALWAYS mark as completed if at least some stages worked
-            # This allows overnight processing to continue even with partial failures
-            if len(completed_stages) > 0 or not failed_stages:
+            # Update document status based on actual completion
+            if not failed_stages:
                 await self.database_service.update_document_status(document_id, 'completed')
-                if failed_stages:
-                    print(f"  ⚠️ Document {filename} partially processed (✅ {len(completed_stages)} stages, ❌ {len(failed_stages)} failed)")
-                else:
-                    print(f"  ✅ Document {filename} fully processed!")
+                print(f"  ✅ Document {filename} fully processed!")
+            elif failed_stages and completed_stages:
+                # Partially completed - don't change status, let user decide
+                print(f"  ⚠️ Document {filename} partially processed (✅ {len(completed_stages)} stages, ❌ {len(failed_stages)} failed)")
             else:
                 # Only mark as failed if ALL stages failed
                 await self.database_service.update_document_status(document_id, 'failed')
@@ -1138,6 +1142,7 @@ class KRMasterPipeline:
     def find_service_documents_directory(self) -> str:
         """Find the service_documents directory with intelligent path detection"""
         possible_paths = [
+            r"C:\service_documents",  # User's absolute path
             "service_documents",  # Same directory
             "../service_documents",  # Parent directory
             "../../service_documents",  # Two levels up

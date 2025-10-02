@@ -41,11 +41,13 @@ class DatabaseService:
     - krai_system: processing_queue, audit_log, system_metrics
     """
     
-    def __init__(self, supabase_url: str, supabase_key: str, postgres_url: Optional[str] = None):
+    def __init__(self, supabase_url: str, supabase_key: str, postgres_url: Optional[str] = None, service_role_key: Optional[str] = None):
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
         self.postgres_url = postgres_url  # Direct PostgreSQL connection for cross-schema queries
+        self.service_role_key = service_role_key  # Service role for elevated permissions
         self.client: Optional[SupabaseClient] = None
+        self.service_client: Optional[SupabaseClient] = None  # Service role client for cross-schema
         self.pg_pool: Optional[asyncpg.Pool] = None  # PostgreSQL connection pool
         self.logger = logging.getLogger("krai.database")
         self._setup_logging()
@@ -70,6 +72,15 @@ class DatabaseService:
             self.client = create_client(self.supabase_url, self.supabase_key)
             self.logger.info("Connected to Supabase database (PostgREST)")
             
+            # Connect with Service Role Key for cross-schema queries (alternative to asyncpg)
+            if self.service_role_key:
+                try:
+                    self.service_client = create_client(self.supabase_url, self.service_role_key)
+                    self.logger.info("Connected with Service Role Key - Cross-schema via PostgREST enabled ✅")
+                except Exception as srv_error:
+                    self.logger.warning(f"Service role client init failed: {srv_error}")
+                    self.service_client = None
+            
             # Connect direct PostgreSQL for cross-schema queries (if URL provided)
             if self.postgres_url and ASYNCPG_AVAILABLE:
                 try:
@@ -79,15 +90,15 @@ class DatabaseService:
                         max_size=10,
                         command_timeout=60
                     )
-                    self.logger.info("Connected to PostgreSQL database (direct) - Cross-schema queries enabled ✅")
+                    self.logger.info("Connected to PostgreSQL database (direct) - asyncpg pool enabled ✅")
                 except Exception as pg_error:
-                    self.logger.warning(f"PostgreSQL direct connection failed: {pg_error}. Cross-schema queries will use fallback.")
+                    self.logger.warning(f"PostgreSQL direct connection failed: {pg_error}. Using PostgREST fallback.")
                     self.pg_pool = None
-            else:
-                if not self.postgres_url:
-                    self.logger.info("PostgreSQL URL not provided - Image deduplication will be limited")
-                if not ASYNCPG_AVAILABLE:
-                    self.logger.warning("asyncpg not available - Install with: pip install asyncpg")
+            
+            # Log cross-schema capability status
+            if not self.pg_pool and not self.service_client:
+                self.logger.warning("⚠️  No cross-schema access available - Image deduplication will be limited")
+                self.logger.info("💡 Add POSTGRES_URL or SUPABASE_SERVICE_ROLE_KEY to enable cross-schema queries")
             
             # Test connection
             await self.test_connection()
@@ -513,30 +524,43 @@ class DatabaseService:
     
     # Cross-Schema Helper Methods (using direct PostgreSQL)
     async def get_image_by_hash(self, file_hash: str) -> Optional[Dict]:
-        """Get image by file_hash for deduplication - Direct SQL for cross-schema access"""
+        """Get image by file_hash for deduplication - SQL or PostgREST"""
         try:
             if self.client is None:
                 return None
             
-            # Use direct PostgreSQL connection for cross-schema query
+            # Method 1: Direct PostgreSQL (fastest)
             if self.pg_pool:
-                async with self.pg_pool.acquire() as conn:
-                    result = await conn.fetchrow(
-                        """
-                        SELECT id, filename, file_hash, created_at, document_id, storage_url
-                        FROM krai_content.images
-                        WHERE file_hash = $1
-                        LIMIT 1
-                        """,
-                        file_hash
-                    )
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        result = await conn.fetchrow(
+                            """
+                            SELECT id, filename, file_hash, created_at, document_id, storage_url
+                            FROM krai_content.images
+                            WHERE file_hash = $1
+                            LIMIT 1
+                            """,
+                            file_hash
+                        )
+                        
+                        if result:
+                            image_data = dict(result)
+                            self.logger.info(f"Found existing image with hash {file_hash[:16]}... (asyncpg)")
+                            return image_data
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg query failed: {pg_err}, trying PostgREST...")
+            
+            # Method 2: PostgREST with Service Role (bypasses RLS)
+            if self.service_client:
+                try:
+                    result = self.service_client.schema('krai_content').from_('images').select('id, filename, file_hash, created_at, document_id, storage_url').eq('file_hash', file_hash).limit(1).execute()
                     
-                    if result:
-                        image_data = dict(result)
-                        self.logger.info(f"Found existing image with hash {file_hash[:16]}...")
+                    if result.data and len(result.data) > 0:
+                        image_data = result.data[0]
+                        self.logger.info(f"Found existing image with hash {file_hash[:16]}... (PostgREST)")
                         return image_data
-            else:
-                self.logger.debug(f"Direct PostgreSQL not available, skipping image deduplication check")
+                except Exception as rest_err:
+                    self.logger.warning(f"PostgREST query failed: {rest_err}")
             
             return None
         except Exception as e:
@@ -544,52 +568,97 @@ class DatabaseService:
             return None
     
     async def count_chunks_by_document(self, document_id: str) -> int:
-        """Count chunks for a document - Direct SQL for krai_content schema"""
+        """Count chunks for a document - SQL or PostgREST"""
         try:
+            # Method 1: Direct PostgreSQL
             if self.pg_pool:
-                async with self.pg_pool.acquire() as conn:
-                    count = await conn.fetchval(
-                        "SELECT COUNT(*) FROM krai_content.chunks WHERE document_id = $1",
-                        document_id
-                    )
-                    return count or 0
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        count = await conn.fetchval(
+                            "SELECT COUNT(*) FROM krai_content.chunks WHERE document_id = $1",
+                            document_id
+                        )
+                        return count or 0
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg count failed: {pg_err}, trying PostgREST...")
+            
+            # Method 2: PostgREST with Service Role
+            if self.service_client:
+                try:
+                    result = self.service_client.schema('krai_content').from_('chunks').select('id', count='exact').eq('document_id', document_id).execute()
+                    return result.count or 0
+                except Exception as rest_err:
+                    self.logger.warning(f"PostgREST count failed: {rest_err}")
+            
             return 0
         except Exception as e:
             self.logger.error(f"Failed to count chunks: {e}")
             return 0
     
     async def count_images_by_document(self, document_id: str) -> int:
-        """Count images for a document - Direct SQL for krai_content schema"""
+        """Count images for a document - SQL or PostgREST"""
         try:
+            # Method 1: Direct PostgreSQL
             if self.pg_pool:
-                async with self.pg_pool.acquire() as conn:
-                    count = await conn.fetchval(
-                        "SELECT COUNT(*) FROM krai_content.images WHERE document_id = $1",
-                        document_id
-                    )
-                    return count or 0
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        count = await conn.fetchval(
+                            "SELECT COUNT(*) FROM krai_content.images WHERE document_id = $1",
+                            document_id
+                        )
+                        return count or 0
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg count failed: {pg_err}, trying PostgREST...")
+            
+            # Method 2: PostgREST with Service Role
+            if self.service_client:
+                try:
+                    result = self.service_client.schema('krai_content').from_('images').select('id', count='exact').eq('document_id', document_id).execute()
+                    return result.count or 0
+                except Exception as rest_err:
+                    self.logger.warning(f"PostgREST count failed: {rest_err}")
+            
             return 0
         except Exception as e:
             self.logger.error(f"Failed to count images: {e}")
             return 0
     
     async def check_embeddings_exist(self, document_id: str) -> bool:
-        """Check if embeddings exist for a document - Direct SQL across schemas"""
+        """Check if embeddings exist for a document - SQL or PostgREST"""
         try:
+            # Method 1: Direct PostgreSQL (supports JOINs)
             if self.pg_pool:
-                async with self.pg_pool.acquire() as conn:
-                    exists = await conn.fetchval(
-                        """
-                        SELECT EXISTS(
-                            SELECT 1 
-                            FROM krai_intelligence.embeddings e
-                            JOIN krai_content.chunks c ON e.chunk_id = c.id
-                            WHERE c.document_id = $1
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        exists = await conn.fetchval(
+                            """
+                            SELECT EXISTS(
+                                SELECT 1 
+                                FROM krai_intelligence.embeddings e
+                                JOIN krai_content.chunks c ON e.chunk_id = c.id
+                                WHERE c.document_id = $1
+                            )
+                            """,
+                            document_id
                         )
-                        """,
-                        document_id
-                    )
-                    return exists or False
+                        return exists or False
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg embeddings check failed: {pg_err}, trying PostgREST...")
+            
+            # Method 2: PostgREST (multi-step: get chunks first, then check embeddings)
+            if self.service_client:
+                try:
+                    # Get chunk IDs for document
+                    chunks = self.service_client.schema('krai_content').from_('chunks').select('id').eq('document_id', document_id).limit(1).execute()
+                    
+                    if chunks.data and len(chunks.data) > 0:
+                        chunk_id = chunks.data[0]['id']
+                        # Check if any embedding exists for this chunk
+                        embeddings = self.service_client.schema('krai_intelligence').from_('embeddings').select('id').eq('chunk_id', chunk_id).limit(1).execute()
+                        return embeddings.data and len(embeddings.data) > 0
+                except Exception as rest_err:
+                    self.logger.warning(f"PostgREST embeddings check failed: {rest_err}")
+            
             return False
         except Exception as e:
             self.logger.error(f"Failed to check embeddings: {e}")
