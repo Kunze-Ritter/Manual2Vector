@@ -324,7 +324,9 @@ class KRMasterPipeline:
                 # Add ALL pending documents (chunks already exist)
                 # Use original filename to construct file path
                 filename = doc['filename']
-                file_path = f"../service_documents/{filename}"  # Construct path from filename
+                # Use absolute path to avoid "file not found" errors
+                import os
+                file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", filename))
                 
                 pending_docs.append({
                     'id': doc['id'],
@@ -652,7 +654,9 @@ class KRMasterPipeline:
                 # Document already exists - use Smart Processing for remaining stages
                 print(f"  [{doc_index}] Document exists - using Smart Processing for remaining stages")
                 document_id = result1.data.get('document_id')
-                file_path = f"../service_documents/{filename}"
+                # Use absolute path
+                import os
+                file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", filename))
                 
                 # Use Smart Processing to handle only missing stages
                 smart_result = await self.process_document_smart_stages(document_id, filename, file_path)
@@ -685,12 +689,12 @@ class KRMasterPipeline:
                 return {'success': False, 'error': f'Upload failed: {result1.message}'}
             
             # For new documents, continue with all stages
-            # Stage 2: Text Processor (This will wake up CPU!)
+            # Stage 2: Text Processor
             print(f"  [{doc_index}] Text Processing: {filename}")
             result2 = await self.processors['text'].process(context)
             chunks_count = result2.data.get('chunks_created', 0)
             
-            # Stage 3: Image Processor (This will wake up GPU!)
+            # Stage 3: Image Processor
             print(f"  [{doc_index}] Image Processing: {filename}")
             result3 = await self.processors['image'].process(context)
             images_count = result3.data.get('images_processed', 0)
@@ -699,14 +703,14 @@ class KRMasterPipeline:
             print(f"  [{doc_index}] Classification: {filename}")
             result4 = await self.processors['classification'].process(context)
             
-            # Stage 5: Link Extraction Processor (NEW!)
+            # Stage 5: Link Extraction Processor
             print(f"  [{doc_index}] Link Extraction: {filename}")
             result4b = await self.processors['links'].process(context)
             links_count = result4b.data.get('links_extracted', 0) if result4b.success else 0
             video_count = result4b.data.get('video_links_created', 0) if result4b.success else 0
             print(f"    → {links_count} links, {video_count} videos")
             
-            # Stage 6: Metadata Processor (Error Codes - NEW AI!)
+            # Stage 6: Metadata Processor
             print(f"  [{doc_index}] Metadata (Error Codes): {filename}")
             result5 = await self.processors['metadata'].process(context)
             error_codes_count = result5.data.get('error_codes_found', 0) if result5.success else 0
@@ -716,7 +720,7 @@ class KRMasterPipeline:
             print(f"  [{doc_index}] Storage: {filename}")
             result6 = await self.processors['storage'].process(context)
             
-            # Stage 8: Embedding Processor (This will wake up GPU for AI!)
+            # Stage 8: Embedding Processor
             print(f"  [{doc_index}] Embeddings: {filename}")
             result7 = await self.processors['embedding'].process(context)
             
@@ -1366,7 +1370,9 @@ async def main():
                 
                 for i, doc in enumerate(all_docs.data):
                     print(f"\n[{i+1}/{len(all_docs.data)}] Forced Smart processing: {doc['filename']}")
-                    file_path = f"../service_documents/{doc['filename']}"
+                    # Use absolute path
+                    import os
+                    file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", doc['filename']))
                     
                     result = await pipeline.process_document_smart_stages(
                         doc['id'], doc['filename'], file_path

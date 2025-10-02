@@ -667,6 +667,30 @@ class DatabaseService:
             self.logger.error(f"Failed to check embeddings: {e}")
             return False
     
+    # Image Methods
+    async def get_images_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all images for a document"""
+        try:
+            # Method 1: Direct PostgreSQL
+            if self.pg_pool:
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        rows = await conn.fetch(
+                            "SELECT * FROM krai_content.images WHERE document_id = $1 ORDER BY page_number, image_index",
+                            document_id
+                        )
+                        return [dict(row) for row in rows]
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg query failed: {pg_err}, trying PostgREST...")
+            
+            # Method 2: PostgREST via vw_images view
+            result = self.client.from_('vw_images').select('*').eq('document_id', document_id).order('page_number', desc=False).order('image_index', desc=False).execute()
+            return result.data or []
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get images by document: {e}")
+            return []
+    
     # Link & Video Methods
     async def count_links_by_document(self, document_id: str) -> int:
         """Count links for a document"""
