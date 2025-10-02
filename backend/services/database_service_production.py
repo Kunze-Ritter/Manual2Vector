@@ -544,12 +544,12 @@ class DatabaseService:
             return None
     
     async def count_chunks_by_document(self, document_id: str) -> int:
-        """Count chunks for a document - Direct SQL for krai_intelligence schema"""
+        """Count chunks for a document - Direct SQL for krai_content schema"""
         try:
             if self.pg_pool:
                 async with self.pg_pool.acquire() as conn:
                     count = await conn.fetchval(
-                        "SELECT COUNT(*) FROM krai_intelligence.chunks WHERE document_id = $1",
+                        "SELECT COUNT(*) FROM krai_content.chunks WHERE document_id = $1",
                         document_id
                     )
                     return count or 0
@@ -583,7 +583,7 @@ class DatabaseService:
                         SELECT EXISTS(
                             SELECT 1 
                             FROM krai_intelligence.embeddings e
-                            JOIN krai_intelligence.chunks c ON e.chunk_id = c.id
+                            JOIN krai_content.chunks c ON e.chunk_id = c.id
                             WHERE c.document_id = $1
                         )
                         """,
