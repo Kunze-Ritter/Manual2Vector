@@ -228,10 +228,18 @@ class KRMasterPipeline:
         else:
             print(f"✅ SUPABASE_ANON_KEY: {supabase_key[:20]}...")
         
+        # Get PostgreSQL URL for direct connection (cross-schema queries)
+        postgres_url = os.getenv('POSTGRES_URL') or os.getenv('DATABASE_URL')
+        if postgres_url:
+            print(f"✅ POSTGRES_URL: {postgres_url[:40]}... (Cross-schema queries enabled)")
+        else:
+            print("⚠️  POSTGRES_URL not found - Image deduplication will be limited")
+        
         # Initialize database service
         self.database_service = DatabaseService(
             supabase_url=supabase_url,
-            supabase_key=supabase_key
+            supabase_key=supabase_key,
+            postgres_url=postgres_url  # Direct PostgreSQL for cross-schema
         )
         await self.database_service.connect()
         
@@ -351,41 +359,24 @@ class KRMasterPipeline:
                 if doc_info.manufacturer and doc_info.document_type != 'unknown':
                     stage_status['classification'] = True
             
-            # Use RPC functions for cross-schema access to krai_intelligence and krai_content
-            # This fixes the schema cache issues with Supabase PostgREST
+            # Use direct PostgreSQL connection for cross-schema queries (via database_service)
+            # This bypasses Supabase PostgREST limitations
             
             # Check if chunks exist (text stage) - krai_intelligence.chunks
-            try:
-                chunks_count = self.database_service.client.rpc('count_chunks_by_document', {'p_document_id': document_id}).execute()
-                if chunks_count.data and chunks_count.data > 0:
-                    stage_status['text'] = True
-            except Exception as e:
-                # Fallback: assume text stage is needed
-                pass
+            chunks_count = await self.database_service.count_chunks_by_document(document_id)
+            if chunks_count > 0:
+                stage_status['text'] = True
             
             # Check if images exist (image stage) - krai_content.images
-            try:
-                images_count = self.database_service.client.rpc('count_images_by_document', {'p_document_id': document_id}).execute()
-                if images_count.data and images_count.data > 0:
-                    stage_status['image'] = True
-            except Exception as e:
-                # Fallback: assume image stage is needed
-                pass
+            images_count = await self.database_service.count_images_by_document(document_id)
+            if images_count > 0:
+                stage_status['image'] = True
             
             # Check if embeddings exist (embedding stage)
             if stage_status['text']:  # Only check if chunks exist
-                try:
-                    # Get chunk IDs via RPC
-                    chunk_ids_result = self.database_service.client.rpc('get_chunk_ids_by_document', {'p_document_id': document_id, 'p_limit': 10}).execute()
-                    if chunk_ids_result.data and len(chunk_ids_result.data) > 0:
-                        chunk_ids = [row['chunk_id'] for row in chunk_ids_result.data]
-                        # Check if embeddings exist for these chunks
-                        embeddings_exist = self.database_service.client.rpc('embeddings_exist_for_chunks', {'p_chunk_ids': chunk_ids}).execute()
-                        if embeddings_exist.data:
-                            stage_status['embedding'] = True
-                except Exception as e:
-                    # Fallback: assume embedding stage is needed
-                    pass
+                embeddings_exist = await self.database_service.check_embeddings_exist(document_id)
+                if embeddings_exist:
+                    stage_status['embedding'] = True
             
             # For metadata and storage - assume done if image processing is confirmed
             if stage_status['image']:

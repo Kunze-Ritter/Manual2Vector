@@ -16,6 +16,13 @@ try:
 except ImportError:
     raise ImportError("Supabase client not available. Please install: pip install supabase")
 
+try:
+    import asyncpg
+    ASYNCPG_AVAILABLE = True
+except ImportError:
+    asyncpg = None
+    ASYNCPG_AVAILABLE = False
+
 from core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
@@ -34,10 +41,12 @@ class DatabaseService:
     - krai_system: processing_queue, audit_log, system_metrics
     """
     
-    def __init__(self, supabase_url: str, supabase_key: str):
+    def __init__(self, supabase_url: str, supabase_key: str, postgres_url: Optional[str] = None):
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
+        self.postgres_url = postgres_url  # Direct PostgreSQL connection for cross-schema queries
         self.client: Optional[SupabaseClient] = None
+        self.pg_pool: Optional[asyncpg.Pool] = None  # PostgreSQL connection pool
         self.logger = logging.getLogger("krai.database")
         self._setup_logging()
     
@@ -52,13 +61,33 @@ class DatabaseService:
         self.logger.setLevel(logging.INFO)
     
     async def connect(self):
-        """Connect to Supabase database"""
+        """Connect to Supabase database (PostgREST) and PostgreSQL (direct)"""
         try:
             if not SUPABASE_AVAILABLE:
                 raise ImportError("Supabase client not available. Please install: pip install supabase")
             
+            # Connect Supabase client (PostgREST API)
             self.client = create_client(self.supabase_url, self.supabase_key)
-            self.logger.info("Connected to Supabase database")
+            self.logger.info("Connected to Supabase database (PostgREST)")
+            
+            # Connect direct PostgreSQL for cross-schema queries (if URL provided)
+            if self.postgres_url and ASYNCPG_AVAILABLE:
+                try:
+                    self.pg_pool = await asyncpg.create_pool(
+                        self.postgres_url,
+                        min_size=2,
+                        max_size=10,
+                        command_timeout=60
+                    )
+                    self.logger.info("Connected to PostgreSQL database (direct) - Cross-schema queries enabled ✅")
+                except Exception as pg_error:
+                    self.logger.warning(f"PostgreSQL direct connection failed: {pg_error}. Cross-schema queries will use fallback.")
+                    self.pg_pool = None
+            else:
+                if not self.postgres_url:
+                    self.logger.info("PostgreSQL URL not provided - Image deduplication will be limited")
+                if not ASYNCPG_AVAILABLE:
+                    self.logger.warning("asyncpg not available - Install with: pip install asyncpg")
             
             # Test connection
             await self.test_connection()
@@ -481,3 +510,87 @@ class DatabaseService:
                 "status": "error",
                 "error": str(e)
             }
+    
+    # Cross-Schema Helper Methods (using direct PostgreSQL)
+    async def get_image_by_hash(self, file_hash: str) -> Optional[Dict]:
+        """Get image by file_hash for deduplication - Direct SQL for cross-schema access"""
+        try:
+            if self.client is None:
+                return None
+            
+            # Use direct PostgreSQL connection for cross-schema query
+            if self.pg_pool:
+                async with self.pg_pool.acquire() as conn:
+                    result = await conn.fetchrow(
+                        """
+                        SELECT id, filename, file_hash, created_at, document_id, storage_url
+                        FROM krai_content.images
+                        WHERE file_hash = $1
+                        LIMIT 1
+                        """,
+                        file_hash
+                    )
+                    
+                    if result:
+                        image_data = dict(result)
+                        self.logger.info(f"Found existing image with hash {file_hash[:16]}...")
+                        return image_data
+            else:
+                self.logger.debug(f"Direct PostgreSQL not available, skipping image deduplication check")
+            
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to get image by hash {file_hash[:16]}...: {e}")
+            return None
+    
+    async def count_chunks_by_document(self, document_id: str) -> int:
+        """Count chunks for a document - Direct SQL for krai_intelligence schema"""
+        try:
+            if self.pg_pool:
+                async with self.pg_pool.acquire() as conn:
+                    count = await conn.fetchval(
+                        "SELECT COUNT(*) FROM krai_intelligence.chunks WHERE document_id = $1",
+                        document_id
+                    )
+                    return count or 0
+            return 0
+        except Exception as e:
+            self.logger.error(f"Failed to count chunks: {e}")
+            return 0
+    
+    async def count_images_by_document(self, document_id: str) -> int:
+        """Count images for a document - Direct SQL for krai_content schema"""
+        try:
+            if self.pg_pool:
+                async with self.pg_pool.acquire() as conn:
+                    count = await conn.fetchval(
+                        "SELECT COUNT(*) FROM krai_content.images WHERE document_id = $1",
+                        document_id
+                    )
+                    return count or 0
+            return 0
+        except Exception as e:
+            self.logger.error(f"Failed to count images: {e}")
+            return 0
+    
+    async def check_embeddings_exist(self, document_id: str) -> bool:
+        """Check if embeddings exist for a document - Direct SQL across schemas"""
+        try:
+            if self.pg_pool:
+                async with self.pg_pool.acquire() as conn:
+                    exists = await conn.fetchval(
+                        """
+                        SELECT EXISTS(
+                            SELECT 1 
+                            FROM krai_intelligence.embeddings e
+                            JOIN krai_intelligence.chunks c ON e.chunk_id = c.id
+                            WHERE c.document_id = $1
+                        )
+                        """,
+                        document_id
+                    )
+                    return exists or False
+            return False
+        except Exception as e:
+            self.logger.error(f"Failed to check embeddings: {e}")
+            return False
