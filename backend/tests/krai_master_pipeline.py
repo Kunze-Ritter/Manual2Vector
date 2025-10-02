@@ -36,6 +36,7 @@ from processors.upload_processor import UploadProcessor
 from processors.text_processor_optimized import OptimizedTextProcessor
 from processors.image_processor import ImageProcessor
 from processors.classification_processor import ClassificationProcessor
+from processors.chunk_preprocessor import ChunkPreprocessor
 from processors.metadata_processor_ai import MetadataProcessorAI
 from processors.link_extraction_processor_ai import LinkExtractionProcessorAI
 from processors.storage_processor import StorageProcessor
@@ -276,6 +277,7 @@ class KRMasterPipeline:
             'text': OptimizedTextProcessor(self.database_service, self.config_service),
             'image': ImageProcessor(self.database_service, self.storage_service, self.ai_service),
             'classification': ClassificationProcessor(self.database_service, self.ai_service, self.features_service),
+            'chunk_prep': ChunkPreprocessor(self.database_service),
             'links': LinkExtractionProcessorAI(self.database_service, self.ai_service),
             'metadata': MetadataProcessorAI(self.database_service, self.ai_service, self.config_service),
             'storage': StorageProcessor(self.database_service, self.storage_service),
@@ -351,6 +353,7 @@ class KRMasterPipeline:
             'text': False,
             'image': False,
             'classification': False,
+            'chunk_prep': False,
             'links': False,
             'metadata': False,
             'storage': False,
@@ -381,6 +384,11 @@ class KRMasterPipeline:
             images_count = await self.database_service.count_images_by_document(document_id)
             if images_count > 0:
                 stage_status['image'] = True
+            
+            # Check if intelligence chunks exist (chunk_prep stage) - krai_intelligence.chunks
+            intelligence_chunks = await self.database_service.get_intelligence_chunks_by_document(document_id)
+            if len(intelligence_chunks) > 0:
+                stage_status['chunk_prep'] = True
             
             # Check if links exist (links stage) - krai_content.links
             links_count = await self.database_service.count_links_by_document(document_id)
@@ -493,7 +501,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Image processing error: {e}")
             
             if 'classification' in missing_stages:
-                print(f"  [4/9] Classification: {filename}")
+                print(f"  [4/10] Classification: {filename}")
                 try:
                     result4 = await self.processors['classification'].process(context)
                     if result4.success:
@@ -506,8 +514,23 @@ class KRMasterPipeline:
                     failed_stages.append('classification')
                     print(f"    ❌ Classification error: {e}")
             
+            if 'chunk_prep' in missing_stages:
+                print(f"  [5/10] Chunk Preprocessing: {filename}")
+                try:
+                    result4b = await self.processors['chunk_prep'].process(context)
+                    if result4b.success:
+                        completed_stages.append('chunk_prep')
+                        chunks_preprocessed = result4b.data.get('chunks_preprocessed', 0)
+                        print(f"    ✅ Chunk preprocessing completed: {chunks_preprocessed} chunks")
+                    else:
+                        failed_stages.append('chunk_prep')
+                        print(f"    ❌ Chunk preprocessing failed: {result4b.message}")
+                except Exception as e:
+                    failed_stages.append('chunk_prep')
+                    print(f"    ❌ Chunk preprocessing error: {e}")
+            
             if 'links' in missing_stages:
-                print(f"  [5/9] Links: {filename}")
+                print(f"  [6/10] Links: {filename}")
                 try:
                     result4b = await self.processors['links'].process(context)
                     if result4b.success:
@@ -523,7 +546,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Link extraction error: {e}")
             
             if 'metadata' in missing_stages:
-                print(f"  [6/9] Metadata (Error Codes): {filename}")
+                print(f"  [7/10] Metadata (Error Codes): {filename}")
                 try:
                     result5 = await self.processors['metadata'].process(context)
                     if result5.success:
@@ -537,7 +560,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Metadata processing error: {e}")
             
             if 'storage' in missing_stages:
-                print(f"  [7/9] Storage: {filename}")
+                print(f"  [8/10] Storage: {filename}")
                 try:
                     result6 = await self.processors['storage'].process(context)
                     if result6.success:
@@ -551,7 +574,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Storage processing error: {e}")
             
             if 'embedding' in missing_stages:
-                print(f"  [8/9] Embeddings: {filename}")
+                print(f"  [9/10] Embeddings: {filename}")
                 try:
                     result7 = await self.processors['embedding'].process(context)
                     if result7.success:
@@ -566,7 +589,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Embedding processing error: {e}")
             
             if 'search' in missing_stages:
-                print(f"  [9/9] Search: {filename}")
+                print(f"  [10/10] Search: {filename}")
                 try:
                     result8 = await self.processors['search'].process(context)
                     if result8.success:
@@ -703,28 +726,34 @@ class KRMasterPipeline:
             print(f"  [{doc_index}] Classification: {filename}")
             result4 = await self.processors['classification'].process(context)
             
-            # Stage 5: Link Extraction Processor
+            # Stage 5: Chunk Preprocessing (NEW! - AI-ready chunks)
+            print(f"  [{doc_index}] Chunk Preprocessing: {filename}")
+            result4b = await self.processors['chunk_prep'].process(context)
+            chunks_preprocessed = result4b.data.get('chunks_preprocessed', 0) if result4b.success else 0
+            print(f"    → {chunks_preprocessed} chunks preprocessed")
+            
+            # Stage 6: Link Extraction Processor
             print(f"  [{doc_index}] Link Extraction: {filename}")
-            result4b = await self.processors['links'].process(context)
-            links_count = result4b.data.get('links_extracted', 0) if result4b.success else 0
-            video_count = result4b.data.get('video_links_created', 0) if result4b.success else 0
+            result4c = await self.processors['links'].process(context)
+            links_count = result4c.data.get('links_extracted', 0) if result4c.success else 0
+            video_count = result4c.data.get('video_links_created', 0) if result4c.success else 0
             print(f"    → {links_count} links, {video_count} videos")
             
-            # Stage 6: Metadata Processor
+            # Stage 7: Metadata Processor (Error Codes)
             print(f"  [{doc_index}] Metadata (Error Codes): {filename}")
             result5 = await self.processors['metadata'].process(context)
             error_codes_count = result5.data.get('error_codes_found', 0) if result5.success else 0
             print(f"    → {error_codes_count} error codes")
             
-            # Stage 7: Storage Processor
+            # Stage 8: Storage Processor
             print(f"  [{doc_index}] Storage: {filename}")
             result6 = await self.processors['storage'].process(context)
             
-            # Stage 8: Embedding Processor
+            # Stage 9: Embedding Processor (Uses intelligence.chunks!)
             print(f"  [{doc_index}] Embeddings: {filename}")
             result7 = await self.processors['embedding'].process(context)
             
-            # Stage 9: Search Processor
+            # Stage 10: Search Processor
             print(f"  [{doc_index}] Search Index: {filename}")
             result8 = await self.processors['search'].process(context)
             

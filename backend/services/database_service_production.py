@@ -668,6 +668,49 @@ class DatabaseService:
             self.logger.error(f"Failed to check embeddings: {e}")
             return False
     
+    # Intelligence Chunk Methods
+    async def create_intelligence_chunk(self, chunk_data: Dict[str, Any]) -> Optional[str]:
+        """Create a chunk in krai_intelligence.chunks"""
+        try:
+            # Use service_client for cross-schema access
+            client = self.service_client if self.service_client else self.client
+            
+            result = client.schema('krai_intelligence').table('chunks').insert(chunk_data).execute()
+            
+            if result.data and len(result.data) > 0:
+                chunk_id = result.data[0]['id']
+                self.logger.info(f"Created intelligence chunk: {chunk_id}")
+                return chunk_id
+            
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to create intelligence chunk: {e}")
+            return None
+    
+    async def get_intelligence_chunks_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all intelligence chunks for a document"""
+        try:
+            # Method 1: Direct PostgreSQL
+            if self.pg_pool:
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        rows = await conn.fetch(
+                            "SELECT * FROM krai_intelligence.chunks WHERE document_id = $1 ORDER BY chunk_index",
+                            document_id
+                        )
+                        return [dict(row) for row in rows]
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg query failed: {pg_err}, trying PostgREST...")
+            
+            # Method 2: PostgREST
+            client = self.service_client if self.service_client else self.client
+            result = client.schema('krai_intelligence').table('chunks').select('*').eq('document_id', document_id).order('chunk_index', desc=False).execute()
+            return result.data or []
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get intelligence chunks: {e}")
+            return []
+    
     # Image Methods
     async def get_images_by_document(self, document_id: str) -> List[Dict[str, Any]]:
         """Get all images for a document"""

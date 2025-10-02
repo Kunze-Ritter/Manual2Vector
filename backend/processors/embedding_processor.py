@@ -43,7 +43,7 @@ class EmbeddingProcessor(BaseProcessor):
     
     def get_dependencies(self) -> List[str]:
         """Get processor dependencies"""
-        return ['text_processor']
+        return ['text_processor', 'chunk_preprocessor']
     
     def get_resource_requirements(self) -> Dict[str, Any]:
         """Get resource requirements for embedding processor"""
@@ -67,33 +67,19 @@ class EmbeddingProcessor(BaseProcessor):
             ProcessingResult: Embedding processing result
         """
         try:
-            # Create real chunks first for embedding generation
-            import uuid
-            from core.data_models import ChunkModel, ChunkType
+            # Get intelligence chunks from krai_intelligence.chunks (created by ChunkPreprocessor)
+            intelligence_chunks = await self.database_service.get_intelligence_chunks_by_document(context.document_id)
             
-            # Create 3 test chunks in the database
-            test_chunks = []
-            for i in range(1, 4):
-                chunk_model = ChunkModel(
-                    document_id=context.document_id,
-                    content=f'This is test chunk {i} content for embedding generation. It contains technical information about printer maintenance and troubleshooting procedures.',
-                    chunk_type=ChunkType.TEXT,
-                    chunk_index=i,
-                    section_title=f'Test Section {i}',
-                    confidence_score=0.8,
-                    language="en"
-                )
-                
-                chunk_id = await self.database_service.create_chunk(chunk_model)
-                test_chunks.append({
-                    'id': chunk_id if hasattr(chunk_id, 'id') else chunk_id,
-                    'text_chunk': chunk_model.content,
-                    'chunk_index': i
+            if not intelligence_chunks:
+                self.logger.warning(f"No intelligence chunks found for document {context.document_id}")
+                return self.create_success_result({
+                    'embeddings_created': 0,
+                    'vector_count': 0
                 })
             
             embedding_ids = []
             
-            for chunk in test_chunks:
+            for chunk in intelligence_chunks:
                 try:
                     # Generate embedding using AI service
                     embedding_vector = await self.ai_service.generate_embeddings(chunk['text_chunk'])
@@ -134,13 +120,14 @@ class EmbeddingProcessor(BaseProcessor):
                 entity_id=context.document_id,
                 details={
                     'embeddings_created': len(embedding_ids),
-                    'total_chunks': len(test_chunks),
+                    'total_chunks': len(intelligence_chunks),
                     'model_used': 'embeddinggemma:latest'
                 }
             )
             
             # Return success result
             data = {
+                'embeddings_created': len(embedding_ids),
                 'embeddings': embedding_ids,
                 'vector_count': len(embedding_ids)
             }
