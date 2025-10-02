@@ -416,15 +416,15 @@ class AIService:
         # Convert SVG to PNG for vision model (SVGs crash the model)
         if image.startswith(b'<svg') or image.startswith(b'<?xml'):
             try:
-                self.logger.info("Converting SVG to PNG for vision analysis...")
+                self.logger.info("🔄 Converting SVG to PNG for vision analysis...")
                 image = self._convert_svg_to_png(image)
             except Exception as svg_error:
-                self.logger.warning(f"Failed to convert SVG to PNG: {svg_error} - Using fallback")
+                # This is expected for complex SVGs - original SVG is still saved!
                 return {
                     "image_type": "diagram",
-                    "description": f"SVG vector graphic (conversion failed: {svg_error})",
+                    "description": "SVG vector graphic (original preserved in storage, AI analysis skipped)",
                     "contains_text": False,
-                    "tags": ["svg", "vector"],
+                    "tags": ["svg", "vector", "technical"],
                     "confidence": 0.5
                 }
         
@@ -555,11 +555,11 @@ class AIService:
             # Convert SVG to PNG for vision model (SVGs crash the model)
             if image_bytes.startswith(b'<svg') or image_bytes.startswith(b'<?xml'):
                 try:
-                    self.logger.info("Converting SVG to PNG for vision analysis...")
+                    self.logger.info("🔄 Converting SVG to PNG for vision analysis...")
                     image_bytes = self._convert_svg_to_png(image_bytes)
                 except Exception as svg_error:
-                    self.logger.warning(f"Failed to convert SVG to PNG: {svg_error} - Skipping")
-                    return {"error_codes": [], "skipped": True, "reason": f"SVG conversion failed: {svg_error}"}
+                    # This is expected for complex SVGs - original SVG is still saved!
+                    return {"error_codes": [], "skipped": True, "reason": "SVG format (original preserved in storage)"}
             
             # Reduce image size if too large (Ollama has issues with large images)
             try:
@@ -745,7 +745,7 @@ class AIService:
             
         except Exception as svglib_error:
             # Fallback: Try simple PIL rendering (works for some SVGs)
-            self.logger.warning(f"svglib conversion failed ({svglib_error}), trying PIL fallback...")
+            self.logger.info(f"svglib conversion failed (common for complex/embedded SVGs), trying PIL fallback...")
             try:
                 from PIL import Image
                 import io
@@ -766,9 +766,16 @@ class AIService:
                 img.save(buffer, format='PNG', optimize=True)
                 png_bytes = buffer.getvalue()
                 
-                self.logger.info(f"SVG converted via PIL fallback: {len(svg_bytes)} bytes → {len(png_bytes)} bytes")
+                self.logger.info(f"✅ SVG converted via PIL fallback: {len(svg_bytes)} bytes → {len(png_bytes)} bytes")
                 return png_bytes
                 
             except Exception as pil_fallback_error:
-                # Both methods failed
-                raise Exception(f"All SVG conversion methods failed - svglib: {svglib_error}, PIL: {pil_fallback_error}")
+                # Both methods failed - this is OK! SVGs stay in storage, just no AI analysis
+                self.logger.info(
+                    f"ℹ️  SVG conversion not possible (complex/embedded format) - This is OK!\n"
+                    f"   → Original SVG is saved in storage and database\n"
+                    f"   → Only Vision AI analysis will be skipped for this image\n"
+                    f"   → Technical details: svglib error='{svglib_error}', PIL error='{pil_fallback_error}'\n"
+                    f"   → Common for: SVGs with embedded base64 data, Adobe Illustrator SVGs, or complex filters"
+                )
+                raise Exception(f"SVG conversion skipped (format not supported) - Original SVG preserved in storage")
