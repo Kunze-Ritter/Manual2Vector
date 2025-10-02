@@ -86,23 +86,24 @@ class ProcessorLogger:
     def success(self, message: str):
         """Log success message"""
         if RICH_AVAILABLE:
-            self.logger.info(f"[green]✅ {message}[/green]")
+            # Remove emoji for Windows compatibility
+            self.logger.info(f"[green]{message}[/green]")
         else:
-            self.logger.info(f"✅ {message}")
+            self.logger.info(f"[OK] {message}")
     
     def warning(self, message: str):
         """Log warning message"""
         if RICH_AVAILABLE:
-            self.logger.warning(f"[yellow]⚠️  {message}[/yellow]")
+            self.logger.warning(f"[yellow]{message}[/yellow]")
         else:
-            self.logger.warning(f"⚠️  {message}")
+            self.logger.warning(f"[WARN] {message}")
     
     def error(self, message: str, exc: Optional[Exception] = None):
         """Log error message"""
         if RICH_AVAILABLE:
-            self.logger.error(f"[red]❌ {message}[/red]")
+            self.logger.error(f"[red]{message}[/red]")
         else:
-            self.logger.error(f"❌ {message}")
+            self.logger.error(f"[ERROR] {message}")
         
         if exc:
             self.logger.exception(exc)

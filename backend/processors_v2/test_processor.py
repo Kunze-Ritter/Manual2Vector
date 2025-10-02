@@ -116,9 +116,11 @@ def main():
         
         # Save to file
         if args.output:
-            logger.info(f"Saving results to: {args.output}")
-            save_results(result, args.output)
-            logger.success("Results saved!")
+            # Convert to absolute path if relative
+            output_path = args.output if args.output.is_absolute() else Path.cwd() / args.output
+            logger.info(f"Saving results to: {output_path}")
+            save_results(result, output_path)
+            logger.success(f"Results saved to: {output_path}")
         
     else:
         logger.error("Processing failed!")
