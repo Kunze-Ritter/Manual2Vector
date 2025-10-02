@@ -27,7 +27,7 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId }}",
-        "tableName": "krai_agent.memory",
+        "tableName": "vw_agent_memory",
         "sessionIdKey": "session_id",
         "messageKey": "message",
         "roleKey": "role",
