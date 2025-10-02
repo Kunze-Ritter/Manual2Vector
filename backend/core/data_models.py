@@ -167,10 +167,12 @@ class ImageModel(BaseModel):
     ocr_confidence: float = 0.0
     tags: List[str] = Field(default_factory=list)
     file_hash: str
-    figure_number: Optional[str] = None  # Figure reference (e.g., "1", "2.1")
-    figure_context: Optional[str] = None  # Context text around figure
-    manual_description: Optional[str] = None  # Manual description override
-    chunk_id: Optional[str] = None  # Link to chunk if extracted from chunk
+    # NOTE: These fields exist in DB but PostgREST schema cache is unstable
+    # Uncomment when cache is stable (wait ~10 minutes or restart Supabase project)
+    # figure_number: Optional[str] = None
+    # figure_context: Optional[str] = None
+    # manual_description: Optional[str] = None
+    # chunk_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Intelligence Models
