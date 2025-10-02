@@ -32,6 +32,7 @@ from services.ai_service import AIService
 from services.config_service import ConfigService
 from services.features_service import FeaturesService
 from services.quality_check_service import QualityCheckService
+from services.file_locator_service import FileLocatorService
 
 from processors.upload_processor import UploadProcessor
 from processors.text_processor_optimized import OptimizedTextProcessor
@@ -275,6 +276,9 @@ class KRMasterPipeline:
         # Initialize quality check service
         self.quality_service = QualityCheckService(self.database_service)
         
+        # Initialize file locator service
+        self.file_locator = FileLocatorService()
+        
         # Initialize all processors
         self.processors = {
             'upload': UploadProcessor(self.database_service),
@@ -351,9 +355,22 @@ class KRMasterPipeline:
             return []
     
     async def get_all_documents(self) -> List[Dict[str, Any]]:
-        """Get all documents"""
+        """Get all documents with resolved file paths"""
         try:
             all_docs = self.database_service.client.table('documents').select('*').execute()
+            
+            # Resolve file paths using file locator
+            for doc in all_docs.data:
+                filename = doc.get('filename')
+                if filename:
+                    # Try to find the actual file
+                    actual_path = self.file_locator.find_file(filename)
+                    doc['resolved_path'] = actual_path
+                    doc['file_exists'] = actual_path is not None
+                else:
+                    doc['resolved_path'] = None
+                    doc['file_exists'] = False
+            
             return all_docs.data or []
         except Exception as e:
             print(f"Error getting all documents: {e}")
@@ -1513,6 +1530,9 @@ async def main():
             print(f"Script Location: {os.path.abspath(__file__)}")
             print(f"Script Directory: {os.path.dirname(os.path.abspath(__file__))}")
             
+            # Show file locator information
+            pipeline.file_locator.print_debug_info()
+            
             print("\n🔍 Searching for service_documents...")
             pdf_directory = pipeline.find_service_documents_directory()
             
@@ -1527,6 +1547,16 @@ async def main():
             else:
                 print("\n❌ No service_documents directory found!")
                 print("💡 Create a 'service_documents' directory and add PDF files")
+            
+            # Test finding a specific file
+            print("\n🔍 Test File Locator:")
+            test_filename = input("Enter a filename to search for (or press Enter to skip): ").strip()
+            if test_filename:
+                found_path = pipeline.file_locator.find_file(test_filename)
+                if found_path:
+                    print(f"  ✅ Found: {found_path}")
+                else:
+                    print(f"  ❌ Not found: {test_filename}")
             
         elif choice == "8":
             # Quality Check
@@ -1604,8 +1634,12 @@ async def main():
             for i, doc in enumerate(docs):
                 print(f"\n[{i+1}/{len(docs)}] {doc['filename']}")
                 
-                # Smart processing
-                file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", doc['filename']))
+                # Use resolved path from file locator
+                file_path = doc.get('resolved_path')
+                if not file_path:
+                    print(f"  ⚠️  File not found, processing with database data only")
+                    file_path = ""  # Empty path - processors will handle it
+                
                 result = await pipeline.process_document_smart_stages(doc['id'], doc['filename'], file_path)
                 
                 if result.get('quality_passed'):
