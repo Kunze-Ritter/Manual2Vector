@@ -1,0 +1,260 @@
+{
+  "name": "KRAI AI Agent - Fixed & Optimized",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Du bist der KRAI AI Agent - ein intelligenter technischer Assistent für Service-Dokumentation.\n\nDeine Aufgaben:\n- Hilfe bei technischen Fragen zu Druckern, Kopierern und Geräten\n- Fehlercode-Analyse und Troubleshooting\n- Modell-Informationen und Spezifikationen\n- System-Status und Statistiken\n\nDu hast Zugriff auf:\n1. **Vector Search Tool (krai_intelligence)** - Durchsucht technische Dokumentation\n2. **Supabase Datenbank** - Produkte, Fehler-Codes, Dokumente\n\nAntworte immer:\n- Auf Deutsch\n- Präzise und hilfreich\n- Mit Quellenangaben wenn möglich\n- Strukturiert (mit Listen/Aufzählungen)\n\nWenn du keine Information findest, sage es ehrlich und schlage Alternativen vor."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [880, 260],
+      "id": "ai-agent-main",
+      "name": "KRAI AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7,
+          "numPredict": 2000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [1040, 400],
+      "id": "ollama-chat",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "tableName": {
+          "__rl": true,
+          "value": "vw_agent_memory",
+          "mode": "list",
+          "cachedResultName": "vw_agent_memory"
+        },
+        "sessionIdKey": "session_id",
+        "messageKey": "message",
+        "roleKey": "role",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [1040, 540],
+      "id": "postgres-memory",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "krai_intelligence",
+        "toolDescription": "Durchsuche die KRAI Dokumentation und technische Handbücher. Nutze dieses Tool für:\n- Fehlercode-Informationen (z.B. 'Error E045', 'Fehler 13.01')\n- Reparatur-Anleitungen\n- Technische Spezifikationen\n- Wartungshinweise\n- Bedienungsanleitungen\n\nGib relevante Suchbegriffe ein (z.B. 'HP LaserJet paper jam', 'Toner wechseln', 'Error code E045').",
+        "tableName": {
+          "__rl": true,
+          "value": "vw_embeddings",
+          "mode": "list",
+          "cachedResultName": "vw_embeddings"
+        },
+        "queryName": "embedding",
+        "topK": 5,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [1280, 400],
+      "id": "vector-store",
+      "name": "KRAI Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [1280, 540],
+      "id": "embeddings-ollama",
+      "name": "Embeddings Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [660, 260],
+      "id": "chat-trigger",
+      "name": "When chat message received",
+      "webhookId": "ee735bd8-0333-40b8-b43c-5da5fce5f385"
+    },
+    {
+      "parameters": {
+        "name": "get_system_status",
+        "description": "Ruft den aktuellen System-Status ab mit Statistiken über:\n- Anzahl Dokumente (gesamt, verarbeitet, pending)\n- Anzahl Chunks, Bilder, Embeddings\n- Anzahl Produkte und Hersteller\n- Verarbeitungs-Queue Status",
+        "workflowId": "={{ $workflow.id }}",
+        "responsePropertyName": "status_data",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{}",
+        "toolDescription": "Zeigt System-Statistiken und Verarbeitungs-Status"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [1280, 260],
+      "id": "tool-status",
+      "name": "Tool: System Status"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(DISTINCT d.id) as total_documents,\n  COUNT(DISTINCT CASE WHEN d.processing_status = 'completed' THEN d.id END) as completed_documents,\n  COUNT(DISTINCT CASE WHEN d.processing_status IN ('pending', 'processing') THEN d.id END) as pending_documents,\n  COUNT(DISTINCT c.id) as total_chunks,\n  COUNT(DISTINCT i.id) as total_images,\n  COUNT(DISTINCT e.id) as total_embeddings,\n  COUNT(DISTINCT p.id) as total_products,\n  COUNT(DISTINCT m.id) as total_manufacturers,\n  MAX(d.created_at) as last_document_added\nFROM krai_core.documents d\nLEFT JOIN krai_content.chunks c ON d.id = c.document_id\nLEFT JOIN krai_content.images i ON d.id = i.document_id\nLEFT JOIN krai_intelligence.embeddings e ON c.id = e.chunk_id\nLEFT JOIN krai_core.products p ON d.product_id = p.id\nLEFT JOIN krai_core.manufacturers m ON d.manufacturer_id = m.id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1040, 120],
+      "id": "query-status",
+      "name": "Query System Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format System Status for LLM\nconst data = $input.first().json;\n\nconst statusText = `📊 KRAI System Status:\n\n📄 Dokumente:\n  - Gesamt: ${data.total_documents || 0}\n  - Abgeschlossen: ${data.completed_documents || 0}\n  - In Bearbeitung: ${data.pending_documents || 0}\n\n📝 Inhalte:\n  - Text-Chunks: ${data.total_chunks || 0}\n  - Bilder: ${data.total_images || 0}\n  - Vector-Embeddings: ${data.total_embeddings || 0}\n\n🏭 Katalog:\n  - Produkte: ${data.total_products || 0}\n  - Hersteller: ${data.total_manufacturers || 0}\n\n⏱️ Letzte Aktivität: ${data.last_document_added ? new Date(data.last_document_added).toLocaleString('de-DE') : 'Keine Daten'}`;\n\nreturn {\n  status: statusText,\n  data: data\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 0],
+      "id": "format-status",
+      "name": "Format Status"
+    }
+  ],
+  "connections": {
+    "KRAI AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "KRAI AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "KRAI AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KRAI Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "KRAI Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "KRAI AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: System Status": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query System Status": {
+      "main": [
+        [
+          {
+            "node": "Format Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [
+    {
+      "name": "KRAI AI Agent",
+      "id": "krai-agent"
+    }
+  ]
+}
