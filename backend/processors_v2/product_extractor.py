@@ -70,6 +70,9 @@ KONICA_MINOLTA_PATTERNS = {
         r'\bbizhub\s+(?:C|PRESS\s+)?C?\d{3,4}[a-z]{0,2}\b',
         re.IGNORECASE
     ),
+    'c_series': re.compile(
+        r'\bC\d{4}(?:P|hc)?\b'  # C4080, C4070, C84hc, C74hc
+    ),
 }
 
 # Ricoh Patterns
