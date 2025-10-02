@@ -1599,6 +1599,8 @@ async def main():
             quality_scores = []
             passed_count = 0
             
+            import os  # Explicit import for this scope
+            
             for i, doc in enumerate(docs):
                 print(f"\n[{i+1}/{len(docs)}] {doc['filename']}")
                 
