@@ -1,0 +1,282 @@
+"""
+Main Document Processor - Orchestrates everything
+
+Coordinates text extraction, chunking, product/error extraction.
+"""
+
+from pathlib import Path
+from typing import Optional
+from uuid import UUID, uuid4
+import time
+
+from .logger import get_logger, log_processing_summary
+from .models import ProcessingResult
+from .text_extractor import TextExtractor
+from .product_extractor import ProductExtractor
+from .error_code_extractor import ErrorCodeExtractor
+from .chunker import SmartChunker
+
+
+logger = get_logger()
+
+
+class DocumentProcessor:
+    """Main document processor - orchestrates all extraction"""
+    
+    def __init__(
+        self,
+        manufacturer: str = "HP",
+        chunk_size: int = 1000,
+        chunk_overlap: int = 100,
+        pdf_engine: str = "pymupdf"
+    ):
+        """
+        Initialize document processor
+        
+        Args:
+            manufacturer: Manufacturer name (HP, Canon, etc.)
+            chunk_size: Target chunk size
+            chunk_overlap: Overlap between chunks
+            pdf_engine: PDF extraction engine
+        """
+        self.manufacturer = manufacturer
+        self.logger = get_logger()
+        
+        # Initialize extractors
+        self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
+        self.product_extractor = ProductExtractor(manufacturer_name=manufacturer)
+        self.error_code_extractor = ErrorCodeExtractor()
+        self.chunker = SmartChunker(
+            chunk_size=chunk_size,
+            overlap_size=chunk_overlap
+        )
+        
+        self.logger.info(f"Initialized processor for {manufacturer}")
+        self.logger.info(f"PDF Engine: {pdf_engine}, Chunk Size: {chunk_size}")
+    
+    def process_document(
+        self,
+        pdf_path: Path,
+        document_id: Optional[UUID] = None
+    ) -> ProcessingResult:
+        """
+        Process complete document
+        
+        Args:
+            pdf_path: Path to PDF file
+            document_id: Optional document UUID (generates if None)
+            
+        Returns:
+            ProcessingResult with all extracted data
+        """
+        if document_id is None:
+            document_id = uuid4()
+        
+        start_time = time.time()
+        
+        self.logger.section(f"Processing Document: {pdf_path.name}")
+        self.logger.info(f"Document ID: {document_id}")
+        
+        validation_errors = []
+        
+        try:
+            # Step 1: Extract text
+            self.logger.info("Step 1/5: Extracting text from PDF...")
+            page_texts, metadata = self.text_extractor.extract_text(pdf_path, document_id)
+            
+            if not page_texts:
+                self.logger.error("No text extracted from PDF!")
+                return self._create_failed_result(
+                    document_id,
+                    "Text extraction failed",
+                    time.time() - start_time
+                )
+            
+            self.logger.success(f"Extracted {len(page_texts)} pages")
+            
+            # Step 2: Extract products (from first page primarily)
+            self.logger.info("Step 2/5: Extracting product models...")
+            products = []
+            
+            # Try first page
+            if 1 in page_texts:
+                first_page_products = self.product_extractor.extract_from_text(
+                    page_texts[1], page_number=1
+                )
+                products.extend(first_page_products)
+            
+            # Scan additional pages if no products found
+            if not products and len(page_texts) > 1:
+                self.logger.info("No products on first page, scanning additional pages...")
+                for page_num in sorted(page_texts.keys())[:5]:  # First 5 pages
+                    page_products = self.product_extractor.extract_from_text(
+                        page_texts[page_num], page_number=page_num
+                    )
+                    products.extend(page_products)
+            
+            # Validate products
+            for product in products:
+                errors = self.product_extractor.validate_extraction(product)
+                if errors:
+                    validation_errors.extend([str(e) for e in errors])
+            
+            self.logger.success(f"Extracted {len(products)} products")
+            
+            # Step 3: Extract error codes
+            self.logger.info("Step 3/5: Extracting error codes...")
+            error_codes = []
+            
+            with self.logger.progress_bar(page_texts.items(), "Scanning for error codes") as progress:
+                task = progress.add_task("Scanning pages", total=len(page_texts))
+                
+                for page_num, text in page_texts.items():
+                    page_codes = self.error_code_extractor.extract_from_text(
+                        text, page_number=page_num
+                    )
+                    error_codes.extend(page_codes)
+                    progress.update(task, advance=1)
+            
+            # Validate error codes
+            for error_code in error_codes:
+                errors = self.error_code_extractor.validate_extraction(error_code)
+                if errors:
+                    validation_errors.extend([str(e) for e in errors])
+            
+            self.logger.success(f"Extracted {len(error_codes)} error codes")
+            
+            # Step 4: Create chunks
+            self.logger.info("Step 4/5: Chunking text...")
+            chunks = self.chunker.chunk_document(page_texts, document_id)
+            
+            # Deduplicate
+            chunks = self.chunker.deduplicate_chunks(chunks)
+            
+            self.logger.success(f"Created {len(chunks)} chunks")
+            
+            # Step 5: Statistics
+            self.logger.info("Step 5/5: Calculating statistics...")
+            statistics = self._calculate_statistics(
+                page_texts, products, error_codes, chunks
+            )
+            
+            # Create result
+            processing_time = time.time() - start_time
+            
+            result = ProcessingResult(
+                document_id=document_id,
+                success=True,
+                metadata=metadata,
+                chunks=chunks,
+                products=products,
+                error_codes=error_codes,
+                validation_errors=validation_errors,
+                processing_time_seconds=processing_time,
+                statistics=statistics
+            )
+            
+            # Log summary
+            log_processing_summary(
+                self.logger,
+                result.to_summary_dict(),
+                processing_time
+            )
+            
+            return result
+        
+        except Exception as e:
+            self.logger.error(f"Processing failed: {e}", exc=e)
+            processing_time = time.time() - start_time
+            return self._create_failed_result(
+                document_id,
+                str(e),
+                processing_time
+            )
+    
+    def _calculate_statistics(
+        self,
+        page_texts: dict,
+        products: list,
+        error_codes: list,
+        chunks: list
+    ) -> dict:
+        """Calculate processing statistics"""
+        total_chars = sum(len(text) for text in page_texts.values())
+        total_words = sum(len(text.split()) for text in page_texts.values())
+        
+        # Chunk types distribution
+        chunk_types = {}
+        for chunk in chunks:
+            chunk_type = chunk.chunk_type
+            chunk_types[chunk_type] = chunk_types.get(chunk_type, 0) + 1
+        
+        # Product confidence
+        avg_product_conf = (
+            sum(p.confidence for p in products) / len(products)
+            if products else 0
+        )
+        
+        # Error code confidence
+        avg_error_conf = (
+            sum(e.confidence for e in error_codes) / len(error_codes)
+            if error_codes else 0
+        )
+        
+        return {
+            'total_pages': len(page_texts),
+            'total_characters': total_chars,
+            'total_words': total_words,
+            'total_chunks': len(chunks),
+            'total_products': len(products),
+            'total_error_codes': len(error_codes),
+            'avg_product_confidence': round(avg_product_conf, 2),
+            'avg_error_code_confidence': round(avg_error_conf, 2),
+            'chunk_types': chunk_types,
+            'avg_chunk_size': round(total_chars / len(chunks), 0) if chunks else 0
+        }
+    
+    def _create_failed_result(
+        self,
+        document_id: UUID,
+        error_message: str,
+        processing_time: float
+    ) -> ProcessingResult:
+        """Create failed processing result"""
+        from .models import DocumentMetadata
+        
+        # Create minimal metadata
+        metadata = DocumentMetadata(
+            document_id=document_id,
+            page_count=0,
+            file_size_bytes=0,
+            document_type="service_manual"
+        )
+        
+        return ProcessingResult(
+            document_id=document_id,
+            success=False,
+            metadata=metadata,
+            validation_errors=[error_message],
+            processing_time_seconds=processing_time,
+            statistics={'error': error_message}
+        )
+
+
+# Convenience function
+def process_pdf(
+    pdf_path: Path,
+    manufacturer: str = "HP",
+    document_id: Optional[UUID] = None
+) -> ProcessingResult:
+    """
+    Convenience function to process PDF
+    
+    Args:
+        pdf_path: Path to PDF file
+        manufacturer: Manufacturer name
+        document_id: Optional document UUID
+        
+    Returns:
+        ProcessingResult
+    """
+    processor = DocumentProcessor(manufacturer=manufacturer)
+    return processor.process_document(pdf_path, document_id)
