@@ -143,6 +143,7 @@ test_results/
 # Performance profiling
 *.prof
 *.profile
+performance_log.json
 
 # Memory dumps
 *.hprof
