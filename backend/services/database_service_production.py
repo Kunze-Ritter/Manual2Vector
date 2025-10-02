@@ -720,13 +720,22 @@ class DatabaseService:
                 except Exception as pg_err:
                     self.logger.warning(f"asyncpg insert failed: {pg_err}, trying PostgREST...")
             
-            # Method 2: PostgREST fallback (use service_role for cross-schema)
+            # Method 2: PostgREST fallback (use RPC function due to schema restrictions)
             client = self.service_client if self.service_client else self.client
-            result = client.schema('krai_intelligence').table('chunks').insert(chunk_data).execute()
+            result = client.rpc('create_intelligence_chunk', {
+                'p_document_id': chunk_data['document_id'],
+                'p_text_chunk': chunk_data['text_chunk'],
+                'p_chunk_index': chunk_data['chunk_index'],
+                'p_page_start': chunk_data['page_start'],
+                'p_page_end': chunk_data['page_end'],
+                'p_processing_status': chunk_data.get('processing_status', 'pending'),
+                'p_fingerprint': chunk_data['fingerprint'],
+                'p_metadata': chunk_data.get('metadata', {})
+            }).execute()
             
-            if result.data and len(result.data) > 0:
-                chunk_id = result.data[0]['id']
-                self.logger.info(f"Created intelligence chunk: {chunk_id}")
+            if result.data:
+                chunk_id = str(result.data)
+                self.logger.info(f"Created intelligence chunk via RPC: {chunk_id}")
                 return chunk_id
             
             return None
