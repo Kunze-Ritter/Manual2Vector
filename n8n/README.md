@@ -23,12 +23,12 @@ See `docs/n8n/` for detailed setup guides:
 
 ## 🔐 Database Access
 
-n8n has a dedicated database user with access to `krai_agent.memory`:
+n8n accesses the database via Supabase service_role or anon key:
 
 ```
-User: n8n_user
-Connection: See credentials.txt (not in git)
-Migration: database/migrations/create_n8n_user.sql
+View: public.vw_agent_memory
+Table: krai_agent.memory
+Connection: Use Supabase URL + service_role_key
 ```
 
 ## 🚀 Quick Start
@@ -36,10 +36,11 @@ Migration: database/migrations/create_n8n_user.sql
 1. **Install n8n**: `npm install -g n8n`
 2. **Start n8n**: `n8n start`
 3. **Import workflows**: Import JSON files from `workflows/`
-4. **Configure credentials**: Use connection string from `credentials.txt`
+4. **Configure credentials**: Use Supabase URL + service_role_key
 
 ## 🔗 Related
 
 - Main docs: `../docs/n8n/`
-- Database setup: `../database/migrations/N8N_USER_SETUP.md`
+- Database schema: `../database/migrations/07_agent_memory_table.sql`
+- View migration: `../database/migrations/10_agent_memory_content_to_message.sql`
 - Credentials: `../credentials.txt` (not in git)

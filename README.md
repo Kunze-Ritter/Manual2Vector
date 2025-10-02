@@ -11,7 +11,7 @@ KR-AI-Engine is a comprehensive document processing system that automatically ex
 ### 🤖 **AI-Powered Processing**
 - **Smart Document Classification** using Ollama LLM models
 - **Intelligent Text Chunking** with semantic analysis
-- **Image Recognition** and OCR with vision models
+- **Image Recognition** and OCR with vision models (with SVG support!)
 - **Vector Embeddings** for semantic search
 - **Manufacturer & Model Detection** with normalization
 
@@ -49,34 +49,33 @@ git clone https://github.com/Kunze-Ritter/Manual2Vector.git
 cd Manual2Vector
 
 # Create virtual environment
-python -m venv krai_env
-source krai_env/bin/activate  # Linux/macOS
-# or krai_env\Scripts\activate  # Windows
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+# or source .venv/bin/activate  # Linux/macOS
 
 # Install dependencies
 pip install -r backend/requirements.txt
 
 # Configure environment
-cp backend/.env.example backend/.env
-# Edit backend/.env with your credentials
+cp .env.example .env
+# Edit .env with your credentials
 
 # Install Ollama models
 ollama pull llama3.2:latest
-ollama pull embeddinggemma:latest
-ollama pull llava:latest
+ollama pull nomic-embed-text:latest
+ollama pull llava-phi3:latest
 
 # Run the application
-cd backend
-python tests/krai_master_pipeline.py
+python backend/pipeline/master_pipeline.py
 ```
 
-📖 **For detailed installation instructions, see [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)**
+📖 **For detailed installation instructions, see [docs/setup/INSTALLATION_GUIDE.md](docs/setup/INSTALLATION_GUIDE.md)**
 
 ## 🎮 Usage
 
 ### **Master Pipeline Interface**
 ```bash
-python tests/krai_master_pipeline.py
+python backend/pipeline/master_pipeline.py
 
 # Menu Options:
 # 1. Status Check - View processing status
@@ -101,13 +100,15 @@ python tests/krai_master_pipeline.py
 - **`krai_content`**: Chunks, images, print_defects  
 - **`krai_intelligence`**: Embeddings, error_codes, search_analytics
 - **`krai_system`**: Processing_queue, audit_log, system_metrics
+- **`krai_agent`**: Memory for n8n AI agent integration
 
 ### **Key Features**
 - **Deduplication** at document, image, and chunk levels
 - **Vector Search** with pgvector embeddings
 - **Manufacturer Normalization** (HP → HP Inc.)
 - **Model Detection** for all variants and options
-- **Error Code Extraction** with pattern matching
+- **Error Code Extraction** with pattern matching + AI
+- **SVG to PNG Conversion** for vision model compatibility
 
 ## 🔧 Configuration
 
@@ -115,15 +116,20 @@ python tests/krai_master_pipeline.py
 ```env
 # Supabase
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_key
 
 # Cloudflare R2
-R2_ACCOUNT_ID=your_account_id
 R2_ACCESS_KEY_ID=your_access_key
 R2_SECRET_ACCESS_KEY=your_secret_key
+R2_ENDPOINT_URL=your_r2_endpoint
 
 # Ollama
 OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_KEEP_ALIVE=30s
+
+# Vision Model
+VISION_MODEL=llava-phi3:latest
+VISION_ENABLED=true
 
 # System
 MAX_WORKERS=8
@@ -147,6 +153,7 @@ The system automatically detects:
 - **Streaming Processing** - Memory-efficient chunking
 - **Batch Operations** - Database optimization
 - **Resource Monitoring** - Real-time performance tracking
+- **Vision Model Keep-Alive** - Optimized VRAM management
 
 ### **Expected Performance**
 - **CPU**: 12+ cores utilization
@@ -163,15 +170,16 @@ The system automatically detects:
 - **PyMuPDF** - PDF processing
 - **PyTorch** - AI/ML framework
 - **Tesseract OCR** - Text recognition
+- **svglib** - SVG to PNG conversion
 
 ### **AI Models**
 - **llama3.2:latest** - Text classification (2.0 GB)
-- **embeddinggemma:latest** - Vector embeddings (621 MB)
-- **llava:latest** - Vision analysis (4.7 GB)
+- **nomic-embed-text:latest** - Vector embeddings (274 MB)
+- **llava-phi3:latest** - Vision analysis (3.8 GB, stable)
 
 ### **Storage**
 - **Supabase PostgreSQL** - Relational data with pgvector
-- **Cloudflare R2** - Object storage for images
+- **Cloudflare R2** - Object storage for images and documents
 - **Local Processing** - Temporary file handling
 
 ## 📁 Project Structure
@@ -179,16 +187,29 @@ The system automatically detects:
 ```
 KRAI-minimal/
 ├── backend/
-│   ├── config/           # Configuration files
-│   ├── core/             # Base classes and data models
+│   ├── pipeline/         # Main processing pipelines ⭐ NEW
 │   ├── processors/       # 8-stage processing pipeline
 │   ├── services/         # Database, AI, storage services
+│   ├── api/              # REST API endpoints
+│   ├── config/           # Configuration files
+│   ├── core/             # Base classes and data models
 │   ├── utils/            # Utility functions
-│   ├── tests/            # Test scripts and master pipeline
+│   ├── scripts/          # Utility scripts
+│   ├── tests/            # Unit tests
 │   └── requirements.txt  # Python dependencies
-├── service_documents/    # PDF input directory
-├── INSTALLATION_GUIDE.md # Detailed setup instructions
-└── README.md            # This file
+├── docs/                 # Documentation ⭐ NEW
+│   ├── setup/            # Installation guides
+│   ├── architecture/     # System architecture
+│   ├── troubleshooting/  # Troubleshooting guides
+│   └── n8n/              # n8n integration docs
+├── database/
+│   └── migrations/       # Database migrations
+├── n8n/                  # n8n integration ⭐ NEW
+│   ├── workflows/        # n8n workflow files
+│   └── credentials/      # n8n credential templates
+├── scripts/              # Helper scripts (.bat files) ⭐ NEW
+├── .env                  # Environment variables
+└── README.md             # This file
 ```
 
 ## 🔍 Monitoring
@@ -210,17 +231,34 @@ KRAI-minimal/
 ## 🚨 Troubleshooting
 
 ### **Common Issues**
-1. **GPU not detected** - Check CUDA installation
-2. **Ollama connection failed** - Verify service is running
-3. **Database errors** - Check Supabase credentials
-4. **Memory issues** - Reduce batch size or chunk size
-5. **OCR failures** - Verify Tesseract installation
+1. **GPU not detected** - See `docs/troubleshooting/GPU_AUTO_DETECTION.md`
+2. **Ollama connection failed** - See `docs/troubleshooting/OLLAMA_GPU_FIX.md`
+3. **Vision model crashes** - See `docs/troubleshooting/VISION_MODEL_TROUBLESHOOTING.md`
+4. **Database errors** - Check Supabase credentials and RLS policies
+5. **Memory issues** - Reduce OLLAMA_KEEP_ALIVE or batch size
 
 ### **Debug Mode**
 ```bash
 # Enable debug logging
 export LOG_LEVEL=DEBUG
-python tests/krai_master_pipeline.py
+python backend/pipeline/master_pipeline.py
+```
+
+### **Documentation**
+- **Setup**: `docs/setup/` - Installation and configuration
+- **Architecture**: `docs/architecture/` - System design and pipeline
+- **Troubleshooting**: `docs/troubleshooting/` - Common issues and fixes
+- **n8n Integration**: `docs/n8n/` - Automation workflows
+
+## 🤖 N8N Integration
+
+KRAI supports n8n automation with PostgreSQL Memory integration:
+
+```bash
+# See n8n/README.md for setup
+# Database view: public.vw_agent_memory
+# Access: Via Supabase service_role or anon key
+# Documentation: docs/n8n/
 ```
 
 ## 🤝 Contributing
@@ -246,9 +284,18 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 📞 Support
 
 - **GitHub Issues** - Bug reports and feature requests
-- **Documentation** - See INSTALLATION_GUIDE.md
-- **Email** - [Your contact information]
+- **Documentation** - See `docs/` folder
+- **Database Migrations** - See `database/migrations/`
 
 ---
 
 **🎉 Ready to transform your documents into intelligent, searchable knowledge!**
+
+## 📝 Recent Updates
+
+- ✅ **October 2025**: Complete refactoring - organized structure
+- ✅ **SVG Support**: Automatic SVG to PNG conversion with fallback
+- ✅ **Vision Model Optimization**: llava-phi3 with keep-alive management
+- ✅ **n8n Integration**: Dedicated database user with RLS policies
+- ✅ **Performance**: 100x faster embedding queries with batch operations
+- ✅ **Documentation**: Organized into docs/ folder with categories

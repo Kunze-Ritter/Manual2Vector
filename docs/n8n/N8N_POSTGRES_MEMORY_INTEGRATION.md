@@ -155,8 +155,11 @@ SSL: Enable
 4. **Session ID Key:** `session_id`
 5. **Message Fields:**
    - **Role Field:** `role`
-   - **Content Field:** `content`
+   - **Content Field:** `message` (aliased from `content` in view)
    - **Metadata Field:** `metadata`
+
+> **Note**: The table `krai_agent.memory` stores data in `content` column,  
+> but the view `vw_agent_memory` exposes it as `message` for n8n compatibility.
 
 ### 3. Beispiel Node Setup
 
