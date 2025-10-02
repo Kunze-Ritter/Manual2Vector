@@ -694,7 +694,7 @@ class AIService:
     
     def _convert_svg_to_png(self, svg_bytes: bytes, max_width: int = 1024, max_height: int = 1024) -> bytes:
         """
-        Convert SVG to PNG for vision model processing
+        Convert SVG to PNG for vision model processing (Windows-compatible)
         
         Args:
             svg_bytes: SVG file content as bytes
@@ -705,27 +705,43 @@ class AIService:
             PNG image as bytes
         """
         try:
-            import cairosvg
-            import io
+            from svglib.svglib import svg2rlg
+            from reportlab.graphics import renderPM
             from PIL import Image
+            import io
             
-            # Convert SVG to PNG using cairosvg
-            png_bytes = cairosvg.svg2png(bytestring=svg_bytes, output_width=max_width, output_height=max_height)
+            # Convert SVG bytes to ReportLab drawing
+            svg_io = io.BytesIO(svg_bytes)
+            drawing = svg2rlg(svg_io)
             
-            # Optionally optimize with PIL
+            if drawing is None:
+                raise Exception("Failed to parse SVG")
+            
+            # Scale to max dimensions while maintaining aspect ratio
+            scale_x = max_width / drawing.width if drawing.width > max_width else 1
+            scale_y = max_height / drawing.height if drawing.height > max_height else 1
+            scale = min(scale_x, scale_y)
+            
+            drawing.width = int(drawing.width * scale)
+            drawing.height = int(drawing.height * scale)
+            drawing.scale(scale, scale)
+            
+            # Render to PNG
+            png_bytes = renderPM.drawToString(drawing, fmt='PNG')
+            
+            # Optimize with PIL
             try:
                 img = Image.open(io.BytesIO(png_bytes))
                 buffer = io.BytesIO()
                 img.save(buffer, format='PNG', optimize=True)
                 png_bytes = buffer.getvalue()
-                self.logger.info(f"SVG converted to PNG: {len(svg_bytes)} bytes → {len(png_bytes)} bytes")
+                self.logger.info(f"SVG converted to PNG: {len(svg_bytes)} bytes → {len(png_bytes)} bytes (size: {drawing.width}x{drawing.height})")
             except Exception as pil_error:
                 self.logger.warning(f"PIL optimization failed, using direct conversion: {pil_error}")
             
             return png_bytes
             
-        except ImportError:
-            # Fallback if cairosvg not installed
-            raise Exception("cairosvg library not installed - run: pip install cairosvg")
+        except ImportError as ie:
+            raise Exception(f"Required libraries not installed: {ie} - run: pip install svglib reportlab")
         except Exception as e:
             raise Exception(f"SVG to PNG conversion failed: {e}")
