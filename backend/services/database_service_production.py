@@ -672,9 +672,34 @@ class DatabaseService:
     async def create_intelligence_chunk(self, chunk_data: Dict[str, Any]) -> Optional[str]:
         """Create a chunk in krai_intelligence.chunks"""
         try:
-            # Use service_client for cross-schema access
-            client = self.service_client if self.service_client else self.client
+            # Method 1: Direct PostgreSQL (preferred for INSERT)
+            if self.pg_pool:
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        chunk_id = await conn.fetchval(
+                            """
+                            INSERT INTO krai_intelligence.chunks 
+                            (document_id, text_chunk, chunk_index, page_start, page_end, 
+                             processing_status, fingerprint, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                            RETURNING id
+                            """,
+                            chunk_data['document_id'],
+                            chunk_data['text_chunk'],
+                            chunk_data['chunk_index'],
+                            chunk_data['page_start'],
+                            chunk_data['page_end'],
+                            chunk_data.get('processing_status', 'pending'),
+                            chunk_data['fingerprint'],
+                            chunk_data.get('metadata', {})
+                        )
+                        self.logger.info(f"Created intelligence chunk: {chunk_id}")
+                        return str(chunk_id)
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg insert failed: {pg_err}, trying PostgREST...")
             
+            # Method 2: PostgREST fallback (use service_role for cross-schema)
+            client = self.service_client if self.service_client else self.client
             result = client.schema('krai_intelligence').table('chunks').insert(chunk_data).execute()
             
             if result.data and len(result.data) > 0:
@@ -702,9 +727,9 @@ class DatabaseService:
                 except Exception as pg_err:
                     self.logger.warning(f"asyncpg query failed: {pg_err}, trying PostgREST...")
             
-            # Method 2: PostgREST
+            # Method 2: PostgREST via vw_intelligence_chunks view
             client = self.service_client if self.service_client else self.client
-            result = client.schema('krai_intelligence').table('chunks').select('*').eq('document_id', document_id).order('chunk_index', desc=False).execute()
+            result = client.from_('vw_intelligence_chunks').select('*').eq('document_id', document_id).order('chunk_index', desc=False).execute()
             return result.data or []
             
         except Exception as e:
