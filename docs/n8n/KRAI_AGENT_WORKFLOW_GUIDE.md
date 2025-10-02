@@ -137,6 +137,10 @@ Gib relevante Suchbegriffe ein.
 
 **Ollama API:**
 ```
+# Falls n8n in Docker läuft (Windows Host):
+Host: http://host.docker.internal:11434
+
+# Falls n8n lokal läuft:
 Host: http://localhost:11434
 ```
 
