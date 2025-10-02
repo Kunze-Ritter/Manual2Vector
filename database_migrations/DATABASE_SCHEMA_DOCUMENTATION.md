@@ -17,49 +17,58 @@
 6. [Config Schema (krai_config)](#config-schema-krai_config)
 7. [Service Schema (krai_service)](#service-schema-krai_service)
 8. [System Schema (krai_system)](#system-schema-krai_system)
-9. [Weitere Schemas](#weitere-schemas)
-10. [Python Integration](#python-integration)
-11. [Best Practices](#best-practices)
+9. [Agent Schema (krai_agent)](#agent-schema-krai_agent)
+10. [PostgREST Views (public.vw_*)](#postgrest-views-publicvw_)
+11. [Weitere Schemas](#weitere-schemas)
+12. [Python Integration](#python-integration)
+13. [Best Practices](#best-practices)
 
 ---
 
 ## 🎯 Übersicht
 
-Das KRAI Database Schema ist in **10 spezialisierte Schemas** unterteilt, die jeweils einen funktionalen Bereich der Anwendung abdecken. Insgesamt umfasst das Schema **33 Tabellen**, **100+ Indexes** und **vollständige RLS-Policies**.
+Das KRAI Database Schema ist in **11 spezialisierte Schemas** unterteilt, die jeweils einen funktionalen Bereich der Anwendung abdecken. Insgesamt umfasst das Schema **34+ Tabellen**, **11 PostgREST Views**, **100+ Indexes** und **vollständige RLS-Policies**.
 
 ### Hauptmerkmale
 
-- ✅ **Modular**: 10 funktionale Schemas
-- ✅ **Skalierbar**: Optimiert für große Dokumentenmengen
-- ✅ **AI-Ready**: pgvector für Embeddings, HNSW-Indexes
+- ✅ **Modular**: 11 funktionale Schemas + public views
+- ✅ **Skalierbar**: Optimiert für große Dokumentenmengen (9,223 images, 58,614 chunks)
+- ✅ **AI-Ready**: pgvector für Embeddings, n8n Agent Memory, HNSW-Indexes
 - ✅ **Secure**: Row Level Security auf allen Tabellen
-- ✅ **Performant**: Composite Indexes, Materialized Views
+- ✅ **Performant**: Composite Indexes, Materialized Views, PostgREST Views
+- ✅ **IPv4/IPv6-kompatibel**: Public Views als Bridge für PostgREST
 
 ---
 
 ## 🏗️ Schema-Architektur
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        KRAI DATABASE                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │  krai_core   │  │krai_intel    │  │krai_content  │         │
-│  │              │  │ligence       │  │              │         │
-│  │ • manufacturers│ │ • chunks     │  │ • chunks     │         │
-│  │ • products   │  │ • embeddings │  │ • images     │         │
-│  │ • documents  │  │ • error_codes│  │ • links      │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘         │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │ krai_config  │  │krai_service  │  │krai_system   │         │
-│  │              │  │              │  │              │         │
-│  │ • options    │  │ • technicians│  │ • queue      │         │
-│  │ • features   │  │ • calls      │  │ • audit      │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘         │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           KRAI DATABASE                                   │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │  krai_core  │  │ krai_intel  │  │krai_content │  │ krai_agent  │    │
+│  │             │  │  ligence    │  │             │  │             │    │
+│  │• manufact.  │  │ • chunks    │  │ • chunks    │  │ • memory    │    │
+│  │• products   │  │ • embeddings│  │ • images    │  │ (n8n)       │    │
+│  │• documents  │  │ • error_codes│ │ • links     │  └─────────────┘    │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │           │
+│                                                              │           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │           │
+│  │krai_config  │  │krai_service │  │krai_system  │         │           │
+│  │             │  │             │  │             │         │           │
+│  │ • options   │  │• technicians│  │ • queue     │         │           │
+│  │ • features  │  │ • calls     │  │ • audit     │         │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │           │
+│                                                              │           │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │            PUBLIC VIEWS (PostgREST Bridge - IPv4)              │     │
+│  │  vw_agent_memory • vw_images • vw_chunks • vw_documents        │     │
+│  │  vw_embeddings • vw_error_codes • vw_audit_log • vw_*          │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                           │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -902,6 +911,149 @@ audit = supabase.table('audit_log').insert({
     'changed_by': 'system'
 }).execute()
 ```
+
+---
+
+## 🤖 Agent Schema (krai_agent)
+
+Das Agent-Schema enthält Tabellen für **n8n AI Agent Integration** und **Conversation Memory**.
+
+### 1. `krai_agent.memory`
+
+**Beschreibung:** Conversation Memory für n8n Postgres Memory Module.
+
+**Spalten:**
+
+| Spalte | Typ | Beschreibung | Constraints |
+|--------|-----|--------------|-------------|
+| `id` | UUID | Primärschlüssel | PRIMARY KEY, DEFAULT uuid_generate_v4() |
+| `session_id` | VARCHAR(255) | n8n Session Identifier | NOT NULL |
+| `role` | VARCHAR(50) | Message Role | NOT NULL, CHECK IN ('user', 'assistant', 'system', 'function', 'tool') |
+| `content` | TEXT | Message Content | NOT NULL |
+| `metadata` | JSONB | Additional Data | DEFAULT '{}' |
+| `tokens_used` | INTEGER | Token Count | DEFAULT 0 |
+| `created_at` | TIMESTAMPTZ | Erstellungszeitpunkt | DEFAULT NOW() |
+| `updated_at` | TIMESTAMPTZ | Aktualisierungszeitpunkt | DEFAULT NOW() |
+
+**Indexes:**
+
+```sql
+CREATE INDEX idx_memory_session_id ON krai_agent.memory(session_id);
+CREATE INDEX idx_memory_created_at ON krai_agent.memory(created_at DESC);
+CREATE INDEX idx_memory_session_created ON krai_agent.memory(session_id, created_at DESC);
+```
+
+**Python Beispiel:**
+
+```python
+# Get conversation history
+memory = supabase.table('vw_agent_memory')\
+    .select('*')\
+    .eq('session_id', 'user-123')\
+    .order('created_at', desc=False)\
+    .execute()
+
+# Add new message
+supabase.table('vw_agent_memory').insert({
+    'session_id': 'user-123',
+    'role': 'user',
+    'content': 'What is error code E001?',
+    'metadata': {'source': 'web_ui'}
+}).execute()
+```
+
+**Helper Functions:**
+
+```sql
+-- Get recent memory for session
+SELECT * FROM krai_agent.get_session_memory('session-id', 20);
+
+-- Clear old memory (older than 30 days)
+SELECT krai_agent.clear_old_memory(30);
+```
+
+---
+
+## 🌐 PostgREST Views (public.vw_*)
+
+**Problem:** Supabase Server ist **IPv6-only**, asyncpg kann von IPv4-Clients nicht verbinden. PostgREST kann nur auf `public` Schema zugreifen.
+
+**Lösung:** **Public Views** als Bridge zu allen krai_* Schemas.
+
+### Verfügbare Views
+
+| View Name | Source Table | Zweck | Rows (Stand 02.10.2025) |
+|-----------|--------------|-------|-------------------------|
+| `vw_agent_memory` | krai_agent.memory | **AI Agent Memory (n8n)** | 3 |
+| `vw_audit_log` | krai_system.audit_log | System Change Log | 0 |
+| `vw_processing_queue` | krai_system.processing_queue | Task Status | 0 |
+| `vw_documents` | krai_core.documents | Document Metadata | 34 |
+| `vw_images` | krai_content.images | **Image Deduplication** | 9,223 |
+| `vw_chunks` | krai_content.chunks | Text Chunks | 58,614 |
+| `vw_embeddings` | krai_intelligence.embeddings | Vector Embeddings | 0 |
+| `vw_error_codes` | krai_intelligence.error_codes | Error Solutions | 0 |
+| `vw_manufacturers` | krai_core.manufacturers | Manufacturer Info | 6 |
+| `vw_products` | krai_core.products | Product Specs | 0 |
+| `vw_webhook_logs` | krai_integrations.webhook_logs | Webhook History | 0 |
+
+### Beispiel-Nutzung
+
+**JavaScript (PostgREST):**
+
+```javascript
+const { createClient } = require('@supabase/supabase-js')
+
+// Service Role Key für cross-schema access
+const client = createClient(
+  'https://crujfdpqdjzcfqeyhang.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
+
+// Query via View (statt direkter Tabelle)
+const { data } = await client
+  .from('vw_images')  // View im public schema
+  .select('filename, file_hash, ai_description')
+  .eq('file_hash', hash)
+  .limit(1)
+
+// Count via View
+const { count } = await client
+  .from('vw_chunks')
+  .select('id', { count: 'exact' })
+  .eq('document_id', docId)
+```
+
+**Python (Supabase Client):**
+
+```python
+from supabase import create_client
+
+client = create_client(url, service_role_key)
+
+# Image deduplication via view
+existing = client.table('vw_images')\
+    .select('id, filename, file_hash')\
+    .eq('file_hash', image_hash)\
+    .limit(1)\
+    .execute()
+
+if existing.data:
+    print(f"Duplicate found: {existing.data[0]['filename']}")
+```
+
+**Warum Views?**
+
+✅ **IPv4-kompatibel:** Funktioniert auch wenn asyncpg nicht verbinden kann  
+✅ **PostgREST-ready:** Public schema ist für PostgREST zugänglich  
+✅ **RLS-preserved:** Row Level Security wird beibehalten  
+✅ **Cross-schema:** Alle krai_* Schemas in einem Namespace  
+✅ **Performance:** Gleich schnell wie direkte Tabellen-Queries  
+
+### Migrations
+
+- `05_public_views_for_postgrest.sql` - Core Views (images, chunks, embeddings)
+- `06_agent_views_complete.sql` - Agent Views (documents, logs, queue, etc.)
+- `07_agent_memory_table.sql` - Memory Tabelle + View
 
 ---
 
