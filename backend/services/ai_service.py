@@ -704,6 +704,7 @@ class AIService:
         Returns:
             PNG image as bytes
         """
+        # Try svglib first (preferred method)
         try:
             from svglib.svglib import svg2rlg
             from reportlab.graphics import renderPM
@@ -715,16 +716,17 @@ class AIService:
             drawing = svg2rlg(svg_io)
             
             if drawing is None:
-                raise Exception("Failed to parse SVG")
+                raise Exception("svg2rlg returned None - SVG parsing failed")
             
             # Scale to max dimensions while maintaining aspect ratio
-            scale_x = max_width / drawing.width if drawing.width > max_width else 1
-            scale_y = max_height / drawing.height if drawing.height > max_height else 1
-            scale = min(scale_x, scale_y)
-            
-            drawing.width = int(drawing.width * scale)
-            drawing.height = int(drawing.height * scale)
-            drawing.scale(scale, scale)
+            if hasattr(drawing, 'width') and hasattr(drawing, 'height'):
+                scale_x = max_width / drawing.width if drawing.width > max_width else 1
+                scale_y = max_height / drawing.height if drawing.height > max_height else 1
+                scale = min(scale_x, scale_y)
+                
+                drawing.width = int(drawing.width * scale)
+                drawing.height = int(drawing.height * scale)
+                drawing.scale(scale, scale)
             
             # Render to PNG
             png_bytes = renderPM.drawToString(drawing, fmt='PNG')
@@ -735,13 +737,38 @@ class AIService:
                 buffer = io.BytesIO()
                 img.save(buffer, format='PNG', optimize=True)
                 png_bytes = buffer.getvalue()
-                self.logger.info(f"SVG converted to PNG: {len(svg_bytes)} bytes → {len(png_bytes)} bytes (size: {drawing.width}x{drawing.height})")
+                self.logger.info(f"SVG converted to PNG: {len(svg_bytes)} bytes → {len(png_bytes)} bytes")
             except Exception as pil_error:
                 self.logger.warning(f"PIL optimization failed, using direct conversion: {pil_error}")
             
             return png_bytes
             
-        except ImportError as ie:
-            raise Exception(f"Required libraries not installed: {ie} - run: pip install svglib reportlab")
-        except Exception as e:
-            raise Exception(f"SVG to PNG conversion failed: {e}")
+        except Exception as svglib_error:
+            # Fallback: Try simple PIL rendering (works for some SVGs)
+            self.logger.warning(f"svglib conversion failed ({svglib_error}), trying PIL fallback...")
+            try:
+                from PIL import Image
+                import io
+                
+                # Some SVGs can be opened directly by PIL (via Pillow's SVG support)
+                img = Image.open(io.BytesIO(svg_bytes))
+                
+                # Convert to RGB if needed
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Resize if too large
+                if img.width > max_width or img.height > max_height:
+                    img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+                
+                # Save as PNG
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG', optimize=True)
+                png_bytes = buffer.getvalue()
+                
+                self.logger.info(f"SVG converted via PIL fallback: {len(svg_bytes)} bytes → {len(png_bytes)} bytes")
+                return png_bytes
+                
+            except Exception as pil_fallback_error:
+                # Both methods failed
+                raise Exception(f"All SVG conversion methods failed - svglib: {svglib_error}, PIL: {pil_fallback_error}")
