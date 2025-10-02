@@ -14,7 +14,7 @@ class ExtractedProduct(BaseModel):
     """Product extracted from document"""
     model_number: str = Field(..., min_length=3, max_length=100)
     model_name: Optional[str] = None
-    product_type: str = Field(..., regex="^(printer|scanner|multifunction|copier|plotter)$")
+    product_type: str = Field(..., pattern="^(printer|scanner|multifunction|copier|plotter)$")
     manufacturer_name: str
     confidence: float = Field(..., ge=0.0, le=1.0)
     source_page: Optional[int] = None
@@ -32,7 +32,7 @@ class ExtractedProduct(BaseModel):
 
 class ExtractedErrorCode(BaseModel):
     """Error code extracted from document"""
-    error_code: str = Field(..., regex=r"^\d{2}\.\d{2}(\.\d{2})?$")
+    error_code: str = Field(..., pattern=r"^\d{2}\.\d{2}(\.\d{2})?$")
     error_description: str = Field(..., min_length=20)
     solution_text: Optional[str] = None
     context_text: str = Field(..., min_length=100)
@@ -41,7 +41,7 @@ class ExtractedErrorCode(BaseModel):
     extraction_method: str = Field(default="regex_pattern")
     requires_technician: bool = False
     requires_parts: bool = False
-    severity_level: str = Field(default="medium", regex="^(low|medium|high|critical)$")
+    severity_level: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
     
     @validator('error_description')
     def validate_description(cls, v):
@@ -97,7 +97,7 @@ class DocumentMetadata(BaseModel):
     file_size_bytes: int = Field(..., gt=0)
     mime_type: str = Field(default="application/pdf")
     language: str = Field(default="en")
-    document_type: str = Field(..., regex="^(service_manual|parts_catalog|user_guide|troubleshooting)$")
+    document_type: str = Field(..., pattern="^(service_manual|parts_catalog|user_guide|troubleshooting)$")
 
 
 class ProcessingResult(BaseModel):
@@ -132,7 +132,7 @@ class ValidationError(BaseModel):
     field: str
     value: Any
     error_message: str
-    severity: str = Field(default="error", regex="^(warning|error|critical)$")
+    severity: str = Field(default="error", pattern="^(warning|error|critical)$")
     
     def __str__(self) -> str:
         return f"[{self.severity.upper()}] {self.field}: {self.error_message} (value: {self.value})"
