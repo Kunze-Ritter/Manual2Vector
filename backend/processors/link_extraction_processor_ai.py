@@ -139,11 +139,17 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 for link in page.get_links():
                     if 'uri' in link and link['uri']:
                         url = link['uri']
+                        
+                        # Convert Rect object to list if needed
+                        rect = link.get('from', [])
+                        if hasattr(rect, '__iter__') and not isinstance(rect, (str, dict)):
+                            rect = list(rect)  # Convert Rect/tuple to list
+                        
                         links.append({
                             'url': url,
                             'page_number': page_num + 1,
                             'position_data': {
-                                'rect': link.get('from', []),
+                                'rect': rect,
                                 'type': 'annotation'
                             }
                         })
