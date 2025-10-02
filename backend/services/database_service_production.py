@@ -828,14 +828,23 @@ class DatabaseService:
                     if hasattr(rect, '__iter__') and not isinstance(rect, (str, dict, list)):
                         pos_data['rect'] = list(rect)
             
-            # Use PostgREST (works with both service_client and regular client)
+            # Use RPC function (workaround for PostgREST schema restrictions)
             client = self.service_client if self.service_client else self.client
             
-            result = client.schema('krai_content').table('links').insert(link_data).execute()
+            result = client.rpc('create_link', {
+                'p_document_id': link_data['document_id'],
+                'p_url': link_data['url'],
+                'p_link_type': link_data.get('link_type', 'web'),
+                'p_link_category': link_data.get('link_category'),
+                'p_page_number': link_data.get('page_number'),
+                'p_position_data': link_data.get('position_data'),
+                'p_confidence_score': link_data.get('confidence_score', 0.8),
+                'p_metadata': link_data.get('metadata', {})
+            }).execute()
             
-            if result.data and len(result.data) > 0:
-                link_id = result.data[0]['id']
-                self.logger.info(f"Created link: {link_id} ({link_data.get('link_type')})")
+            if result.data:
+                link_id = str(result.data)
+                self.logger.info(f"Created link via RPC: {link_id} ({link_data.get('link_type')})")
                 return link_id
             
             return None
