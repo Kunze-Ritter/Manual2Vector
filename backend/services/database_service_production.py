@@ -261,6 +261,19 @@ class DatabaseService:
             self.logger.error(f"Failed to get product series: {e}")
             return None
     
+    async def get_product_by_model(self, model_name: str, manufacturer_id: str) -> Optional[Any]:
+        """Get product by model name and manufacturer"""
+        try:
+            result = self.client.table('products').select('*').eq('model_name', model_name).eq('manufacturer_id', manufacturer_id).execute()
+            
+            if result.data:
+                return result.data[0]
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get product by model: {e}")
+            return None
+    
     async def create_product(self, product: ProductModel) -> str:
         """Create a new product"""
         product_data = product.model_dump(mode='json')
@@ -314,8 +327,17 @@ class DatabaseService:
             self.logger.error(f"Failed to create chunk: {e}")
             raise RuntimeError(f"Cannot create chunk in database: {e}")
     
+    async def get_chunks_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all chunks for a document (returns raw dicts)"""
+        try:
+            result = self.client.from_('vw_chunks').select('*').eq('document_id', document_id).order('chunk_index', desc=False).execute()
+            return result.data or []
+        except Exception as e:
+            self.logger.error(f"Failed to get chunks by document: {e}")
+            return []
+    
     async def get_chunks_by_document_id(self, document_id: str) -> List[ChunkModel]:
-        """Get all chunks for a document"""
+        """Get all chunks for a document (returns ChunkModel objects)"""
         try:
             result = self.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
             
