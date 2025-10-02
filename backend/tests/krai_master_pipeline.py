@@ -33,6 +33,7 @@ from services.config_service import ConfigService
 from services.features_service import FeaturesService
 from services.quality_check_service import QualityCheckService
 from services.file_locator_service import FileLocatorService
+from utils.colored_logging import apply_colored_logging_globally
 
 from processors.upload_processor import UploadProcessor
 from processors.text_processor_optimized import OptimizedTextProcessor
@@ -61,8 +62,8 @@ class KRMasterPipeline:
         self.processors = {}
         self.force_continue_on_errors = force_continue_on_errors
         
-        # Setup logging (minimal)
-        logging.basicConfig(level=logging.ERROR)
+        # Setup colored logging globally (ERROR = RED, WARNING = YELLOW, INFO = GREEN)
+        apply_colored_logging_globally(level=logging.INFO)
         self.logger = logging.getLogger("krai.master_pipeline")
         
         # Get hardware info
