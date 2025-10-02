@@ -435,6 +435,100 @@ class AIService:
             self.logger.error(f"Failed to detect defects: {e}")
             raise
     
+    async def extract_error_codes_from_image(self, image_url: str = None, image_bytes: bytes = None, 
+                                           image_id: str = None, manufacturer: str = "Unknown") -> Dict[str, Any]:
+        """
+        Extract error codes from screenshot/image using Vision Model (LLaVA via Ollama)
+        
+        Args:
+            image_url: URL to image (will be downloaded)
+            image_bytes: Image content as bytes (alternative to URL)
+            image_id: Image ID for reference
+            manufacturer: Manufacturer name for context
+            
+        Returns:
+            Dict with error_codes list and metadata
+        """
+        try:
+            model = self.models['vision']
+            
+            # Download image if URL provided
+            if image_url and not image_bytes:
+                try:
+                    response = await self.client.get(image_url)
+                    if response.status_code == 200:
+                        image_bytes = response.content
+                    else:
+                        raise Exception(f"Failed to download image: {response.status_code}")
+                except Exception as e:
+                    self.logger.error(f"Failed to download image from {image_url}: {e}")
+                    return {"error_codes": [], "error": str(e)}
+            
+            if not image_bytes:
+                return {"error_codes": [], "error": "No image data provided"}
+            
+            # Craft prompt for error code extraction
+            prompt = f"""
+            Analyze this technical screenshot or diagram for error codes and error messages.
+            
+            Manufacturer: {manufacturer}
+            
+            Extract all error codes visible in this image and return a JSON array with:
+            [
+              {{
+                "code": "exact error code (e.g., 13.20.01, E001, SC542)",
+                "description": "error description if visible",
+                "solution": "solution text if visible in the image",
+                "context": "surrounding text or context",
+                "confidence": 0.0-1.0 (your confidence in this extraction)
+              }}
+            ]
+            
+            IMPORTANT:
+            - Only extract ACTUAL error codes visible in the image
+            - Include the error code exactly as shown (with dots, dashes, etc.)
+            - If no error codes are visible, return an empty array []
+            - Look for patterns like: XX.XX.XX, EXXX, SCXXX, XXX-XXX
+            - Look at control panel displays, error screens, diagrams
+            
+            Return ONLY the JSON array, no other text.
+            """
+            
+            # Call Ollama with vision model
+            result = await self._call_ollama(model, prompt, images=[image_bytes])
+            response_text = result.get('response', '[]')
+            
+            # Parse response
+            try:
+                # Try to extract JSON from response
+                import re
+                json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+                if json_match:
+                    error_codes = json.loads(json_match.group(0))
+                else:
+                    error_codes = json.loads(response_text)
+            except json.JSONDecodeError:
+                self.logger.warning(f"Failed to parse JSON from vision model response: {response_text[:200]}")
+                error_codes = []
+            
+            self.logger.info(f"Extracted {len(error_codes)} error codes from image using {model}")
+            
+            return {
+                "error_codes": error_codes,
+                "model": model,
+                "image_id": image_id,
+                "manufacturer": manufacturer,
+                "tokens_used": result.get('eval_count', 0) + result.get('prompt_eval_count', 0)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to extract error codes from image: {e}")
+            return {
+                "error_codes": [],
+                "error": str(e),
+                "model": model if 'model' in locals() else "unknown"
+            }
+    
     async def health_check(self) -> Dict[str, Any]:
         """Perform AI service health check"""
         try:
