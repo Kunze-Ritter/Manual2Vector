@@ -20,20 +20,27 @@ from datetime import datetime
 # CONFIGURATION
 # ============================================
 
+# Load .env file from parent directory
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from project root
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(env_path)
+
 # Get from environment variables or .env file
-R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID')  # Your Cloudflare account ID
 R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
 R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
+R2_ENDPOINT = os.getenv('R2_ENDPOINT_URL')  # Use endpoint from .env
 
-# R2 Endpoint
-R2_ENDPOINT = f'https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com'
+if not R2_ENDPOINT:
+    # Fallback: extract from access key or use default
+    print("⚠️  R2_ENDPOINT_URL not found in .env, using hardcoded endpoint")
+    R2_ENDPOINT = 'https://a88f92c913c232559845adb9001a5d14.eu.r2.cloudflarestorage.com'
 
-# Bucket names (adjust to your setup)
+# Bucket names (from your .env)
 BUCKETS = [
-    'krai-documents',       # Original PDFs
-    'krai-processed',       # Processed data
-    'krai-embeddings',      # Embeddings/vectors
-    'krai-chunks',          # Text chunks
+    'krai-documents-images',  # Your actual bucket
 ]
 
 # ============================================
@@ -42,13 +49,16 @@ BUCKETS = [
 
 def get_r2_client():
     """Initialize R2 client (S3-compatible)"""
-    if not all([R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY]):
+    if not all([R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY]):
         print("❌ ERROR: Missing R2 credentials!")
-        print("\nSet these environment variables:")
-        print("  - R2_ACCOUNT_ID")
-        print("  - R2_ACCESS_KEY_ID")
-        print("  - R2_SECRET_ACCESS_KEY")
-        print("\nOr create a .env file with these values")
+        print("\nMissing values:")
+        if not R2_ENDPOINT:
+            print("  - R2_ENDPOINT_URL")
+        if not R2_ACCESS_KEY_ID:
+            print("  - R2_ACCESS_KEY_ID")
+        if not R2_SECRET_ACCESS_KEY:
+            print("  - R2_SECRET_ACCESS_KEY")
+        print("\nMake sure .env file exists in project root with these values")
         sys.exit(1)
     
     return boto3.client(
