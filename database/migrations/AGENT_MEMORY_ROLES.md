@@ -187,8 +187,9 @@ ORDER BY created_at ASC;
 ## 🔗 Related Documentation
 
 - **Migration 07**: `07_agent_memory_table.sql` - Initial table creation
-- **Migration 10**: `10_agent_memory_content_to_message.sql` - View with message alias
+- **Migration 10**: `10_agent_memory_content_to_message.sql` - View with message alias (deprecated)
 - **Migration 11**: `11_expand_memory_role_constraint.sql` - Expanded role constraint
+- **Migration 12**: `12_add_message_column_with_sync.sql` - Added message column with auto-sync
 - **n8n Setup**: `../docs/n8n/N8N_POSTGRES_MEMORY_INTEGRATION.md`
 
 ---
@@ -198,8 +199,10 @@ ORDER BY created_at ASC;
 | Date | Change | Migration |
 |------|--------|-----------|
 | 2025-10-02 | Initial roles: user, assistant, system, function, tool | 07 |
+| 2025-10-02 | View alias: content AS message | 10 |
 | 2025-10-02 | Added n8n roles: ai, human, chatbot | 11 |
 | 2025-10-02 | Added business roles: technician, engineer, manager, etc. | 11 |
+| 2025-10-02 | Added message column with auto-sync trigger | 12 |
 
 ---
 

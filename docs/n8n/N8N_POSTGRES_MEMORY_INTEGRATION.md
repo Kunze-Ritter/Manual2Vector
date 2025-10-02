@@ -83,11 +83,16 @@ CREATE TABLE krai_agent.memory (
 | `id` | UUID | Eindeutige ID | `a1b2c3d4-...` |
 | `session_id` | VARCHAR(255) | n8n Session Identifier | `"demo-session-001"` |
 | `role` | VARCHAR(50) | Message Role | See [Role Types](#role-types) |
-| `content` | TEXT | Message Content | `"What is error code E001?"` |
+| `message` | TEXT | Message Content (n8n) | `"What is error code E001?"` |
+| `content` | TEXT | Message Content (legacy) | `"What is error code E001?"` |
 | `metadata` | JSONB | Zusätzliche Daten | `{"model": "gpt-4", "temperature": 0.7}` |
 | `tokens_used` | INTEGER | Token Count | `150` |
 | `created_at` | TIMESTAMPTZ | Zeitstempel | `2025-10-02 09:00:00+00` |
 | `updated_at` | TIMESTAMPTZ | Update Zeitstempel | `2025-10-02 09:00:00+00` |
+
+> **💡 Note**: `message` and `content` are automatically synced via trigger.  
+> Write to either column, both will contain the same value.  
+> n8n uses `message`, legacy code can use `content`.
 
 ### Role Types
 
@@ -180,11 +185,11 @@ SSL: Enable
 4. **Session ID Key:** `session_id`
 5. **Message Fields:**
    - **Role Field:** `role`
-   - **Content Field:** `message` (aliased from `content` in view)
+   - **Content Field:** `message` ⭐ (real column, auto-synced with `content`)
    - **Metadata Field:** `metadata`
 
-> **Note**: The table `krai_agent.memory` stores data in `content` column,  
-> but the view `vw_agent_memory` exposes it as `message` for n8n compatibility.
+> **✅ Updated**: The table now has both `message` and `content` columns.  
+> A trigger keeps them automatically synchronized. n8n writes to `message`.
 
 ### 3. Beispiel Node Setup
 
