@@ -31,7 +31,6 @@
         "sessionIdKey": "session_id",
         "messageKey": "message",
         "roleKey": "role",
-        "metadataKey": "metadata",
         "contextWindowLength": 10
       },
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
@@ -142,6 +141,53 @@
       ],
       "id": "a2792575-98cf-4926-a97b-07383ac31d4e",
       "name": "KRAI Agent"
+    },
+    {
+      "parameters": {
+        "tableId": "vw_search_analytics",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "search_query",
+              "fieldValue": "={{ $('When chat message received').item.json.chatInput }}"
+            },
+            {
+              "fieldId": "user_session_id",
+              "fieldValue": "={{ $('When chat message received').item.json.sessionId }}"
+            },
+            {
+              "fieldId": "search_type",
+              "fieldValue": "agent_query"
+            },
+            {
+              "fieldId": "results_count",
+              "fieldValue": "={{ $json.steps?.filter(s => s.action?.tool === 'krai_intelligence')?.[0]?.observation?.length || 0 }}"
+            },
+            {
+              "fieldId": "result_relevance_scores",
+              "fieldValue": "={{ JSON.stringify({ response_length: $json.output?.length || 0, tools_used: $json.steps?.map(s => s.action?.tool).filter(Boolean) || [] }) }}"
+            }
+          ]
+        },
+        "options": {
+          "errorHandling": "continueOnFail"
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        -48
+      ],
+      "id": "f8a9b3c2-1d4e-4a5f-9c8d-7e6f5a4b3c2d",
+      "name": "Log Analytics",
+      "continueOnFail": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -214,7 +260,13 @@
     },
     "KRAI Agent": {
       "main": [
-        []
+        [
+          {
+            "node": "Log Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
