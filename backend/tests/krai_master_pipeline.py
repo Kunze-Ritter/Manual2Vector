@@ -61,12 +61,15 @@ class KRMasterPipeline:
         logging.basicConfig(level=logging.ERROR)
         self.logger = logging.getLogger("krai.master_pipeline")
         
-        # Get hardware info
+        # Get hardware info - OPTIMIZED for overnight processing
         cpu_count = mp.cpu_count()
-        self.max_concurrent = min(cpu_count, 8)
+        # Use 75% of cores for concurrent docs (was hardcoded to 8)
+        self.max_concurrent = max(4, int(cpu_count * 0.75))  # Min 4, max 75% of cores
         
         if self.force_continue_on_errors:
             print("🌙 OVERNIGHT MODE: Dokumente werden als 'completed' markiert wenn mindestens 1 Stage erfolgreich")
+        
+        print(f"⚡ PERFORMANCE: {self.max_concurrent} concurrent documents on {cpu_count} CPU cores")
         
         self.logger.info(f"KR Master Pipeline initialized with {self.max_concurrent} concurrent documents")
         

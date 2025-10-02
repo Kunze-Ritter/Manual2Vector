@@ -421,12 +421,19 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("images").select("id, filename, file_hash, created_at").eq("file_hash", file_hash).execute()
-            if result.data:
-                image_data = result.data[0]
-                self.logger.info(f"Found existing image with hash {file_hash[:16]}...")
-                return image_data
+            # DISABLED: Schema issue - images table is in krai_content schema
+            # Supabase PostgREST can't access krai_content.images.file_hash column
+            # Image deduplication is less critical than document deduplication
+            # TODO: Create SQL view or RPC function for cross-schema access
             return None
+            
+            # Original code (disabled):
+            # result = self.client.table("images").select("id, filename, file_hash, created_at").eq("file_hash", file_hash).execute()
+            # if result.data:
+            #     image_data = result.data[0]
+            #     self.logger.info(f"Found existing image with hash {file_hash[:16]}...")
+            #     return image_data
+            # return None
         except Exception as e:
             self.logger.error(f"Failed to get image by hash: {e}")
             return None

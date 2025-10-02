@@ -39,7 +39,12 @@ class OptimizedTextProcessor(BaseProcessor):
         
         # Initialize smart chunking (combines speed + intelligence)
         self.smart_chunker = SmartChunkingOptimizer(chunk_size=1000, overlap=150)
-        self.parallel_processor = ParallelChunkingProcessor(max_workers=4)
+        
+        # OPTIMIZED: Use more workers (was 4, now 8 for 22-core system)
+        import multiprocessing as mp
+        cpu_count = mp.cpu_count()
+        chunk_workers = max(4, min(8, int(cpu_count * 0.35)))  # 35% of cores for chunking
+        self.parallel_processor = ParallelChunkingProcessor(max_workers=chunk_workers)
     
     def get_required_inputs(self) -> List[str]:
         """Get required inputs for text processor"""
