@@ -351,19 +351,46 @@ class KRMasterPipeline:
                 if doc_info.manufacturer and doc_info.document_type != 'unknown':
                     stage_status['classification'] = True
             
-            # SIMPLIFIED APPROACH: Due to Supabase schema limitations,
-            # we mark all stages as incomplete and let each processor
-            # check if work needs to be done (they have idempotency built-in)
+            # Use RPC functions for cross-schema access to krai_intelligence and krai_content
+            # This fixes the schema cache issues with Supabase PostgREST
             
-            # This is safer and more robust than trying to query across
-            # multiple schemas (krai_intelligence, krai_content, etc.)
+            # Check if chunks exist (text stage) - krai_intelligence.chunks
+            try:
+                chunks_count = self.database_service.client.rpc('count_chunks_by_document', {'p_document_id': document_id}).execute()
+                if chunks_count.data and chunks_count.data > 0:
+                    stage_status['text'] = True
+            except Exception as e:
+                # Fallback: assume text stage is needed
+                pass
             
-            # The processors will:
-            # - Check if data already exists
-            # - Skip processing if already done
-            # - Return success with existing data
+            # Check if images exist (image stage) - krai_content.images
+            try:
+                images_count = self.database_service.client.rpc('count_images_by_document', {'p_document_id': document_id}).execute()
+                if images_count.data and images_count.data > 0:
+                    stage_status['image'] = True
+            except Exception as e:
+                # Fallback: assume image stage is needed
+                pass
             
-            print(f"  ⚠️  Stage detection simplified - processors will check for existing data")
+            # Check if embeddings exist (embedding stage)
+            if stage_status['text']:  # Only check if chunks exist
+                try:
+                    # Get chunk IDs via RPC
+                    chunk_ids_result = self.database_service.client.rpc('get_chunk_ids_by_document', {'p_document_id': document_id, 'p_limit': 10}).execute()
+                    if chunk_ids_result.data and len(chunk_ids_result.data) > 0:
+                        chunk_ids = [row['chunk_id'] for row in chunk_ids_result.data]
+                        # Check if embeddings exist for these chunks
+                        embeddings_exist = self.database_service.client.rpc('embeddings_exist_for_chunks', {'p_chunk_ids': chunk_ids}).execute()
+                        if embeddings_exist.data:
+                            stage_status['embedding'] = True
+                except Exception as e:
+                    # Fallback: assume embedding stage is needed
+                    pass
+            
+            # For metadata and storage - assume done if image processing is confirmed
+            if stage_status['image']:
+                stage_status['metadata'] = True
+                stage_status['storage'] = True
             
         except Exception as e:
             print(f"Error checking stage status: {e}")

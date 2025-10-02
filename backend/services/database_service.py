@@ -415,27 +415,23 @@ class DatabaseService:
             raise
     
     async def get_image_by_hash(self, file_hash: str) -> Optional[Dict]:
-        """Get image by file_hash for deduplication"""
+        """Get image by file_hash for deduplication using RPC function"""
         try:
             if self.client is None:
                 # Mock mode for testing
                 return None
             
-            # DISABLED: Schema issue - images table is in krai_content schema
-            # Supabase PostgREST can't access krai_content.images.file_hash column
-            # Image deduplication is less critical than document deduplication
-            # TODO: Create SQL view or RPC function for cross-schema access
-            return None
+            # Use RPC function to access krai_content.images across schema
+            result = self.client.rpc('get_image_by_hash', {'p_file_hash': file_hash}).execute()
             
-            # Original code (disabled):
-            # result = self.client.table("images").select("id, filename, file_hash, created_at").eq("file_hash", file_hash).execute()
-            # if result.data:
-            #     image_data = result.data[0]
-            #     self.logger.info(f"Found existing image with hash {file_hash[:16]}...")
-            #     return image_data
-            # return None
+            if result.data and len(result.data) > 0:
+                image_data = result.data[0]
+                self.logger.info(f"Found existing image with hash {file_hash[:16]}...")
+                return image_data
+            
+            return None
         except Exception as e:
-            self.logger.error(f"Failed to get image by hash: {e}")
+            self.logger.error(f"Failed to get image by hash {file_hash[:16]}...: {e}")
             return None
     
     # Intelligence Operations
