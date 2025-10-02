@@ -33,26 +33,26 @@ def test_service_role():
         client = create_client(supabase_url, service_role_key)
         print("✅ Connected!")
         
-        # Test 1: Count images in krai_content.images
-        print("\n📊 Test 1: Count images in krai_content.images...")
-        result = client.schema('krai_content').from_('images').select('id', count='exact').limit(1).execute()
+        # Test 1: Count images via public.vw_images view
+        print("\n📊 Test 1: Count images via public.vw_images...")
+        result = client.from_('vw_images').select('id', count='exact').limit(1).execute()
         print(f"✅ Found {result.count} images")
         
-        # Test 2: Count chunks in krai_content.chunks
-        print("\n📊 Test 2: Count chunks in krai_content.chunks...")
-        result = client.schema('krai_content').from_('chunks').select('id', count='exact').limit(1).execute()
+        # Test 2: Count chunks via public.vw_chunks view
+        print("\n📊 Test 2: Count chunks via public.vw_chunks...")
+        result = client.from_('vw_chunks').select('id', count='exact').limit(1).execute()
         print(f"✅ Found {result.count} chunks")
         
         # Test 3: Find image by hash (deduplication test)
         print("\n🔍 Test 3: Find image by hash...")
-        # Get any image hash first
-        sample = client.schema('krai_content').from_('images').select('file_hash').not_.is_('file_hash', 'null').limit(1).execute()
+        # Get any image hash first via vw_images
+        sample = client.from_('vw_images').select('file_hash').not_.is_('file_hash', 'null').limit(1).execute()
         
         if sample.data and len(sample.data) > 0:
             test_hash = sample.data[0]['file_hash']
             print(f"   Testing with hash: {test_hash[:16]}...")
             
-            result = client.schema('krai_content').from_('images').select('id, filename, file_hash').eq('file_hash', test_hash).limit(1).execute()
+            result = client.from_('vw_images').select('id, filename, file_hash').eq('file_hash', test_hash).limit(1).execute()
             
             if result.data and len(result.data) > 0:
                 print(f"✅ Found image: {result.data[0]['filename']}")
@@ -61,9 +61,9 @@ def test_service_role():
         else:
             print("⚠️  No images with file_hash found")
         
-        # Test 4: Count embeddings
-        print("\n📊 Test 4: Count embeddings in krai_intelligence.embeddings...")
-        result = client.schema('krai_intelligence').from_('embeddings').select('id', count='exact').limit(1).execute()
+        # Test 4: Count embeddings via public.vw_embeddings view
+        print("\n📊 Test 4: Count embeddings via public.vw_embeddings...")
+        result = client.from_('vw_embeddings').select('id', count='exact').limit(1).execute()
         print(f"✅ Found {result.count} embeddings")
         
         print("\n✅ All PostgREST cross-schema tests passed!")

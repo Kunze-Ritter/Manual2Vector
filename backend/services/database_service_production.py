@@ -550,10 +550,10 @@ class DatabaseService:
                 except Exception as pg_err:
                     self.logger.warning(f"asyncpg query failed: {pg_err}, trying PostgREST...")
             
-            # Method 2: PostgREST with Service Role (bypasses RLS)
+            # Method 2: PostgREST with Service Role via public.vw_images view
             if self.service_client:
                 try:
-                    result = self.service_client.schema('krai_content').from_('images').select('id, filename, file_hash, created_at, document_id, storage_url').eq('file_hash', file_hash).limit(1).execute()
+                    result = self.service_client.from_('vw_images').select('id, filename, file_hash, created_at, document_id, storage_url').eq('file_hash', file_hash).limit(1).execute()
                     
                     if result.data and len(result.data) > 0:
                         image_data = result.data[0]
@@ -582,10 +582,10 @@ class DatabaseService:
                 except Exception as pg_err:
                     self.logger.warning(f"asyncpg count failed: {pg_err}, trying PostgREST...")
             
-            # Method 2: PostgREST with Service Role
+            # Method 2: PostgREST via public.vw_chunks view
             if self.service_client:
                 try:
-                    result = self.service_client.schema('krai_content').from_('chunks').select('id', count='exact').eq('document_id', document_id).execute()
+                    result = self.service_client.from_('vw_chunks').select('id', count='exact').eq('document_id', document_id).execute()
                     return result.count or 0
                 except Exception as rest_err:
                     self.logger.warning(f"PostgREST count failed: {rest_err}")
@@ -610,10 +610,10 @@ class DatabaseService:
                 except Exception as pg_err:
                     self.logger.warning(f"asyncpg count failed: {pg_err}, trying PostgREST...")
             
-            # Method 2: PostgREST with Service Role
+            # Method 2: PostgREST via public.vw_images view
             if self.service_client:
                 try:
-                    result = self.service_client.schema('krai_content').from_('images').select('id', count='exact').eq('document_id', document_id).execute()
+                    result = self.service_client.from_('vw_images').select('id', count='exact').eq('document_id', document_id).execute()
                     return result.count or 0
                 except Exception as rest_err:
                     self.logger.warning(f"PostgREST count failed: {rest_err}")
@@ -645,16 +645,16 @@ class DatabaseService:
                 except Exception as pg_err:
                     self.logger.warning(f"asyncpg embeddings check failed: {pg_err}, trying PostgREST...")
             
-            # Method 2: PostgREST (multi-step: get chunks first, then check embeddings)
+            # Method 2: PostgREST via public views (multi-step: get chunks first, then check embeddings)
             if self.service_client:
                 try:
-                    # Get chunk IDs for document
-                    chunks = self.service_client.schema('krai_content').from_('chunks').select('id').eq('document_id', document_id).limit(1).execute()
+                    # Get chunk IDs for document via vw_chunks
+                    chunks = self.service_client.from_('vw_chunks').select('id').eq('document_id', document_id).limit(1).execute()
                     
                     if chunks.data and len(chunks.data) > 0:
                         chunk_id = chunks.data[0]['id']
-                        # Check if any embedding exists for this chunk
-                        embeddings = self.service_client.schema('krai_intelligence').from_('embeddings').select('id').eq('chunk_id', chunk_id).limit(1).execute()
+                        # Check if any embedding exists for this chunk via vw_embeddings
+                        embeddings = self.service_client.from_('vw_embeddings').select('id').eq('chunk_id', chunk_id).limit(1).execute()
                         return embeddings.data and len(embeddings.data) > 0
                 except Exception as rest_err:
                     self.logger.warning(f"PostgREST embeddings check failed: {rest_err}")
