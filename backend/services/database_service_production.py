@@ -425,14 +425,25 @@ class DatabaseService:
         error_code_data = error_code.model_dump(mode='json')
         
         try:
-            # Use service_client for cross-schema access
+            # Use RPC function (workaround for PostgREST schema restrictions)
             client = self.service_client if self.service_client else self.client
             
-            result = client.schema('krai_intelligence').table('error_codes').insert(error_code_data).execute()
+            result = client.rpc('create_error_code', {
+                'p_document_id': error_code_data['document_id'],
+                'p_error_code': error_code_data['error_code'],
+                'p_description': error_code_data.get('description'),
+                'p_severity': error_code_data.get('severity'),
+                'p_context': error_code_data.get('context'),
+                'p_possible_cause': error_code_data.get('possible_cause'),
+                'p_solution': error_code_data.get('solution'),
+                'p_page_number': error_code_data.get('page_number'),
+                'p_image_reference': error_code_data.get('image_reference'),
+                'p_metadata': error_code_data.get('metadata', {})
+            }).execute()
             
             if result.data:
-                error_code_id = result.data[0]['id']
-                self.logger.info(f"Created error code {error_code_id}: {error_code_data.get('error_code')}")
+                error_code_id = str(result.data)
+                self.logger.info(f"Created error code via RPC: {error_code_id} ({error_code_data.get('error_code')})")
                 return error_code_id
             else:
                 raise Exception("Failed to create error code")
