@@ -27,12 +27,7 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId }}",
-        "tableName": {
-          "__rl": true,
-          "value": "vw_agent_memory",
-          "mode": "list",
-          "cachedResultName": "vw_agent_memory"
-        },
+        "tableName": "vw_agent_memory",
         "sessionIdKey": "session_id",
         "messageKey": "message",
         "roleKey": "role",
