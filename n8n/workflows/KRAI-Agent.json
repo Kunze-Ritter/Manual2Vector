@@ -66,8 +66,13 @@
       "parameters": {
         "mode": "retrieve-as-tool",
         "toolName": "krai_intelligence",
-        "toolDescription": "Durchsuche die KRAI Dokumentation und technische Handbücher. Nutze dieses Tool für:\n- Fehlercode-Informationen (z.B. 'Error E045', 'Fehler 13.01')\n- Reparatur-Anleitungen\n- Technische Spezifikationen\n- Wartungshinweise\n- Bedienungsanleitungen\n\nGib relevante Suchbegriffe ein (z.B. 'HP LaserJet paper jam', 'Toner wechseln', 'Error code E045').",
-        "functionName": "match_documents",
+        "toolDescription": "Durchsucht die KRAI Wissensdatenbank mit technischen Dokumenten, Service-Manuals und Fehlercode-Datenbanken.\n\nNutze dieses Tool FÜR JEDE technische Frage:\n- Fehlercode-Informationen (z.B. 'Error 93.00.01', 'Fehler E045')\n- Reparatur-Anleitungen und Troubleshooting\n- Technische Spezifikationen von Druckern/Kopierern\n- Wartungshinweise und Serviceanleitungen\n- Bedienungsanleitungen\n\nWICHTIG: Wenn dieses Tool keine Ergebnisse liefert, sage dem Nutzer klar, dass die Information nicht in der Datenbank verfügbar ist. Erfinde KEINE Informationen!",
+        "tableName": {
+          "__rl": true,
+          "value": "match_documents",
+          "mode": "list",
+          "cachedResultName": "RPC Function"
+        },
         "topK": 5
       },
       "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
@@ -125,7 +130,7 @@
     {
       "parameters": {
         "options": {
-          "systemMessage": "=Du bist der KRAI AI Agent - ein intelligenter technischer Assistent für Service-Dokumentation.\n\nDeine Aufgaben:\n- Hilfe bei technischen Fragen zu Druckern, Kopierern und Geräten\n- Fehlercode-Analyse und Troubleshooting\n- Modell-Informationen und Spezifikationen\n- System-Status und Statistiken\n\nDu hast Zugriff auf:\n1. **Vector Search Tool (krai_intelligence)** - Durchsucht technische Dokumentation\n2. **Supabase Datenbank** - Produkte, Fehler-Codes, Dokumente\n\nAntworte immer:\n- Auf Deutsch\n- Präzise und hilfreich\n- Mit Quellenangaben wenn möglich\n- Strukturiert (mit Listen/Aufzählungen)\n\nWenn du keine Information findest, sage es ehrlich und schlage Alternativen vor."
+          "systemMessage": "=Du bist der KRAI AI Agent - ein intelligenter technischer Assistent für Service-Techniker.\n\n🔍 WICHTIG - Deine Arbeitsweise:\n1. **IMMER zuerst das krai_intelligence Tool nutzen** für technische Fragen\n2. **NUR antworten, wenn du Informationen aus der Datenbank findest**\n3. **NIEMALS erfinden oder raten** - Techniker brauchen korrekte Informationen!\n\n✅ Wenn du Informationen findest:\n- Gib präzise Antworten mit Quellenangaben\n- Strukturiere mit Listen und Aufzählungen\n- Nenne Dokument-Namen, Seiten, Hersteller\n\n❌ Wenn du KEINE Informationen findest:\n- Sage klar: \"Ich habe in der KRAI-Datenbank keine Informationen zu [THEMA] gefunden.\"\n- Schlage vor: \"Bitte überprüfe die Schreibweise oder stelle die Frage anders.\"\n- Biete an: \"Du kannst auch direkt im Service-Manual nachsehen oder den Support kontaktieren.\"\n- ERFINDE NICHTS!\n\n📋 Du kannst helfen bei:\n- Fehlercode-Analyse (z.B. \"Error 93.00.01\")\n- Reparatur-Anleitungen\n- Technische Spezifikationen\n- Wartungshinweise\n\nAntworte immer auf Deutsch, präzise und ehrlich."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
