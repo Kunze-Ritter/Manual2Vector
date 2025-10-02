@@ -82,12 +82,37 @@ CREATE TABLE krai_agent.memory (
 |--------|-----|--------------|----------|
 | `id` | UUID | Eindeutige ID | `a1b2c3d4-...` |
 | `session_id` | VARCHAR(255) | n8n Session Identifier | `"demo-session-001"` |
-| `role` | VARCHAR(50) | Message Role | `"user"`, `"assistant"`, `"system"` |
+| `role` | VARCHAR(50) | Message Role | See [Role Types](#role-types) |
 | `content` | TEXT | Message Content | `"What is error code E001?"` |
 | `metadata` | JSONB | Zusätzliche Daten | `{"model": "gpt-4", "temperature": 0.7}` |
 | `tokens_used` | INTEGER | Token Count | `150` |
 | `created_at` | TIMESTAMPTZ | Zeitstempel | `2025-10-02 09:00:00+00` |
 | `updated_at` | TIMESTAMPTZ | Update Zeitstempel | `2025-10-02 09:00:00+00` |
+
+### Role Types
+
+**Standard AI Roles:**
+- `user` - Human user input
+- `assistant` - AI model response
+- `system` - System prompts
+- `function` - Function call results
+- `tool` - Tool execution results
+
+**n8n Compatibility:**
+- `ai` - n8n AI Agent (equivalent to `assistant`)
+- `human` - n8n Human/User (equivalent to `user`)
+- `chatbot` - Alternative AI naming
+
+**Business Roles (KRAI):**
+- `technician` - Techniker/Service-Mitarbeiter
+- `engineer` - Ingenieur
+- `manager` - Manager/Vorgesetzter
+- `supervisor` - Supervisor/Teamleiter
+- `customer` - Kunde/Endnutzer
+- `support` - Support-Team
+- `expert` - Fachexperte
+
+> **📖 Mehr Info**: Siehe `database/migrations/AGENT_MEMORY_ROLES.md`
 
 **Indexes:**
 
