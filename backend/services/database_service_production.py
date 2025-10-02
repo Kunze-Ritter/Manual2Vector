@@ -455,33 +455,21 @@ class DatabaseService:
         error_code_data = error_code.model_dump(mode='json')
         
         try:
-            # Use RPC function (workaround for PostgREST schema restrictions)
+            # Direct INSERT with Service Role Key (cross-schema access)
             client = self.service_client if self.service_client else self.client
             
-            result = client.rpc('create_error_code', {
-                'p_document_id': error_code_data['document_id'],
-                'p_error_code': error_code_data['error_code'],
-                'p_error_description': error_code_data.get('error_description'),
-                'p_solution_text': error_code_data.get('solution_text'),
-                'p_page_number': error_code_data.get('page_number'),
-                'p_confidence_score': error_code_data.get('confidence_score'),
-                'p_extraction_method': error_code_data.get('extraction_method'),
-                'p_requires_technician': error_code_data.get('requires_technician'),
-                'p_requires_parts': error_code_data.get('requires_parts'),
-                'p_estimated_fix_time_minutes': error_code_data.get('estimated_fix_time_minutes'),
-                'p_severity_level': error_code_data.get('severity_level')
-            }).execute()
+            result = client.table('error_codes').insert(error_code_data).execute()
             
             if result.data:
-                error_code_id = str(result.data)
-                self.logger.info(f"Created error code via RPC: {error_code_id} ({error_code_data.get('error_code')})")
+                error_code_id = result.data[0]['id']
+                self.logger.info(f"Created error code: {error_code_id} ({error_code_data.get('error_code')})")
                 return error_code_id
             else:
-                raise Exception("Failed to create error code")
+                raise Exception("Insert returned no data")
                 
         except Exception as e:
             self.logger.error(f"Failed to create error code: {e}")
-            raise RuntimeError(f"Cannot create error code in database: {e}")
+            raise Exception(f"Cannot create error code in database: {e}")
     
     async def create_search_analytics(self, analytics: SearchAnalyticsModel) -> str:
         """Create a new search analytics record"""
