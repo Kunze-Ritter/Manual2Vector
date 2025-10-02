@@ -27,10 +27,11 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId }}",
-        "tableName": "vw_agent_memory",
+        "tableName": "krai_agent.memory",
         "sessionIdKey": "session_id",
         "messageKey": "message",
         "roleKey": "role",
+        "metadataKey": "metadata",
         "contextWindowLength": 10
       },
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
@@ -158,13 +159,7 @@
     },
     "Postgres Chat Memory": {
       "ai_memory": [
-        [
-          {
-            "node": "KRAI Agent",
-            "type": "ai_memory",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "When chat message received": {
