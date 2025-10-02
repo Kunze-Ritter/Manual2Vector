@@ -843,54 +843,59 @@ class DatabaseService:
             self.logger.error(f"Failed to create link: {e}")
             return None
     
-    async def find_or_create_video_from_link(self, url: str, manufacturer_id: Optional[str], 
-                                            title: Optional[str] = None, 
-                                            description: Optional[str] = None,
-                                            metadata: Optional[Dict] = None) -> Optional[str]:
+    async def create_video(self, link_id: str, youtube_id: Optional[str] = None,
+                          title: Optional[str] = None, description: Optional[str] = None,
+                          thumbnail_url: Optional[str] = None, duration: Optional[int] = None,
+                          view_count: Optional[int] = None, like_count: Optional[int] = None,
+                          comment_count: Optional[int] = None, channel_id: Optional[str] = None,
+                          channel_title: Optional[str] = None, published_at: Optional[str] = None,
+                          metadata: Optional[Dict] = None) -> Optional[str]:
         """
-        Find existing video by URL or create new one
-        Note: videos table is optional - returns None if table doesn't exist
+        Create or update video metadata
+        Uses upsert - updates if link_id exists, creates if not
         """
         try:
-            # Use SQL function we created in migration
-            if self.pg_pool:
-                async with self.pg_pool.acquire() as conn:
-                    video_id = await conn.fetchval(
-                        "SELECT krai_content.find_or_create_video_from_link($1, $2, $3, $4, $5)",
-                        url,
-                        manufacturer_id,
-                        title,
-                        description,
-                        metadata or {}
-                    )
-                    return str(video_id) if video_id else None
-            
-            # Fallback: Use PostgREST (two-step: find, then create if not found)
+            # Use RPC function (upsert on link_id)
             client = self.service_client if self.service_client else self.client
             
-            # Try to find existing
-            result = client.schema('krai_content').table('instructional_videos').select('id').eq('video_url', url).limit(1).execute()
+            result = client.rpc('upsert_video', {
+                'p_link_id': link_id,
+                'p_youtube_id': youtube_id,
+                'p_title': title,
+                'p_description': description,
+                'p_thumbnail_url': thumbnail_url,
+                'p_duration': duration,
+                'p_view_count': view_count,
+                'p_like_count': like_count,
+                'p_comment_count': comment_count,
+                'p_channel_id': channel_id,
+                'p_channel_title': channel_title,
+                'p_published_at': published_at,
+                'p_metadata': metadata or {}
+            }).execute()
             
-            if result.data and len(result.data) > 0:
-                return result.data[0]['id']
-            
-            # Create new
-            video_data = {
-                'manufacturer_id': manufacturer_id,
-                'video_url': url,
-                'title': title or f"Auto-extracted: {url}",
-                'description': description or "Automatically extracted from document",
-                'auto_created': True,
-                'metadata': metadata or {}
-            }
-            
-            result = client.schema('krai_content').table('instructional_videos').insert(video_data).execute()
-            
-            if result.data and len(result.data) > 0:
-                return result.data[0]['id']
+            if result.data:
+                video_id = str(result.data)
+                self.logger.info(f"Created/updated video: {video_id} (YouTube: {youtube_id})")
+                return video_id
             
             return None
             
         except Exception as e:
-            self.logger.error(f"Failed to find/create video from link: {e}")
+            self.logger.error(f"Failed to create/update video: {e}")
+            return None
+    
+    async def get_video_by_link(self, link_id: str) -> Optional[Dict[str, Any]]:
+        """Get video metadata by link_id"""
+        try:
+            client = self.service_client if self.service_client else self.client
+            result = client.from_('vw_videos').select('*').eq('link_id', link_id).limit(1).execute()
+            
+            if result.data and len(result.data) > 0:
+                return result.data[0]
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get video by link: {e}")
             return None

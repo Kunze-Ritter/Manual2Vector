@@ -290,7 +290,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
             return None
     
     async def _process_video_links(self, links: List[Dict], document: Dict) -> int:
-        """Process video links - create instructional_videos if needed"""
+        """Process video links - create video metadata entries"""
         video_count = 0
         
         for link in links:
@@ -301,19 +301,10 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 # Get video metadata (could be enhanced with YouTube API)
                 video_metadata = await self._get_video_metadata(link)
                 
-                # Create or find instructional_video
-                manufacturer_id = getattr(document, 'manufacturer_id', None)
-                video_id = await self.database_service.find_or_create_video_from_link(
-                    url=link['url'],
-                    manufacturer_id=manufacturer_id,
-                    title=video_metadata.get('title'),
-                    description=video_metadata.get('description'),
-                    metadata=link['metadata']
-                )
-                
-                if video_id:
-                    link['video_id'] = video_id
-                    video_count += 1
+                # Create video metadata entry (requires link to be saved first)
+                # This will be called after links are saved to database
+                link['_video_metadata'] = video_metadata  # Store for later
+                video_count += 1
                     
             except Exception as e:
                 self.logger.error(f"Failed to process video link {link['url']}: {e}")
@@ -355,12 +346,25 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     'page_number': link.get('page_number'),
                     'position_data': link.get('position_data'),
                     'confidence_score': link.get('confidence_score', 0.8),
-                    'video_id': link.get('video_id'),
                     'metadata': link.get('metadata', {})
                 })
                 
                 if link_id:
                     link_ids.append(link_id)
+                    
+                    # If this is a video link, create video metadata entry
+                    if link['link_type'] == 'video' and '_video_metadata' in link:
+                        video_meta = link['_video_metadata']
+                        youtube_id = link['metadata'].get('video_id') if link.get('link_category') == 'youtube' else None
+                        
+                        await self.database_service.create_video(
+                            link_id=link_id,
+                            youtube_id=youtube_id,
+                            title=video_meta.get('title'),
+                            description=video_meta.get('description'),
+                            metadata=video_meta
+                        )
+                        self.logger.info(f"Created video metadata for link {link_id} (YouTube: {youtube_id})")
                     
             except Exception as e:
                 self.logger.error(f"Failed to store link {link['url']}: {e}")
