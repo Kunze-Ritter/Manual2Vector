@@ -67,16 +67,8 @@
         "mode": "retrieve-as-tool",
         "toolName": "krai_intelligence",
         "toolDescription": "Durchsuche die KRAI Dokumentation und technische Handbücher. Nutze dieses Tool für:\n- Fehlercode-Informationen (z.B. 'Error E045', 'Fehler 13.01')\n- Reparatur-Anleitungen\n- Technische Spezifikationen\n- Wartungshinweise\n- Bedienungsanleitungen\n\nGib relevante Suchbegriffe ein (z.B. 'HP LaserJet paper jam', 'Toner wechseln', 'Error code E045').",
-        "tableName": {
-          "__rl": true,
-          "value": "chunks",
-          "mode": "list",
-          "cachedResultName": "chunks"
-        },
-        "topK": 5,
-        "options": {
-          "queryName": "text_chunk"
-        }
+        "functionName": "match_documents",
+        "topK": 5
       },
       "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
       "typeVersion": 1,
