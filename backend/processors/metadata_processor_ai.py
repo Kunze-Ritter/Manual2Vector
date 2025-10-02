@@ -80,7 +80,12 @@ class MetadataProcessorAI(BaseProcessor):
             if not document:
                 raise ProcessingError("Document not found", self.name, "DOC_NOT_FOUND")
             
-            manufacturer = document.get('manufacturer', 'generic').lower()
+            # DocumentModel is a Pydantic model, not a dict
+            manufacturer = getattr(document, 'manufacturer', 'generic')
+            if manufacturer:
+                manufacturer = manufacturer.lower()
+            else:
+                manufacturer = 'generic'
             
             # Method 1: Pattern-based extraction from text
             text_error_codes = await self._extract_error_codes_from_text(
@@ -98,8 +103,9 @@ class MetadataProcessorAI(BaseProcessor):
             all_error_codes = self._merge_error_codes(text_error_codes, ai_error_codes)
             
             # Store in database
+            manufacturer_id = getattr(document, 'manufacturer_id', None)
             error_code_ids = await self._store_error_codes(
-                all_error_codes, context.document_id, document.get('manufacturer_id')
+                all_error_codes, context.document_id, manufacturer_id
             )
             
             self.logger.info(

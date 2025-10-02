@@ -124,6 +124,12 @@ class LinkExtractionProcessorAI(BaseProcessor):
         try:
             import fitz  # PyMuPDF
             
+            # Check if file exists
+            import os
+            if not os.path.exists(file_path):
+                self.logger.warning(f"PDF file not found: {file_path}")
+                return []
+            
             doc = fitz.open(file_path)
             
             for page_num in range(len(doc)):
@@ -290,9 +296,10 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 video_metadata = await self._get_video_metadata(link)
                 
                 # Create or find instructional_video
+                manufacturer_id = getattr(document, 'manufacturer_id', None)
                 video_id = await self.database_service.find_or_create_video_from_link(
                     url=link['url'],
-                    manufacturer_id=document.get('manufacturer_id'),
+                    manufacturer_id=manufacturer_id,
                     title=video_metadata.get('title'),
                     description=video_metadata.get('description'),
                     metadata=link['metadata']

@@ -251,7 +251,8 @@ class ClassificationProcessor(BaseProcessor):
             existing_manufacturer = await self.database_service.get_manufacturer_by_name(manufacturer_name)
             if existing_manufacturer:
                 self.logger.info(f"Found existing manufacturer: {manufacturer_name}")
-                return existing_manufacturer['id']
+                # ManufacturerModel is a Pydantic model, not a dict
+                return existing_manufacturer.id if hasattr(existing_manufacturer, 'id') else str(existing_manufacturer)
             
             # Create new manufacturer
             manufacturer = ManufacturerModel(
