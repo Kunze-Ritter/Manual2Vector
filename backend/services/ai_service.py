@@ -413,6 +413,17 @@ class AIService:
                 "confidence": 0.5
             }
         
+        # Skip SVG files - they crash the vision model
+        if image.startswith(b'<svg') or image.startswith(b'<?xml'):
+            self.logger.warning("Skipping SVG image (not supported by vision model)")
+            return {
+                "image_type": "diagram",
+                "description": "SVG vector graphic (not analyzed)",
+                "contains_text": False,
+                "tags": ["svg", "vector"],
+                "confidence": 0.5
+            }
+        
         try:
             model = self.models['vision']
             
@@ -536,6 +547,11 @@ class AIService:
             
             if not image_bytes:
                 return {"error_codes": [], "error": "No image data provided"}
+            
+            # Skip SVG files - they crash the vision model
+            if image_bytes.startswith(b'<svg') or image_bytes.startswith(b'<?xml'):
+                self.logger.warning(f"Skipping SVG image (not supported by vision model)")
+                return {"error_codes": [], "skipped": True, "reason": "SVG format not supported"}
             
             # Reduce image size if too large (Ollama has issues with large images)
             try:
