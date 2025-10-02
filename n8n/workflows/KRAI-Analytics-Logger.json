@@ -1,0 +1,137 @@
+{
+  "name": "KRAI Analytics Logger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "krai-analytics",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-001",
+      "name": "Analytics Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and parse incoming analytics data\nconst body = $input.first().json.body;\n\n// Extract data with fallbacks\nconst searchQuery = body.search_query || body.query || '';\nconst sessionId = body.session_id || body.sessionId || '';\nconst toolsUsed = body.tools_used || [];\nconst resultsCount = body.results_count || 0;\nconst responseLength = body.response_length || 0;\n\n// Validate required fields\nif (!searchQuery || !sessionId) {\n  throw new Error('Missing required fields: search_query or session_id');\n}\n\nreturn {\n  search_query: searchQuery,\n  user_session_id: sessionId,\n  search_type: 'agent_query',\n  results_count: resultsCount,\n  result_relevance_scores: {\n    response_length: responseLength,\n    tools_used: toolsUsed\n  }\n};"
+      },
+      "id": "code-node-001",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "vw_search_analytics",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "search_query",
+              "fieldValue": "={{ $json.search_query }}"
+            },
+            {
+              "fieldId": "user_session_id",
+              "fieldValue": "={{ $json.user_session_id }}"
+            },
+            {
+              "fieldId": "search_type",
+              "fieldValue": "={{ $json.search_type }}"
+            },
+            {
+              "fieldId": "results_count",
+              "fieldValue": "={{ $json.results_count }}"
+            },
+            {
+              "fieldId": "result_relevance_scores",
+              "fieldValue": "={{ JSON.stringify($json.result_relevance_scores) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-node-001",
+      "name": "Save to Analytics DB",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Analytics logged\", \"session_id\": $('Parse & Validate').item.json.user_session_id } }}"
+      },
+      "id": "respond-node-001",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Analytics Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Save to Analytics DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Analytics DB": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-02T20:58:00.000Z",
+  "versionId": "analytics-logger-v1"
+}
