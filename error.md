@@ -1,48 +1,15 @@
-Wähle Option (1-7): 5
-
-=== BATCH PROCESSING ===
-🔍 Searching for service_documents directory...
-✅ Found service_documents with 5 document files: C:\service_documents
-📁 Found 5 document files in service_documents
-   .pdf: 5 files
-Gefunden: 5 Dokumente
-
-Verarbeite ALLE 5 Dokumente? (y/n): y
-HARDWARE WAKER - Processing 5 files with 8 concurrent documents!
-This WILL wake up your CPU and GPU!
-Starting HARDWARE WAKER processing of 5 files...
-Multiple documents will be processed simultaneously - CPU and GPU will be busy!
-
-💡 PowerShell Mode: Press 'd' for detailed view, 'q' to quit
-================================================================================
-[1/5] Processing: A93E.pdf (21.6MB)
-  [1] Upload: A93E.pdf
-2025-10-01 16:30:29,971 - upload_processor - INFO - Document with hash a8c39728e56acf66... already exists: a4c76282-5c5e-4eba-aa02-ff8797f60d54
-INFO:krai.upload_processor:Document with hash a8c39728e56acf66... already exists: a4c76282-5c5e-4eba-aa02-ff8797f60d54
-[2/5] Processing: A93E017.pdf (17.1MB)
-  [2] Upload: A93E017.pdf
-2025-10-01 16:30:30,039 - upload_processor - INFO - Document with hash 8516f53b3adb5bfc... already exists: 35622490-849a-4cdb-9ef2-65254fb710f9
-INFO:krai.upload_processor:Document with hash 8516f53b3adb5bfc... already exists: 35622490-849a-4cdb-9ef2-65254fb710f9
-[3/5] Processing: AAJN.pdf (21.7MB)
-  [3] Upload: AAJN.pdf
-2025-10-01 16:30:30,105 - upload_processor - INFO - Document with hash 469ec9df2c9257ed... already exists: dc975d7f-84bd-4273-abac-acce61d08e38
-INFO:krai.upload_processor:Document with hash 469ec9df2c9257ed... already exists: dc975d7f-84bd-4273-abac-acce61d08e38
-[4/5] Processing: AAJN007.pdf (17.2MB)
-  [4] Upload: AAJN007.pdf
-2025-10-01 16:30:30,162 - upload_processor - INFO - Document with hash 7e12242863b04799... already exists: 5aec0c77-514e-4f23-b07a-8d797e3d3fd6
-INFO:krai.upload_processor:Document with hash 7e12242863b04799... already exists: 5aec0c77-514e-4f23-b07a-8d797e3d3fd6
-[5/5] Processing: bizhub_C750i_C751i_SM_EN_20250729.pdf (104.0MB)
-  [5] Upload: bizhub_C750i_C751i_SM_EN_20250729.pdf
-2025-10-01 16:30:30,285 - upload_processor - INFO - Document with hash 7f84247ac835a7d5... already exists: 72b00048-ef04-4f73-8122-34c3e737acfd
-INFO:krai.upload_processor:Document with hash 7f84247ac835a7d5... already exists: 72b00048-ef04-4f73-8122-34c3e737acfd
-
-================================================================================
-KR MASTER PIPELINE SUMMARY
-================================================================================
-Total Files: 5
-Successful: 0
-Failed: 5
-Success Rate: 0.0%
-Total Duration: 0.5s (0.0m)
-Average per File: 0.1s
-================================================================================
+INFO:krai.ai:Image analyzed: photo (confidence: 0.5)
+2025-10-02 07:42:20,558 - krai.database - ERROR - Failed to get image by hash e684f02adacc6aa7...: {'message': 'column images.image_hash does not exist', 'code': '42703', 'hint': None, 'details': None}
+ERROR:krai.database:Failed to get image by hash e684f02adacc6aa7...: {'message': 'column images.image_hash does not exist', 'code': '42703', 'hint': None, 'details': None}
+2025-10-02 07:42:20,605 - krai.database - INFO - Created image b5e832e1-be86-4bed-b085-85fc7714601b
+INFO:krai.database:Created image b5e832e1-be86-4bed-b085-85fc7714601b
+2025-10-02 07:42:21,598 - Storage - INFO - Uploaded image 8fa97de4e627321e115ac973c6651847681614b9c5ba1535962e0e9e46e856c0.jpeg to krai-documents-images/8fa97de4e627321e115ac973c6651847681614b9c5ba1535962e0e9e46e856c0.jpeg
+INFO:krai.storage:Uploaded image 8fa97de4e627321e115ac973c6651847681614b9c5ba1535962e0e9e46e856c0.jpeg to krai-documents-images/8fa97de4e627321e115ac973c6651847681614b9c5ba1535962e0e9e46e856c0.jpeg
+2025-10-02 07:42:21,598 - image_processor - INFO - Set Tesseract path to: C:\Program Files\Tesseract-OCR\tesseract.exe
+INFO:krai.image_processor:Set Tesseract path to: C:\Program Files\Tesseract-OCR\tesseract.exe
+🔄 KR-AI Pipeline | CPU: 0.0% RAM:57.3% | GPU: 5.9/16.0GB | Docs:34 Class:1 ❌33 | Progress: ███░░░░░░░░░░░░░░░░░░░░░░ 12.6%2025-10-02 07:42:25,130 - AI - INFO - Image analyzed: photo (confidence: 0.5)
+INFO:krai.ai:Image analyzed: photo (confidence: 0.5)
+2025-10-02 07:42:25,173 - krai.database - ERROR - Failed to get image by hash 8fa97de4e627321e...: {'message': 'column images.image_hash does not exist', 'code': '42703', 'hint': None, 'details': None}
+ERROR:krai.database:Failed to get image by hash 8fa97de4e627321e...: {'message': 'column images.image_hash does not exist', 'code': '42703', 'hint': None, 'details': None}
+2025-10-02 07:42:25,216 - krai.database - INFO - Created image 6a9de294-9297-4f34-9c1f-9887d8e1da31
+INFO:krai.database:Created image 6a9de294-9297-4f34-9c1f-9887d8e1da31
