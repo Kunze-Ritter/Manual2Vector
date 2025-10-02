@@ -6,11 +6,13 @@ Ollama integration with hardware-optimized model selection
 import asyncio
 import logging
 import json
+import os
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 import httpx
 
 from config.ai_config import get_ai_config, get_ollama_models, get_model_requirements
+from utils.gpu_detector import get_gpu_info, get_recommended_vision_model
 
 class AIService:
     """
@@ -33,6 +35,18 @@ class AIService:
         self.config = get_ai_config()
         self.models = get_ollama_models()
         self.requirements = get_model_requirements()
+        
+        # Auto-detect GPU and select best vision model
+        self.gpu_info = get_gpu_info()
+        
+        # Override vision model from env or use auto-detected
+        env_vision_model = os.getenv('OLLAMA_MODEL_VISION')
+        if env_vision_model:
+            self.models['vision'] = env_vision_model
+            self.logger.info(f"Using vision model from env: {env_vision_model}")
+        else:
+            self.models['vision'] = self.gpu_info['recommended_vision_model']
+            self.logger.info(f"Auto-detected vision model: {self.models['vision']} (GPU: {self.gpu_info['gpu_name']}, VRAM: {self.gpu_info['vram_gb']:.1f}GB)")
         
         self.logger.info(f"AI Service initialized with {self.config.tier.value} tier")
         self.logger.info(f"Models: {self.models}")
