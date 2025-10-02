@@ -413,16 +413,20 @@ class AIService:
                 "confidence": 0.5
             }
         
-        # Skip SVG files - they crash the vision model
+        # Convert SVG to PNG for vision model (SVGs crash the model)
         if image.startswith(b'<svg') or image.startswith(b'<?xml'):
-            self.logger.warning("Skipping SVG image (not supported by vision model)")
-            return {
-                "image_type": "diagram",
-                "description": "SVG vector graphic (not analyzed)",
-                "contains_text": False,
-                "tags": ["svg", "vector"],
-                "confidence": 0.5
-            }
+            try:
+                self.logger.info("Converting SVG to PNG for vision analysis...")
+                image = self._convert_svg_to_png(image)
+            except Exception as svg_error:
+                self.logger.warning(f"Failed to convert SVG to PNG: {svg_error} - Using fallback")
+                return {
+                    "image_type": "diagram",
+                    "description": f"SVG vector graphic (conversion failed: {svg_error})",
+                    "contains_text": False,
+                    "tags": ["svg", "vector"],
+                    "confidence": 0.5
+                }
         
         try:
             model = self.models['vision']
@@ -548,10 +552,14 @@ class AIService:
             if not image_bytes:
                 return {"error_codes": [], "error": "No image data provided"}
             
-            # Skip SVG files - they crash the vision model
+            # Convert SVG to PNG for vision model (SVGs crash the model)
             if image_bytes.startswith(b'<svg') or image_bytes.startswith(b'<?xml'):
-                self.logger.warning(f"Skipping SVG image (not supported by vision model)")
-                return {"error_codes": [], "skipped": True, "reason": "SVG format not supported"}
+                try:
+                    self.logger.info("Converting SVG to PNG for vision analysis...")
+                    image_bytes = self._convert_svg_to_png(image_bytes)
+                except Exception as svg_error:
+                    self.logger.warning(f"Failed to convert SVG to PNG: {svg_error} - Skipping")
+                    return {"error_codes": [], "skipped": True, "reason": f"SVG conversion failed: {svg_error}"}
             
             # Reduce image size if too large (Ollama has issues with large images)
             try:
@@ -683,3 +691,41 @@ class AIService:
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat()
             }
+    
+    def _convert_svg_to_png(self, svg_bytes: bytes, max_width: int = 1024, max_height: int = 1024) -> bytes:
+        """
+        Convert SVG to PNG for vision model processing
+        
+        Args:
+            svg_bytes: SVG file content as bytes
+            max_width: Maximum width for output PNG
+            max_height: Maximum height for output PNG
+            
+        Returns:
+            PNG image as bytes
+        """
+        try:
+            import cairosvg
+            import io
+            from PIL import Image
+            
+            # Convert SVG to PNG using cairosvg
+            png_bytes = cairosvg.svg2png(bytestring=svg_bytes, output_width=max_width, output_height=max_height)
+            
+            # Optionally optimize with PIL
+            try:
+                img = Image.open(io.BytesIO(png_bytes))
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG', optimize=True)
+                png_bytes = buffer.getvalue()
+                self.logger.info(f"SVG converted to PNG: {len(svg_bytes)} bytes → {len(png_bytes)} bytes")
+            except Exception as pil_error:
+                self.logger.warning(f"PIL optimization failed, using direct conversion: {pil_error}")
+            
+            return png_bytes
+            
+        except ImportError:
+            # Fallback if cairosvg not installed
+            raise Exception("cairosvg library not installed - run: pip install cairosvg")
+        except Exception as e:
+            raise Exception(f"SVG to PNG conversion failed: {e}")
