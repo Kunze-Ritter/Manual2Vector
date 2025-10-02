@@ -68,12 +68,7 @@
         680,
         300
       ],
-      "credentials": {
-        "supabaseApi": {
-          "id": "VOEfJ5TSCcCT8bKn",
-          "name": "Supabase account"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {

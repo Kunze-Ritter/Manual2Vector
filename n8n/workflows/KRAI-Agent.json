@@ -141,50 +141,6 @@
       ],
       "id": "a2792575-98cf-4926-a97b-07383ac31d4e",
       "name": "KRAI Agent"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=http://n8n:5678/webhook/krai-analytics",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "search_query",
-              "value": "={{ $('When chat message received').item.json.chatInput }}"
-            },
-            {
-              "name": "session_id",
-              "value": "={{ $('When chat message received').item.json.sessionId }}"
-            },
-            {
-              "name": "tools_used",
-              "value": "={{ $json.steps ? $json.steps.filter(s => s.action?.tool).map(s => s.action.tool) : [] }}"
-            },
-            {
-              "name": "results_count",
-              "value": "={{ $json.steps ? ($json.steps.find(s => s.action?.tool === 'krai_intelligence')?.observation?.length || 0) : 0 }}"
-            },
-            {
-              "name": "response_length",
-              "value": "={{ $json.output?.length || 0 }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 3000
-        }
-      },
-      "id": "http-analytics-001",
-      "name": "Log to Analytics (async)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1520,
-        80
-      ],
-      "continueOnFail": true,
-      "notes": "Fire & Forget - Logs analytics without blocking chat response"
     }
   ],
   "pinData": {},
@@ -257,13 +213,7 @@
     },
     "KRAI Agent": {
       "main": [
-        [
-          {
-            "node": "Log to Analytics (async)",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },
