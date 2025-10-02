@@ -1,192 +1,6 @@
 {
-  "name": "KRAI AI Agent - Optimized",
+  "name": "KRAI-Agent",
   "nodes": [
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "condition-1",
-              "leftValue": "={{ $json.chatInput }}",
-              "rightValue": "/search",
-              "operator": {
-                "type": "string",
-                "operation": "startsWith"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "c7aeb3c5-5826-44da-aad6-5c58287c9ebb",
-      "name": "Search Command?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        384,
-        -16
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "condition-1",
-              "leftValue": "={{ $json.chatInput }}",
-              "rightValue": "/models",
-              "operator": {
-                "type": "string",
-                "operation": "startsWith"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "165290de-e108-4d61-b56b-cc87032d7feb",
-      "name": "Model Command?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        368,
-        -288
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "condition-1",
-              "leftValue": "={{ $json.chatInput }}",
-              "rightValue": "/status",
-              "operator": {
-                "type": "string",
-                "operation": "startsWith"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "60948cf1-3a53-43aa-a48f-4f79bf7fc857",
-      "name": "Status Command?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        384,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "mode": "retrieve-as-tool",
-        "toolName": "krai_intelligence",
-        "toolDescription": "Rufe Dokumente ab",
-        "tableName": {
-          "__rl": true,
-          "value": "vw_documents",
-          "mode": "list",
-          "cachedResultName": "vw_documents"
-        },
-        "topK": 5,
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
-      "typeVersion": 1,
-      "position": [
-        1536,
-        208
-      ],
-      "id": "97d44e5f-8c9e-4f5e-9df7-2dbe48824b53",
-      "name": "Supabase Vector Store",
-      "credentials": {
-        "supabaseApi": {
-          "id": "VOEfJ5TSCcCT8bKn",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "getAll",
-        "tableId": "products"
-      },
-      "id": "12b6a59b-ae97-41c0-a0f8-cb0878e4c80f",
-      "name": "Search Models",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "position": [
-        640,
-        -384
-      ],
-      "credentials": {
-        "supabaseApi": {
-          "id": "VOEfJ5TSCcCT8bKn",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "getAll",
-        "tableId": "vw_processing_queue",
-        "returnAll": true
-      },
-      "id": "4a0a1486-6ef4-4479-9c26-6d7199d6c331",
-      "name": "Get System Status",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "position": [
-        624,
-        464
-      ],
-      "credentials": {
-        "supabaseApi": {
-          "id": "VOEfJ5TSCcCT8bKn",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "embeddinggemma:latest"
-      },
-      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
-      "typeVersion": 1,
-      "position": [
-        1584,
-        416
-      ],
-      "id": "fa9a41f0-3826-42b3-b693-9bd0c3c73894",
-      "name": "Embeddings Ollama",
-      "credentials": {
-        "ollamaApi": {
-          "id": "KdqGhnIUPP0vQm3m",
-          "name": "Ollama account"
-        }
-      }
-    },
     {
       "parameters": {
         "model": "llama3.2:latest",
@@ -211,31 +25,24 @@
     },
     {
       "parameters": {
-        "options": {
-          "systemMessage": "=Du bist der KRAI AI Agent, ein intelligenter Assistent für technische Dokumentation und Service-Manuals. Du hilfst bei Fragen zu Druckern, Kopierern und technischen Geräten. Antworte immer auf Deutsch und sei hilfreich und präzise. Du hast Zugriff auf:\n- Vector Search für Dokumentensuche\n- Produktdatenbank für Modell-Informationen\n- System-Status für Statistiken\nNutze diese Tools intelligent basierend auf der Benutzeranfrage."
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 2.2,
-      "position": [
-        1280,
-        -48
-      ],
-      "id": "a2792575-98cf-4926-a97b-07383ac31d4e",
-      "name": "AI Agent"
-    },
-    {
-      "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId }}",
-        "tableName": "krai_agent.message",
-        "contextWindowLength": 8
+        "tableName": {
+          "__rl": true,
+          "value": "vw_agent_memory",
+          "mode": "list",
+          "cachedResultName": "vw_agent_memory"
+        },
+        "sessionIdKey": "session_id",
+        "messageKey": "message",
+        "roleKey": "role",
+        "contextWindowLength": 10
       },
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "typeVersion": 1.3,
       "position": [
-        1360,
-        208
+        1344,
+        224
       ],
       "id": "c51e2521-2086-4880-8680-2de140e737c0",
       "name": "Postgres Chat Memory",
@@ -248,51 +55,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format Search Results for AI Agent\nconst searchResults = $input.first().json;\nconst chatInput = $('When chat message received').first().json.chatInput;\n\nlet context = '';\nif (searchResults && searchResults.length > 0) {\n  context = 'Relevante Dokumente:\\n';\n  searchResults.forEach((result, index) => {\n    const content = result.content || result.pageContent || 'No content';\n    const metadata = result.metadata || {};\n    context += `${index + 1}. ${content.substring(0, 200)}...\\n`;\n    if (metadata.source) {\n      context += `   Quelle: ${metadata.source}\\n`;\n    }\n  });\n}\n\nreturn {\n  chatInput: chatInput,\n  context: context,\n  results: searchResults || []\n};"
-      },
-      "id": "635910cf-38b0-46f9-b0ec-dff8e8b76f06",
-      "name": "Format Search Context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        -128
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Format Models for AI Agent\nconst models = $input.first().json;\nconst chatInput = $('When chat message received').first().json.chatInput;\n\nlet context = '';\nif (models && models.length > 0) {\n  context = 'Verfügbare Modelle:\\n';\n  models.forEach((model, index) => {\n    context += `${index + 1}. ${model.name || 'Unknown'} (${model.model || 'Unknown'}) - ${model.manufacturer_name || 'Unknown'}\\n`;\n    if (model.description) {\n      context += `   Beschreibung: ${model.description.substring(0, 100)}...\\n`;\n    }\n  });\n}\n\nreturn {\n  chatInput: chatInput,\n  context: context,\n  models: models || []\n};"
-      },
-      "id": "069b20d4-5e4a-44c9-b564-64803774057d",
-      "name": "Format Models Context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        896,
-        -320
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Format Status Response\nconst statusData = $input.first().json;\nconst response = {\n  chatInput: '/status',\n  context: `System Status:\\n` +\n    `- Dokumente: ${statusData[0]?.total_documents || 0}\\n` +\n    `- Abgeschlossen: ${statusData[0]?.completed_documents || 0}\\n` +\n    `- Pending: ${statusData[0]?.pending_documents || 0}\\n` +\n    `- Chunks: ${statusData[0]?.total_chunks || 0}\\n` +\n    `- Bilder: ${statusData[0]?.total_images || 0}\\n` +\n    `- Embeddings: ${statusData[0]?.total_embeddings || 0}\\n` +\n    `- Produkte: ${statusData[0]?.total_products || 0}\\n` +\n    `- Hersteller: ${statusData[0]?.total_manufacturers || 0}\\n` +\n    `- Letzte Aktivität: ${new Date().toLocaleString('de-DE')}`,\n  status: statusData[0] || {}\n};\n\nreturn response;"
-      },
-      "id": "af390af4-2594-4290-a7ed-78a4cf30d0f2",
-      "name": "Format Status Context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        928,
-        336
-      ]
-    },
-    {
-      "parameters": {
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.3,
       "position": [
-        -400,
+        -368,
         48
       ],
       "id": "09fbda99-6679-4caf-be9b-1a4ed5b8e487",
@@ -301,40 +69,28 @@
     },
     {
       "parameters": {
-        "tableId": "vw_agent_memory",
-        "fieldsUi": {
-          "fieldValues": [
-            {
-              "fieldId": "role",
-              "fieldValue": "technician"
-            },
-            {
-              "fieldId": "session_id",
-              "fieldValue": "={{ $json.sessionId }}"
-            },
-            {
-              "fieldId": "content",
-              "fieldValue": "=-"
-            },
-            {
-              "fieldId": "metadata"
-            },
-            {
-              "fieldId": "message",
-              "fieldValue": "={{ $json.chatInput }}"
-            }
-          ]
+        "mode": "retrieve-as-tool",
+        "toolName": "krai_intelligence",
+        "toolDescription": "Durchsuche die KRAI Dokumentation und technische Handbücher. Nutze dieses Tool für:\n- Fehlercode-Informationen (z.B. 'Error E045', 'Fehler 13.01')\n- Reparatur-Anleitungen\n- Technische Spezifikationen\n- Wartungshinweise\n- Bedienungsanleitungen\n\nGib relevante Suchbegriffe ein (z.B. 'HP LaserJet paper jam', 'Toner wechseln', 'Error code E045').",
+        "tableName": {
+          "__rl": true,
+          "value": "chunks",
+          "mode": "list",
+          "cachedResultName": "chunks"
+        },
+        "topK": 5,
+        "options": {
+          "queryName": "text_chunk"
         }
       },
-      "type": "n8n-nodes-base.supabase",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
       "typeVersion": 1,
       "position": [
-        -208,
-        -160
+        1584,
+        192
       ],
-      "id": "66e00801-2d21-4e7d-b276-24ad57901a0d",
-      "name": "Create a row",
-      "alwaysOutputData": false,
+      "id": "8bc41617-cabb-4bcc-8794-1fe59d76a31a",
+      "name": "KRAI Vector Store",
       "credentials": {
         "supabaseApi": {
           "id": "VOEfJ5TSCcCT8bKn",
@@ -344,180 +100,64 @@
     },
     {
       "parameters": {
-        "operation": "update",
-        "tableId": "vw_agent_memory",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "content",
-              "condition": "eq",
-              "keyValue": "=-"
-            }
-          ]
-        },
-        "fieldsUi": {
-          "fieldValues": [
-            {
-              "fieldId": "content",
-              "fieldValue": "={{ $json.output }}"
-            }
-          ]
-        }
+        "name": "get_system_status",
+        "description": "Ruft den aktuellen System-Status ab mit Statistiken über:\n- Anzahl Dokumente (gesamt, verarbeitet, pending)\n- Anzahl Chunks, Bilder, Embeddings\n- Anzahl Produkte und Hersteller\n- Verarbeitungs-Queue Status",
+        "workflowId": "={{ $workflow.id }}",
+        "responsePropertyName": "status_data",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{}"
       },
-      "type": "n8n-nodes-base.supabase",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1488,
+        384
+      ],
+      "id": "c06095bf-e909-4ed7-a744-018935057dbb",
+      "name": "Tool: System Status"
+    },
+    {
+      "parameters": {
+        "model": "embeddinggemma:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
       "typeVersion": 1,
       "position": [
-        1632,
-        -48
+        1728,
+        400
       ],
-      "id": "2ef54810-ee15-448d-9d5e-314f20a236f3",
-      "name": "Update a row",
+      "id": "c45259a5-99fc-456d-a11d-c7b60444aac2",
+      "name": "Embeddings Ollama1",
       "credentials": {
-        "supabaseApi": {
-          "id": "VOEfJ5TSCcCT8bKn",
-          "name": "Supabase account"
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
         }
       }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=Du bist der KRAI AI Agent - ein intelligenter technischer Assistent für Service-Dokumentation.\n\nDeine Aufgaben:\n- Hilfe bei technischen Fragen zu Druckern, Kopierern und Geräten\n- Fehlercode-Analyse und Troubleshooting\n- Modell-Informationen und Spezifikationen\n- System-Status und Statistiken\n\nDu hast Zugriff auf:\n1. **Vector Search Tool (krai_intelligence)** - Durchsucht technische Dokumentation\n2. **Supabase Datenbank** - Produkte, Fehler-Codes, Dokumente\n\nAntworte immer:\n- Auf Deutsch\n- Präzise und hilfreich\n- Mit Quellenangaben wenn möglich\n- Strukturiert (mit Listen/Aufzählungen)\n\nWenn du keine Information findest, sage es ehrlich und schlage Alternativen vor."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        -48
+      ],
+      "id": "a2792575-98cf-4926-a97b-07383ac31d4e",
+      "name": "KRAI Agent"
     }
   ],
   "pinData": {},
   "connections": {
-    "Search Command?": {
-      "main": [
-        [
-          {
-            "node": "Format Search Context",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Model Command?": {
-      "main": [
-        [
-          {
-            "node": "Search Models",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Status Command?": {
-      "main": [
-        [
-          {
-            "node": "Get System Status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Supabase Vector Store": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Search Models": {
-      "main": [
-        [
-          {
-            "node": "Format Models Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get System Status": {
-      "main": [
-        [
-          {
-            "node": "Format Status Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Search Context": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Models Context": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Status Context": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Embeddings Ollama": {
-      "ai_embedding": [
-        [
-          {
-            "node": "Supabase Vector Store",
-            "type": "ai_embedding",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Ollama Chat Model": {
       "ai_languageModel": [
         [
           {
-            "node": "AI Agent",
+            "node": "KRAI Agent",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -528,19 +168,8 @@
       "ai_memory": [
         [
           {
-            "node": "AI Agent",
+            "node": "KRAI Agent",
             "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Update a row",
-            "type": "main",
             "index": 0
           }
         ]
@@ -550,29 +179,47 @@
       "main": [
         [
           {
-            "node": "Create a row",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Search Command?",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Status Command?",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Model Command?",
+            "node": "KRAI Agent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create a row": {
+    "KRAI Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: System Status": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "KRAI Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KRAI Agent": {
       "main": [
         []
       ]
@@ -582,7 +229,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "210af60b-a8f8-4143-90dd-a61aa287a930",
+  "versionId": "f81dd06b-2f0a-44a5-a0fb-299bc4e542aa",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c6c1a437e8b16512082bde84b62b61f6117713bbbdf560b47f5bdf35aa8946c8"
