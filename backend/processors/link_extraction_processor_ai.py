@@ -140,10 +140,18 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     if 'uri' in link and link['uri']:
                         url = link['uri']
                         
-                        # Convert Rect object to list if needed
+                        # Convert Rect object to list (ROBUST conversion)
                         rect = link.get('from', [])
-                        if hasattr(rect, '__iter__') and not isinstance(rect, (str, dict)):
-                            rect = list(rect)  # Convert Rect/tuple to list
+                        try:
+                            # If it's a PyMuPDF Rect, convert to list [x0, y0, x1, y1]
+                            if hasattr(rect, 'x0'):  # PyMuPDF Rect has x0, y0, x1, y1
+                                rect = [rect.x0, rect.y0, rect.x1, rect.y1]
+                            elif hasattr(rect, '__iter__') and not isinstance(rect, (str, dict, list)):
+                                rect = list(rect)  # Convert tuple/iterator to list
+                            elif not isinstance(rect, list):
+                                rect = []  # Fallback to empty list
+                        except Exception:
+                            rect = []  # Safety fallback
                         
                         links.append({
                             'url': url,
