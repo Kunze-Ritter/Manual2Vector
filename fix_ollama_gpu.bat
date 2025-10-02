@@ -2,6 +2,12 @@
 REM Ollama Vision Model Auto-Installer
 REM Detects GPU VRAM and installs optimal model
 
+REM Change to script directory
+cd /d "%~dp0"
+
+REM Set UTF-8 encoding for PowerShell emoji support
+chcp 65001 >nul 2>&1
+
 echo ================================================
 echo OLLAMA VISION MODEL AUTO-INSTALLER
 echo ================================================

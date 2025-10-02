@@ -115,15 +115,32 @@ class AIService:
                 images_b64 = [base64.b64encode(img).decode() for img in images]
                 payload["images"] = images_b64
             
-            response = await self.client.post(
-                f"{self.ollama_url}/api/generate",
-                json=payload
-            )
+            # Retry logic for vision models (they may crash due to VRAM)
+            max_retries = 2 if images else 1
+            retry_delay = 5  # seconds
             
-            if response.status_code == 200:
-                return response.json()
-            else:
-                raise Exception(f"Ollama API error: {response.status_code} - {response.text}")
+            for attempt in range(max_retries):
+                try:
+                    response = await self.client.post(
+                        f"{self.ollama_url}/api/generate",
+                        json=payload
+                    )
+                    
+                    if response.status_code == 200:
+                        return response.json()
+                    else:
+                        error_msg = f"Ollama API error: {response.status_code} - {response.text}"
+                        if attempt < max_retries - 1 and "resource limitations" in response.text:
+                            self.logger.warning(f"{error_msg} - Retrying in {retry_delay}s...")
+                            await asyncio.sleep(retry_delay)
+                            continue
+                        raise Exception(error_msg)
+                except Exception as e:
+                    if attempt < max_retries - 1 and "resource limitations" in str(e):
+                        self.logger.warning(f"Attempt {attempt + 1} failed - Retrying in {retry_delay}s...")
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    raise
                 
         except Exception as e:
             self.logger.error(f"Failed to call Ollama model {model}: {e}")
@@ -133,8 +150,26 @@ class AIService:
                 for fallback in fallback_models:
                     try:
                         self.logger.info(f"Trying fallback model: {fallback}")
-                        response = await self._call_ollama_model(fallback, prompt)
-                        return response
+                        # Recursively call _call_ollama with the fallback model
+                        payload = {
+                            "model": fallback,
+                            "prompt": prompt,
+                            "stream": False,
+                            **kwargs
+                        }
+                        if images:
+                            import base64
+                            images_b64 = [base64.b64encode(img).decode() for img in images]
+                            payload["images"] = images_b64
+                        
+                        response = await self.client.post(
+                            f"{self.ollama_url}/api/generate",
+                            json=payload
+                        )
+                        if response.status_code == 200:
+                            return response.json()
+                        else:
+                            raise Exception(f"Ollama API error: {response.status_code}")
                     except Exception as fallback_error:
                         self.logger.warning(f"Fallback model {fallback} also failed: {fallback_error}")
                         continue
@@ -145,14 +180,16 @@ class AIService:
         fallbacks = {
             # Text classification fallbacks
             'llama3.2:latest': ['llama3.2:3b', 'llama3.1:8b'],
-            'llama3.2:3b': ['llama3.1:8b', 'llama3.1:7b'],
+            'llama3.2:3b': ['llama3.1:8b'],
             
             # Embedding fallbacks  
-            'embeddinggemma:latest': ['embeddinggemma:300m', 'nomic-embed-text'],
+            'embeddinggemma:latest': ['nomic-embed-text:latest'],
             
-            # Vision fallbacks
-            'llava:latest': ['llava:7b', 'llava:13b'],
-            'llava:7b': ['llava:13b', 'bakllava:7b'],
+            # Vision fallbacks - DISABLED due to VRAM issues
+            # If llava:7b fails, don't try larger models
+            'llava:latest': ['llava:7b'],
+            'llava:7b': [],  # No fallbacks - prevents trying larger models
+            'bakllava:latest': [],
         }
         return fallbacks.get(model, [])
     
@@ -463,6 +500,11 @@ class AIService:
         Returns:
             Dict with error_codes list and metadata
         """
+        # Check if vision processing is disabled
+        if os.getenv('DISABLE_VISION_PROCESSING', 'false').lower() == 'true':
+            self.logger.info("Vision processing disabled via DISABLE_VISION_PROCESSING env var")
+            return {"error_codes": [], "skipped": True, "reason": "Vision processing disabled"}
+        
         try:
             model = self.models['vision']
             

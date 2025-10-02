@@ -5,6 +5,8 @@ Uses GPT-4 Vision for screenshot-based error code extraction
 
 import logging
 import re
+import os
+import asyncio
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -144,6 +146,10 @@ class MetadataProcessorAI(BaseProcessor):
                 page = doc.load_page(page_num)
                 text = page.get_text()
                 
+                # Handle None or empty text
+                if not text:
+                    continue
+                
                 # Apply all patterns
                 for pattern in patterns:
                     matches = re.finditer(pattern, text, re.IGNORECASE)
@@ -171,12 +177,17 @@ class MetadataProcessorAI(BaseProcessor):
             # Deduplicate by code
             unique_codes = {}
             for ec in error_codes:
-                code_key = ec['error_code']
+                code_key = ec.get('error_code')
+                if not code_key:
+                    continue
+                    
                 if code_key not in unique_codes:
                     unique_codes[code_key] = ec
                 else:
                     # Keep the one with better context/solution
-                    if len(ec.get('solution_text', '')) > len(unique_codes[code_key].get('solution_text', '')):
+                    ec_solution = ec.get('solution_text') or ''
+                    existing_solution = unique_codes[code_key].get('solution_text') or ''
+                    if len(ec_solution) > len(existing_solution):
                         unique_codes[code_key] = ec
             
             return list(unique_codes.values())
@@ -190,6 +201,8 @@ class MetadataProcessorAI(BaseProcessor):
     
     def _get_context_around_match(self, text: str, start: int, end: int, window: int = 200) -> str:
         """Get text context around a match"""
+        if not text:
+            return ""
         context_start = max(0, start - window)
         context_end = min(len(text), end + window)
         return text[context_start:context_end].strip()
@@ -226,37 +239,58 @@ class MetadataProcessorAI(BaseProcessor):
             # Get all images for document
             images = await self.database_service.get_images_by_document(document_id)
             
+            # Limit number of images to prevent VRAM exhaustion
+            max_images_to_process = int(os.getenv('MAX_VISION_IMAGES', '10'))
+            processed_count = 0
+            
             for image in images:
+                # Stop if we've reached the limit
+                if processed_count >= max_images_to_process:
+                    self.logger.warning(f"Reached max vision image limit ({max_images_to_process}). Skipping remaining images.")
+                    break
                 # Only process images that might contain error codes
                 # (screens, diagrams, control panels)
                 image_type = image.get('image_type', '').lower()
                 if image_type not in ['screenshot', 'diagram', 'control_panel', 'display', 'screen']:
                     continue
                 
-                # Use AI to extract error codes from image
-                ai_result = await self.ai_service.extract_error_codes_from_image(
-                    image_url=image.get('storage_url'),
-                    image_id=image.get('id'),
-                    manufacturer=manufacturer
-                )
-                
-                if ai_result and ai_result.get('error_codes'):
-                    for ec in ai_result['error_codes']:
-                        error_codes.append({
-                            'error_code': ec.get('code'),
-                            'error_description': ec.get('description'),
-                            'solution_text': ec.get('solution'),
-                            'page_number': image.get('page_number'),
-                            'image_id': image.get('id'),
-                            'context_text': ec.get('context'),
-                            'extraction_method': 'gpt4_vision',
-                            'confidence_score': ec.get('confidence', 0.85),
-                            'ai_extracted': True,
-                            'metadata': {
-                                'model': ai_result.get('model', 'gpt-4-vision'),
-                                'tokens_used': ai_result.get('tokens_used', 0)
-                            }
-                        })
+                try:
+                    # Use AI to extract error codes from image
+                    ai_result = await self.ai_service.extract_error_codes_from_image(
+                        image_url=image.get('storage_url'),
+                        image_id=image.get('id'),
+                        manufacturer=manufacturer
+                    )
+                    
+                    processed_count += 1
+                    
+                    if ai_result and ai_result.get('error_codes'):
+                        for ec in ai_result['error_codes']:
+                            error_codes.append({
+                                'error_code': ec.get('code'),
+                                'error_description': ec.get('description'),
+                                'solution_text': ec.get('solution'),
+                                'page_number': image.get('page_number'),
+                                'image_id': image.get('id'),
+                                'context_text': ec.get('context'),
+                                'extraction_method': 'gpt4_vision',
+                                'confidence_score': ec.get('confidence', 0.85),
+                                'ai_extracted': True,
+                                'metadata': {
+                                    'model': ai_result.get('model', 'gpt-4-vision'),
+                                    'tokens_used': ai_result.get('tokens_used', 0)
+                                }
+                            })
+                    
+                    # Add delay between images to prevent VRAM exhaustion
+                    # Give GPU time to free memory
+                    if processed_count < max_images_to_process:
+                        await asyncio.sleep(2)  # 2 second delay between images
+                        
+                except Exception as img_error:
+                    self.logger.warning(f"Failed to process image {image.get('id')}: {img_error}")
+                    # Continue with next image even if this one fails
+                    continue
             
             self.logger.info(f"AI extracted {len(error_codes)} error codes from images")
             return error_codes
@@ -276,13 +310,18 @@ class MetadataProcessorAI(BaseProcessor):
         
         # Add/update with AI codes (AI has higher priority if better data)
         for ec in ai_codes:
-            code_key = ec['error_code']
+            code_key = ec.get('error_code')
+            if not code_key:
+                continue
+                
             if code_key not in merged:
                 merged[code_key] = ec
             else:
                 # If AI has better description/solution, use it
                 existing = merged[code_key]
-                if len(ec.get('error_description', '')) > len(existing.get('error_description', '')):
+                ec_desc = ec.get('error_description') or ''
+                existing_desc = existing.get('error_description') or ''
+                if len(ec_desc) > len(existing_desc):
                     merged[code_key] = ec
                 elif ec.get('solution_text') and not existing.get('solution_text'):
                     merged[code_key] = ec

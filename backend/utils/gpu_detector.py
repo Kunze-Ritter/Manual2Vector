@@ -5,7 +5,14 @@ Wählt optimales Ollama Vision Model basierend auf GPU
 
 import logging
 import subprocess
+import sys
 from typing import Dict, Optional
+
+# Fix encoding for Windows PowerShell
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 logger = logging.getLogger("krai.gpu_detector")
 
