@@ -178,6 +178,32 @@ class DatabaseService:
             self.logger.error(f"Failed to get embedding by chunk_id {chunk_id[:16]}...: {e}")
             return None
     
+    async def get_embeddings_by_chunk_ids(self, chunk_ids: List[str]) -> List[Dict[str, Any]]:
+        """Get multiple embeddings by chunk_ids (BATCH QUERY for performance)"""
+        try:
+            if not chunk_ids:
+                return []
+            
+            # Split into batches of 100 to avoid URL too long error (414)
+            batch_size = 100
+            all_embeddings = []
+            
+            for i in range(0, len(chunk_ids), batch_size):
+                batch = chunk_ids[i:i + batch_size]
+                try:
+                    result = self.client.table('embeddings').select('*').in_('chunk_id', batch).execute()
+                    if result.data:
+                        all_embeddings.extend(result.data)
+                except Exception as batch_error:
+                    self.logger.warning(f"Failed to get embedding batch {i//batch_size + 1}: {batch_error}")
+                    # Continue with next batch
+                    continue
+            
+            return all_embeddings
+        except Exception as e:
+            self.logger.error(f"Failed to get embeddings by chunk_ids (batch): {e}")
+            return []
+    
     async def update_document(self, document_id: str, updates: Dict[str, Any]) -> bool:
         """Update document"""
         try:
@@ -191,6 +217,10 @@ class DatabaseService:
         except Exception as e:
             self.logger.error(f"Failed to update document: {e}")
             return False
+    
+    async def update_document_status(self, document_id: str, status: str) -> bool:
+        """Update document status (processing, completed, failed)"""
+        return await self.update_document(document_id, {'processing_status': status})
     
     async def create_manufacturer(self, manufacturer: ManufacturerModel) -> str:
         """Create a new manufacturer with deduplication"""

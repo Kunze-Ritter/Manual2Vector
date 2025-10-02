@@ -244,15 +244,16 @@ class MetadataProcessorAI(BaseProcessor):
             processed_count = 0
             
             for image in images:
-                # Stop if we've reached the limit
-                if processed_count >= max_images_to_process:
-                    self.logger.warning(f"Reached max vision image limit ({max_images_to_process}). Skipping remaining images.")
-                    break
                 # Only process images that might contain error codes
                 # (screens, diagrams, control panels)
                 image_type = image.get('image_type', '').lower()
                 if image_type not in ['screenshot', 'diagram', 'control_panel', 'display', 'screen']:
                     continue
+                
+                # Stop if we've reached the limit (check AFTER type filter)
+                if processed_count >= max_images_to_process:
+                    self.logger.warning(f"Reached max vision image limit ({max_images_to_process}). Skipping remaining images.")
+                    break
                 
                 try:
                     # Use AI to extract error codes from image
@@ -262,7 +263,10 @@ class MetadataProcessorAI(BaseProcessor):
                         manufacturer=manufacturer
                     )
                     
-                    processed_count += 1
+                    # Only count as processed if vision was actually attempted
+                    # (not skipped due to DISABLE_VISION_PROCESSING)
+                    if not ai_result.get('skipped', False):
+                        processed_count += 1
                     
                     if ai_result and ai_result.get('error_codes'):
                         for ec in ai_result['error_codes']:
@@ -288,7 +292,8 @@ class MetadataProcessorAI(BaseProcessor):
                         await asyncio.sleep(2)  # 2 second delay between images
                         
                 except Exception as img_error:
-                    self.logger.warning(f"Failed to process image {image.get('id')}: {img_error}")
+                    # Fallback: Log warning but continue (don't crash pipeline)
+                    self.logger.warning(f"Vision AI failed for image {image.get('id')}: {img_error}")
                     # Continue with next image even if this one fails
                     continue
             
@@ -335,26 +340,41 @@ class MetadataProcessorAI(BaseProcessor):
         
         for ec in error_codes:
             try:
+                # Skip if no valid error code
+                error_code = ec.get('error_code')
+                if not error_code or not isinstance(error_code, str):
+                    continue
+                
+                # Skip if error code is too short or looks like regular text
+                # Valid error codes typically: 10.22.15, E001, SC542, etc.
+                error_code = error_code.strip()
+                if len(error_code) < 2 or (len(error_code) < 4 and not any(c.isdigit() for c in error_code)):
+                    self.logger.debug(f"Skipping invalid error code: {error_code}")
+                    continue
+                
                 # Check if error code already exists for this document
                 existing = await self._check_duplicate_error_code(
-                    ec['error_code'], document_id
+                    error_code, document_id
                 )
                 
                 if existing:
-                    self.logger.debug(f"Error code {ec['error_code']} already exists for document")
+                    self.logger.debug(f"Error code {error_code} already exists for document")
                     continue
+                
+                # Update error code in dict
+                ec['error_code'] = error_code
                 
                 # Determine severity (can be enhanced with AI)
                 severity = self._determine_severity(ec)
                 
-                # Create error code model
+                # Create error code model - ensure no None values
                 error_code_model = ErrorCodeModel(
                     document_id=document_id,
                     manufacturer_id=manufacturer_id,
                     error_code=ec['error_code'],
-                    error_description=ec.get('error_description', f"Error code {ec['error_code']}"),
-                    solution_text=ec.get('solution_text', 'Refer to service manual'),
-                    page_number=ec.get('page_number', 1),
+                    error_description=ec.get('error_description') or f"Error code {ec['error_code']}",
+                    solution_text=ec.get('solution_text') or 'Refer to service manual',
+                    page_number=ec.get('page_number') or 1,
                     confidence_score=ec.get('confidence_score', 0.75),
                     extraction_method=ec.get('extraction_method', 'pattern_matching'),
                     severity_level=severity,
@@ -386,9 +406,9 @@ class MetadataProcessorAI(BaseProcessor):
     def _determine_severity(self, error_code: Dict) -> str:
         """Determine error severity level"""
         # Simple heuristic - can be enhanced with AI
-        code = error_code.get('error_code', '').upper()
-        description = error_code.get('error_description', '').lower()
-        solution = error_code.get('solution_text', '').lower()
+        code = (error_code.get('error_code') or '').upper()
+        description = (error_code.get('error_description') or '').lower()
+        solution = (error_code.get('solution_text') or '').lower()
         
         # Critical keywords
         if any(word in description or word in solution for word in ['jam', 'stuck', 'fatal', 'critical']):

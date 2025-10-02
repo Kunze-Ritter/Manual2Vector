@@ -109,11 +109,14 @@ class AIService:
                 **kwargs
             }
             
+            # For vision models, keep them loaded longer to avoid reload crashes
             if images:
                 # Convert images to base64 for Ollama
                 import base64
                 images_b64 = [base64.b64encode(img).decode() for img in images]
                 payload["images"] = images_b64
+                # Keep vision model loaded for 10 minutes to avoid repeated loading/unloading
+                payload["keep_alive"] = "10m"
             
             # Retry logic for vision models (they may crash due to VRAM)
             max_retries = 2 if images else 1
@@ -399,11 +402,22 @@ class AIService:
         Returns:
             Image analysis result
         """
+        # Check if vision processing is disabled
+        if os.getenv('DISABLE_VISION_PROCESSING', 'false').lower() == 'true':
+            self.logger.info("Vision processing disabled, using fallback analysis")
+            return {
+                "image_type": "diagram",
+                "description": "Technical image (vision processing disabled)",
+                "contains_text": False,
+                "tags": ["technical"],
+                "confidence": 0.5
+            }
+        
         try:
             model = self.models['vision']
             
             prompt = f"""
-            Analyze this technical image and provide:
+            Analyze this technical image and provide JSON with:
             - image_type: diagram, screenshot, photo, chart, schematic, flowchart
             - description: detailed description of the image
             - contains_text: whether the image contains text
@@ -522,6 +536,38 @@ class AIService:
             
             if not image_bytes:
                 return {"error_codes": [], "error": "No image data provided"}
+            
+            # Reduce image size if too large (Ollama has issues with large images)
+            try:
+                from PIL import Image
+                import io
+                
+                img = Image.open(io.BytesIO(image_bytes))
+                
+                # Get image size
+                width, height = img.size
+                max_dimension = 1024  # Max 1024px for stability
+                
+                # Resize if too large
+                if width > max_dimension or height > max_dimension:
+                    # Calculate new size maintaining aspect ratio
+                    if width > height:
+                        new_width = max_dimension
+                        new_height = int(height * (max_dimension / width))
+                    else:
+                        new_height = max_dimension
+                        new_width = int(width * (max_dimension / height))
+                    
+                    self.logger.info(f"Resizing image from {width}x{height} to {new_width}x{new_height}")
+                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    # Convert back to bytes
+                    buffer = io.BytesIO()
+                    img.save(buffer, format='PNG', optimize=True)
+                    image_bytes = buffer.getvalue()
+                    
+            except Exception as resize_error:
+                self.logger.warning(f"Failed to resize image, using original: {resize_error}")
             
             # Craft prompt for error code extraction
             prompt = f"""

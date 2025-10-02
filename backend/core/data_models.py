@@ -160,13 +160,17 @@ class ImageModel(BaseModel):
     page_number: int
     image_index: int
     image_type: ImageType
-    ai_description: Optional[str] = None
-    ai_confidence: float = 0.0
+    ai_description: Optional[str] = "Technical image"  # Default value
+    ai_confidence: float = 0.5  # Default to 0.5 when Vision AI not used
     contains_text: bool = False
     ocr_text: Optional[str] = None
     ocr_confidence: float = 0.0
     tags: List[str] = Field(default_factory=list)
     file_hash: str
+    figure_number: Optional[str] = None  # Figure reference (e.g., "1", "2.1")
+    figure_context: Optional[str] = None  # Context text around figure
+    manual_description: Optional[str] = None  # Manual description override
+    chunk_id: Optional[str] = None  # Link to chunk if extracted from chunk
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Intelligence Models
@@ -197,8 +201,8 @@ class ErrorCodeModel(BaseModel):
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
     document_id: str
     error_code: str
-    error_description: str
-    solution_text: str
+    error_description: str = "No description available"
+    solution_text: str = "Refer to service manual"
     page_number: int
     confidence_score: float = 0.0
     extraction_method: str

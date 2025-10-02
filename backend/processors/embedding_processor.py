@@ -77,19 +77,34 @@ class EmbeddingProcessor(BaseProcessor):
                     'vector_count': 0
                 })
             
+            # Batch check: Get all existing embeddings for this document at once
+            chunk_ids = [chunk['id'] for chunk in intelligence_chunks]
+            existing_embeddings_map = {}
+            
+            try:
+                # Get all existing embeddings in one query (MUCH faster!)
+                existing_embeddings = await self.database_service.get_embeddings_by_chunk_ids(chunk_ids)
+                existing_embeddings_map = {emb['chunk_id']: emb for emb in existing_embeddings}
+                
+                skipped_count = len(existing_embeddings_map)
+                if skipped_count > 0:
+                    self.logger.info(f"Found {skipped_count} existing embeddings, will skip them")
+            except Exception as e:
+                self.logger.warning(f"Batch check failed, falling back to individual checks: {e}")
+            
             embedding_ids = []
+            new_embeddings_count = 0
             
             for chunk in intelligence_chunks:
                 try:
-                    # Generate embedding using AI service
-                    embedding_vector = await self.ai_service.generate_embeddings(chunk['text_chunk'])
-                    
-                    # Check for existing embedding (DEDUPLICATION!)
-                    existing_embedding = await self.database_service.get_embedding_by_chunk_id(chunk['id'])
-                    if existing_embedding:
-                        self.logger.info(f"Embedding for chunk {chunk['id']} already exists, skipping")
-                        embedding_ids.append(existing_embedding['id'])
+                    # Check if embedding already exists (from batch check)
+                    if chunk['id'] in existing_embeddings_map:
+                        embedding_ids.append(existing_embeddings_map[chunk['id']]['id'])
                         continue
+                    
+                    # Only generate embedding if it doesn't exist yet
+                    embedding_vector = await self.ai_service.generate_embeddings(chunk['text_chunk'])
+                    new_embeddings_count += 1
                     
                     # Create embedding model
                     embedding_model = EmbeddingModel(
