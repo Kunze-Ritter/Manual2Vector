@@ -461,14 +461,15 @@ class DatabaseService:
             result = client.rpc('create_error_code', {
                 'p_document_id': error_code_data['document_id'],
                 'p_error_code': error_code_data['error_code'],
-                'p_description': error_code_data.get('description'),
-                'p_severity': error_code_data.get('severity'),
-                'p_context': error_code_data.get('context'),
-                'p_possible_cause': error_code_data.get('possible_cause'),
-                'p_solution': error_code_data.get('solution'),
+                'p_error_description': error_code_data.get('error_description'),
+                'p_solution_text': error_code_data.get('solution_text'),
                 'p_page_number': error_code_data.get('page_number'),
-                'p_image_reference': error_code_data.get('image_reference'),
-                'p_metadata': error_code_data.get('metadata', {})
+                'p_confidence_score': error_code_data.get('confidence_score'),
+                'p_extraction_method': error_code_data.get('extraction_method'),
+                'p_requires_technician': error_code_data.get('requires_technician'),
+                'p_requires_parts': error_code_data.get('requires_parts'),
+                'p_estimated_fix_time_minutes': error_code_data.get('estimated_fix_time_minutes'),
+                'p_severity_level': error_code_data.get('severity_level')
             }).execute()
             
             if result.data:
