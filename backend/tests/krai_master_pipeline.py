@@ -36,7 +36,8 @@ from processors.upload_processor import UploadProcessor
 from processors.text_processor_optimized import OptimizedTextProcessor
 from processors.image_processor import ImageProcessor
 from processors.classification_processor import ClassificationProcessor
-from processors.metadata_processor import MetadataProcessor
+from processors.metadata_processor_ai import MetadataProcessorAI
+from processors.link_extraction_processor_ai import LinkExtractionProcessorAI
 from processors.storage_processor import StorageProcessor
 from processors.embedding_processor import EmbeddingProcessor
 from processors.search_processor import SearchProcessor
@@ -275,7 +276,8 @@ class KRMasterPipeline:
             'text': OptimizedTextProcessor(self.database_service, self.config_service),
             'image': ImageProcessor(self.database_service, self.storage_service, self.ai_service),
             'classification': ClassificationProcessor(self.database_service, self.ai_service, self.features_service),
-            'metadata': MetadataProcessor(self.database_service, self.config_service),
+            'links': LinkExtractionProcessorAI(self.database_service, self.ai_service),
+            'metadata': MetadataProcessorAI(self.database_service, self.ai_service, self.config_service),
             'storage': StorageProcessor(self.database_service, self.storage_service),
             'embedding': EmbeddingProcessor(self.database_service, self.ai_service),
             'search': SearchProcessor(self.database_service, self.ai_service)
@@ -347,6 +349,7 @@ class KRMasterPipeline:
             'text': False,
             'image': False,
             'classification': False,
+            'links': False,
             'metadata': False,
             'storage': False,
             'embedding': False,
@@ -377,15 +380,32 @@ class KRMasterPipeline:
             if images_count > 0:
                 stage_status['image'] = True
             
+            # Check if links exist (links stage) - krai_content.links
+            links_count = await self.database_service.count_links_by_document(document_id)
+            if links_count > 0:
+                stage_status['links'] = True
+            
+            # Check if error codes exist (metadata stage) - krai_intelligence.error_codes
+            if self.pg_pool:
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        error_codes_count = await conn.fetchval(
+                            "SELECT COUNT(*) FROM krai_intelligence.error_codes WHERE document_id = $1",
+                            document_id
+                        )
+                        if error_codes_count > 0:
+                            stage_status['metadata'] = True
+                except:
+                    pass
+            
             # Check if embeddings exist (embedding stage)
             if stage_status['text']:  # Only check if chunks exist
                 embeddings_exist = await self.database_service.check_embeddings_exist(document_id)
                 if embeddings_exist:
                     stage_status['embedding'] = True
             
-            # For metadata and storage - assume done if image processing is confirmed
+            # For storage - assume done if image processing is confirmed
             if stage_status['image']:
-                stage_status['metadata'] = True
                 stage_status['storage'] = True
             
         except Exception as e:
@@ -471,7 +491,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Image processing error: {e}")
             
             if 'classification' in missing_stages:
-                print(f"  [4/8] Classification: {filename}")
+                print(f"  [4/9] Classification: {filename}")
                 try:
                     result4 = await self.processors['classification'].process(context)
                     if result4.success:
@@ -484,8 +504,24 @@ class KRMasterPipeline:
                     failed_stages.append('classification')
                     print(f"    ❌ Classification error: {e}")
             
+            if 'links' in missing_stages:
+                print(f"  [5/9] Links: {filename}")
+                try:
+                    result4b = await self.processors['links'].process(context)
+                    if result4b.success:
+                        completed_stages.append('links')
+                        links_count = result4b.data.get('links_extracted', 0)
+                        video_count = result4b.data.get('video_links_created', 0)
+                        print(f"    ✅ Link extraction completed: {links_count} links ({video_count} videos)")
+                    else:
+                        failed_stages.append('links')
+                        print(f"    ❌ Link extraction failed: {result4b.message}")
+                except Exception as e:
+                    failed_stages.append('links')
+                    print(f"    ❌ Link extraction error: {e}")
+            
             if 'metadata' in missing_stages:
-                print(f"  [5/8] Metadata: {filename}")
+                print(f"  [6/9] Metadata (Error Codes): {filename}")
                 try:
                     result5 = await self.processors['metadata'].process(context)
                     if result5.success:
@@ -499,7 +535,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Metadata processing error: {e}")
             
             if 'storage' in missing_stages:
-                print(f"  [6/8] Storage: {filename}")
+                print(f"  [7/9] Storage: {filename}")
                 try:
                     result6 = await self.processors['storage'].process(context)
                     if result6.success:
@@ -513,7 +549,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Storage processing error: {e}")
             
             if 'embedding' in missing_stages:
-                print(f"  [7/8] Embeddings: {filename}")
+                print(f"  [8/9] Embeddings: {filename}")
                 try:
                     result7 = await self.processors['embedding'].process(context)
                     if result7.success:
@@ -528,7 +564,7 @@ class KRMasterPipeline:
                     print(f"    ❌ Embedding processing error: {e}")
             
             if 'search' in missing_stages:
-                print(f"  [8/8] Search: {filename}")
+                print(f"  [9/9] Search: {filename}")
                 try:
                     result8 = await self.processors['search'].process(context)
                     if result8.success:
@@ -663,19 +699,28 @@ class KRMasterPipeline:
             print(f"  [{doc_index}] Classification: {filename}")
             result4 = await self.processors['classification'].process(context)
             
-            # Stage 5: Metadata Processor
-            print(f"  [{doc_index}] Metadata: {filename}")
-            result5 = await self.processors['metadata'].process(context)
+            # Stage 5: Link Extraction Processor (NEW!)
+            print(f"  [{doc_index}] Link Extraction: {filename}")
+            result4b = await self.processors['links'].process(context)
+            links_count = result4b.data.get('links_extracted', 0) if result4b.success else 0
+            video_count = result4b.data.get('video_links_created', 0) if result4b.success else 0
+            print(f"    → {links_count} links, {video_count} videos")
             
-            # Stage 6: Storage Processor
+            # Stage 6: Metadata Processor (Error Codes - NEW AI!)
+            print(f"  [{doc_index}] Metadata (Error Codes): {filename}")
+            result5 = await self.processors['metadata'].process(context)
+            error_codes_count = result5.data.get('error_codes_found', 0) if result5.success else 0
+            print(f"    → {error_codes_count} error codes")
+            
+            # Stage 7: Storage Processor
             print(f"  [{doc_index}] Storage: {filename}")
             result6 = await self.processors['storage'].process(context)
             
-            # Stage 7: Embedding Processor (This will wake up GPU for AI!)
+            # Stage 8: Embedding Processor (This will wake up GPU for AI!)
             print(f"  [{doc_index}] Embeddings: {filename}")
             result7 = await self.processors['embedding'].process(context)
             
-            # Stage 8: Search Processor
+            # Stage 9: Search Processor
             print(f"  [{doc_index}] Search Index: {filename}")
             result8 = await self.processors['search'].process(context)
             

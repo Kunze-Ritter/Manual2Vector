@@ -398,15 +398,18 @@ class DatabaseService:
             return []
     
     async def create_error_code(self, error_code: ErrorCodeModel) -> str:
-        """Create a new error code"""
+        """Create a new error code in krai_intelligence.error_codes"""
         error_code_data = error_code.model_dump(mode='json')
         
         try:
-            result = self.client.table('error_codes').insert(error_code_data).execute()
+            # Use service_client for cross-schema access
+            client = self.service_client if self.service_client else self.client
+            
+            result = client.schema('krai_intelligence').table('error_codes').insert(error_code_data).execute()
             
             if result.data:
                 error_code_id = result.data[0]['id']
-                self.logger.info(f"Created error code {error_code_id}")
+                self.logger.info(f"Created error code {error_code_id}: {error_code_data.get('error_code')}")
                 return error_code_id
             else:
                 raise Exception("Failed to create error code")
@@ -663,3 +666,95 @@ class DatabaseService:
         except Exception as e:
             self.logger.error(f"Failed to check embeddings: {e}")
             return False
+    
+    # Link & Video Methods
+    async def count_links_by_document(self, document_id: str) -> int:
+        """Count links for a document"""
+        try:
+            # Method 1: Direct PostgreSQL
+            if self.pg_pool:
+                try:
+                    async with self.pg_pool.acquire() as conn:
+                        count = await conn.fetchval(
+                            "SELECT COUNT(*) FROM krai_content.links WHERE document_id = $1",
+                            document_id
+                        )
+                        return count or 0
+                except Exception as pg_err:
+                    self.logger.warning(f"asyncpg count failed: {pg_err}, trying PostgREST...")
+            
+            # Method 2: PostgREST
+            client = self.service_client if self.service_client else self.client
+            result = client.schema('krai_content').table('links').select('id', count='exact').eq('document_id', document_id).execute()
+            return result.count or 0
+            
+        except Exception as e:
+            self.logger.error(f"Failed to count links: {e}")
+            return 0
+    
+    async def create_link(self, link_data: Dict[str, Any]) -> Optional[str]:
+        """Create a link in krai_content.links"""
+        try:
+            # Use PostgREST (works with both service_client and regular client)
+            client = self.service_client if self.service_client else self.client
+            
+            result = client.schema('krai_content').table('links').insert(link_data).execute()
+            
+            if result.data and len(result.data) > 0:
+                link_id = result.data[0]['id']
+                self.logger.info(f"Created link: {link_id} ({link_data.get('link_type')})")
+                return link_id
+            
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to create link: {e}")
+            return None
+    
+    async def find_or_create_video_from_link(self, url: str, manufacturer_id: Optional[str], 
+                                            title: Optional[str] = None, 
+                                            description: Optional[str] = None,
+                                            metadata: Optional[Dict] = None) -> Optional[str]:
+        """Find existing video by URL or create new one"""
+        try:
+            # Use SQL function we created in migration
+            if self.pg_pool:
+                async with self.pg_pool.acquire() as conn:
+                    video_id = await conn.fetchval(
+                        "SELECT krai_content.find_or_create_video_from_link($1, $2, $3, $4, $5)",
+                        url,
+                        manufacturer_id,
+                        title,
+                        description,
+                        metadata or {}
+                    )
+                    return str(video_id) if video_id else None
+            
+            # Fallback: Use PostgREST (two-step: find, then create if not found)
+            client = self.service_client if self.service_client else self.client
+            
+            # Try to find existing
+            result = client.schema('krai_content').table('instructional_videos').select('id').eq('video_url', url).limit(1).execute()
+            
+            if result.data and len(result.data) > 0:
+                return result.data[0]['id']
+            
+            # Create new
+            video_data = {
+                'manufacturer_id': manufacturer_id,
+                'video_url': url,
+                'title': title or f"Auto-extracted: {url}",
+                'description': description or "Automatically extracted from document",
+                'auto_created': True,
+                'metadata': metadata or {}
+            }
+            
+            result = client.schema('krai_content').table('instructional_videos').insert(video_data).execute()
+            
+            if result.data and len(result.data) > 0:
+                return result.data[0]['id']
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Failed to find/create video from link: {e}")
+            return None
