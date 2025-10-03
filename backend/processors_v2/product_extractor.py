@@ -268,13 +268,15 @@ class ProductExtractor:
                     if self.debug:
                         self.logger.debug(f"  ✓ Validated! Confidence: {confidence:.2f}")
                     
-                    # Determine product type
+                    # Determine product type and series
                     product_type = self._determine_product_type(model, pattern_name)
+                    product_series = self._determine_product_series(model, pattern_name)
                     
                     try:
                         product = ExtractedProduct(
                             model_number=model,
                             model_name=model,  # Can be enhanced later
+                            product_series=product_series,
                             product_type=product_type,
                             manufacturer_name=mfr_name,  # Use detected manufacturer
                             confidence=confidence,
@@ -389,6 +391,45 @@ class ProductExtractor:
         
         # Cap at 1.0
         return min(confidence, 1.0)
+    
+    def _determine_product_series(self, model: str, pattern_name: str) -> Optional[str]:
+        """
+        Determine product series from pattern name and model
+        
+        Returns:
+            Product series name or None
+        """
+        # Map pattern names to series names
+        series_mapping = {
+            'laserjet': 'LaserJet',
+            'officejet': 'OfficeJet',
+            'designjet': 'DesignJet',
+            'pagewide': 'PageWide',
+            'accuriopress': 'AccurioPress',
+            'accurioprint': 'AccurioPrint',
+            'bizhub': 'bizhub',
+            'imagerunner': 'imageRUNNER',
+            'imageclass': 'imageCLASS',
+            'pixma': 'PIXMA',
+            'aficio': 'Aficio',
+            'pro_c': 'Pro C',
+            'im_c': 'IM C',
+            'workcentre': 'WorkCentre',
+            'versalink': 'VersaLink',
+            'altalink': 'AltaLink',
+            'phaser': 'Phaser',
+            'ecosys': 'ECOSYS',
+            'taskalfa': 'TASKalfa',
+        }
+        
+        # First check if series is already in the model name
+        model_lower = model.lower()
+        for pattern, series in series_mapping.items():
+            if pattern.replace('_', '').lower() in model_lower.replace(' ', '').lower():
+                return series
+        
+        # Otherwise use pattern name
+        return series_mapping.get(pattern_name, None)
     
     def _determine_product_type(self, model: str, pattern_name: str) -> str:
         """
