@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: krai-n8n-chat-agent
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=krai_chat_agent_2024
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Europe/Berlin
+      - N8N_LOG_LEVEL=info
+      - N8N_METRICS=true
+      - N8N_DIAGNOSTICS_ENABLED=true
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - N8N_CUSTOM_EXTENSIONS=@n8n/n8n-nodes-langchain
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n_workflows:/home/node/.n8n/workflows
+      - ./n8n_credentials:/home/node/.n8n/credentials
+    networks:
+      - krai-network
+
+  # Optional: PostgreSQL for n8n data persistence
+  n8n-postgres:
+    image: postgres:15
+    container_name: krai-n8n-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=n8n
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=krai_n8n_db_2024
+    volumes:
+      - n8n_postgres_data:/var/lib/postgresql/data
+    networks:
+      - krai-network
+
+volumes:
+  n8n_data:
+  n8n_postgres_data:
+
+networks:
+  krai-network:
+    driver: bridge

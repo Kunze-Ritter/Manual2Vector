@@ -163,12 +163,15 @@ def save_results(result, output_path: Path):
         "products": [
             {
                 "model_number": p.model_number,
-                "model_name": p.model_name,
+                "display_name": p.display_name,  # Computed from series + model_number
                 "product_series": p.product_series,
                 "product_type": p.product_type,
                 "manufacturer_name": p.manufacturer_name,
                 "confidence": p.confidence,
                 "source_page": p.source_page,
+                "extraction_method": p.extraction_method,
+                # Specifications (JSONB - flexible)
+                "specifications": p.specifications if p.specifications else None
             }
             for p in result.products
         ],

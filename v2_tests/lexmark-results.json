@@ -1,0 +1,465 @@
+{
+  "document_id": "c7798bc0-9146-4edf-9e01-e63630d306ca",
+  "success": true,
+  "metadata": {
+    "title": "Service Manual",
+    "page_count": 1751,
+    "document_type": "service_manual"
+  },
+  "chunks": [
+    {
+      "chunk_id": "9059fdea-9872-46e7-ad24-092f204b9003",
+      "chunk_index": 0,
+      "page_start": 1,
+      "page_end": 1,
+      "text_preview": "CX833, CX961, CX962, CX963,\nXC8355, XC9635, XC9645,\nXC9655 MFPs\n\nService Manual\n\nJuly 2025\nwww.lexmark.com",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "f00f5ac4-cccd-45d3-95b3-a39c5af3bc9b",
+      "chunk_index": 1,
+      "page_start": 2,
+      "page_end": 2,
+      "text_preview": "2\nProduct information\nProduct name:\nLexmark CX833se, Lexmark CX833xse, Lexmark CX961se, Lexmark CX961tse, Lexmark\nCX962se, Lexmark CX962tse, Lexmark CX963se, Lexmark CX963xse, Lexmark\nXC8355, Lexmark ",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "7f7df50f-4bfc-499d-b3c1-3825049d301b",
+      "chunk_index": 2,
+      "page_start": 3,
+      "page_end": 3,
+      "text_preview": "3\nEdition notice\nApril 2025\nThe following paragraph does not apply to any country where such provisions are\ninconsistent with local law: LEXMARK INTERNATIONAL, INC., PROVIDES THIS\nPUBLICATION “AS IS” ",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "2d13404a-248b-491a-aca4-2d2e01cd41d6",
+      "chunk_index": 3,
+      "page_start": 4,
+      "page_end": 4,
+      "text_preview": "Service Manual\n4\nContents\nProduct information.......................................................................................2\nEdition notice....................................................",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "2957f667-1cfc-442d-8d3f-989a489bbfdf",
+      "chunk_index": 4,
+      "page_start": 5,
+      "page_end": 5,
+      "text_preview": "Service Manual\n5\nPrinter removals ................................................................................................ 631\nFlatbed scanner and ADF manual adjustments ......................",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "a901ce54-a2c3-4ca4-939a-ada9951d40b2",
+      "chunk_index": 5,
+      "page_start": 6,
+      "page_end": 6,
+      "text_preview": "Service Manual\n6\nStaple, hole punch finisher hole punch motor locations.................................. 1380\nStaple, hole punch finisher stacker motor locations......................................",
+      "chunk_type": "specification"
+    },
+    {
+      "chunk_id": "22b44fc0-bc69-4d4d-8b9e-4f905919d89c",
+      "chunk_index": 6,
+      "page_start": 7,
+      "page_end": 7,
+      "text_preview": "Service Manual\n7\nOptions and features ...............................................................................1641\nAvailable internal options ...................................................",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "33de47a5-3206-4429-9777-bcabfab2fe63",
+      "chunk_index": 7,
+      "page_start": 8,
+      "page_end": 8,
+      "text_preview": "Notices, conventions, and safety information\n8\n\nLaser notice\nThe printer is certified in the U.S. to conform to the requirements of DHHS 21 CFR,\nChapter I, Subchapter J for Class I (1) laser products,",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "374fa23e-4485-4b59-b5b9-39d7eaa0b2d5",
+      "chunk_index": 8,
+      "page_start": 9,
+      "page_end": 9,
+      "text_preview": "Notices, conventions, and safety information\n9\nmantenimiento o intervenciones de servicio técnico prescritas. El conjunto de cabezal de\nimpresión de la impresora no se puede reparar y contiene un láse",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "7c441429-33db-4112-84cf-728f7124e174",
+      "chunk_index": 9,
+      "page_start": 10,
+      "page_end": 10,
+      "text_preview": "Notices, conventions, and safety information\n10\nCAUTION—TIPPING HAZARD\nIndicates a crush hazard.\nCAUTION—PINCH HAZARD\nIndicates a risk of being caught between moving parts.\nConventions\nRemarque : Une ",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "1797ff89-263d-4049-8eee-7fbe449dc5da",
+      "chunk_index": 10,
+      "page_start": 11,
+      "page_end": 11,
+      "text_preview": "Notices, conventions, and safety information\n11\nPRECAUCIÓN: Las precauciones indican una situación de posible peligro que puede\nimplicar lesiones para el usuario.\nEstos son los tipos de avisos de prec",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "ca183154-9987-4aa0-8634-5a39a5f95a62",
+      "chunk_index": 11,
+      "page_start": 12,
+      "page_end": 12,
+      "text_preview": "Notices, conventions, and safety information\n12\n•\n•\n•\nVORSICHT – HEISSE OBERFLÄCHE\nWeist auf das Risiko von Verbrennungen bei Berührung hin.\nVORSICHT – KIPPGEFAHR\nWeist auf Quetschgefahr hin.\nVORSICHT",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "674ed8ba-7eab-42b3-89f2-5b0fdb0d2329",
+      "chunk_index": 12,
+      "page_start": 13,
+      "page_end": 13,
+      "text_preview": "Notices, conventions, and safety information\n13\n•\n•\n•\nCAUTION—POTENTIAL INJURY\nDo not use this product with extension cords, multioutlet power strips,\nmultioutlet extenders, or UPS devices. The power ",
+      "chunk_type": "specification"
+    },
+    {
+      "chunk_id": "44948a52-e6bb-48a6-bfbc-a2b4ad6ebf68",
+      "chunk_index": 13,
+      "page_start": 14,
+      "page_end": 14,
+      "text_preview": "Notices, conventions, and safety information\n14\n•\n•\n•\nATTENTION : RISQUE DE BLESSURE\nPour éviter tout risque d'électrocution ou d'incendie, branchez le câble\nd'alimentation directement à une prise éle",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "42f2d4f5-4816-4be2-af30-ac31f4d21efd",
+      "chunk_index": 14,
+      "page_start": 15,
+      "page_end": 15,
+      "text_preview": "Notices, conventions, and safety information\n15\nPRECAUCIÓN: PELIGRO DE DESCARGAS ELÉCTRICAS\nCuando vea este símbolo en el producto, existe peligro de tensiones\npeligrosas en el área del producto en la",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "e60cd7c3-4d70-4b24-a28f-a21953c32318",
+      "chunk_index": 15,
+      "page_start": 16,
+      "page_end": 16,
+      "text_preview": "Notices, conventions, and safety information\n16\n•\n•\n•\nSicherheitshinweise\nDie Sicherheit dieses Produkts basiert auf Tests und Zulassungen des Originaldesigns und\nder spezifischen Komponenten. Sofern ",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "e88739a5-d0d5-4c8f-a92c-8caa832def5d",
+      "chunk_index": 16,
+      "page_start": 17,
+      "page_end": 17,
+      "text_preview": "Notices, conventions, and safety information\n17\nVORSICHT – MÖGLICHE VERLETZUNGSGEFAHR\nMit diesem Produkt darf nur ein Lexmark Inline Surge Protector verwendet\nwerden, der vorschriftsgemäß zwischen dem",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "94c0a0d7-ed0f-4039-ab60-dafe15b9deef",
+      "chunk_index": 17,
+      "page_start": 18,
+      "page_end": 18,
+      "text_preview": "Change history\n18\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n◦\n◦\n\nJuly 25, 2025\nUpdated the Fuser error service check topic in the Diagnostics and troubleshooting chapter.\nSee Fuser error service check on page 451.\nJuly",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "e39111bd-fa4e-437e-955c-ce451431e717",
+      "chunk_index": 18,
+      "page_start": 19,
+      "page_end": 19,
+      "text_preview": "Change history\n19\n◦\n◦\n◦\n•\n•\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n221.35\n221.45\n221.55\nSee 202–221 paper jam messages on page 246.\nAdded the Sensor (narrow media): Paper failed to clear the se",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "4601bf20-7fb4-47d1-a4ab-4cea145e8d27",
+      "chunk_index": 19,
+      "page_start": 20,
+      "page_end": 20,
+      "text_preview": "Change history\n20\n◦\n◦\n•\n•\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n•\n◦\n▪\n▪\n▪\n▪\n▪\n▪\n▪\n▪\n◦\n▪\n▪\n▪\n▪\n▪\n•\n◦\n◦\n◦\n•\n◦\n◦\n◦\nPaper exit redrive removal. See Paper exit redrive removal on page 679.\nRedrive corrugation roller removal. Se",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "010ec84a-3abc-4f21-b2c0-06107b18a7e7",
+      "chunk_index": 20,
+      "page_start": 21,
+      "page_end": 21,
+      "text_preview": "Change history\n21\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n•\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n◦\n◦\n◦\n•\n◦\n◦\n•\n◦\nPaper stack transfer guide bracket removal. See Paper stack transfer guide bracket\nremoval on page 1017.\nPaper stack transfer ",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "8a1aa397-85e3-458f-9312-7971e6a94c9d",
+      "chunk_index": 21,
+      "page_start": 22,
+      "page_end": 22,
+      "text_preview": "Change history\n22\n◦\n•\n•\n•\n•\n◦\n◦\n◦\n•\n•\n◦\n◦\n•\n•\n•\n•\n◦\n◦\n•\n◦\n◦\n•\n•\n41X5288 to 41X5287 Feed transport lever\nSee Covers on page 1564.\nAdded the 41X5376 Feed trailing edge spring in the Feed path assembly i",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "d9cbbeaa-0d2b-4897-8354-6d3bb59426f4",
+      "chunk_index": 22,
+      "page_start": 23,
+      "page_end": 23,
+      "text_preview": "Change history\n23\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\nUpdated the following part numbers:\n41X5703 to 41X5701 Exit guide plate drive\n41X5272 to 41X5335 Motor (booklet finisher",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "82b2807f-2620-4fe3-8f72-f18c5e6e96a4",
+      "chunk_index": 23,
+      "page_start": 24,
+      "page_end": 24,
+      "text_preview": "Change history\n24\n•\n•\n◦\n◦\n◦\n•\n•\n•\n•\n•\n•\n•\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n◦\n◦\n◦\nUpdated the Mismatched paper size and paper printer setting error service check topic in the\nDiagnostics and troubleshooting chapter. Se",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "9171a703-c458-426c-bca7-d9ba496446ae",
+      "chunk_index": 24,
+      "page_start": 25,
+      "page_end": 25,
+      "text_preview": "Change history\n25\n◦\n•\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\nOptional 550-sheet tray rollers. See Optional 550-sheet tray rollers on page 910.\nRemoved 41X5055 and added the feed roller guide part i",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "71b94fdc-7104-449b-a3af-2eed84c46d7b",
+      "chunk_index": 25,
+      "page_start": 26,
+      "page_end": 26,
+      "text_preview": "Change history\n26\n◦\n◦\n◦\n•\n•\n•\n•\n•\n•\n•\n•\n•\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\nSensor (deskew roller exit): Paper failed to clear the sensor jam service check. See\nSensor (deskew roller exit): Paper failed to cl",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "852c5bba-170f-4b3e-b636-43d8a6a90362",
+      "chunk_index": 26,
+      "page_start": 27,
+      "page_end": 27,
+      "text_preview": "Change history\n27\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n◦\n◦\n◦\n◦\n•\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n•\n•\n◦\n◦\n◦\n◦\n◦\n◦\n•\nSensor (staple finisher compiler roller aligner) in the Sensors (paper path and stapler)\nassembly in the Parts catal",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "b3a54d84-5a30-46d0-a7fa-37e6e84332ea",
+      "chunk_index": 27,
+      "page_start": 28,
+      "page_end": 28,
+      "text_preview": "Change history\n28\n•\n•\n•\n◦\n◦\n•\n•\n•\n•\n•\n•\n◦\n◦\n◦\n•\n•\n•\n•\n•\n◦\n◦\n◦\n•\n•\n•\n•\n•\n◦\n◦\n◦\n◦\nAdded the 41X6102 Gear Z32 in the Second fold drive assembly in the Parts catalog\nchapter. For more information, see Sec",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "a2a8fab9-6d7e-4ac9-adf3-befe541d97db",
+      "chunk_index": 28,
+      "page_start": 29,
+      "page_end": 29,
+      "text_preview": "Change history\n29\n•\n◦\n◦\n◦\n•\n•\n◦\n◦\n•\n•\n•\n•\n•\n•\n•\n•\n◦\n◦\n•\n•\n•\n•\n•\n◦\n•\n•\n•\nRemoved the following part numbers in the Paper transport 2 assembly in the Parts catalog\nchapter:\n41X3353\n41X5723\n41X5726\nFor m",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "0bcc1878-9b16-4157-a272-15b8cd738c51",
+      "chunk_index": 29,
+      "page_start": 30,
+      "page_end": 30,
+      "text_preview": "Change history\n30\n•\n•\n•\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n•\n•\n◦\n◦\n◦\n•\n•\n◦\n◦\n◦\n◦\nChanged the PN from 41X6127 to 41X4979 in the Covers 3 topic of the Parts catalog\nchapter. See Covers 3 on page 1414.\nUpdated the Engine s",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "40aaee9f-032e-4f78-8308-e7fb8c4b54f5",
+      "chunk_index": 30,
+      "page_start": 31,
+      "page_end": 31,
+      "text_preview": "Change history\n31\n•\n•\n•\n•\n•\n•\n•\n•\n•\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n◦\n◦\n◦\nAdded the Repeating fine dark or light lines within one color check topic in the Diagnostics\nand troubleshooting chapter. See Repeat",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "5ee0677d-0dde-4439-b34d-eb13d2bb9023",
+      "chunk_index": 31,
+      "page_start": 32,
+      "page_end": 32,
+      "text_preview": "Change history\n32\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n•\n•\n◦\n◦\n•\n◦\n•\n◦\n•\n◦\n◦\n◦\n•\nOctober 21, 2024\nUpdated the following topics of the Parts removal chapter:\nHVPS removal. See HVPS removal on page 750.\nPrin",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "2867ae1a-dec2-43a8-9be1-8cff09c83113",
+      "chunk_index": 32,
+      "page_start": 33,
+      "page_end": 33,
+      "text_preview": "Change history\n33\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n•\n◦\n•\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n41X5269—Exit roller drive belt\n41X6076—Offset drive gear\n41X5308—Compiler feed roller gear\n41X",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "e4e92f85-5eaa-4018-8253-2651b574119f",
+      "chunk_index": 33,
+      "page_start": 34,
+      "page_end": 34,
+      "text_preview": "Change history\n34\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n41X5193—Motor (booklet path diverter)\n41X5292—Transport staging guide\n41X5147—Sensor (stag",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "def84406-193c-4600-91c5-96ca026fca6c",
+      "chunk_index": 34,
+      "page_start": 35,
+      "page_end": 35,
+      "text_preview": "Change history\n35\n◦\n◦\n◦\n•\n◦\n◦\n◦\n•\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n◦\n◦\n◦\n41X5267—Sensor (punch box full)\n41X5338—Punch box full sensor spring\n41X5340—Punch box shutter spring\nSee Transpor",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "8e99d7c6-1c1f-4bb9-8789-c698b0af4b4d",
+      "chunk_index": 35,
+      "page_start": 36,
+      "page_end": 36,
+      "text_preview": "Change history\n36\n•\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\n•\n◦\n◦\n•\n◦\n◦\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n•\n◦\n◦\nUpdated the topic Tools required for service to the General information chapter. See Tools\nrequired for service on p",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "82eabd89-c404-4932-9755-719e10377e2f",
+      "chunk_index": 36,
+      "page_start": 37,
+      "page_end": 37,
+      "text_preview": "Change history\n37\n◦\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n•\n•\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\n◦\nControl panel hinge removal. See Control panel hinge removal on page 731.\nOutput bin bail removal. See Output bin bail remov",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "f0445bc5-56a5-4597-9f64-ee88614550a1",
+      "chunk_index": 37,
+      "page_start": 38,
+      "page_end": 38,
+      "text_preview": "Change history\n38\n•\n◦\n◦\n◦\n◦\n◦\n◦\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n◦\n◦\n◦\n•\n•\nSee Installation parts on page 1444.\nAdded the following parts in the Miscellaneous assembly in the Parts catalog chapter:\n41X6047 Screw p",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "dea9d915-14c8-447c-b771-3b1fbd9f5c49",
+      "chunk_index": 38,
+      "page_start": 39,
+      "page_end": 39,
+      "text_preview": "Change history\n39\n◦\n◦\n◦\n◦\n•\nPaper exit guide front and rear plates removal. See Paper exit guide front and rear\nplates removal on page 1295.\nUpper door removal. See Upper door removal on page 1276.\nMo",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "a5fd3d21-6bfe-444a-9832-ba0ac6c33bd9",
+      "chunk_index": 39,
+      "page_start": 40,
+      "page_end": 40,
+      "text_preview": "General information\n40\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n\nPrinter model configurations\nThe Lexmark™ CX833, CX961, CX962, CX963, XC8355, XC9635, XC9645, and XC9655\nMFPs are color, network‑capable mul",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "b3c69e22-20f4-4349-ac57-b5939c23c14d",
+      "chunk_index": 40,
+      "page_start": 41,
+      "page_end": 41,
+      "text_preview": "General information\n41\n1.\n2.\n•\n•\n•\nFinding the printer serial number\nOpen the tray.\nLocate the serial number at the right side of the printer.\nSelecting paper\nPaper guidelines\nUse the appropriate pape",
+      "chunk_type": "procedure"
+    },
+    {
+      "chunk_id": "90111914-31bc-46ff-8911-af9285b51fa0",
+      "chunk_index": 41,
+      "page_start": 42,
+      "page_end": 42,
+      "text_preview": "General information\n42\n•\n•\nDo not mix paper sizes, types, or weights in the same tray; mixing results in jams.\nDo not use coated papers unless they are specifically designed for electrophotographic\npr",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "76cdedde-2ce0-4a28-b2a2-3dbaa33c2226",
+      "chunk_index": 42,
+      "page_start": 43,
+      "page_end": 43,
+      "text_preview": "General information\n43\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\nFiber content\nMost high‑quality xerographic paper is made from 100 percent chemically treated pulped\nwood. This content provides the paper with a high de",
+      "chunk_type": "troubleshooting"
+    },
+    {
+      "chunk_id": "df24e8d5-6be4-4c55-a92c-416309753d4e",
+      "chunk_index": 43,
+      "page_start": 44,
+      "page_end": 44,
+      "text_preview": "General information\n44\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\n•\nMost label manufacturers recommend printing in a temperature range of 18–24°C (65–75°F)\nwith relative humidity between 40 and 60 percent.\nStore paper in ",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "2fde6a5d-92d2-43a1-a5f8-e36cc634cf15",
+      "chunk_index": 44,
+      "page_start": 45,
+      "page_end": 45,
+      "text_preview": "General information\n45\nPaper size\nOrientation\nStandard\n550‑sheet\ntray\nMultipurpose\nfeeder\nTwo‑sided\nprinting\nAutomatic\ndocument\nfeeder\nA5\n148 x 210\nmm\n(5.83 x\n8.27 in.)\nShort‑edge\nfeed\n✓\nX\n✓\n✓\nLong‑ed",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "5190b63d-8ed5-4d03-b31d-bd09539c6d24",
+      "chunk_index": 45,
+      "page_start": 46,
+      "page_end": 46,
+      "text_preview": "General information\n46\nPaper size\nOrientation\nStandard\n550‑sheet\ntray\nMultipurpose\nfeeder\nTwo‑sided\nprinting\nAutomatic\ndocument\nfeeder\nLetter\n215.9 x\n279.4 mm\n(8.5 x 11\nin.)\nShort‑edge\nfeed\n✓\nX\n✓\n✓\nLo",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "b177e547-7d0d-4c9a-8c1b-60f4bb433b42",
+      "chunk_index": 46,
+      "page_start": 47,
+      "page_end": 47,
+      "text_preview": "General information\n47\nPaper size\nOrientation\nStandard\n550‑sheet\ntray\nMultipurpose\nfeeder\nTwo‑sided\nprinting\nAutomatic\ndocument\nfeeder\nEnvelope\n(Choukei\n#3)\n120 x 235\nmm\n(4.75 x\n9.25 in.)\nShort‑edge\nf",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "758b4e8b-ecb3-4cbe-bc70-4208c1b61304",
+      "chunk_index": 47,
+      "page_start": 48,
+      "page_end": 48,
+      "text_preview": "General information\n48\nPaper size\nOrientation\nStandard\n550‑sheet\ntray\nMultipurpose\nfeeder\nTwo‑sided\nprinting\nAutomatic\ndocument\nfeeder\nEnvelope\n(DL)\n110 x 220\nmm\n(4.33 x\n8.66 in.)\nShort‑edge\nfeed\n✓\n✓\n",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "de1590ff-26ee-4409-ad76-631876e2db2f",
+      "chunk_index": 48,
+      "page_start": 49,
+      "page_end": 49,
+      "text_preview": "General information\n49\nPaper size\nOrientation\nStandard\n550‑sheet\ntray\nMultipurpose\nfeeder\nTwo‑sided\nprinting\nAutomatic\ndocument\nfeeder\nLong‑edge\nfeed\nX\nX\nX\nX\nA6\n105 x 148\nmm\n(4.13 x\n5.83 in.)\nShort‑ed",
+      "chunk_type": "general"
+    },
+    {
+      "chunk_id": "330c1ef2-c072-402c-ad7b-0ff13f2ac96d",
+      "chunk_index": 49,
+      "page_start": 50,
+      "page_end": 50,
+      "text_preview": "General information\n50\nPaper size\nOrientation\nStandard\n550‑sheet\ntray\nMultipurpose\nfeeder\nTwo‑sided\nprinting\nAutomatic\ndocument\nfeeder\nExecutive\n\n184.2 x\n266.7 mm\n(7.25 x\n10.5 in.)\nShort‑edge\nfeed\n✓\nX",
+      "chunk_type": "general"
+    }
+  ],
+  "products": [
+    {
+      "model_number": "CX833",
+      "product_type": "printer",
+      "confidence": 0.6,
+      "source_page": 1
+    },
+    {
+      "model_number": "CX961",
+      "product_type": "printer",
+      "confidence": 0.6,
+      "source_page": 1
+    },
+    {
+      "model_number": "CX962",
+      "product_type": "printer",
+      "confidence": 0.6,
+      "source_page": 1
+    },
+    {
+      "model_number": "CX963",
+      "product_type": "printer",
+      "confidence": 0.6,
+      "source_page": 1
+    }
+  ],
+  "error_codes": [
+    {
+      "error_code": "75.02",
+      "description": "from occurring, do not install an old TPM into a new",
+      "solution": "No solution found",
+      "confidence": 0.65,
+      "page_number": 591,
+      "severity": "medium"
+    }
+  ],
+  "statistics": {
+    "total_pages": 1751,
+    "total_characters": 1389694,
+    "total_words": 233864,
+    "total_chunks": 1742,
+    "total_products": 4,
+    "total_error_codes": 1,
+    "avg_product_confidence": 0.6,
+    "avg_error_code_confidence": 0.65,
+    "chunk_types": {
+      "general": 318,
+      "troubleshooting": 476,
+      "specification": 9,
+      "procedure": 939
+    },
+    "avg_chunk_size": 798.0
+  },
+  "processing_time": 3.397233724594116
+}

@@ -13,13 +13,39 @@ from uuid import UUID, uuid4
 class ExtractedProduct(BaseModel):
     """Product extracted from document"""
     model_number: str = Field(..., min_length=3, max_length=100)
-    model_name: Optional[str] = None
     product_series: Optional[str] = Field(None, description="Product series/family (e.g., LaserJet, AccurioPress)")
     product_type: str = Field(..., pattern="^(printer|scanner|multifunction|copier|plotter)$")
     manufacturer_name: str
     confidence: float = Field(..., ge=0.0, le=1.0)
     source_page: Optional[int] = None
     extraction_method: str = Field(default="regex")
+    
+    # Specifications (JSONB - flexible storage)
+    specifications: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="All specifications in flexible JSONB format"
+    )
+    
+    # Computed property for display name
+    @property
+    def display_name(self) -> str:
+        """Generate display name from series + model_number"""
+        if self.product_series:
+            return f"{self.product_series} {self.model_number}"
+        return self.model_number
+    
+    # Helper properties for common specs (backward compatibility)
+    @property
+    def max_print_speed_ppm(self) -> Optional[int]:
+        return self.specifications.get('max_print_speed_ppm')
+    
+    @property
+    def max_resolution_dpi(self) -> Optional[int]:
+        return self.specifications.get('max_resolution_dpi')
+    
+    @property
+    def duplex_capable(self) -> Optional[bool]:
+        return self.specifications.get('duplex_capable')
     
     @validator('model_number')
     def validate_model_number(cls, v):

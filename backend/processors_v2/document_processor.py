@@ -53,6 +53,16 @@ class DocumentProcessor:
             overlap_size=chunk_overlap
         )
         
+        # LLM extractor (optional, for specification sections)
+        try:
+            from .llm_extractor import LLMProductExtractor
+            self.llm_extractor = LLMProductExtractor(debug=debug)
+            self.use_llm = True
+        except Exception as e:
+            self.logger.warning(f"LLM extractor not available: {e}")
+            self.llm_extractor = None
+            self.use_llm = False
+        
         if manufacturer == "AUTO":
             self.logger.info("Initialized processor with AUTO manufacturer detection")
         else:
@@ -128,6 +138,23 @@ class DocumentProcessor:
                         page_texts[page_num], page_number=page_num
                     )
                     products.extend(page_products)
+            
+            # Step 2b: Try LLM extraction from specification section
+            if self.use_llm and self.llm_extractor:
+                self.logger.info("Searching for specification section...")
+                spec_section = self.llm_extractor.detect_specification_section(page_texts)
+                
+                if spec_section:
+                    self.logger.info(f"Found specification section on page {spec_section['page_number']}")
+                    llm_products = self.llm_extractor.extract_from_specification_section(
+                        spec_section['text'],
+                        self.manufacturer,
+                        spec_section['page_number']
+                    )
+                    
+                    if llm_products:
+                        self.logger.success(f"LLM extracted {len(llm_products)} products with specifications")
+                        products.extend(llm_products)
             
             # Global deduplication across all pages
             if products:

@@ -71,7 +71,7 @@ KONICA_MINOLTA_PATTERNS = {
         re.IGNORECASE
     ),
     'c_series': re.compile(
-        r'\bC\d{4}(?:P|hc)?\b'  # C4080, C4070, C84hc, C74hc
+        r'\bC\d{2,4}(?:P|hc)?\b'  # C4080, C4070, C84hc (2-4 digits)
     ),
 }
 
@@ -281,7 +281,6 @@ class ProductExtractor:
                     try:
                         product = ExtractedProduct(
                             model_number=model,
-                            model_name=model,  # Can be enhanced later
                             product_series=product_series,
                             product_type=product_type,
                             manufacturer_name=mfr_name,  # Use detected manufacturer
@@ -542,7 +541,7 @@ class ProductExtractor:
         series_patterns = {
             'AccurioPress': [
                 r'^C40[78]0',      # C4070, C4080
-                r'^C[78]\d{1}hc',  # C74hc, C84hc
+                r'^C\d{2}hc',      # C74hc, C84hc (any 2-digit + hc)
             ],
             'AccurioPrint': [
                 r'^C4065P?',       # C4065, C4065P
