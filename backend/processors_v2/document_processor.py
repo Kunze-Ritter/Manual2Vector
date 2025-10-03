@@ -105,9 +105,17 @@ class DocumentProcessor:
             self.logger.info("Step 2/5: Extracting product models...")
             products = []
             
+            # Re-initialize product extractor with document title for context-based series detection
+            document_title = metadata.title if metadata else None
+            product_extractor = ProductExtractor(
+                manufacturer_name=self.manufacturer,
+                debug=self.product_extractor.debug,
+                document_title=document_title
+            )
+            
             # Try first page
             if 1 in page_texts:
-                first_page_products = self.product_extractor.extract_from_text(
+                first_page_products = product_extractor.extract_from_text(
                     page_texts[1], page_number=1
                 )
                 products.extend(first_page_products)
@@ -116,14 +124,18 @@ class DocumentProcessor:
             if not products and len(page_texts) > 1:
                 self.logger.info("No products on first page, scanning additional pages...")
                 for page_num in sorted(page_texts.keys())[:5]:  # First 5 pages
-                    page_products = self.product_extractor.extract_from_text(
+                    page_products = product_extractor.extract_from_text(
                         page_texts[page_num], page_number=page_num
                     )
                     products.extend(page_products)
             
+            # Global deduplication across all pages
+            if products:
+                products = product_extractor._deduplicate(products)
+            
             # Validate products
             for product in products:
-                errors = self.product_extractor.validate_extraction(product)
+                errors = product_extractor.validate_extraction(product)
                 if errors:
                     validation_errors.extend([str(e) for e in errors])
             

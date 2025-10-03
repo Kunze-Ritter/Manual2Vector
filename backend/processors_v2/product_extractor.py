@@ -198,17 +198,23 @@ REJECT_WORDS = {
 class ProductExtractor:
     """Extract product models with validation"""
     
-    def __init__(self, manufacturer_name: str = "HP", debug: bool = False):
+    def __init__(self, manufacturer_name: str = "HP", debug: bool = False, document_title: Optional[str] = None):
         """
         Initialize product extractor
         
         Args:
             manufacturer_name: Manufacturer name (HP, Canon, etc.)
             debug: Enable debug logging
+            document_title: PDF title for context-based series extraction
         """
         self.manufacturer_name = manufacturer_name
         self.debug = debug
+        self.document_title = document_title
+        self.context_series = self._extract_series_from_title(document_title) if document_title else []
         self.logger = get_logger()
+        
+        if self.context_series and self.debug:
+            self.logger.debug(f"Detected series from title: {self.context_series}")
     
     def extract_from_text(
         self,
@@ -394,7 +400,12 @@ class ProductExtractor:
     
     def _determine_product_series(self, model: str, pattern_name: str) -> Optional[str]:
         """
-        Determine product series from pattern name and model
+        Determine product series from pattern name, model, and document context
+        
+        Priority:
+        1. Series in model name (e.g., "AccurioPress C4080")
+        2. Pattern name mapping
+        3. Context from document title
         
         Returns:
             Product series name or None
@@ -420,16 +431,36 @@ class ProductExtractor:
             'phaser': 'Phaser',
             'ecosys': 'ECOSYS',
             'taskalfa': 'TASKalfa',
+            'c_series': None,  # Bare model number - use context
         }
         
-        # First check if series is already in the model name
+        # 1. First check if series is already in the model name
         model_lower = model.lower()
         for pattern, series in series_mapping.items():
-            if pattern.replace('_', '').lower() in model_lower.replace(' ', '').lower():
+            if series and pattern.replace('_', '').lower() in model_lower.replace(' ', '').lower():
                 return series
         
-        # Otherwise use pattern name
-        return series_mapping.get(pattern_name, None)
+        # 2. Use pattern name mapping
+        series_from_pattern = series_mapping.get(pattern_name, None)
+        if series_from_pattern:
+            return series_from_pattern
+        
+        # 3. Fall back to context from document title (for bare models like "C4080")
+        if self.context_series:
+            # If only one series in title, use it
+            if len(self.context_series) == 1:
+                if self.debug:
+                    self.logger.debug(f"  Using context series: {self.context_series[0]}")
+                return self.context_series[0]
+            
+            # If multiple series, match by model number pattern
+            matched_series = self._match_series_by_model_pattern(model, self.context_series)
+            if matched_series:
+                if self.debug:
+                    self.logger.debug(f"  Matched series by pattern: {matched_series}")
+                return matched_series
+        
+        return None
     
     def _determine_product_type(self, model: str, pattern_name: str) -> str:
         """
@@ -452,9 +483,100 @@ class ProductExtractor:
             # Default to printer for LaserJet, OfficeJet, etc.
             return "printer"
     
+    def _extract_series_from_title(self, title: Optional[str]) -> List[str]:
+        """
+        Extract product series names from document title
+        
+        Args:
+            title: Document title (e.g., "AccurioPress_C4080_C4070_AccurioPrint_C4065")
+            
+        Returns:
+            List of detected series names
+        """
+        if not title:
+            return []
+        
+        detected_series = []
+        title_lower = title.lower()
+        
+        # Known series patterns (case-insensitive)
+        series_patterns = {
+            'accuriopress': 'AccurioPress',
+            'accurioprint': 'AccurioPrint',
+            'bizhub': 'bizhub',
+            'laserjet': 'LaserJet',
+            'officejet': 'OfficeJet',
+            'designjet': 'DesignJet',
+            'pagewide': 'PageWide',
+            'imagerunner': 'imageRUNNER',
+            'imageclass': 'imageCLASS',
+            'pixma': 'PIXMA',
+            'aficio': 'Aficio',
+            'workcentre': 'WorkCentre',
+            'versalink': 'VersaLink',
+            'altalink': 'AltaLink',
+            'phaser': 'Phaser',
+            'ecosys': 'ECOSYS',
+            'taskalfa': 'TASKalfa',
+        }
+        
+        for pattern, series_name in series_patterns.items():
+            if pattern in title_lower:
+                detected_series.append(series_name)
+        
+        return detected_series
+    
+    def _match_series_by_model_pattern(self, model: str, available_series: List[str]) -> Optional[str]:
+        """
+        Match model number to series based on known patterns
+        
+        Args:
+            model: Model number (e.g., "C4080", "C4065")
+            available_series: List of possible series from context
+            
+        Returns:
+            Matched series name or None
+        """
+        # Model number to series mapping rules
+        # Format: series_name -> [list of regex patterns]
+        series_patterns = {
+            'AccurioPress': [
+                r'^C40[78]0',      # C4070, C4080
+                r'^C[78]\d{1}hc',  # C74hc, C84hc
+            ],
+            'AccurioPrint': [
+                r'^C4065P?',       # C4065, C4065P
+            ],
+            'bizhub': [
+                r'^C\d{3,4}',      # General bizhub C-series
+            ],
+            'LaserJet': [
+                r'^(M|E)\d{3,4}',  # M455, E877, etc.
+            ],
+            'OfficeJet': [
+                r'^Pro\s*\d{4}',   # Pro 9025, etc.
+            ],
+        }
+        
+        # Try to match model against patterns for each available series
+        for series_name in available_series:
+            if series_name in series_patterns:
+                patterns = series_patterns[series_name]
+                for pattern in patterns:
+                    if re.match(pattern, model, re.IGNORECASE):
+                        return series_name
+        
+        # If no specific pattern matched, use first series as fallback
+        return available_series[0] if available_series else None
+    
     def _deduplicate(self, products: List[ExtractedProduct]) -> List[ExtractedProduct]:
         """
-        Remove duplicate products, keep highest confidence
+        Remove duplicate products, keep best version
+        
+        Strategy:
+        - "AccurioPress C4080" and "C4080" are the SAME product
+        - Extract bare model number for comparison
+        - Prefer bare model (since we have series separately)
         
         Args:
             products: List of products
@@ -465,14 +587,70 @@ class ProductExtractor:
         if not products:
             return []
         
-        # Group by model_number
         seen = {}
+        
         for product in products:
-            key = product.model_number.lower()
-            if key not in seen or product.confidence > seen[key].confidence:
+            # Extract bare model number (remove series prefix)
+            bare_model = self._extract_bare_model(product.model_number)
+            key = bare_model.lower()
+            
+            if key not in seen:
                 seen[key] = product
+            else:
+                # Keep the one with better quality
+                existing = seen[key]
+                
+                # Prefer bare model if both have same series
+                is_bare = product.model_number == bare_model
+                existing_is_bare = existing.model_number == self._extract_bare_model(existing.model_number)
+                
+                # Decision priority:
+                # 1. Same series? Prefer bare model
+                # 2. Higher confidence? Keep that one
+                # 3. Has series field? Prefer that one
+                if product.product_series == existing.product_series:
+                    if is_bare and not existing_is_bare:
+                        seen[key] = product  # Replace with bare
+                    elif product.confidence > existing.confidence:
+                        seen[key] = product
+                elif product.product_series and not existing.product_series:
+                    seen[key] = product
+                elif product.confidence > existing.confidence:
+                    seen[key] = product
         
         return list(seen.values())
+    
+    def _extract_bare_model(self, model_number: str) -> str:
+        """
+        Extract bare model number without series prefix
+        
+        Examples:
+            "AccurioPress C4080" -> "C4080"
+            "LaserJet Pro M455" -> "M455"
+            "C4080" -> "C4080"
+            
+        Returns:
+            Bare model number
+        """
+        # Remove common series prefixes
+        prefixes = [
+            'accuriopress', 'accurioprint', 'bizhub',
+            'laserjet pro', 'laserjet', 'officejet pro', 'officejet',
+            'designjet', 'pagewide',
+            'imagerunner', 'imageclass', 'pixma',
+            'aficio', 'workcentre', 'versalink', 'altalink', 'phaser',
+            'ecosys', 'taskalfa',
+        ]
+        
+        model_lower = model_number.lower().strip()
+        
+        for prefix in prefixes:
+            if model_lower.startswith(prefix):
+                # Remove prefix and any following spaces
+                bare = model_number[len(prefix):].strip()
+                return bare
+        
+        return model_number
     
     def validate_extraction(
         self,
