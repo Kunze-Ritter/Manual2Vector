@@ -120,8 +120,10 @@ def main():
         
         # Save to file
         if args.output:
-            # Convert to absolute path if relative
-            output_path = args.output if args.output.is_absolute() else Path.cwd() / args.output
+            # Convert to Path and make absolute if relative
+            output_path = Path(args.output)
+            if not output_path.is_absolute():
+                output_path = Path.cwd() / output_path
             logger.info(f"Saving results to: {output_path}")
             save_results(result, output_path)
             logger.success(f"Results saved to: {output_path}")
