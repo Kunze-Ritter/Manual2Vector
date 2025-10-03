@@ -682,7 +682,8 @@ class ProductExtractor:
             ))
         
         # Check product type
-        valid_types = ['printer', 'scanner', 'multifunction', 'copier', 'plotter']
+        valid_types = ['printer', 'scanner', 'multifunction', 'copier', 'plotter', 
+                       'finisher', 'feeder', 'tray', 'cabinet', 'accessory', 'consumable']
         if product.product_type not in valid_types:
             errors.append(ValError(
                 field="product_type",

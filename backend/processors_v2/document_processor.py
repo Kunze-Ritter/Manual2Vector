@@ -42,6 +42,7 @@ class DocumentProcessor:
             debug: Enable debug logging for product extraction
         """
         self.manufacturer = manufacturer
+        self.debug = debug
         self.logger = get_logger()
         
         # Initialize extractors
@@ -139,22 +140,43 @@ class DocumentProcessor:
                     )
                     products.extend(page_products)
             
-            # Step 2b: Try LLM extraction from specification section
+            # Step 2b: LLM extraction from ALL pages (not just spec sections)
             if self.use_llm and self.llm_extractor:
-                self.logger.info("Searching for specification section...")
-                spec_section = self.llm_extractor.detect_specification_section(page_texts)
+                self.logger.info("Running LLM extraction on all pages...")
                 
-                if spec_section:
-                    self.logger.info(f"Found specification section on page {spec_section['page_number']}")
+                # Scan first 20 pages (or all if fewer)
+                pages_to_scan = min(20, len(page_texts))
+                
+                for page_num in sorted(page_texts.keys())[:pages_to_scan]:
+                    # Skip if too short (likely not product info)
+                    if len(page_texts[page_num]) < 500:
+                        continue
+                    
                     llm_products = self.llm_extractor.extract_from_specification_section(
-                        spec_section['text'],
-                        self.manufacturer,
-                        spec_section['page_number']
+                        page_texts[page_num],
+                        self.manufacturer if self.manufacturer != "AUTO" else "KONICA MINOLTA",
+                        page_num
                     )
                     
+                    # Fix manufacturer for AUTO detection
                     if llm_products:
-                        self.logger.success(f"LLM extracted {len(llm_products)} products with specifications")
+                        # Get detected manufacturer from first regex product
+                        detected_mfr = next(
+                            (p.manufacturer_name for p in products if p.extraction_method.startswith("regex")),
+                            "KONICA MINOLTA"
+                        )
+                        for prod in llm_products:
+                            if prod.manufacturer_name == "AUTO" or self.manufacturer == "AUTO":
+                                prod.manufacturer_name = detected_mfr
+                    
+                    if llm_products:
+                        if self.debug:
+                            self.logger.debug(f"  Page {page_num}: Found {len(llm_products)} products")
                         products.extend(llm_products)
+                
+                llm_count = sum(1 for p in products if p.extraction_method == "llm")
+                if llm_count > 0:
+                    self.logger.success(f"LLM extracted {llm_count} products with specifications")
             
             # Global deduplication across all pages
             if products:

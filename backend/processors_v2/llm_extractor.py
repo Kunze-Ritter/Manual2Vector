@@ -68,47 +68,43 @@ class LLMProductExtractor:
             return []
     
     def _build_extraction_prompt(self, text: str, manufacturer: str) -> str:
-        """Build extraction prompt for LLM"""
+        """Build universal extraction prompt for LLM"""
         
-        prompt = f"""You are a technical documentation parser. Extract ALL products and their specifications from this {manufacturer} service manual section.
+        prompt = f"""Extract ALL products (printers, accessories, options) from this {manufacturer} technical document.
 
 TEXT:
-{text[:4000]}  # Limit context
+{text[:4000]}
 
-TASK:
-Extract products in JSON format with these fields:
-- model_number: Product model (e.g., "C4080", "M455")
-- product_series: Series name if mentioned (e.g., "AccurioPress", "LaserJet")
-- max_print_speed_ppm: Print speed in pages per minute (integer)
-- max_resolution_dpi: Maximum resolution (integer)
-- max_paper_size: Largest paper size (e.g., "A3", "SRA3")
-- duplex_capable: Can print duplex (true/false)
-- dimensions_mm: Dimensions as {{"width": X, "depth": Y, "height": Z}}
-- connectivity_options: List of connectivity (e.g., ["USB", "Ethernet", "WiFi"])
-- specifications: Any other specs as key-value pairs
+INSTRUCTIONS:
+1. Find ALL product model numbers, series names, and types
+2. Extract specifications (speed, resolution, capacity, dimensions, etc.)
+3. Include accessories, options, finishers, feeders, trays
+4. Return ONLY valid JSON array (empty array if no products found)
 
-IMPORTANT:
-- Return ONLY valid JSON array
-- Include ALL models mentioned
-- Extract numerical values without units (e.g., "80 ppm" -> 80)
-- If spec not found, use null
-
-OUTPUT FORMAT:
-```json
+JSON FORMAT:
 [
   {{
-    "model_number": "C4080",
-    "product_series": "AccurioPress",
-    "max_print_speed_ppm": 80,
-    "max_resolution_dpi": 1200,
-    "max_paper_size": "SRA3",
-    "duplex_capable": true,
-    "dimensions_mm": {{"width": 750, "depth": 850, "height": 1200}},
-    "connectivity_options": ["USB", "Ethernet", "WiFi"],
-    "specifications": {{"monthly_duty_cycle": "300000 pages"}}
+    "model_number": "REQUIRED - e.g. C4080, MK-746, SD-513",
+    "product_series": "Optional - e.g. AccurioPress, LaserJet",
+    "product_type": "printer|accessory|finisher|feeder|tray|cabinet|consumable",
+    "specifications": {{
+      "ANY_SPEC_NAME": "ANY_VALUE",
+      "max_print_speed_ppm": 80,
+      "max_resolution_dpi": 1200,
+      "paper_capacity": {{"standard": 3000, "max": 6000}},
+      "dimensions": {{"width": 750, "depth": 850, "height": 1200}},
+      "compatible_models": ["C4080", "C4070"],
+      "... add any other specs you find ..."
+    }}
   }}
 ]
-```
+
+RULES:
+- Extract numerical values WITHOUT units (80 ppm -> 80)
+- Use nested objects for complex specs
+- Use null if value unknown
+- Return [] if NO products found
+- Be flexible with spec names
 
 JSON:"""
         
@@ -130,11 +126,17 @@ JSON:"""
             }
         }
         
-        response = requests.post(url, json=payload, timeout=60)
+        response = requests.post(url, json=payload, timeout=120)  # 2 minutes for complex pages
         response.raise_for_status()
         
         result = response.json()
-        return result.get("response", "")
+        llm_response = result.get("response", "")
+        
+        if self.debug:
+            self.logger.debug(f"Ollama response length: {len(llm_response)}")
+            self.logger.debug(f"Ollama response preview: {llm_response[:300]}")
+        
+        return llm_response
     
     def _parse_llm_response(
         self,
@@ -156,22 +158,62 @@ JSON:"""
             
             data = json.loads(json_str)
             
-            # Handle both array and single object
+            # Handle different response formats
             if isinstance(data, dict):
+                # Check if LLM wrapped it in a "products" key
+                if "products" in data:
+                    data = data["products"]
+                else:
+                    # Single product object
+                    data = [data]
+            
+            # Ensure it's a list
+            if not isinstance(data, list):
                 data = [data]
             
             for item in data:
                 try:
-                    # Build specifications JSONB
+                    # Determine product type
+                    product_type_raw = item.get("product_type", "printer").lower()
+                    
+                    # Map LLM types to valid types
+                    valid_types = [
+                        "printer", "scanner", "multifunction", "copier", "plotter",
+                        "finisher", "feeder", "tray", "cabinet", "accessory", "consumable"
+                    ]
+                    
+                    # Try exact match first
+                    if product_type_raw in valid_types:
+                        product_type = product_type_raw
+                    else:
+                        # Fuzzy matching for common variations
+                        type_mapping = {
+                            "paper feeder": "feeder",
+                            "paper deck": "feeder",
+                            "paper tray": "tray",
+                            "bypass tray": "tray",
+                            "multi-bypass": "tray",
+                            "booklet finisher": "finisher",
+                            "saddle finisher": "finisher",
+                            "folder": "finisher",
+                            "stapler": "finisher",
+                            "paper cabinet": "cabinet",
+                            "option": "accessory",
+                            "mfp": "multifunction",
+                            "all-in-one": "multifunction"
+                        }
+                        product_type = type_mapping.get(product_type_raw, "printer")
+                    
+                    # Build specifications JSONB (exclude core fields)
                     specifications = {
                         k: v for k, v in item.items() 
-                        if k not in ['model_number', 'product_series'] and v is not None
+                        if k not in ['model_number', 'product_series', 'product_type'] and v is not None
                     }
                     
                     product = ExtractedProduct(
                         model_number=item.get("model_number", ""),
                         product_series=item.get("product_series"),
-                        product_type="printer",  # Default
+                        product_type=product_type,
                         manufacturer_name=manufacturer,
                         confidence=0.85,  # LLM extraction confidence
                         source_page=page_number,
@@ -189,6 +231,9 @@ JSON:"""
             self.logger.error(f"Failed to parse LLM JSON: {e}")
             if self.debug:
                 self.logger.debug(f"Response was: {response[:500]}")
+        
+        if self.debug and len(products) == 0:
+            self.logger.warning(f"LLM returned 0 products. Response: {response[:500]}")
         
         return products
     

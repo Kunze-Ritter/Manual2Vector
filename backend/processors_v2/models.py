@@ -14,7 +14,11 @@ class ExtractedProduct(BaseModel):
     """Product extracted from document"""
     model_number: str = Field(..., min_length=3, max_length=100)
     product_series: Optional[str] = Field(None, description="Product series/family (e.g., LaserJet, AccurioPress)")
-    product_type: str = Field(..., pattern="^(printer|scanner|multifunction|copier|plotter)$")
+    product_type: str = Field(
+        ..., 
+        pattern="^(printer|scanner|multifunction|copier|plotter|finisher|feeder|tray|cabinet|accessory|consumable)$",
+        description="Product type: printer, scanner, multifunction, copier, plotter, finisher, feeder, tray, cabinet, accessory, consumable"
+    )
     manufacturer_name: str
     confidence: float = Field(..., ge=0.0, le=1.0)
     source_page: Optional[int] = None
