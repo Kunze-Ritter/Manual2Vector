@@ -34,7 +34,8 @@ def main():
     parser.add_argument(
         '--manufacturer',
         type=str,
-        default="HP",
+        default="AUTO",
+        help="Manufacturer name (HP, KONICA MINOLTA, RICOH, etc.) or AUTO for auto-detection"
     )
     parser.add_argument(
         '--chunk-size',
