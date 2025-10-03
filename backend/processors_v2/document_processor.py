@@ -28,7 +28,8 @@ class DocumentProcessor:
         manufacturer: str = "AUTO",
         chunk_size: int = 1000,
         chunk_overlap: int = 100,
-        pdf_engine: str = "pymupdf"
+        pdf_engine: str = "pymupdf",
+        debug: bool = False
     ):
         """
         Initialize document processor
@@ -38,13 +39,14 @@ class DocumentProcessor:
             chunk_size: Target chunk size
             chunk_overlap: Overlap between chunks
             pdf_engine: PDF extraction engine
+            debug: Enable debug logging for product extraction
         """
         self.manufacturer = manufacturer
         self.logger = get_logger()
         
         # Initialize extractors
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
-        self.product_extractor = ProductExtractor(manufacturer_name=manufacturer)
+        self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
@@ -56,6 +58,8 @@ class DocumentProcessor:
         else:
             self.logger.info(f"Initialized processor for {manufacturer}")
         self.logger.info(f"PDF Engine: {pdf_engine}, Chunk Size: {chunk_size}")
+        if debug:
+            self.logger.info("Debug mode: ENABLED")
     
     def process_document(
         self,

@@ -198,14 +198,16 @@ REJECT_WORDS = {
 class ProductExtractor:
     """Extract product models with validation"""
     
-    def __init__(self, manufacturer_name: str = "HP"):
+    def __init__(self, manufacturer_name: str = "HP", debug: bool = False):
         """
         Initialize product extractor
         
         Args:
             manufacturer_name: Manufacturer name (HP, Canon, etc.)
+            debug: Enable debug logging
         """
         self.manufacturer_name = manufacturer_name
+        self.debug = debug
         self.logger = get_logger()
     
     def extract_from_text(
@@ -253,12 +255,18 @@ class ProductExtractor:
             for match in matches:
                 model = match.group(0).strip()
                 
+                if self.debug:
+                    self.logger.debug(f"Pattern '{pattern_name}' matched: '{model}'")
+                
                 # Validate
                 if self._validate_model(model):
                     # Calculate confidence
                     confidence = self._calculate_confidence(
                         model, text, match.start(), pattern_name
                     )
+                    
+                    if self.debug:
+                        self.logger.debug(f"  ✓ Validated! Confidence: {confidence:.2f}")
                     
                     # Determine product type
                     product_type = self._determine_product_type(model, pattern_name)
@@ -275,9 +283,11 @@ class ProductExtractor:
                         )
                         found_models.append(product)
                     except Exception as e:
-                        self.logger.debug(
-                            f"Validation failed for '{model}': {e}"
-                        )
+                        if self.debug:
+                            self.logger.debug(f"  ✗ Pydantic validation failed: {e}")
+                else:
+                    if self.debug:
+                        self.logger.debug(f"  ✗ Rejected by validation")
         
         # Deduplicate
         unique_models = self._deduplicate(found_models)

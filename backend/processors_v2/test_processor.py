@@ -17,21 +17,24 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from processors_v2.document_processor import DocumentProcessor
 from processors_v2.logger import get_logger
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Test Document Processor V2"
     )
     parser.add_argument(
-        'pdf_path',
-        type=Path,
-        help="Path to PDF file to process"
+        '--output', '-o',
+        type=str,
+        help='Output JSON file path (optional)'
+    )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug logging for product extraction'
     )
     parser.add_argument(
         '--manufacturer',
         type=str,
         default="HP",
-        help="Manufacturer name (default: HP)"
     )
     parser.add_argument(
         '--chunk-size',
@@ -40,9 +43,9 @@ def main():
         help="Chunk size (default: 1000)"
     )
     parser.add_argument(
-        '--output',
+        'pdf_path',
         type=Path,
-        help="Save results to JSON file"
+        help="Path to PDF file"
     )
     
     args = parser.parse_args()
@@ -62,7 +65,8 @@ def main():
     
     processor = DocumentProcessor(
         manufacturer=args.manufacturer,
-        chunk_size=args.chunk_size
+        chunk_size=args.chunk_size,
+        debug=args.debug
     )
     
     # Process
