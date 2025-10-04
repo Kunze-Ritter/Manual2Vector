@@ -3,14 +3,31 @@
 -- Solution: View löschen und als echte Tabelle neu erstellen
 
 -- ============================================================================
--- PART 1: Drop existing VIEW or TABLE
+-- PART 1: Drop existing TABLE or VIEW (dynamic detection)
 -- ============================================================================
 
--- Drop view if it exists
-DROP VIEW IF EXISTS krai_core.documents CASCADE;
-
--- Drop table if it exists (in case it was already converted)
-DROP TABLE IF EXISTS krai_core.documents CASCADE;
+DO $$ 
+DECLARE
+    obj_type text;
+BEGIN
+    -- Check what type of object it is
+    SELECT CASE 
+        WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'krai_core' AND tablename = 'documents') THEN 'table'
+        WHEN EXISTS (SELECT 1 FROM pg_views WHERE schemaname = 'krai_core' AND viewname = 'documents') THEN 'view'
+        ELSE 'none'
+    END INTO obj_type;
+    
+    -- Drop based on type
+    IF obj_type = 'table' THEN
+        EXECUTE 'DROP TABLE krai_core.documents CASCADE';
+        RAISE NOTICE 'Dropped TABLE krai_core.documents';
+    ELSIF obj_type = 'view' THEN
+        EXECUTE 'DROP VIEW krai_core.documents CASCADE';
+        RAISE NOTICE 'Dropped VIEW krai_core.documents';
+    ELSE
+        RAISE NOTICE 'krai_core.documents does not exist';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- PART 2: Create documents as TABLE (not VIEW)
