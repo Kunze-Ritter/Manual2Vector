@@ -176,7 +176,8 @@ class MasterPipeline:
                 stage_name="document_processing",
                 stage_func=lambda: self.document_processor.process_document(
                     pdf_path=file_path,
-                    document_id=document_id
+                    document_id=document_id,
+                    enable_log_file=True  # Create .log.txt file next to PDF
                 )
             )
             

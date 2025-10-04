@@ -84,7 +84,8 @@ class DocumentProcessor:
     def process_document(
         self,
         pdf_path: Path,
-        document_id: Optional[UUID] = None
+        document_id: Optional[UUID] = None,
+        enable_log_file: bool = True
     ) -> ProcessingResult:
         """
         Process complete document
@@ -92,6 +93,7 @@ class DocumentProcessor:
         Args:
             pdf_path: Path to PDF file
             document_id: Optional document UUID (generates if None)
+            enable_log_file: Create a .log.txt file next to the PDF (default: True)
             
         Returns:
             ProcessingResult with all extracted data
@@ -101,8 +103,19 @@ class DocumentProcessor:
         
         start_time = time.time()
         
+        # Setup document-specific log file
+        log_file_path = None
+        file_handler = None
+        
+        if enable_log_file:
+            log_file_path = pdf_path.parent / f"{pdf_path.stem}.log.txt"
+            file_handler = self._add_file_handler(log_file_path)
+        
         self.logger.section(f"Processing Document: {pdf_path.name}")
         self.logger.info(f"Document ID: {document_id}")
+        
+        if enable_log_file:
+            self.logger.info(f"Log file: {log_file_path}")
         
         validation_errors = []
         
@@ -113,15 +126,25 @@ class DocumentProcessor:
             
             if not page_texts:
                 self.logger.error("No text extracted from PDF!")
-                return self._create_failed_result(
-                    document_id,
-                    "Text extraction failed",
-                    time.time() - start_time
-                )
+                try:
+                    return self._create_failed_result(
+                        document_id,
+                        "Text extraction failed",
+                        time.time() - start_time
+                    )
+                except Exception as e:
+                    processing_time = time.time() - start_time
+                    error_message = str(e)
+                    
+                    self.logger.error(f"Processing failed: {error_message}")
+                    self.logger.error(f"Error type: {type(e).__name__}")
+                    
+                    # Remove file handler on error too
+                    if file_handler:
+                        self._remove_file_handler(file_handler)
+                        self.logger.info(f"❌ Error log saved to: {log_file_path}")
             
-            self.logger.success(f"Extracted {len(page_texts)} pages")
-            
-            # Step 2: Extract products (from first page primarily)
+            # Extract products (from first page primarily)
             self.logger.info("Step 2/5: Extracting product models...")
             products = []
             
@@ -381,6 +404,11 @@ class DocumentProcessor:
                 processing_time
             )
             
+            # Remove file handler
+            if file_handler:
+                self._remove_file_handler(file_handler)
+                self.logger.info(f"✅ Log saved to: {log_file_path}")
+            
             # Convert to dict for pipeline consumption
             result_dict = result.to_dict()
             
@@ -392,6 +420,12 @@ class DocumentProcessor:
         except Exception as e:
             self.logger.error(f"Processing failed: {e}", exc=e)
             processing_time = time.time() - start_time
+            
+            # Remove file handler on error
+            if file_handler:
+                self._remove_file_handler(file_handler)
+                self.logger.info(f"❌ Error log saved to: {log_file_path}")
+            
             return self._create_failed_result(
                 document_id,
                 str(e),
@@ -625,6 +659,36 @@ class DocumentProcessor:
             'image_types': image_types,
             'avg_chunk_size': round(total_chars / len(chunks), 0) if chunks else 0
         }
+    
+    def _add_file_handler(self, log_file_path: Path) -> 'logging.FileHandler':
+        """Add file handler to logger for document-specific logging"""
+        import logging
+        
+        # Ensure parent directory exists
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Create file handler
+        file_handler = logging.FileHandler(log_file_path, mode='w', encoding='utf-8')
+        file_handler.setLevel(logging.DEBUG)
+        
+        # Format with timestamp
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+        
+        # Add to logger
+        self.logger.logger.addHandler(file_handler)
+        
+        return file_handler
+    
+    def _remove_file_handler(self, file_handler: 'logging.FileHandler'):
+        """Remove file handler from logger"""
+        if file_handler:
+            file_handler.flush()
+            file_handler.close()
+            self.logger.logger.removeHandler(file_handler)
     
     def _create_failed_result(
         self,
