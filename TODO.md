@@ -413,6 +413,24 @@
 
 ---
 
+## 📝 CONFIGURATION TASKS
+
+### Environment Setup
+1. ⚠️ **YouTube API Key (OPTIONAL)** - For full video metadata
+   - **Task:** Get YouTube Data API v3 key from Google Cloud Console
+   - **Purpose:** Extract full video metadata (duration, view count, description, tags)
+   - **Fallback:** oEmbed (basic title, thumbnail) works without key
+   - **Priority:** LOW
+   - **Effort:** 5 minutes
+   - **Steps:**
+     1. Go to https://console.cloud.google.com/
+     2. Create Project
+     3. Enable "YouTube Data API v3"
+     4. Create Credentials → API Key
+     5. Add to .env: `YOUTUBE_API_KEY=AIzaSy...`
+
+---
+
 ## 🐛 BUGS & ISSUES
 
 ### Known Issues
