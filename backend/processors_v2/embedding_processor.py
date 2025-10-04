@@ -3,12 +3,12 @@ Embedding Processor - Generate vector embeddings for semantic search
 
 Stage 7 of the processing pipeline.
 
-Uses nomic-embed-text via Ollama for local, fast embeddings.
+Uses embeddinggemma via Ollama for local, fast embeddings.
 Stores vectors in Supabase with pgvector for similarity search.
 
 Features:
 - Batch embedding generation
-- Ollama integration (nomic-embed-text)
+- Ollama integration (embeddinggemma 768-dim)
 - pgvector storage in Supabase
 - Similarity search
 - Progress tracking
@@ -37,7 +37,7 @@ class EmbeddingProcessor:
         self,
         supabase_client=None,
         ollama_url: Optional[str] = None,
-        model_name: str = "nomic-embed-text",
+        model_name: str = "embeddinggemma",
         batch_size: int = 100,
         embedding_dimension: int = 768
     ):
@@ -47,9 +47,9 @@ class EmbeddingProcessor:
         Args:
             supabase_client: Supabase client for storage
             ollama_url: Ollama API URL (default: from env)
-            model_name: Embedding model name (default: nomic-embed-text)
+            model_name: Embedding model name (default: embeddinggemma)
             batch_size: Number of chunks to embed per batch
-            embedding_dimension: Dimension of embedding vectors (768 for nomic-embed-text)
+            embedding_dimension: Dimension of embedding vectors (768 for embeddinggemma)
         """
         self.logger = get_logger()
         self.supabase = supabase_client
@@ -437,5 +437,5 @@ if __name__ == "__main__":
         print("⚠️  Embedding Processor not configured")
         print("\nRequirements:")
         print("  1. Ollama running: ollama serve")
-        print("  2. Model installed: ollama pull nomic-embed-text")
+        print("  2. Model installed: ollama pull embeddinggemma")
         print("  3. Supabase client configured")

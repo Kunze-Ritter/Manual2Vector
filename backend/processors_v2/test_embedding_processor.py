@@ -32,7 +32,7 @@ def test_ollama_availability():
         print("\n⚠️  Ollama not available")
         print("\n   Setup:")
         print("   1. Start Ollama: ollama serve")
-        print("   2. Install model: ollama pull nomic-embed-text")
+        print("   2. Install model: ollama pull embeddinggemma")
         print("   3. Verify: ollama list")
         return False
 
@@ -243,7 +243,7 @@ def main():
         print("\nSetup instructions:")
         print("  1. Install Ollama: https://ollama.ai")
         print("  2. Start service: ollama serve")
-        print("  3. Pull model: ollama pull nomic-embed-text")
+        print("  3. Pull model: ollama pull embeddinggemma")
         print("  4. Verify: ollama list")
         return
     

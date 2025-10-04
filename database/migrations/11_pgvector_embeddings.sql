@@ -17,7 +17,7 @@ BEGIN
         AND column_name = 'embedding'
     ) THEN
         ALTER TABLE krai_core.chunks 
-        ADD COLUMN embedding vector(768);  -- nomic-embed-text uses 768 dimensions
+        ADD COLUMN embedding vector(768);  -- embeddinggemma uses 768 dimensions
     END IF;
 END $$;
 
@@ -142,7 +142,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.match_documents TO anon, authenticated, service_role;
 
 -- Add comment
-COMMENT ON COLUMN krai_core.chunks.embedding IS 'Vector embedding (768-dim) for semantic search using nomic-embed-text';
+COMMENT ON COLUMN krai_core.chunks.embedding IS 'Vector embedding (768-dim) for semantic search using embeddinggemma';
 COMMENT ON FUNCTION public.match_chunks IS 'Find similar chunks using cosine similarity search';
 COMMENT ON FUNCTION public.get_embedding_stats IS 'Get statistics about embedding coverage';
 COMMENT ON FUNCTION public.match_documents IS 'Find documents with similar content based on chunk embeddings';
