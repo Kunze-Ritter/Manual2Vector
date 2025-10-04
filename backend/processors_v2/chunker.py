@@ -264,6 +264,11 @@ class SmartChunker:
         # Clean headers and extract metadata
         cleaned_text, header_metadata = self._clean_headers(text)
         
+        # Validate minimum size AFTER cleaning (headers might have been removed)
+        if len(cleaned_text.strip()) < self.min_chunk_size:
+            self.logger.debug(f"Chunk too short after header cleaning: {len(cleaned_text)} chars")
+            return None
+        
         # Generate fingerprint
         fingerprint = self._generate_fingerprint(cleaned_text)
         
