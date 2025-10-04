@@ -422,7 +422,7 @@ class MasterPipeline:
                     }
                 }
                 
-                # Check if product already exists
+                # Check if product already exists (use krai_core schema)
                 existing = self.supabase.table('products') \
                     .select('id') \
                     .eq('model_number', record['model_number']) \
@@ -430,7 +430,8 @@ class MasterPipeline:
                     .execute()
                 
                 if not existing.data:
-                    self.supabase.table('products').insert(record).execute()
+                    # Insert into krai_core.products (not the view)
+                    self.supabase.schema('krai_core').table('products').insert(record).execute()
             
             self.logger.success(f"Saved {len(products)} products to DB")
             
@@ -465,7 +466,14 @@ class MasterPipeline:
                     'validation_errors': results.get('validation_errors', []),
                     'processing_time_seconds': results.get('processing_time_seconds', 0)
                 }
-                update_data['processing_results'] = clean_results
+                # Only add processing_results if column exists in schema
+                try:
+                    update_data['processing_results'] = clean_results
+                except:
+                    # Column might not exist yet - store in metadata instead
+                    if 'metadata' not in update_data:
+                        update_data['metadata'] = {}
+                    update_data['metadata']['processing_results'] = clean_results
             
             self.supabase.table('documents').update(update_data).eq(
                 'id', str(document_id)
