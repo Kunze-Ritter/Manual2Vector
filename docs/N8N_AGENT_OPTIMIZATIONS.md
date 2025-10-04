@@ -49,7 +49,7 @@ metadata: {
 - **Canon Plotter:** imagePROGRAF, iPF####
 - **Xerox:** VersaLink, AltaLink, WorkCentre, ColorQube, Phaser, PrimeLink
 - **Brother:** MFC-L####, HL-L####, DCP-L####
-- **Fujifilm:** ApeosPort, ApeosPort-VII, Apeos, DocuPrint, DocuCentre
+- **Fujifilm:** ApeosPort, ApeosPort-VII, Apeos, DocuPrint, DocuCentre, Revoria
 - **Riso:** ComColor, ORPHIS, Riso, RZ####, SF####
 
 ### **Benefits:**
@@ -204,7 +204,7 @@ When user asks a question, preprocess query to remove noise:
 | **Canon** | Office, Plotter | imageRUNNER C5550i, imagePROGRAF PRO-4100 | ✅ Full |
 | **Xerox** | Office, Production | VersaLink C7020, WorkCentre 7835, PrimeLink | ✅ Full |
 | **Brother** | Office, SMB | MFC-L8900CDW, HL-L8360CDW, DCP-L8410CDN | ✅ Full |
-| **Fujifilm** | Office, Production | ApeosPort-VII C4473, DocuPrint CP505, Apeos C6580 | ✅ Full |
+| **Fujifilm** | Office, Production | ApeosPort-VII C4473, DocuPrint CP505, Revoria Press | ✅ Full |
 | **Riso** | Production | ComColor GD7330, ORPHIS X9050 | ✅ Full |
 
 **Total Coverage:** 10 manufacturers, 100+ product series

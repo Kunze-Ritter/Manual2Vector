@@ -335,7 +335,7 @@ class SmartChunker:
             # Canon: imageRUNNER C5550i, imagePROGRAF PRO-4100 (Plotter)
             # Xerox: VersaLink C7020, AltaLink C8035, WorkCentre 7835
             # Brother: MFC-L8900CDW, HL-L8360CDW, DCP-L8410CDN
-            # Fujifilm: ApeosPort-VII C4473, DocuPrint CP505, Apeos C6580
+            # Fujifilm: ApeosPort-VII C4473, DocuPrint CP505, Apeos C6580, Revoria Press
             # Riso: ComColor GD7330, ORPHIS X9050
             manufacturer_patterns = (
                 # Konica Minolta
@@ -357,7 +357,7 @@ class SmartChunker:
                 # Brother
                 r'|MFC-[A-Z]\d{4,5}|HL-[A-Z]\d{4,5}|DCP-[A-Z]\d{4,5}'
                 # Fujifilm (Xerox successor in Asia/Japan)
-                r'|ApeosPort|Apeos|DocuPrint|DocuCentre|ApeosPort-VII|Apeos C\d{4}'
+                r'|ApeosPort|Apeos|DocuPrint|DocuCentre|ApeosPort-VII|Apeos C\d{4}|Revoria'
                 # Riso (Digital Duplicators & Production Printers)
                 r'|ComColor|ORPHIS|Riso|RZ\d{3,4}|SF\d{3,4}'
             )
