@@ -150,77 +150,79 @@ class VersionExtractor:
         page_number: Optional[int] = None
     ) -> List[ExtractedVersion]:
         """
-        Extract versions from text
+        Extract versions from text using SIMPLE V1 patterns
         
         Args:
             text: Text to extract from
-            manufacturer: Manufacturer name (for specific patterns)
+            manufacturer: Manufacturer name (optional, not used in V1)
             page_number: Page number in document
             
         Returns:
-            List of extracted versions
+            List of extracted versions (usually 1 - first match)
         """
         if not text or len(text.strip()) < 10:
             return []
         
+        # V1 SIMPLE PATTERNS (in priority order)
+        v1_patterns = [
+            (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition_date', 0.95),  # Edition 3, 5/2024
+            (r'edition\s+(\d+(?:\.\d+)?)', 'edition', 0.90),  # Edition 4.0
+            (r'(\d{4}/\d{2}/\d{2})', 'date_full', 0.85),  # 2024/12/25
+            (r'(\d{2}/\d{4})', 'date_short', 0.80),  # 5/2024
+            (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.75),  # Version 1.0
+            (r'v\s*(\d+\.\d+(?:\.\d+)?)', 'version_short', 0.70),  # v1.0
+            (r'rev(?:ision)?\s+(\d+\.\d+)', 'revision', 0.65),  # Rev 1.0
+        ]
+        
         versions = []
         found_matches = set()  # Avoid duplicates
         
-        # Search order based on config
-        search_order = self.patterns.get('extraction_settings', {}).get(
-            'search_order',
-            ['edition_patterns', 'date_patterns', 'firmware_patterns', 'standard_patterns']
-        )
-        
-        # Try patterns in priority order
-        for category in search_order:
-            if category not in self.compiled_patterns:
-                continue
+        # Try patterns in priority order - STOP AFTER FIRST MATCH
+        for pattern, version_type, confidence in v1_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
             
-            for pattern_data in sorted(
-                self.compiled_patterns[category],
-                key=lambda x: x['priority']
-            ):
-                matches = pattern_data['regex'].finditer(text)
+            for match in matches:
+                version_string = match.group(0).strip()
                 
-                for match in matches:
-                    version_string = match.group(0).strip()
-                    
-                    # Avoid duplicates
-                    if version_string.lower() in found_matches:
-                        continue
-                    
-                    # Validate
-                    if not self._validate_version(version_string):
-                        continue
-                    
-                    found_matches.add(version_string.lower())
-                    
-                    # Create ExtractedVersion
-                    version = ExtractedVersion(
-                        version_string=version_string,
-                        version_type=self._determine_version_type(category),
-                        confidence=self._calculate_confidence(
-                            version_string,
-                            category,
-                            pattern_data['priority']
-                        ),
-                        extraction_method="pattern_matching",
-                        page_number=page_number,
-                        context=self._get_context(text, match.start(), match.end())
-                    )
-                    
-                    versions.append(version)
-                    
-                    # Stop after first match if configured
-                    if self.patterns.get('extraction_settings', {}).get('prefer_first_match', True):
-                        break
-            
-            # Stop after first category with matches
-            if versions and not self.patterns.get('extraction_settings', {}).get('combine_matches', False):
-                break
+                # Avoid duplicates
+                if version_string.lower() in found_matches:
+                    continue
+                
+                # Skip forbidden patterns
+                if self._is_forbidden(version_string):
+                    continue
+                
+                found_matches.add(version_string.lower())
+                
+                # Create ExtractedVersion
+                version = ExtractedVersion(
+                    version_string=version_string,
+                    version_type=version_type,
+                    confidence=confidence,
+                    extraction_method="v1_pattern",
+                    page_number=page_number,
+                    context=self._get_context(text, match.start(), match.end())
+                )
+                
+                versions.append(version)
+                
+                # V1: STOP AFTER FIRST MATCH
+                return versions[:1]  # Return only first match
         
         return versions
+    
+    def _is_forbidden(self, version_string: str) -> bool:
+        """Check if version string matches forbidden patterns"""
+        forbidden = [
+            'copyright',
+            'all rights reserved',
+            'development',
+        ]
+        version_lower = version_string.lower()
+        for forbidden_term in forbidden:
+            if forbidden_term in version_lower:
+                return True
+        return False
     
     def _determine_version_type(self, category: str) -> str:
         """Determine version type from category"""
