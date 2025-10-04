@@ -466,14 +466,8 @@ class MasterPipeline:
                     'validation_errors': results.get('validation_errors', []),
                     'processing_time_seconds': results.get('processing_time_seconds', 0)
                 }
-                # Only add processing_results if column exists in schema
-                try:
-                    update_data['processing_results'] = clean_results
-                except:
-                    # Column might not exist yet - store in metadata instead
-                    if 'metadata' not in update_data:
-                        update_data['metadata'] = {}
-                    update_data['metadata']['processing_results'] = clean_results
+                # Add processing_results (requires Migration 12!)
+                update_data['processing_results'] = clean_results
             
             self.supabase.table('documents').update(update_data).eq(
                 'id', str(document_id)
