@@ -7,8 +7,11 @@
 -- Prerequisite: Run 20a and 20b first
 -- ======================================================================
 
--- Create view pointing to krai_intelligence.chunks
-CREATE OR REPLACE VIEW public.chunks AS
+-- Drop existing view first (may have different schema)
+DROP VIEW IF EXISTS public.chunks CASCADE;
+
+-- Create NEW view pointing to krai_intelligence.chunks
+CREATE VIEW public.chunks AS
 SELECT 
     id,
     document_id,
