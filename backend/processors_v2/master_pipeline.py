@@ -226,10 +226,16 @@ class MasterPipeline:
             if error_codes:
                 self._save_error_codes(document_id, error_codes)
             
-            # Save products
+            # Save products to products table AND document_products relationship
             products = processing_result.get('products', [])
             if products:
                 self._save_products(document_id, products)
+                self._save_document_products(document_id, products)
+            
+            # ==========================================
+            # Update document metadata (manufacturer, models, etc.)
+            # ==========================================
+            self._update_document_metadata(document_id, processing_result)
             
             # ==========================================
             # Update document status with processing_results
@@ -435,12 +441,111 @@ class MasterPipeline:
                 
                 if not existing.data:
                     # Insert into krai_core.products (not the view)
-                    self.supabase.schema('krai_core').table('products').insert(record).execute()
+                    result = self.supabase.schema('krai_core').table('products').insert(record).execute()
+                    # Store product_id for document_products relationship
+                    if result.data:
+                        prod_data['_db_id'] = result.data[0]['id']
+                else:
+                    # Use existing product ID
+                    prod_data['_db_id'] = existing.data[0]['id']
             
             self.logger.success(f"Saved {len(products)} products to DB")
             
         except Exception as e:
             self.logger.error(f"Failed to save products: {e}")
+    
+    def _save_document_products(self, document_id: UUID, products: list):
+        """Save document-product relationships to krai_core.document_products"""
+        try:
+            saved_count = 0
+            for idx, product in enumerate(products):
+                # Get product_id from previous save
+                prod_data = product if isinstance(product, dict) else {
+                    'model_number': getattr(product, 'model_number', ''),
+                    'confidence': getattr(product, 'confidence', 0.0),
+                    'extraction_method': getattr(product, 'extraction_method', 'pattern'),
+                    'page_numbers': getattr(product, 'page_numbers', [])
+                }
+                
+                # Get DB product_id (was set in _save_products)
+                product_id = prod_data.get('_db_id')
+                if not product_id:
+                    self.logger.warning(f"No product_id for {prod_data.get('model_number')}, skipping relationship")
+                    continue
+                
+                # Create document_product relationship
+                relationship = {
+                    'document_id': str(document_id),
+                    'product_id': str(product_id),
+                    'is_primary_product': (idx == 0),  # First product is primary
+                    'confidence_score': min(prod_data.get('confidence', 0.8), 1.0),
+                    'extraction_method': prod_data.get('extraction_method', 'pattern'),
+                    'page_numbers': prod_data.get('page_numbers', [])
+                }
+                
+                # Check if relationship already exists
+                existing = self.supabase.table('document_products') \
+                    .select('id') \
+                    .eq('document_id', relationship['document_id']) \
+                    .eq('product_id', relationship['product_id']) \
+                    .limit(1) \
+                    .execute()
+                
+                if not existing.data:
+                    self.supabase.schema('krai_core').table('document_products').insert(relationship).execute()
+                    saved_count += 1
+            
+            self.logger.success(f"Saved {saved_count} document-product relationships")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save document_products: {e}")
+    
+    def _update_document_metadata(self, document_id: UUID, processing_result: Dict):
+        """Update document with extracted manufacturer, models, series"""
+        try:
+            products = processing_result.get('products', [])
+            if not products:
+                return
+            
+            # Extract manufacturer from first product
+            manufacturer = None
+            models = []
+            series_set = set()
+            
+            for product in products:
+                prod_data = product if isinstance(product, dict) else {
+                    'manufacturer': getattr(product, 'manufacturer', None),
+                    'model_number': getattr(product, 'model_number', ''),
+                    'series': getattr(product, 'series', None)
+                }
+                
+                if prod_data.get('manufacturer') and not manufacturer:
+                    manufacturer = prod_data['manufacturer']
+                
+                if prod_data.get('model_number'):
+                    models.append(prod_data['model_number'])
+                
+                if prod_data.get('series'):
+                    series_set.add(prod_data['series'])
+            
+            # Update document
+            update_data = {}
+            if manufacturer:
+                update_data['manufacturer'] = manufacturer
+            if models:
+                update_data['models'] = models
+            if series_set:
+                update_data['series'] = ','.join(sorted(series_set))  # Join multiple series
+            
+            if update_data:
+                self.supabase.table('documents').update(update_data).eq(
+                    'id', str(document_id)
+                ).execute()
+                
+                self.logger.success(f"Updated document metadata: {manufacturer}, {len(models)} models")
+        
+        except Exception as e:
+            self.logger.error(f"Failed to update document metadata: {e}")
     
     def _update_document_status(
         self,
