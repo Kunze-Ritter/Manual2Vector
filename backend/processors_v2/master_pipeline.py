@@ -406,19 +406,36 @@ class MasterPipeline:
                     'confidence': getattr(product, 'confidence', 0.0)
                 }
                 
-                # Try to find manufacturer_id
+                # Find or create manufacturer
                 manufacturer_id = None
                 if prod_data.get('manufacturer'):
                     try:
+                        # Try to find existing manufacturer
                         mfr_result = self.supabase.table('manufacturers') \
                             .select('id') \
                             .ilike('name', f"%{prod_data['manufacturer']}%") \
                             .limit(1) \
                             .execute()
+                        
                         if mfr_result.data:
+                            # Manufacturer exists
                             manufacturer_id = mfr_result.data[0]['id']
-                    except:
-                        pass
+                        else:
+                            # Create new manufacturer (only name is required)
+                            new_mfr = self.supabase.table('manufacturers').insert({
+                                'name': prod_data['manufacturer']
+                            }).execute()
+                            
+                            if new_mfr.data:
+                                manufacturer_id = new_mfr.data[0]['id']
+                                self.logger.info(f"✅ Created new manufacturer: {prod_data['manufacturer']}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to find/create manufacturer: {e}")
+                
+                # Skip product if no manufacturer_id (required field)
+                if not manufacturer_id:
+                    self.logger.warning(f"❌ Skipping product {prod_data.get('model_number')} - no manufacturer_id")
+                    continue
                 
                 record = {
                     'model_number': prod_data.get('model_number'),
