@@ -8,16 +8,13 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 import time
-
 from .logger import get_logger, log_processing_summary
-from .models import ProcessingResult
+from .models import ProcessingResult, DocumentMetadata
 from .text_extractor import TextExtractor
 from .product_extractor import ProductExtractor
 from .error_code_extractor import ErrorCodeExtractor
+from .version_extractor import VersionExtractor
 from .chunker import SmartChunker
-
-
-logger = get_logger()
 
 
 class DocumentProcessor:
@@ -49,6 +46,7 @@ class DocumentProcessor:
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
+        self.version_extractor = VersionExtractor()
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
             overlap_size=chunk_overlap
@@ -212,8 +210,28 @@ class DocumentProcessor:
             
             self.logger.success(f"Extracted {len(error_codes)} error codes")
             
+            # Step 3b: Extract versions
+            self.logger.info("Step 3b/6: Extracting document versions...")
+            versions = []
+            
+            # Extract from first few pages (versions usually on title page)
+            for page_num in sorted(page_texts.keys())[:5]:
+                page_versions = self.version_extractor.extract_from_text(
+                    page_texts[page_num],
+                    manufacturer=self.manufacturer,
+                    page_number=page_num
+                )
+                versions.extend(page_versions)
+            
+            # Get best version (highest confidence)
+            if versions:
+                best_version = max(versions, key=lambda v: v.confidence)
+                self.logger.success(f"Extracted version: {best_version.version_string} (confidence: {best_version.confidence:.2f})")
+            else:
+                self.logger.info("No version found")
+            
             # Step 4: Create chunks
-            self.logger.info("Step 4/5: Chunking text...")
+            self.logger.info("Step 4/6: Chunking text...")
             chunks = self.chunker.chunk_document(page_texts, document_id)
             
             # Deduplicate
@@ -222,9 +240,9 @@ class DocumentProcessor:
             self.logger.success(f"Created {len(chunks)} chunks")
             
             # Step 5: Statistics
-            self.logger.info("Step 5/5: Calculating statistics...")
+            self.logger.info("Step 5/6: Calculating statistics...")
             statistics = self._calculate_statistics(
-                page_texts, products, error_codes, chunks
+                page_texts, products, error_codes, versions, chunks
             )
             
             # Create result
@@ -237,6 +255,7 @@ class DocumentProcessor:
                 chunks=chunks,
                 products=products,
                 error_codes=error_codes,
+                versions=versions,
                 validation_errors=validation_errors,
                 processing_time_seconds=processing_time,
                 statistics=statistics
@@ -265,6 +284,7 @@ class DocumentProcessor:
         page_texts: dict,
         products: list,
         error_codes: list,
+        versions: list,
         chunks: list
     ) -> dict:
         """Calculate processing statistics"""
@@ -289,6 +309,12 @@ class DocumentProcessor:
             if error_codes else 0
         )
         
+        # Version confidence
+        avg_version_conf = (
+            sum(v.confidence for v in versions) / len(versions)
+            if versions else 0
+        )
+        
         return {
             'total_pages': len(page_texts),
             'total_characters': total_chars,
@@ -296,8 +322,10 @@ class DocumentProcessor:
             'total_chunks': len(chunks),
             'total_products': len(products),
             'total_error_codes': len(error_codes),
+            'total_versions': len(versions),
             'avg_product_confidence': round(avg_product_conf, 2),
             'avg_error_code_confidence': round(avg_error_conf, 2),
+            'avg_version_confidence': round(avg_version_conf, 2),
             'chunk_types': chunk_types,
             'avg_chunk_size': round(total_chars / len(chunks), 0) if chunks else 0
         }

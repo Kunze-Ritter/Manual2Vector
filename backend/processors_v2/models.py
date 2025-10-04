@@ -139,6 +139,7 @@ class ProcessingResult(BaseModel):
     chunks: List[TextChunk] = Field(default_factory=list)
     products: List[ExtractedProduct] = Field(default_factory=list)
     error_codes: List[ExtractedErrorCode] = Field(default_factory=list)
+    versions: List['ExtractedVersion'] = Field(default_factory=list)
     validation_errors: List[str] = Field(default_factory=list)
     processing_time_seconds: float
     statistics: Dict[str, Any] = Field(default_factory=dict)
@@ -151,11 +152,35 @@ class ProcessingResult(BaseModel):
             "chunks_created": len(self.chunks),
             "products_extracted": len(self.products),
             "error_codes_extracted": len(self.error_codes),
+            "versions_extracted": len(self.versions),
             "validation_errors": len(self.validation_errors),
             "avg_product_confidence": sum(p.confidence for p in self.products) / len(self.products) if self.products else 0,
             "avg_error_code_confidence": sum(e.confidence for e in self.error_codes) / len(self.error_codes) if self.error_codes else 0,
+            "avg_version_confidence": sum(v.confidence for v in self.versions) / len(self.versions) if self.versions else 0,
             "processing_time": f"{self.processing_time_seconds:.2f}s"
         }
+
+
+class ExtractedVersion(BaseModel):
+    """Version extracted from document"""
+    version_string: str = Field(..., min_length=1, max_length=50)
+    version_type: str = Field(
+        ...,
+        pattern="^(edition|date|firmware|version|revision)$",
+        description="Type of version: edition, date, firmware, version, revision"
+    )
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    extraction_method: str = Field(default="pattern_matching")
+    page_number: Optional[int] = None
+    context: Optional[str] = Field(None, max_length=200, description="Surrounding context")
+    
+    @validator('version_string')
+    def validate_version_string(cls, v):
+        """Ensure version string is reasonable"""
+        if len(v.strip()) < 1:
+            raise ValueError("Version string cannot be empty")
+        # Remove excessive whitespace
+        return ' '.join(v.split())
 
 
 class ValidationError(BaseModel):

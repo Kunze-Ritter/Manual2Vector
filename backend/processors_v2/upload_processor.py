@@ -246,6 +246,16 @@ class UploadProcessor:
         
         document_id = str(uuid4())
         
+        # Extract version from PDF metadata if available
+        version_string = None
+        if 'title' in metadata:
+            # Try to extract version from title
+            from .version_extractor import VersionExtractor
+            version_extractor = VersionExtractor()
+            versions = version_extractor.extract_from_text(metadata['title'])
+            if versions:
+                version_string = versions[0].version_string
+        
         record = {
             'id': document_id,
             'filename': file_path.name,
@@ -254,6 +264,7 @@ class UploadProcessor:
             'file_hash': file_hash,
             'file_size': metadata['file_size_bytes'],  # Use file_size not file_size_bytes
             'document_type': document_type,
+            'version': version_string,  # Add version if found
             'page_count': metadata.get('page_count', 0),
             'processing_status': 'uploaded',  # Use processing_status not status
             'extracted_metadata': {  # Use extracted_metadata not metadata

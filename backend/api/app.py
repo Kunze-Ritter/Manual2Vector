@@ -242,7 +242,9 @@ async def upload_document(
         Upload result with document ID and status
     """
     # Save uploaded file temporarily
-    temp_path = Path(f"/tmp/{file.filename}")
+    import tempfile
+    temp_dir = Path(tempfile.gettempdir())
+    temp_path = temp_dir / file.filename
     
     try:
         with open(temp_path, "wb") as f:
