@@ -368,10 +368,10 @@ class MasterPipeline:
                     'error_code': ec_data.get('error_code'),
                     'error_description': ec_data.get('error_description'),
                     'solution_text': ec_data.get('solution_text'),
-                    'confidence': ec_data.get('confidence', 0.8),
+                    'confidence_score': ec_data.get('confidence', 0.8),
                     'page_number': ec_data.get('page_number'),
+                    'context_text': ec_data.get('context'),
                     'metadata': {
-                        'context': ec_data.get('context'),
                         'extracted_at': datetime.utcnow().isoformat()
                     }
                 }
