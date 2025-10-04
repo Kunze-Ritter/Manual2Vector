@@ -500,11 +500,35 @@ class DocumentProcessor:
             Dict with embedding result
         """
         if not self.embedding_processor.is_configured():
-            self.logger.info("Embedding processor not configured - skipping embeddings")
+            # Get detailed status for debugging
+            status = self.embedding_processor.get_configuration_status()
+            
+            self.logger.warning("⚠️  EMBEDDING PROCESSOR NOT CONFIGURED!")
+            self.logger.warning("=" * 60)
+            self.logger.warning("Configuration Status:")
+            self.logger.warning(f"  • Ollama Available: {status['ollama_available']}")
+            self.logger.warning(f"  • Ollama URL: {status['ollama_url']}")
+            self.logger.warning(f"  • Model Name: {status['model_name']}")
+            self.logger.warning(f"  • Supabase Configured: {status['supabase_configured']}")
+            self.logger.warning("=" * 60)
+            
+            if not status['ollama_available']:
+                self.logger.error("❌ Ollama is NOT available!")
+                self.logger.info("   Fix: 1. Start Ollama: ollama serve")
+                self.logger.info(f"        2. Install model: ollama pull {status['model_name']}")
+                self.logger.info(f"        3. Check URL: {status['ollama_url']}")
+            
+            if not status['supabase_configured']:
+                self.logger.error("❌ Supabase client is NOT configured!")
+                self.logger.info("   Fix: Pass supabase_client to DocumentProcessor")
+            
+            self.logger.warning("⚠️  Embeddings will be SKIPPED - semantic search won't work!")
+            
             return {
                 'success': False,
                 'error': 'Embedding processor not configured',
-                'skipped': True
+                'skipped': True,
+                'status': status
             }
         
         try:

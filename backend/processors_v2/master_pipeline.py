@@ -204,18 +204,49 @@ class MasterPipeline:
                 results['image_storage'] = stage_result
             
             # ==========================================
-            # STAGE 9: Embedding Generation (Optional)
+            # STAGE 9: Embedding Generation
             # ==========================================
             if self.enable_embeddings and chunks:
+                self.logger.info("=" * 60)
+                self.logger.info("🔍 CHECKING EMBEDDING CONFIGURATION...")
+                
+                # Check configuration before running
+                emb_status = self.document_processor.embedding_processor.get_configuration_status()
+                
+                if emb_status['is_configured']:
+                    self.logger.success("✅ Embedding processor configured and ready")
+                    self.logger.info(f"   • Ollama: {emb_status['ollama_url']}")
+                    self.logger.info(f"   • Model: {emb_status['model_name']} ({emb_status['embedding_dimension']}D)")
+                else:
+                    self.logger.error("❌ EMBEDDING PROCESSOR NOT CONFIGURED!")
+                    self.logger.error("=" * 60)
+                    if not emb_status['ollama_available']:
+                        self.logger.error("   ❌ Ollama is NOT running or model not installed")
+                        self.logger.info(f"      Fix: ollama serve && ollama pull {emb_status['model_name']}")
+                    if not emb_status['supabase_configured']:
+                        self.logger.error("   ❌ Supabase client NOT configured")
+                    self.logger.error("=" * 60)
+                    self.logger.warning("⚠️  Embeddings will be SKIPPED!")
+                    self.logger.warning("⚠️  Semantic search will NOT work without embeddings!")
+                
                 stage_result = self._run_stage(
                     stage_name="embeddings",
                     stage_func=lambda: self.document_processor.generate_embeddings(
                         document_id=document_id,
                         chunks=chunks
                     ),
-                    optional=True
+                    optional=True  # Don't fail pipeline if embeddings fail
                 )
                 results['embeddings'] = stage_result
+                
+                # Warn if embeddings failed
+                if not stage_result.get('success'):
+                    self.logger.error("❌ EMBEDDING GENERATION FAILED!")
+                    self.logger.error(f"   Error: {stage_result.get('error', 'Unknown error')}")
+                    if stage_result.get('skipped'):
+                        self.logger.warning("   → Embeddings were skipped due to configuration")
+            elif self.enable_embeddings and not chunks:
+                self.logger.warning("⚠️  No chunks to embed (empty document?)")
             
             # ==========================================
             # STAGE 10: Save extracted entities to DB

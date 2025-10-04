@@ -101,6 +101,18 @@ class EmbeddingProcessor:
         """Check if embedding processor is properly configured"""
         return self.ollama_available and self.supabase is not None
     
+    def get_configuration_status(self) -> Dict[str, Any]:
+        """Get detailed configuration status for debugging"""
+        return {
+            'is_configured': self.is_configured(),
+            'ollama_available': self.ollama_available,
+            'ollama_url': self.ollama_url,
+            'model_name': self.model_name,
+            'supabase_configured': self.supabase is not None,
+            'embedding_dimension': self.embedding_dimension,
+            'batch_size': self.batch_size
+        }
+    
     def process_document(
         self,
         document_id: UUID,
