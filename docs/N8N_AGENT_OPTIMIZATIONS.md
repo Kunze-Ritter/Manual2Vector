@@ -39,14 +39,18 @@ metadata: {
 - **Query** can still filter by product via metadata
 
 ### **Manufacturer Patterns to Detect:**
-- **Konica Minolta:** AccurioPress, AccurioPrint, bizhub
-- **HP:** LaserJet, OfficeJet, PageWide, DeskJet
-- **Lexmark:** CX###, MX###, CS###, MS###, XC###
-- **UTAX:** UTAX, TA####ci
-- **Kyocera:** TASKalfa, ECOSYS, Kyocera
-- **Canon:** imageRUNNER, imageCLASS, imagePRESS
-- **Xerox:** VersaLink, AltaLink, WorkCentre, ColorQube
+- **Konica Minolta:** AccurioPress, AccurioPrint, bizhub, bizhub PRESS, Magicolor
+- **HP Office:** LaserJet, OfficeJet, PageWide, DeskJet, ScanJet
+- **HP Plotter:** DesignJet, PageWide XL
+- **Lexmark:** Lexmark CX/MX/CS/MS/XC/MC series (e.g., CX920, MX910, CS820, MC3224)
+- **UTAX/Triumph-Adler:** UTAX, Triumph-Adler, TA####ci
+- **Kyocera:** TASKalfa, ECOSYS, FS-C####, FS-####, CS-####ci, MA####, PA####
+- **Canon Office:** imageRUNNER, imageCLASS, imagePRESS, imageWARE
+- **Canon Plotter:** imagePROGRAF, iPF####
+- **Xerox:** VersaLink, AltaLink, WorkCentre, ColorQube, Phaser, PrimeLink
 - **Brother:** MFC-L####, HL-L####, DCP-L####
+- **Fujifilm:** ApeosPort, ApeosPort-VII, Apeos, DocuPrint, DocuCentre
+- **Riso:** ComColor, ORPHIS, Riso, RZ####, SF####
 
 ### **Benefits:**
 - 📉 **5-10% token reduction** per chunk
@@ -185,6 +189,25 @@ When user asks a question, preprocess query to remove noise:
 7. Hybrid search (semantic + keyword)
 8. Dynamic chunk sizing
 9. Context-aware retrieval
+
+---
+
+## 🏭 **Manufacturer Coverage**
+
+| Manufacturer | Categories | Example Models | Status |
+|--------------|-----------|----------------|--------|
+| **Konica Minolta** | Office, Production | AccurioPress C4080, bizhub C450i, bizhub PRESS | ✅ Full |
+| **HP** | Office, Plotter | LaserJet M607, DesignJet T730, PageWide XL | ✅ Full |
+| **Lexmark** | Office | CX920, MX910, CS820, MS812, MC3224 | ✅ Full |
+| **UTAX/TA** | Office | TA5006ci, TA4006ci | ✅ Full |
+| **Kyocera** | Office, Production | TASKalfa 5053ci, ECOSYS M8130cidn, FS-C5150DN | ✅ Full |
+| **Canon** | Office, Plotter | imageRUNNER C5550i, imagePROGRAF PRO-4100 | ✅ Full |
+| **Xerox** | Office, Production | VersaLink C7020, WorkCentre 7835, PrimeLink | ✅ Full |
+| **Brother** | Office, SMB | MFC-L8900CDW, HL-L8360CDW, DCP-L8410CDN | ✅ Full |
+| **Fujifilm** | Office, Production | ApeosPort-VII C4473, DocuPrint CP505, Apeos C6580 | ✅ Full |
+| **Riso** | Production | ComColor GD7330, ORPHIS X9050 | ✅ Full |
+
+**Total Coverage:** 10 manufacturers, 100+ product series
 
 ---
 

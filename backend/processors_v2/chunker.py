@@ -327,23 +327,39 @@ class SmartChunker:
                 break
             
             # Detect product model patterns from all major manufacturers
-            # Konica Minolta: AccurioPress C4080, bizhub C450i
-            # HP: LaserJet Enterprise M607, OfficeJet Pro 9025
-            # Lexmark: CX920, MX910, CS820, MS812
-            # UTAX: 5006ci, 4006ci, 2506ci
-            # Kyocera: TASKalfa 5053ci, ECOSYS M8130cidn
-            # Canon: imageRUNNER ADVANCE C5550i
-            # Xerox: VersaLink C7020, AltaLink C8035
-            # Brother: MFC-L8900CDW, HL-L8360CDW
+            # Konica Minolta: AccurioPress C4080, bizhub C450i, bizhub PRESS
+            # HP: LaserJet M607, OfficeJet Pro 9025, DesignJet T730 (Plotter)
+            # Lexmark: CX920, MX910, CS820, MS812, XC9235
+            # UTAX: 5006ci, 4006ci, TA5006ci
+            # Kyocera: TASKalfa 5053ci, ECOSYS M8130cidn, FS-C5150DN, CS-2552ci
+            # Canon: imageRUNNER C5550i, imagePROGRAF PRO-4100 (Plotter)
+            # Xerox: VersaLink C7020, AltaLink C8035, WorkCentre 7835
+            # Brother: MFC-L8900CDW, HL-L8360CDW, DCP-L8410CDN
+            # Fujifilm: ApeosPort-VII C4473, DocuPrint CP505, Apeos C6580
+            # Riso: ComColor GD7330, ORPHIS X9050
             manufacturer_patterns = (
-                r'AccurioPress|AccurioPrint|bizhub'  # Konica Minolta
-                r'|LaserJet|OfficeJet|Color LaserJet|PageWide|DeskJet'  # HP
-                r'|CX\d{3,4}|MX\d{3,4}|CS\d{3,4}|MS\d{3,4}|XC\d{3,4}'  # Lexmark
-                r'|UTAX|TA\d{4}ci'  # UTAX/Triumph-Adler
-                r'|TASKalfa|ECOSYS|Kyocera'  # Kyocera
-                r'|imageRUNNER|imageCLASS|imagePRESS'  # Canon
-                r'|VersaLink|AltaLink|WorkCentre|ColorQube'  # Xerox
-                r'|MFC-[A-Z]\d{4}|HL-[A-Z]\d{4}|DCP-[A-Z]\d{4}'  # Brother
+                # Konica Minolta
+                r'AccurioPress|AccurioPrint|bizhub PRESS|bizhub|Magicolor'
+                # HP - Office & Plotter
+                r'|LaserJet|OfficeJet|Color LaserJet|PageWide|DeskJet|ScanJet'
+                r'|DesignJet|PageWide XL'  # HP Plotter
+                # Lexmark
+                r'|Lexmark\s+[A-Z]{1,2}\d{3,4}|CX\d{3,4}|MX\d{3,4}|CS\d{3,4}|MS\d{3,4}|XC\d{3,4}|MC\d{3,4}'
+                # UTAX / Triumph-Adler
+                r'|UTAX|Triumph-Adler|TA\s*\d{4}ci'
+                # Kyocera - Extended
+                r'|TASKalfa|ECOSYS|Kyocera|FS-C\d{4}|FS-\d{4}|CS-\d{4}ci|MA\d{4}|PA\d{4}'
+                # Canon - Office & Plotter
+                r'|imageRUNNER|imageCLASS|imagePRESS|imageWARE'
+                r'|imagePROGRAF|iPF\d{3,4}'  # Canon Plotter
+                # Xerox
+                r'|VersaLink|AltaLink|WorkCentre|ColorQube|Phaser|PrimeLink'
+                # Brother
+                r'|MFC-[A-Z]\d{4,5}|HL-[A-Z]\d{4,5}|DCP-[A-Z]\d{4,5}'
+                # Fujifilm (Xerox successor in Asia/Japan)
+                r'|ApeosPort|Apeos|DocuPrint|DocuCentre|ApeosPort-VII|Apeos C\d{4}'
+                # Riso (Digital Duplicators & Production Printers)
+                r'|ComColor|ORPHIS|Riso|RZ\d{3,4}|SF\d{3,4}'
             )
             if re.search(manufacturer_patterns, line_clean, re.IGNORECASE):
                 header_lines.append(line_clean)
