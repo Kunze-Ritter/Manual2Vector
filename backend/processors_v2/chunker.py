@@ -24,15 +24,17 @@ class SmartChunker:
         self,
         chunk_size: int = 1000,
         overlap_size: int = 100,
-        min_chunk_size: int = 50
+        min_chunk_size: int = 30  # Reduced to preserve small but valuable chunks
     ):
         """
         Initialize chunker
         
         Args:
-            chunk_size: Target chunk size in characters
-            overlap_size: Overlap between chunks
-            min_chunk_size: Minimum chunk size (reject smaller)
+            chunk_size: Target chunk size in characters (default: 1000)
+            overlap_size: Overlap between chunks (default: 100)
+            min_chunk_size: Minimum chunk size after header cleaning (default: 30)
+                           Reduced from 50 to preserve short but valuable content
+                           like error codes, part numbers, or brief instructions
         """
         self.chunk_size = chunk_size
         self.overlap_size = overlap_size
@@ -78,9 +80,23 @@ class SmartChunker:
             all_chunks.extend(page_chunks)
             chunk_index += len(page_chunks)
         
+        # Summary statistics
+        chunk_types = {}
+        chunks_with_headers = 0
+        for chunk in all_chunks:
+            chunk_type = chunk.metadata.get('chunk_type', 'unknown')
+            chunk_types[chunk_type] = chunk_types.get(chunk_type, 0) + 1
+            if chunk.metadata.get('page_header'):
+                chunks_with_headers += 1
+        
         self.logger.success(
-            f"Created {len(all_chunks)} chunks from {len(sorted_pages)} pages"
+            f"✅ Created {len(all_chunks)} chunks from {len(sorted_pages)} pages"
         )
+        if chunk_types:
+            types_str = ', '.join([f"{k}: {v}" for k, v in sorted(chunk_types.items())])
+            self.logger.info(f"   Types: {types_str}")
+        if chunks_with_headers > 0:
+            self.logger.info(f"   Headers preserved: {chunks_with_headers}/{len(all_chunks)} chunks")
         
         return all_chunks
     
@@ -266,7 +282,7 @@ class SmartChunker:
         
         # Validate minimum size AFTER cleaning (headers might have been removed)
         if len(cleaned_text.strip()) < self.min_chunk_size:
-            self.logger.debug(f"Chunk too short after header cleaning: {len(cleaned_text)} chars")
+            self.logger.debug(f"⏭️  Skipped chunk (too short after header cleaning): {len(cleaned_text)} chars (min: {self.min_chunk_size})")
             return None
         
         # Generate fingerprint
