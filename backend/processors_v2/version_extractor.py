@@ -164,26 +164,27 @@ class VersionExtractor:
             return []
         
         # MANUFACTURER-SPECIFIC DOCUMENT VERSION PATTERNS
+        # Note: version_type must be one of: edition, date, firmware, version, revision
         manufacturer_patterns = {
             'hp': [
-                (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition_date', 0.95),  # Edition 3, 5/2024
+                (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition', 0.95),  # Edition 3, 5/2024
                 (r'edition\s+(\d+(?:\.\d+)?)', 'edition', 0.90),  # Edition 4.0
             ],
             'konica_minolta': [
-                (r'(\d{4}/\d{2}/\d{2})', 'date_full', 0.95),  # 2024/12/25
-                (r'(\d{4}\.\d{2}\.\d{2})', 'date_dotted', 0.90),  # 2024.01.15
+                (r'(\d{4}/\d{2}/\d{2})', 'date', 0.95),  # 2024/12/25
+                (r'(\d{4}\.\d{2}\.\d{2})', 'date', 0.90),  # 2024.01.15
             ],
             'lexmark': [
-                (r'([A-Z][a-z]+\s+\d{4})', 'month_year', 0.95),  # November 2024
-                (r'(\d{2}/\d{2}/\d{4})', 'us_date', 0.90),  # 11/15/2024
+                (r'([A-Z][a-z]+\s+\d{4})', 'date', 0.95),  # November 2024
+                (r'(\d{2}/\d{2}/\d{4})', 'date', 0.90),  # 11/15/2024
             ],
             'utax': [
                 (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.95),  # Version 1.0
-                (r'v\s*(\d+\.\d+)', 'version_short', 0.90),  # v1.0
+                (r'v\s*(\d+\.\d+)', 'version', 0.90),  # v1.0
             ],
             'triumph_adler': [
                 (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.95),  # Version 1.0
-                (r'(\d{2}/\d{4})', 'date_short', 0.90),  # 5/2024
+                (r'(\d{2}/\d{4})', 'date', 0.90),  # 5/2024
             ],
         }
         
@@ -197,8 +198,8 @@ class VersionExtractor:
         # Fallback to generic patterns if manufacturer not found
         if not patterns:
             patterns = [
-                (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition_date', 0.90),
-                (r'(\d{4}/\d{2}/\d{2})', 'date_full', 0.85),
+                (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition', 0.90),
+                (r'(\d{4}/\d{2}/\d{2})', 'date', 0.85),
                 (r'version\s+(\d+\.\d+)', 'version', 0.80),
             ]
         
