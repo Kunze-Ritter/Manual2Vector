@@ -17,21 +17,22 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.links TO service_role;
 CREATE OR REPLACE RULE links_insert AS
 ON INSERT TO public.links DO INSTEAD
 INSERT INTO krai_content.links (
-    id, document_id, url, link_text, link_type, extraction_method,
-    page_number, created_at, updated_at
+    id, document_id, url, link_type, page_number, description,
+    position_data, is_active, created_at, updated_at
 ) VALUES (
-    NEW.id, NEW.document_id, NEW.url, NEW.link_text, NEW.link_type, NEW.extraction_method,
-    NEW.page_number, NEW.created_at, NEW.updated_at
+    NEW.id, NEW.document_id, NEW.url, NEW.link_type, NEW.page_number, NEW.description,
+    NEW.position_data, NEW.is_active, NEW.created_at, NEW.updated_at
 ) RETURNING *;
 
 CREATE OR REPLACE RULE links_update AS
 ON UPDATE TO public.links DO INSTEAD
 UPDATE krai_content.links SET 
     url = NEW.url,
-    link_text = NEW.link_text,
     link_type = NEW.link_type,
-    extraction_method = NEW.extraction_method,
     page_number = NEW.page_number,
+    description = NEW.description,
+    position_data = NEW.position_data,
+    is_active = NEW.is_active,
     updated_at = NEW.updated_at
 WHERE id = OLD.id
 RETURNING *;
@@ -42,62 +43,23 @@ DELETE FROM krai_content.links WHERE id = OLD.id
 RETURNING *;
 
 -- ============================================================================
--- PART 2: Create public.videos VIEW
+-- NOTE: videos table does not exist in krai_content schema!
+-- Only krai_content.instructional_videos exists.
+-- If you need a videos table for extracted video links from documents,
+-- you need to create it first before running this migration.
 -- ============================================================================
-
-DROP VIEW IF EXISTS public.videos CASCADE;
-
-CREATE VIEW public.videos AS
-SELECT * FROM krai_content.videos;
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.videos TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.videos TO service_role;
-
--- Enable INSERT/UPDATE/DELETE on view
-CREATE OR REPLACE RULE videos_insert AS
-ON INSERT TO public.videos DO INSTEAD
-INSERT INTO krai_content.videos (
-    id, document_id, url, title, platform, video_id, thumbnail_url,
-    duration_seconds, extraction_method, page_number, created_at, updated_at
-) VALUES (
-    NEW.id, NEW.document_id, NEW.url, NEW.title, NEW.platform, NEW.video_id, 
-    NEW.thumbnail_url, NEW.duration_seconds, NEW.extraction_method, 
-    NEW.page_number, NEW.created_at, NEW.updated_at
-) RETURNING *;
-
-CREATE OR REPLACE RULE videos_update AS
-ON UPDATE TO public.videos DO INSTEAD
-UPDATE krai_content.videos SET 
-    url = NEW.url,
-    title = NEW.title,
-    platform = NEW.platform,
-    video_id = NEW.video_id,
-    thumbnail_url = NEW.thumbnail_url,
-    duration_seconds = NEW.duration_seconds,
-    extraction_method = NEW.extraction_method,
-    page_number = NEW.page_number,
-    updated_at = NEW.updated_at
-WHERE id = OLD.id
-RETURNING *;
-
-CREATE OR REPLACE RULE videos_delete AS
-ON DELETE TO public.videos DO INSTEAD
-DELETE FROM krai_content.videos WHERE id = OLD.id
-RETURNING *;
 
 -- ============================================================================
 -- Verification
 -- ============================================================================
 
--- Check views exist:
+-- Check view exists:
 -- SELECT schemaname, viewname 
 -- FROM pg_views 
 -- WHERE schemaname = 'public' 
---   AND viewname IN ('links', 'videos')
--- ORDER BY viewname;
+--   AND viewname = 'links';
 
--- Should return 2 rows
+-- Should return 1 row
 
 -- Test access:
 -- SELECT * FROM public.links LIMIT 1;
--- SELECT * FROM public.videos LIMIT 1;
