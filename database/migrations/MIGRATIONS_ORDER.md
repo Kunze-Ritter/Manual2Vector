@@ -1,25 +1,28 @@
 # 📋 Database Migrations - Execution Order
 
-This document lists all database migrations in the correct order for execution.
 
 ---
 
 ## ✅ **CORE MIGRATIONS (Already Applied)**
 
-These migrations should already be applied to your Supabase database:
+The# Database Migrations Execution Order
 
-- **01** - 05: Initial schema setup (documents, products, error_codes, etc.)
-- **06-13**: Agent features, views, analytics, etc.
+This document provides the correct order to execute database migrations.
 
----
+## Important Notes
 
-## 🔧 **PENDING MIGRATIONS (Execute in Order)**
+- Always execute migrations in order
+- Some migrations depend on previous ones
+- Test in development environment first
+- Some migrations may have been renamed to avoid conflicts
+- Multi-part migrations (e.g., 20a, 20b, 20c) must be run in sequence
+
+## Execution Order
 
 Execute these migrations in Supabase SQL Editor in this exact order:
 
 ### **Migration 14b: Indexes & Chunks View**
 📄 `14b_add_indexes_and_views.sql`
-- Adds performance indexes
 - Creates `public.chunks` VIEW with COALESCE fix
 - **Status:** ✅ Ready to execute
 
@@ -63,6 +66,35 @@ Execute these migrations in Supabase SQL Editor in this exact order:
 - INSERT/UPDATE/DELETE rules
 - **Status:** ✅ Ready to execute
 
+### **Migration 19: Video Thumbnail Analysis**
+📄 `19_add_video_thumbnail_analysis.sql`
+- Adds `thumbnail_ocr_text` column
+- Adds `thumbnail_ai_description` column
+- Adds `thumbnail_analysis_date` column
+- Enables Vision AI for video thumbnails
+- **Status:** ✅ Ready to execute
+
+### **Migration 20a: Verify Legacy Chunks Table**
+📄 `20a_verify_chunks_table_empty.sql`
+- Verifies `krai_content.chunks` is empty
+- Safety check before cleanup
+- **Status:** ✅ Ready to execute
+- **⚠️  MUST run before 20b!**
+
+### **Migration 20b: Drop Legacy Chunks Table**
+📄 `20b_drop_legacy_chunks_table.sql`
+- Drops unused `krai_content.chunks` table
+- Removes duplicate chunks table
+- **Status:** ✅ Ready to execute
+- **⚠️  MUST run 20a first!**
+
+### **Migration 20c: Create Chunks View**
+📄 `20c_create_chunks_view.sql`
+- Creates `public.chunks` VIEW → `krai_intelligence.chunks`
+- Grants proper permissions
+- **Status:** ✅ Ready to execute
+- **⚠️  MUST run 20b first!**
+
 ---
 
 ## ⚠️ **DEPRECATED MIGRATIONS (DO NOT USE)**
@@ -73,6 +105,11 @@ These files are kept for reference only. **DO NOT EXECUTE:**
 - Attempted to consolidate migrations 06-16
 - **Reason for deprecation:** Redundant with existing migrations, would cause conflicts
 - **Use instead:** Individual migrations 14b-18
+
+### **❌ 20_cleanup_duplicate_chunks_table.sql (DEPRECATED)**
+- Attempted to do all cleanup in one migration
+- **Reason for deprecation:** Too complex, causes execution errors
+- **Use instead:** Migrations 20a → 20b → 20c (split into parts)
 
 ---
 
@@ -101,6 +138,18 @@ These files are kept for reference only. **DO NOT EXECUTE:**
 
 -- ✅ 7. Migration 18
 -- File: database/migrations/18_create_public_parts_catalog_view.sql
+
+-- ✅ 8. Migration 19
+-- File: database/migrations/19_add_video_thumbnail_analysis.sql
+
+-- ✅ 9. Migration 20a (VERIFY FIRST!)
+-- File: database/migrations/20a_verify_chunks_table_empty.sql
+
+-- ✅ 10. Migration 20b (ONLY IF 20a succeeds!)
+-- File: database/migrations/20b_drop_legacy_chunks_table.sql
+
+-- ✅ 11. Migration 20c (FINAL STEP)
+-- File: database/migrations/20c_create_chunks_view.sql
 ```
 
 ---
