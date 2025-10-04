@@ -159,6 +159,59 @@ class ProcessingResult(BaseModel):
             "avg_version_confidence": sum(v.confidence for v in self.versions) / len(self.versions) if self.versions else 0,
             "processing_time": f"{self.processing_time_seconds:.2f}s"
         }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for pipeline consumption"""
+        return {
+            'success': self.success,
+            'document_id': str(self.document_id),
+            'metadata': {
+                'page_count': self.metadata.page_count,
+                'file_size_bytes': self.metadata.file_size_bytes,
+                'title': self.metadata.title,
+                'author': self.metadata.author,
+                'word_count': sum(len(chunk.text.split()) for chunk in self.chunks),
+                'char_count': sum(len(chunk.text) for chunk in self.chunks),
+            },
+            'chunks': [
+                {
+                    'chunk_id': str(chunk.chunk_id),
+                    'text': chunk.text,
+                    'chunk_index': chunk.chunk_index,
+                    'chunk_type': chunk.chunk_type,
+                    'page_number': chunk.page_number,
+                }
+                for chunk in self.chunks
+            ],
+            'products': [
+                {
+                    'model_name': p.model_name,
+                    'manufacturer_name': p.manufacturer_name,
+                    'confidence': p.confidence,
+                    'extraction_method': p.extraction_method,
+                }
+                for p in self.products
+            ],
+            'error_codes': [
+                {
+                    'code': e.code,
+                    'description': e.description,
+                    'confidence': e.confidence,
+                }
+                for e in self.error_codes
+            ],
+            'versions': [
+                {
+                    'version_string': v.version_string,
+                    'version_type': v.version_type,
+                    'confidence': v.confidence,
+                }
+                for v in self.versions
+            ],
+            'images': [],  # Will be added by master pipeline
+            'statistics': self.statistics,
+            'processing_time': self.processing_time_seconds
+        }
 
 
 class ExtractedVersion(BaseModel):

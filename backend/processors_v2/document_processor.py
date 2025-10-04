@@ -5,7 +5,7 @@ Coordinates text extraction, chunking, product/error extraction.
 """
 
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from uuid import UUID, uuid4
 import time
 from .logger import get_logger, log_processing_summary
@@ -288,7 +288,13 @@ class DocumentProcessor:
                 processing_time
             )
             
-            return result
+            # Convert to dict for pipeline consumption
+            result_dict = result.to_dict()
+            
+            # Add images to result
+            result_dict['images'] = images
+            
+            return result_dict
         
         except Exception as e:
             self.logger.error(f"Processing failed: {e}", exc=e)
@@ -464,26 +470,24 @@ class DocumentProcessor:
         document_id: UUID,
         error_message: str,
         processing_time: float
-    ) -> ProcessingResult:
-        """Create failed processing result"""
-        from .models import DocumentMetadata
-        
-        # Create minimal metadata
-        metadata = DocumentMetadata(
-            document_id=document_id,
-            page_count=0,
-            file_size_bytes=0,
-            document_type="service_manual"
-        )
-        
-        return ProcessingResult(
-            document_id=document_id,
-            success=False,
-            metadata=metadata,
-            validation_errors=[error_message],
-            processing_time_seconds=processing_time,
-            statistics={'error': error_message}
-        )
+    ) -> Dict[str, Any]:
+        """Create failed processing result as dict"""
+        return {
+            'success': False,
+            'document_id': str(document_id),
+            'error': error_message,
+            'metadata': {
+                'page_count': 0,
+                'file_size_bytes': 0,
+            },
+            'chunks': [],
+            'products': [],
+            'error_codes': [],
+            'versions': [],
+            'images': [],
+            'statistics': {'error': error_message},
+            'processing_time': processing_time
+        }
 
 
 # Convenience function
