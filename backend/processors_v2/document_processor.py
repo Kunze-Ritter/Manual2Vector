@@ -15,6 +15,7 @@ from .product_extractor import ProductExtractor
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
 from .image_storage_processor import ImageStorageProcessor
+from .image_processor import ImageProcessor
 from .chunker import SmartChunker
 
 
@@ -48,6 +49,7 @@ class DocumentProcessor:
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
+        self.image_processor = ImageProcessor()  # Stage 3: Extract images
         self.image_storage = ImageStorageProcessor()  # R2 for images only
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
@@ -213,7 +215,7 @@ class DocumentProcessor:
             self.logger.success(f"Extracted {len(error_codes)} error codes")
             
             # Step 3b: Extract versions
-            self.logger.info("Step 3b/6: Extracting document versions...")
+            self.logger.info("Step 3b/7: Extracting document versions...")
             versions = []
             
             # Extract from first few pages (versions usually on title page)
@@ -232,8 +234,22 @@ class DocumentProcessor:
             else:
                 self.logger.info("No version found")
             
+            # Step 3c: Extract images
+            self.logger.info("Step 3c/7: Extracting images...")
+            images = []
+            image_result = self.image_processor.process_document(
+                document_id=document_id,
+                pdf_path=file_path
+            )
+            
+            if image_result['success']:
+                images = image_result['images']
+                self.logger.success(f"Extracted {len(images)} images")
+            else:
+                self.logger.warning(f"Image extraction failed: {image_result.get('error')}")
+            
             # Step 4: Create chunks
-            self.logger.info("Step 4/6: Chunking text...")
+            self.logger.info("Step 4/7: Chunking text...")
             chunks = self.chunker.chunk_document(page_texts, document_id)
             
             # Deduplicate
@@ -242,9 +258,9 @@ class DocumentProcessor:
             self.logger.success(f"Created {len(chunks)} chunks")
             
             # Step 5: Statistics
-            self.logger.info("Step 5/6: Calculating statistics...")
+            self.logger.info("Step 5/7: Calculating statistics...")
             statistics = self._calculate_statistics(
-                page_texts, products, error_codes, versions, chunks
+                page_texts, products, error_codes, versions, images, chunks
             )
             
             # Create result
@@ -337,6 +353,7 @@ class DocumentProcessor:
         products: list,
         error_codes: list,
         versions: list,
+        images: list,
         chunks: list
     ) -> dict:
         """Calculate processing statistics"""
@@ -367,6 +384,12 @@ class DocumentProcessor:
             if versions else 0
         )
         
+        # Image types distribution
+        image_types = {}
+        for img in images:
+            img_type = img.get('type', 'unknown')
+            image_types[img_type] = image_types.get(img_type, 0) + 1
+        
         return {
             'total_pages': len(page_texts),
             'total_characters': total_chars,
@@ -375,10 +398,12 @@ class DocumentProcessor:
             'total_products': len(products),
             'total_error_codes': len(error_codes),
             'total_versions': len(versions),
+            'total_images': len(images),
             'avg_product_confidence': round(avg_product_conf, 2),
             'avg_error_code_confidence': round(avg_error_conf, 2),
             'avg_version_confidence': round(avg_version_conf, 2),
             'chunk_types': chunk_types,
+            'image_types': image_types,
             'avg_chunk_size': round(total_chars / len(chunks), 0) if chunks else 0
         }
     
