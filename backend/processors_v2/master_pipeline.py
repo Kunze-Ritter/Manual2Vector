@@ -400,37 +400,39 @@ class MasterPipeline:
                 # Convert ExtractedProduct to dict if needed
                 prod_data = product if isinstance(product, dict) else {
                     'model_number': getattr(product, 'model_number', ''),
-                    'series': getattr(product, 'series', None),
-                    'manufacturer': getattr(product, 'manufacturer', None),
+                    'series': getattr(product, 'product_series', None),
+                    'manufacturer_name': getattr(product, 'manufacturer_name', None),
                     'product_type': getattr(product, 'product_type', 'printer'),
                     'confidence': getattr(product, 'confidence', 0.0)
                 }
                 
                 # Find or create manufacturer
                 manufacturer_id = None
-                if prod_data.get('manufacturer'):
+                manufacturer_name = prod_data.get('manufacturer_name')
+                if manufacturer_name:
                     try:
                         # Try to find existing manufacturer
                         mfr_result = self.supabase.table('manufacturers') \
                             .select('id') \
-                            .ilike('name', f"%{prod_data['manufacturer']}%") \
+                            .ilike('name', f"%{manufacturer_name}%") \
                             .limit(1) \
                             .execute()
                         
                         if mfr_result.data:
                             # Manufacturer exists
                             manufacturer_id = mfr_result.data[0]['id']
+                            self.logger.info(f"✅ Found manufacturer: {manufacturer_name}")
                         else:
                             # Create new manufacturer (only name is required)
                             new_mfr = self.supabase.table('manufacturers').insert({
-                                'name': prod_data['manufacturer']
+                                'name': manufacturer_name
                             }).execute()
                             
                             if new_mfr.data:
                                 manufacturer_id = new_mfr.data[0]['id']
-                                self.logger.info(f"✅ Created new manufacturer: {prod_data['manufacturer']}")
+                                self.logger.info(f"✅ Created new manufacturer: {manufacturer_name}")
                     except Exception as e:
-                        self.logger.error(f"❌ Failed to find/create manufacturer '{prod_data.get('manufacturer')}': {e}")
+                        self.logger.error(f"❌ Failed to find/create manufacturer '{manufacturer_name}': {e}")
                         import traceback
                         self.logger.error(traceback.format_exc())
                 
@@ -444,6 +446,7 @@ class MasterPipeline:
                     'manufacturer_id': manufacturer_id,
                     'product_type': prod_data.get('product_type', 'printer'),
                     'metadata': {
+                        'manufacturer_name': manufacturer_name,
                         'confidence': prod_data.get('confidence', 0.8),
                         'series': prod_data.get('series'),
                         'extracted_from_document': str(document_id),
