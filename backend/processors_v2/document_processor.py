@@ -350,6 +350,28 @@ class DocumentProcessor:
             links = links_result.get('links', [])
             videos = links_result.get('videos', [])
             
+            # Analyze video thumbnails with OCR and Vision AI
+            if videos:
+                self.logger.info(f"Analyzing {len(videos)} video thumbnails...")
+                analyzed_count = 0
+                for video in videos:
+                    try:
+                        analyzed_video = self.link_extractor.analyze_video_thumbnail(
+                            video_metadata=video,
+                            enable_ocr=True,
+                            enable_vision=True
+                        )
+                        # Update video with analysis results
+                        video.update(analyzed_video)
+                        
+                        if 'thumbnail_ai_description' in analyzed_video or 'thumbnail_ocr_text' in analyzed_video:
+                            analyzed_count += 1
+                    except Exception as e:
+                        self.logger.debug(f"Thumbnail analysis failed for video {video.get('youtube_id')}: {e}")
+                
+                if analyzed_count > 0:
+                    self.logger.success(f"✅ Analyzed {analyzed_count}/{len(videos)} video thumbnails")
+            
             if links:
                 self.logger.success(f"Extracted {len(links)} links ({len(videos)} videos)")
             

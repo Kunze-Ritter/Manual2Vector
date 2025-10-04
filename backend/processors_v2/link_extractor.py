@@ -230,11 +230,14 @@ class LinkExtractor:
                     # Parse duration (PT15M33S -> seconds)
                     duration = self._parse_youtube_duration(details.get('duration', ''))
                     
+                    thumbnail_url = snippet.get('thumbnails', {}).get('high', {}).get('url') or \
+                                   snippet.get('thumbnails', {}).get('default', {}).get('url')
+                    
                     return {
                         'youtube_id': youtube_id,
                         'title': snippet.get('title'),
                         'description': snippet.get('description'),
-                        'thumbnail_url': snippet.get('thumbnails', {}).get('high', {}).get('url'),
+                        'thumbnail_url': thumbnail_url,
                         'duration': duration,
                         'view_count': int(stats.get('viewCount', 0)),
                         'like_count': int(stats.get('likeCount', 0)),
@@ -282,6 +285,98 @@ class LinkExtractor:
         except Exception as e:
             self.logger.warning(f"Failed to fetch YouTube metadata for {youtube_id}: {e}")
             return None
+    
+    def analyze_video_thumbnail(
+        self,
+        video_metadata: Dict,
+        enable_ocr: bool = True,
+        enable_vision: bool = True
+    ) -> Dict:
+        """
+        Analyze video thumbnail with OCR and Vision AI
+        
+        Args:
+            video_metadata: Video metadata dict with thumbnail_url
+            enable_ocr: Run OCR on thumbnail
+            enable_vision: Run Vision AI on thumbnail
+            
+        Returns:
+            Updated video_metadata with thumbnail_ocr_text and thumbnail_ai_description
+        """
+        thumbnail_url = video_metadata.get('thumbnail_url')
+        if not thumbnail_url:
+            return video_metadata
+        
+        try:
+            import requests
+            from PIL import Image
+            from io import BytesIO
+            import base64
+            
+            # Download thumbnail
+            response = requests.get(thumbnail_url, timeout=10)
+            if response.status_code != 200:
+                return video_metadata
+            
+            thumbnail_image = Image.open(BytesIO(response.content))
+            
+            # OCR on thumbnail
+            if enable_ocr:
+                try:
+                    import pytesseract
+                    ocr_text = pytesseract.image_to_string(thumbnail_image)
+                    if ocr_text.strip():
+                        video_metadata['thumbnail_ocr_text'] = ocr_text.strip()
+                        self.logger.debug(f"OCR extracted {len(ocr_text)} chars from video thumbnail")
+                except Exception as e:
+                    self.logger.debug(f"Thumbnail OCR failed: {e}")
+            
+            # Vision AI on thumbnail
+            if enable_vision:
+                try:
+                    import os
+                    ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+                    
+                    # Check for vision model
+                    models_response = requests.get(f"{ollama_url}/api/tags", timeout=2)
+                    models = models_response.json().get('models', [])
+                    vision_models = [m for m in models if 'llava' in m.get('name', '').lower()]
+                    
+                    if vision_models:
+                        # Convert image to base64
+                        buffer = BytesIO()
+                        thumbnail_image.save(buffer, format='JPEG')
+                        image_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                        
+                        # Analyze with LLaVA
+                        prompt = """Briefly describe this video thumbnail in 1-2 sentences. 
+What is shown? Is it a tutorial, demonstration, or presentation?
+Any visible text or product names?"""
+                        
+                        vision_response = requests.post(
+                            f"{ollama_url}/api/generate",
+                            json={
+                                "model": vision_models[0]['name'],
+                                "prompt": prompt,
+                                "images": [image_data],
+                                "stream": False
+                            },
+                            timeout=20
+                        )
+                        
+                        if vision_response.status_code == 200:
+                            description = vision_response.json().get('response', '').strip()
+                            if description:
+                                video_metadata['thumbnail_ai_description'] = description
+                                self.logger.debug(f"Vision AI analyzed thumbnail: {description[:50]}...")
+                except Exception as e:
+                    self.logger.debug(f"Thumbnail Vision AI failed: {e}")
+            
+            return video_metadata
+            
+        except Exception as e:
+            self.logger.debug(f"Thumbnail analysis failed: {e}")
+            return video_metadata
     
     def _parse_youtube_duration(self, duration_str: str) -> Optional[int]:
         """
