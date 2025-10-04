@@ -13,6 +13,7 @@ from .logger import get_logger, log_processing_summary
 from .models import ProcessingResult, DocumentMetadata
 from .text_extractor import TextExtractor
 from .product_extractor import ProductExtractor
+from .parts_extractor import PartsExtractor
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
 from .image_storage_processor import ImageStorageProcessor
@@ -53,6 +54,7 @@ class DocumentProcessor:
         # Initialize extractors
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
+        self.parts_extractor = PartsExtractor()
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
         self.image_processor = ImageProcessor(supabase_client=supabase_client)
@@ -197,6 +199,37 @@ class DocumentProcessor:
             
             self.logger.success(f"Extracted {len(products)} products")
             
+            # Step 2c: Extract parts (for parts catalogs)
+            self.logger.info("Step 2c/5: Extracting spare parts...")
+            parts = []
+            
+            # Only extract parts if this is a parts catalog
+            if metadata and metadata.document_type == "parts_catalog":
+                # Get manufacturer name for pattern matching
+                part_manufacturer = None
+                if products:
+                    # Use manufacturer from first product
+                    part_manufacturer = products[0].manufacturer_name
+                elif self.manufacturer and self.manufacturer != "AUTO":
+                    part_manufacturer = self.manufacturer
+                
+                # Extract parts from all pages
+                with self.logger.progress_bar(page_texts.items(), "Scanning for parts") as progress:
+                    task = progress.add_task("Scanning pages", total=len(page_texts))
+                    
+                    for page_num, text in page_texts.items():
+                        page_parts = self.parts_extractor.extract_parts(
+                            text=text,
+                            manufacturer_name=part_manufacturer,
+                            page_number=page_num
+                        )
+                        parts.extend(page_parts)
+                        progress.update(task, advance=1)
+                
+                self.logger.success(f"Extracted {len(parts)} spare parts")
+            else:
+                self.logger.info(">> parts skipped (not a parts catalog)")
+            
             # Step 3: Extract error codes
             self.logger.info("Step 3/5: Extracting error codes...")
             error_codes = []
@@ -304,6 +337,7 @@ class DocumentProcessor:
             )
             statistics['links_count'] = len(links)
             statistics['videos_count'] = len(videos)
+            statistics['parts_count'] = len(parts)
             
             # Create result
             processing_time = time.time() - start_time
@@ -314,6 +348,7 @@ class DocumentProcessor:
                 metadata=metadata,
                 chunks=chunks,
                 products=products,
+                parts=parts,
                 error_codes=error_codes,
                 versions=versions,
                 links=links,

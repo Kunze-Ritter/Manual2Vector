@@ -1,0 +1,699 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Parts Number Patterns Configuration",
+    "description": "Manufacturer-specific patterns for extracting part numbers from documents",
+    
+    "hp": {
+      "manufacturer_name": "HP",
+      "patterns": [
+        {
+          "name": "rm_series",
+          "pattern": "\\bRM\\d{1,2}-\\d{4}-\\d{3}[A-Z]{0,2}\\b",
+          "description": "HP RM series parts (e.g., RM1-1234-000, RM2-5424-000CN)",
+          "examples": ["RM1-1234-000", "RM2-5678-001", "RM2-5391-000CN", "RM1-2522-000CN"],
+          "confidence": 0.95
+        },
+        {
+          "name": "w_series_plotter",
+          "pattern": "\\bW\\d[A-Z]\\d{2}-\\d{5}\\b",
+          "description": "HP Plotter W series parts (e.g., W1A51-69001)",
+          "examples": ["W1A51-69001", "W1A52-69001", "W1A53-69004"],
+          "confidence": 0.95
+        },
+        {
+          "name": "cf_series_parts",
+          "pattern": "\\bCF\\d{3}-\\d{5}\\b",
+          "description": "HP CF series parts (e.g., CF259-67901)",
+          "examples": ["CF259-67901", "CF258-67901", "CF276-67901"],
+          "confidence": 0.93
+        },
+        {
+          "name": "toner_cartridge",
+          "pattern": "\\b[A-Z]{2}\\d{3}[A-Z]{1,2}\\b",
+          "description": "HP toner cartridges (e.g., CF280A, Q7553X)",
+          "examples": ["CF280A", "Q7553X", "CE285A", "CC364A", "CF283A", "CF283X"],
+          "confidence": 0.90
+        },
+        {
+          "name": "maintenance_kit",
+          "pattern": "\\b[A-Z]\\d{4}[A-Z]\\b",
+          "description": "HP maintenance kits (e.g., C9152A)",
+          "examples": ["C9152A", "Q5421A", "Q7833A"],
+          "confidence": 0.85
+        },
+        {
+          "name": "fuser_assembly",
+          "pattern": "\\bRM\\d-\\d{4}-\\d{3}[A-Z]{2}\\b",
+          "description": "HP fuser assemblies",
+          "examples": ["RM1-2522-000CN", "RM1-4554-020CN"],
+          "confidence": 0.92
+        },
+        {
+          "name": "plotter_parts_c_series",
+          "pattern": "\\bC\\d{4}-\\d{5}\\b",
+          "description": "HP Plotter C series parts (e.g., C7769-60182)",
+          "examples": ["C7769-60182", "C7769-60391", "C7769-60409"],
+          "confidence": 0.92
+        },
+        {
+          "name": "plotter_parts_cq_series",
+          "pattern": "\\bCQ\\d{3}-\\d{5}[A-Z]?\\b",
+          "description": "HP Plotter CQ series parts (e.g., CQ893-67031)",
+          "examples": ["CQ893-67031", "CQ890-40339", "CQ890-67108"],
+          "confidence": 0.93
+        },
+        {
+          "name": "plotter_ink_cartridges",
+          "pattern": "\\bC\\d{4}[A-Z]\\b",
+          "description": "HP Plotter ink cartridges (e.g., C4810A)",
+          "examples": ["C4810A", "C4811A", "C4812A", "C4813A"],
+          "confidence": 0.91
+        }
+      ],
+      "exclude_patterns": [
+        "\\b[A-Z]{2}\\d{3}[A-Z]\\s*\\d{4}\\b"
+      ]
+    },
+    
+    "canon": {
+      "manufacturer_name": "Canon",
+      "patterns": [
+        {
+          "name": "f_series_parts",
+          "pattern": "\\bF[A-Z]*\\d-\\d{4}-\\d{3}\\b",
+          "description": "Canon F series parts (e.g., F17-9231-000, FL0-2604-000)",
+          "examples": ["F17-9231-000", "FL0-2604-000", "FK4-5598-000", "FU6-8646-000"],
+          "confidence": 0.96
+        },
+        {
+          "name": "fe_series_parts", 
+          "pattern": "\\bFE\\d-[A-Z]*\\d{4}-\\d{3}\\b",
+          "description": "Canon FE series parts (e.g., FE3-9079-000)",
+          "examples": ["FE3-9079-000", "FE2-D430-000", "FE4-9082-000"],
+          "confidence": 0.95
+        },
+        {
+          "name": "qm_series_plotter",
+          "pattern": "\\bQM\\d-\\d{4}-\\d{3}\\b",
+          "description": "Canon Plotter QM series parts (e.g., QM4-6690-000)",
+          "examples": ["QM4-6690-000", "QM4-2879-000", "QM4-4905-000"],
+          "confidence": 0.95
+        },
+        {
+          "name": "qd_series_plotter",
+          "pattern": "\\bQD\\d-\\d{4}-\\d{3}\\b",
+          "description": "Canon Plotter QD series parts (e.g., QD1-2159-000)",
+          "examples": ["QD1-2159-000", "QD1-2705-000", "QD1-2729-000"],
+          "confidence": 0.94
+        },
+        {
+          "name": "xa_xb_xd_series",
+          "pattern": "\\bX[A-Z]\\d-\\d{4}-\\d{3}\\b",
+          "description": "Canon XA/XB/XD series parts (e.g., XA9-1386-000)",
+          "examples": ["XA9-1386-000", "XB1-2302-005", "XD9-0334-000"],
+          "confidence": 0.93
+        },
+        {
+          "name": "toner_cartridge",
+          "pattern": "\\bCRG-?\\d{3}[A-Z]{0,3}\\b",
+          "description": "Canon cartridge (e.g., CRG-137, CRG328)",
+          "examples": ["CRG-137", "CRG328", "CRG-725", "CRG-708"],
+          "confidence": 0.92
+        },
+        {
+          "name": "parts_with_prefix",
+          "pattern": "\\b[A-Z]{2}\\d-\\d{4}-\\d{3}\\b",
+          "description": "Canon parts with prefix (e.g., FM2-5383-000)",
+          "examples": ["FM2-5383-000", "RB2-5934-000"],
+          "confidence": 0.90
+        },
+        {
+          "name": "maintenance_parts",
+          "pattern": "\\bFM\\d-\\d{4}-\\d{3}\\b",
+          "description": "Canon maintenance parts (e.g., FM4-8445-000)",
+          "examples": ["FM4-8445-000", "FM2-9302-000", "FM1-V137"],
+          "confidence": 0.94
+        }
+      ]
+    },
+    
+    "konica_minolta": {
+      "manufacturer_name": "Konica Minolta",
+      "patterns": [
+        {
+          "name": "a_series_parts",
+          "pattern": "\\bA[0-9A-Z]{3,4}[P-R]*[P]*\\d{4,5}\\b",
+          "description": "Konica Minolta A-series parts (e.g., A6F7PP0000, A63NPP1C00)",
+          "examples": ["A6F7PP0000", "A63NPP1C00", "A0ED-R70100", "A50UR70100"],
+          "confidence": 0.95
+        },
+        {
+          "name": "acer_series_parts",
+          "pattern": "\\bACER[A-Z]{2}\\d{4}\\b",
+          "description": "Konica Minolta ACER series parts (e.g., ACERPP2400)",
+          "examples": ["ACERPP2400", "ACERPP1700"],
+          "confidence": 0.94
+        },
+        {
+          "name": "numeric_parts_302",
+          "pattern": "\\b302[A-Z]{2}\\d{5}\\b",
+          "description": "Konica Minolta 302 series parts (e.g., 302RV04030)",
+          "examples": ["302RV04030", "302RR04010"],
+          "confidence": 0.93
+        },
+        {
+          "name": "numeric_parts_2c",
+          "pattern": "\\b2[A-Z]*\\d{6}\\b",
+          "description": "Konica Minolta 2C series parts (e.g., 2C904010)",
+          "examples": ["2C904010", "2C982010", "2RV04030"],
+          "confidence": 0.85
+        },
+        {
+          "name": "toner_cartridge",
+          "pattern": "\\bTN-?\\d{3}[A-Z]?\\b",
+          "description": "Konica Minolta toner (e.g., TN-321K, TN321)",
+          "examples": ["TN-321K", "TN321", "TN-512", "TN711"],
+          "confidence": 0.90
+        },
+        {
+          "name": "drum_unit",
+          "pattern": "\\bDR-?\\d{3}[A-Z]?\\b",
+          "description": "Konica Minolta drums (e.g., DR-311)",
+          "examples": ["DR-311", "DR512", "DR-711K"],
+          "confidence": 0.92
+        },
+        {
+          "name": "maintenance_kit",
+          "pattern": "\\bMK-?\\d{4}[A-Z]?\\b",
+          "description": "Konica Minolta maintenance kits (e.g., MK-8515B)",
+          "examples": ["MK-8515B", "MK-3382"],
+          "confidence": 0.91
+        },
+        {
+          "name": "parts_4digit_numeric",
+          "pattern": "\\b\\d{4}[\\d-]{3,7}\\b",
+          "description": "Konica Minolta 4-digit parts (e.g., 4049-611, 4034572201)",
+          "examples": ["4049-611", "1234-5678", "8938-402", "4034572201"],
+          "confidence": 0.85
+        }
+      ]
+    },
+    
+    "fujifilm": {
+      "manufacturer_name": "Fujifilm",
+      "patterns": [
+        {
+          "name": "ct_toner_cartridges",
+          "pattern": "\\bCT\\d{6}\\b",
+          "description": "Fujifilm CT toner cartridges (e.g., CT202508, CT203035)",
+          "examples": ["CT202508", "CT202509", "CT203035", "CT203582", "CT203583", "CT351144"],
+          "confidence": 0.93
+        },
+        {
+          "name": "ct_extended_toner",
+          "pattern": "\\bCT\\d{6}[A-Z]?\\b",
+          "description": "Fujifilm extended CT toner series",
+          "examples": ["CT203585", "CT203586"],
+          "confidence": 0.92
+        },
+        {
+          "name": "cwaa_consumables_revorio",
+          "pattern": "\\bCWAA\\d{4}\\b",
+          "description": "Fujifilm Revorio CWAA consumables (e.g., CWAA1024, CWAA1032)",
+          "examples": ["CWAA1024", "CWAA1032", "CWAA0677", "CWAA0856"],
+          "confidence": 0.95
+        },
+        {
+          "name": "apeos_toner_alternative",
+          "pattern": "\\bCT\\d{3}[\\d]{3}[A-Z]?\\b",
+          "description": "Fujifilm Apeos alternative toner patterns",
+          "examples": ["CT202330", "CT201115", "CT350823"],
+          "confidence": 0.90
+        }
+      ]
+    },
+    
+    "ricoh": {
+      "manufacturer_name": "Ricoh", 
+      "patterns": [
+        {
+          "name": "m_series_7digit",
+          "pattern": "\\bM\\d{7}\\b",
+          "description": "Ricoh M series 7-digit parts (e.g., M0261285)",
+          "examples": ["M0261285", "M0261250", "M0262900", "M0263208"],
+          "confidence": 0.94
+        },
+        {
+          "name": "d_series_7digit", 
+          "pattern": "\\bD\\d{7}\\b",
+          "description": "Ricoh D series 7-digit parts (e.g., D0391254)",
+          "examples": ["D0391254", "D0391259", "D0291484", "D3664242"],
+          "confidence": 0.93
+        },
+        {
+          "name": "b_series_7digit",
+          "pattern": "\\bB\\d{7}\\b", 
+          "description": "Ricoh B series 7-digit parts (e.g., B2591367)",
+          "examples": ["B2591367", "B2381534", "B7894332", "B8722529"],
+          "confidence": 0.92
+        },
+        {
+          "name": "a_series_extended",
+          "pattern": "\\bA[A-Z]?\\d{6,8}\\b",
+          "description": "Ricoh A series extended parts (e.g., AA010122, AF030363)",
+          "examples": ["AA010122", "AA143584", "AF030363", "AW020141", "AC012069"],
+          "confidence": 0.90
+        },
+        {
+          "name": "g_series_7digit",
+          "pattern": "\\bG[A-Z]?\\d{6,7}\\b",
+          "description": "Ricoh G series parts (e.g., GW010007, G5701225)",
+          "examples": ["GW010007", "G5701225", "G0652767", "GA003030"],
+          "confidence": 0.88
+        },
+        {
+          "name": "numeric_with_suffix",
+          "pattern": "\\b\\d{8,9}[A-Z]\\b",
+          "description": "Ricoh numeric parts with letter suffix (e.g., 03603006N)",
+          "examples": ["03603006N", "04513006N", "07200040E", "08050088"],
+          "confidence": 0.87
+        },
+        {
+          "name": "toner_6digit",
+          "pattern": "\\b8[4-9]\\d{4}\\b",
+          "description": "Ricoh 6-digit toner starting with 8 (e.g., 841918)",
+          "examples": ["841918", "888260", "842044"],
+          "confidence": 0.85
+        },
+        {
+          "name": "unit_codes",
+          "pattern": "\\bU\\d{3}\\b",
+          "description": "Ricoh unit codes (e.g., U001, U002)",
+          "examples": ["U001", "U002", "U003"],
+          "confidence": 0.83
+        }
+      ]
+    },
+    
+    "riso": {
+      "manufacturer_name": "Riso",
+      "patterns": [
+        {
+          "name": "3digit_dash_5digit",
+          "pattern": "\\b\\d{3}-\\d{5}-\\d{3}\\b",
+          "description": "Riso 3-5-3 digit parts (e.g., 014-12101-000)",
+          "examples": ["014-12101-000", "008-24110-000", "009-35406-005", "007-58030-105"],
+          "confidence": 0.94
+        },
+        {
+          "name": "3digit_dash_8digit",
+          "pattern": "\\b\\d{3}-\\d{8}\\b",
+          "description": "Riso 3-8 digit parts (e.g., 008-50016-305)",
+          "examples": ["008-50016-305", "007-95751-050", "008-95700-002", "009-89015-109"],
+          "confidence": 0.93
+        },
+        {
+          "name": "3digit_dash_5digit_simple",
+          "pattern": "\\b\\d{3}-\\d{5}\\b",
+          "description": "Riso 3-5 digit parts (e.g., 011-11111)",
+          "examples": ["011-11111", "011-11112", "011-11113", "011-11201"],
+          "confidence": 0.90
+        },
+        {
+          "name": "comcolor_long_parts",
+          "pattern": "\\b\\d{3}-\\d{5}-\\d{3}\\b",
+          "description": "Riso ComColor long parts (e.g., 011-55072-403)",
+          "examples": ["011-55072-403", "011-60001-107", "011-60004-106", "011-65001-105"],
+          "confidence": 0.92
+        },
+        {
+          "name": "short_numeric_riso",
+          "pattern": "\\b\\d{6}-\\d{3}\\b",
+          "description": "Riso short numeric parts (e.g., 023740-068)",
+          "examples": ["023740-068"],
+          "confidence": 0.85
+        },
+        {
+          "name": "hi_mlcs_clutch",
+          "pattern": "\\bHI-MLCS-\\d{2}\\b",
+          "description": "Riso HI-MLCS clutch parts (e.g., HI-MLCS-11)",
+          "examples": ["HI-MLCS-11"],
+          "confidence": 0.88
+        }
+      ]
+    },
+    
+    "sharp": {
+      "manufacturer_name": "Sharp",
+      "patterns": [
+        {
+          "name": "complex_alphanumeric",
+          "pattern": "\\b[A-Z]{4,5}Z?\\d{4}QSZ[A-Z0-9]\\b",
+          "description": "Sharp complex alphanumeric codes (e.g., LHLDZ0044QSZ2)",
+          "examples": ["LHLDZ0044QSZ2", "XBPS740P06KS0", "GCAB-0070QSZ2", "PGIDM0110QSZZ"],
+          "confidence": 0.96
+        },
+        {
+          "name": "ar_series",
+          "pattern": "\\bAR-[A-Z]{2}\\d{1,2}\\b",
+          "description": "Sharp AR series parts (e.g., AR-SC2)",
+          "examples": ["AR-SC2"],
+          "confidence": 0.94
+        },
+        {
+          "name": "fq_series",
+          "pattern": "\\bFQ-[A-Z]{2}\\d{2}\\b",
+          "description": "Sharp FQ series parts (e.g., FQ-SS35)",
+          "examples": ["FQ-SS35"],
+          "confidence": 0.93
+        }
+      ]
+    },
+    
+    "kyocera": {
+      "manufacturer_name": "Kyocera",
+      "patterns": [
+        {
+          "name": "numeric_parts_302",
+          "pattern": "\\b302[A-Z]{2}\\d{5}\\b",
+          "description": "Kyocera 302 series parts (e.g., 302RV04030)",
+          "examples": ["302RV04030", "302RV04040"],
+          "confidence": 0.95
+        },
+        {
+          "name": "numeric_parts_2c",
+          "pattern": "\\b2[A-Z]*\\d{6}\\b",
+          "description": "Kyocera 2C series parts (e.g., 2C904010)",
+          "examples": ["2C904010", "2C982010", "2C918010"],
+          "confidence": 0.90
+        },
+        {
+          "name": "maintenance_kit",
+          "pattern": "\\bMK-?\\d{4}[A-Z]?\\b",
+          "description": "Kyocera maintenance kits (e.g., MK-3382)",
+          "examples": ["MK-3382", "MK-8515B"],
+          "confidence": 0.93
+        },
+        {
+          "name": "dk_drum_kit",
+          "pattern": "\\bDK-?\\d{3,4}\\b",
+          "description": "Kyocera drum kits (e.g., DK895, DK-1150)",
+          "examples": ["DK895", "DK896", "DK-1150", "DK1150"],
+          "confidence": 0.94
+        },
+        {
+          "name": "long_numeric_parts",
+          "pattern": "\\b17[0-9]{8}\\b",
+          "description": "Kyocera long numeric parts (e.g., 1702ND0UN0)",
+          "examples": ["1702ND0UN0", "1702V80KL1", "170C0T7US0"],
+          "confidence": 0.88
+        }
+      ]
+    },
+    
+    "brother": {
+      "manufacturer_name": "Brother",
+      "patterns": [
+        {
+          "name": "d_series_7digit",
+          "pattern": "\\bD\\d{2}[A-Z]*\\d{6}\\b",
+          "description": "Brother D series 7+ digit parts (e.g., D00DST001)",
+          "examples": ["D00DST001", "D00PVE001", "D00DSW001"],
+          "confidence": 0.95
+        },
+        {
+          "name": "l_series_parts",
+          "pattern": "\\bL[A-Z]\\d{7}\\b",
+          "description": "Brother L series parts (e.g., LY7750001)",
+          "examples": ["LY7750001", "LY7750002", "LR0252001", "LU4924001", "LV1282001"],
+          "confidence": 0.93
+        },
+        {
+          "name": "toner_cartridge",
+          "pattern": "\\bTN-?\\d{3,4}[A-Z]{0,2}\\b",
+          "description": "Brother toner (e.g., TN-2320, TN660)",
+          "examples": ["TN-2320", "TN660", "TN-450"],
+          "confidence": 0.92
+        },
+        {
+          "name": "drum_unit",
+          "pattern": "\\bDR-?\\d{3,4}[A-Z]{0,2}\\b",
+          "description": "Brother drum (e.g., DR-2300, DR630)",
+          "examples": ["DR-2300", "DR630", "DR-420"],
+          "confidence": 0.90
+        }
+      ]
+    },
+    
+    "xerox": {
+      "manufacturer_name": "Xerox",
+      "patterns": [
+        {
+          "name": "long_numeric_parts",
+          "pattern": "\\b\\d{9}\\b",
+          "description": "Xerox 9-digit parts (e.g., 200467880)",
+          "examples": ["200467880", "131714380", "386740780", "657012880"],
+          "confidence": 0.87
+        },
+        {
+          "name": "r_series_parts", 
+          "pattern": "\\b\\d{3}R\\d{5}\\b",
+          "description": "Xerox R series parts (e.g., 109R00736)",
+          "examples": ["109R00736", "115R00119", "115R00120"],
+          "confidence": 0.92
+        },
+        {
+          "name": "toner_cartridge",
+          "pattern": "\\b\\d{3}[SRT]\\d{5}\\b", 
+          "description": "Xerox toner (e.g., 006R01513)",
+          "examples": ["006R01513", "106R02763"],
+          "confidence": 0.92
+        },
+        {
+          "name": "parts_numeric_dash",
+          "pattern": "\\b\\d{3}-\\d{5}\\b",
+          "description": "Xerox parts with dash (e.g., 604-02390)",
+          "examples": ["604-02390", "544-00123"],
+          "confidence": 0.88
+        },
+        {
+          "name": "maintenance_kit",
+          "pattern": "\\b\\d{6}K\\d{5}\\b",
+          "description": "Xerox maintenance kits (e.g., 126K34181)",
+          "examples": ["126K34181", "126K34414", "126K39430"],
+          "confidence": 0.90
+        },
+        {
+          "name": "production_press_parts",
+          "pattern": "\\b\\d{2}[A-Z]\\d{5}\\b",
+          "description": "Xerox Production Press parts (e.g., 94K92334, 33E93320)",
+          "examples": ["94K92334", "33E93320", "94K92333"],
+          "confidence": 0.89
+        },
+        {
+          "name": "wide_format_parts",
+          "pattern": "\\b\\d{2}[A-Z]\\d{5}\\b",
+          "description": "Xerox Wide Format parts (e.g., 33K94740)",
+          "examples": ["33K94740", "33E93320"],
+          "confidence": 0.87
+        }
+      ]
+    },
+    
+    "lexmark": {
+      "manufacturer_name": "Lexmark",
+      "patterns": [
+        {
+          "name": "standard_parts_40x",
+          "pattern": "\\b40X\\d{4}[-\\d]*\\b",
+          "description": "Lexmark 40X series parts (e.g., 40X1234, 40X0005-000)",
+          "examples": ["40X1234", "40X2642", "40X2169", "40X4506", "40X0050", "40X0005-000"],
+          "confidence": 0.94
+        },
+        {
+          "name": "maintenance_kit",
+          "pattern": "\\b40X\\d{4}\\b",
+          "description": "Lexmark maintenance kits (e.g., 40X9138)",
+          "examples": ["40X9138"],
+          "confidence": 0.91
+        },
+        {
+          "name": "standard_parts_numeric",
+          "pattern": "\\b\\d{2}[A-Z]\\d{4}\\b",
+          "description": "Lexmark standard parts (e.g., 50F1000, 24B5580)",
+          "examples": ["50F1000", "24B5580", "52B0Z00"],
+          "confidence": 0.90
+        },
+        {
+          "name": "toner_high_capacity",
+          "pattern": "\\b[A-Z]\\d{3}[HAX]\\d{2}[A-Z]\\b",
+          "description": "Lexmark high capacity toner (e.g., T650H11A)",
+          "examples": ["T650H11A", "C540A1KG", "E260A11A"],
+          "confidence": 0.92
+        },
+        {
+          "name": "drum_unit",
+          "pattern": "\\b\\d{2}B\\d{4}\\b",
+          "description": "Lexmark drum units (e.g., 52B0Z00)",
+          "examples": ["52B0Z00", "50B0Z00", "72B0Z00"],
+          "confidence": 0.88
+        }
+      ]
+    },
+    
+    "toshiba": {
+      "manufacturer_name": "Toshiba",
+      "patterns": [
+        {
+          "name": "7fm_series",
+          "pattern": "\\b7FM\\d{8}\\b",
+          "description": "Toshiba 7FM series parts (e.g., 7FM03685000)",
+          "examples": ["7FM03685000", "7FM06977000", "7FM00973000"],
+          "confidence": 0.96
+        },
+        {
+          "name": "fmqb_series",
+          "pattern": "\\bFM[A-Z]{2}\\d{7}\\b",
+          "description": "Toshiba FM series parts (e.g., FMQB0036201)",
+          "examples": ["FMQB0036201", "FMHC0024401"],
+          "confidence": 0.94
+        },
+        {
+          "name": "tsbc_series",
+          "pattern": "\\b0TSBC\\d{7}[A-Z]\\b",
+          "description": "Toshiba TSBC series parts (e.g., 0TSBC0112301F)",
+          "examples": ["0TSBC0112301F", "0TSBC0112501F"],
+          "confidence": 0.95
+        },
+        {
+          "name": "f0_series",
+          "pattern": "\\bF0-\\d{8}\\b",
+          "description": "Toshiba F0 series parts (e.g., F0-01473000)",
+          "examples": ["F0-01473000"],
+          "confidence": 0.93
+        }
+      ]
+    },
+    
+    "oki": {
+      "manufacturer_name": "OKI",
+      "patterns": [
+        {
+          "name": "8digit_parts",
+          "pattern": "\\b\\d{8}\\b",
+          "description": "OKI 8-digit parts (e.g., 45538601)",
+          "examples": ["45538601", "45180401", "45238101"],
+          "confidence": 0.85
+        },
+        {
+          "name": "44_46_series",
+          "pattern": "\\b4[4-6]\\d{6}\\b",
+          "description": "OKI 44/45/46 series parts (e.g., 44559001)",
+          "examples": ["44559001", "44579504", "44460701", "46361802", "46490404"],
+          "confidence": 0.88
+        }
+      ]
+    },
+    
+    "epson": {
+      "manufacturer_name": "Epson",
+      "patterns": [
+        {
+          "name": "7digit_parts",
+          "pattern": "\\b[12]\\d{6}\\b",
+          "description": "Epson 7-digit parts starting with 1 or 2 (e.g., 1563159)",
+          "examples": ["1563159", "1563173", "1606895", "1624279", "2143464", "2171913"],
+          "confidence": 0.80
+        },
+        {
+          "name": "ink_cartridge_t_series",
+          "pattern": "\\bT\\d{3,4}[0-9A-Z]{1,3}\\b",
+          "description": "Epson T series ink cartridge (e.g., T1301, T6641)",
+          "examples": ["T1301", "T6641", "T7011"],
+          "confidence": 0.92
+        },
+        {
+          "name": "fa_series",
+          "pattern": "\\bFA\\d{5}\\b",
+          "description": "Epson FA series parts (e.g., FA10030)",
+          "examples": ["FA10030"],
+          "confidence": 0.87
+        }
+      ]
+    },
+    
+    "generic": {
+      "manufacturer_name": "Generic",
+      "description": "Fallback patterns for unknown manufacturers",
+      "patterns": [
+        {
+          "name": "alphanumeric_with_dash",
+          "pattern": "\\b[A-Z]{1,3}\\d{3,5}-[A-Z0-9]{3,5}\\b",
+          "description": "Generic alphanumeric with dash",
+          "examples": ["AB123-456", "XYZ9999-ABC"],
+          "confidence": 0.70
+        },
+        {
+          "name": "part_number_prefix",
+          "pattern": "\\bP/?N[:\\s]+([A-Z0-9-]{5,20})\\b",
+          "description": "Part number with P/N prefix",
+          "examples": ["P/N: ABC-123-456", "PN: XYZ123"],
+          "confidence": 0.75
+        },
+        {
+          "name": "maintenance_kit_generic",
+          "pattern": "\\bMK[-\\s]?\\d{4}[A-Z]?\\b",
+          "description": "Generic maintenance kit patterns",
+          "examples": ["MK-3382", "MK 8515B", "MK3382"],
+          "confidence": 0.72
+        },
+        {
+          "name": "fuser_assembly_generic",
+          "pattern": "\\b[A-Z]{2,3}\\d{1,2}[-\\s]?\\d{4}[-\\s]?\\d{3}[A-Z]*\\b",
+          "description": "Generic fuser assembly patterns",
+          "examples": ["RM2-5692-000", "FM4-8445-000"],
+          "confidence": 0.73
+        },
+        {
+          "name": "drum_unit_generic",
+          "pattern": "\\bD[RK][-\\s]?\\d{3,4}[A-Z]*\\b",
+          "description": "Generic drum unit patterns", 
+          "examples": ["DR-311", "DK895", "DR 2300"],
+          "confidence": 0.74
+        }
+      ]
+    },
+    
+    "extraction_rules": {
+      "min_confidence": 0.70,
+      "max_parts_per_page": 50,
+      "context_window_chars": 200,
+      "require_context_keywords": [
+        "part", "spare", "component", "assembly", "kit", "cartridge", "toner", "drum", "fuser", "roller",
+        "maintenance", "service", "repair", "replacement", "consumable", "supply", "ink", "imaging",
+        "developer", "transfer", "pickup", "feed", "separation", "cleaning", "belt", "unit",
+        "fixing", "heating", "pressure", "sensor", "motor", "gear", "clutch", "solenoid",
+        "pc board", "formatter", "power supply", "cable", "harness", "bracket", "cover",
+        "actuator", "spring", "bushing", "bearing", "shaft", "pulley", "tensioner", "guide",
+        "staple", "punch", "waste", "tray", "cassette", "duplex", "finisher", "stacker"
+      ],
+      "exclude_if_near": [
+        "page", "figure", "table", "section", "chapter", "diagram", "illustration", "drawing", 
+        "step", "procedure", "note", "warning", "caution", "revision", "version", "model",
+        "serial", "copyright", "trademark", "patent", "license", "manual", "guide"
+      ],
+      "part_number_indicators": [
+        "part number", "part no", "part #", "p/n", "pn:", "item no", "code", "ref",
+        "catalog", "order", "replacement", "oem", "genuine", "compatible", "aftermarket",
+        "consumable", "supply", "cartridge", "yield", "capacity", "usage", "life"
+      ],
+      "consumable_types": [
+        "toner", "ink", "cartridge", "drum", "fuser", "maintenance kit", "developer",
+        "transfer belt", "waste toner", "cleaning blade", "pickup roller", "feed roller",
+        "separation pad", "imaging unit", "photoconductor", "opc drum", "charge roller",
+        "primary charge", "transfer roller", "fixing film", "pressure roller", "heat roller",
+        "thermistor", "temperature sensor", "cleaning web", "waste container", "staples",
+        "punch", "folding unit", "booklet maker", "stacker", "sorter", "collator"
+      ]
+    }
+  }

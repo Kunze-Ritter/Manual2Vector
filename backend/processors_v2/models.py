@@ -61,6 +61,27 @@ class ExtractedProduct(BaseModel):
         return v
 
 
+class ExtractedPart(BaseModel):
+    """Part/spare part extracted from parts catalog"""
+    part_number: str = Field(..., min_length=3, max_length=100)
+    part_name: Optional[str] = Field(None, max_length=255)
+    part_description: Optional[str] = None
+    part_category: Optional[str] = Field(None, max_length=100)
+    manufacturer_name: Optional[str] = None
+    unit_price_usd: Optional[float] = Field(None, ge=0.0)
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    pattern_name: Optional[str] = Field(None, description="Which pattern matched this part")
+    page_number: Optional[int] = None
+    context: Optional[str] = Field(None, max_length=500, description="Surrounding text context")
+    
+    @validator('part_number')
+    def validate_part_number(cls, v):
+        """Ensure part number is valid"""
+        if not v or len(v.strip()) < 3:
+            raise ValueError("Part number too short")
+        return v.strip().upper()
+
+
 class ExtractedErrorCode(BaseModel):
     """Error code extracted from document"""
     error_code: str = Field(..., pattern=r"^\d{2}\.\d{2}(\.\d{2})?$")
@@ -138,6 +159,7 @@ class ProcessingResult(BaseModel):
     metadata: DocumentMetadata
     chunks: List[TextChunk] = Field(default_factory=list)
     products: List[ExtractedProduct] = Field(default_factory=list)
+    parts: List[ExtractedPart] = Field(default_factory=list)
     error_codes: List[ExtractedErrorCode] = Field(default_factory=list)
     versions: List['ExtractedVersion'] = Field(default_factory=list)
     links: List[Dict[str, Any]] = Field(default_factory=list)
@@ -153,12 +175,14 @@ class ProcessingResult(BaseModel):
             "success": self.success,
             "chunks_created": len(self.chunks),
             "products_extracted": len(self.products),
+            "parts_extracted": len(self.parts),
             "error_codes_extracted": len(self.error_codes),
             "versions_extracted": len(self.versions),
             "links_extracted": len(self.links),
             "videos_extracted": len(self.videos),
             "validation_errors": len(self.validation_errors),
             "avg_product_confidence": sum(p.confidence for p in self.products) / len(self.products) if self.products else 0,
+            "avg_part_confidence": sum(p.confidence for p in self.parts) / len(self.parts) if self.parts else 0,
             "avg_error_code_confidence": sum(e.confidence for e in self.error_codes) / len(self.error_codes) if self.error_codes else 0,
             "avg_version_confidence": sum(v.confidence for v in self.versions) / len(self.versions) if self.versions else 0,
             "processing_time": f"{self.processing_time_seconds:.2f}s"

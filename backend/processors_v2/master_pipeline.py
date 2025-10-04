@@ -232,6 +232,11 @@ class MasterPipeline:
                 self._save_products(document_id, products)
                 self._save_document_products(document_id, products)
             
+            # Save parts (spare parts from parts catalogs)
+            parts = processing_result.get('parts', [])
+            if parts:
+                self._save_parts(document_id, parts)
+            
             # ==========================================
             # Update document metadata (manufacturer, models, etc.)
             # ==========================================
@@ -259,6 +264,7 @@ class MasterPipeline:
             self.logger.info(f"   Pages: {results['processing'].get('metadata', {}).get('page_count', 0)}")
             self.logger.info(f"   Chunks: {len(chunks)}")
             self.logger.info(f"   Products: {len(results['processing'].get('products', []))}")
+            self.logger.info(f"   Parts: {len(results['processing'].get('parts', []))}")
             self.logger.info(f"   Error Codes: {len(results['processing'].get('error_codes', []))}")
             self.logger.info(f"   Versions: {len(results['processing'].get('versions', []))}")
             self.logger.info(f"   Images: {len(images)}")
@@ -521,6 +527,84 @@ class MasterPipeline:
             
         except Exception as e:
             self.logger.error(f"Failed to save document_products: {e}")
+    
+    def _save_parts(self, document_id: UUID, parts: list):
+        """Save spare parts to krai_parts.parts_catalog table"""
+        try:
+            saved_count = 0
+            for part in parts:
+                # Convert ExtractedPart to dict if needed
+                part_data = part if isinstance(part, dict) else {
+                    'part_number': getattr(part, 'part_number', ''),
+                    'part_name': getattr(part, 'part_name', None),
+                    'part_description': getattr(part, 'part_description', None),
+                    'part_category': getattr(part, 'part_category', None),
+                    'manufacturer_name': getattr(part, 'manufacturer_name', None),
+                    'unit_price_usd': getattr(part, 'unit_price_usd', None),
+                    'confidence': getattr(part, 'confidence', 0.0),
+                    'pattern_name': getattr(part, 'pattern_name', None),
+                    'page_number': getattr(part, 'page_number', None)
+                }
+                
+                # Find or create manufacturer
+                manufacturer_id = None
+                manufacturer_name = part_data.get('manufacturer_name')
+                
+                if manufacturer_name:
+                    try:
+                        # Try to find existing manufacturer
+                        mfr_result = self.supabase.table('manufacturers') \
+                            .select('id') \
+                            .ilike('name', f"%{manufacturer_name}%") \
+                            .limit(1) \
+                            .execute()
+                        
+                        if mfr_result.data:
+                            manufacturer_id = mfr_result.data[0]['id']
+                        else:
+                            # Create new manufacturer
+                            new_mfr = self.supabase.table('manufacturers').insert({
+                                'name': manufacturer_name
+                            }).execute()
+                            
+                            if new_mfr.data:
+                                manufacturer_id = new_mfr.data[0]['id']
+                                self.logger.info(f"✅ Created manufacturer: {manufacturer_name}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to find/create manufacturer '{manufacturer_name}': {e}")
+                
+                # Skip if no manufacturer_id (required field)
+                if not manufacturer_id:
+                    self.logger.warning(f"❌ Skipping part {part_data.get('part_number')} - no manufacturer_id")
+                    continue
+                
+                # Prepare record for database
+                record = {
+                    'manufacturer_id': manufacturer_id,
+                    'part_number': part_data.get('part_number'),
+                    'part_name': part_data.get('part_name'),
+                    'part_description': part_data.get('part_description'),
+                    'part_category': part_data.get('part_category'),
+                    'unit_price_usd': part_data.get('unit_price_usd')
+                }
+                
+                # Check if part already exists
+                existing = self.supabase.table('parts_catalog') \
+                    .select('id') \
+                    .eq('part_number', record['part_number']) \
+                    .eq('manufacturer_id', manufacturer_id) \
+                    .limit(1) \
+                    .execute()
+                
+                if not existing.data:
+                    # Insert new part via public schema
+                    self.supabase.table('parts_catalog').insert(record).execute()
+                    saved_count += 1
+            
+            self.logger.success(f"Saved {saved_count} parts to database")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save parts: {e}")
     
     def _update_document_metadata(self, document_id: UUID, processing_result: Dict):
         """Update document with extracted manufacturer, models, series, version"""
