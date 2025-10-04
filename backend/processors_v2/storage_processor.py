@@ -13,6 +13,14 @@ Features:
 """
 
 import os
+from pathlib import Path as FilePath
+from dotenv import load_dotenv
+
+# Load .env from project root (2 levels up from this file)
+env_path = FilePath(__file__).parent.parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
+
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
