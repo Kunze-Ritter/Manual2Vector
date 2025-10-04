@@ -19,6 +19,7 @@ from .image_storage_processor import ImageStorageProcessor
 from .image_processor import ImageProcessor
 from .embedding_processor import EmbeddingProcessor
 from .chunker import SmartChunker
+from .link_extractor import LinkExtractor
 
 
 class DocumentProcessor:
@@ -28,6 +29,7 @@ class DocumentProcessor:
         self,
         manufacturer: str = "AUTO",
         chunk_size: int = 1000,
+        youtube_api_key: Optional[str] = None,
         chunk_overlap: int = 100,
         pdf_engine: str = "pymupdf",
         debug: bool = False,
@@ -49,17 +51,14 @@ class DocumentProcessor:
         self.logger = get_logger()
         
         # Initialize extractors
-        self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
-        self.image_processor = ImageProcessor()  # Stage 3: Extract images
+        self.image_processor = ImageProcessor(supabase_client=supabase_client)  # Stage 3: Extract images
         self.image_storage = ImageStorageProcessor(supabase_client=supabase_client)  # R2 for images with hash deduplication
-        self.embedding_processor = EmbeddingProcessor(supabase_client=supabase_client)  # Stage 7: Embeddings
-        self.chunker = SmartChunker(
-            chunk_size=chunk_size,
-            overlap_size=chunk_overlap
-        )
+        self.embedding_processor = EmbeddingProcessor()
+        self.chunker = SmartChunker(chunk_size=chunk_size, overlap_size=chunk_overlap)
+        self.link_extractor = LinkExtractor(youtube_api_key=youtube_api_key)
         
         # LLM extractor (optional, for specification sections)
         try:
@@ -255,7 +254,7 @@ class DocumentProcessor:
                 self.logger.info("No version found")
             
             # Step 3c: Extract images
-            self.logger.info("Step 3c/7: Extracting images...")
+            self.logger.info("Step 3c/8: Extracting images...")
             images = []
             image_result = self.image_processor.process_document(
                 document_id=document_id,
@@ -268,8 +267,21 @@ class DocumentProcessor:
             else:
                 self.logger.warning(f"Image extraction failed: {image_result.get('error')}")
             
+            # Step 3d: Extract links and videos
+            self.logger.info("Step 3d/8: Extracting links and videos...")
+            links_result = self.link_extractor.extract_from_document(
+                pdf_path=pdf_path,
+                page_texts=page_texts,
+                document_id=document_id
+            )
+            links = links_result.get('links', [])
+            videos = links_result.get('videos', [])
+            
+            if links:
+                self.logger.success(f"Extracted {len(links)} links ({len(videos)} videos)")
+            
             # Step 4: Create chunks
-            self.logger.info("Step 4/7: Chunking text...")
+            self.logger.info("Step 4/8: Chunking text...")
             chunks = self.chunker.chunk_document(page_texts, document_id)
             
             # Deduplicate
@@ -277,11 +289,20 @@ class DocumentProcessor:
             
             self.logger.success(f"Created {len(chunks)} chunks")
             
-            # Step 5: Statistics
-            self.logger.info("Step 5/7: Calculating statistics...")
+            # Step 5: Save links and videos to database
+            self.logger.info("Step 5/8: Saving links and videos...")
+            if links:
+                self._save_links_to_db(links)
+            if videos:
+                self._save_videos_to_db(videos)
+            
+            # Step 6: Statistics
+            self.logger.info("Step 6/8: Calculating statistics...")
             statistics = self._calculate_statistics(
                 page_texts, products, error_codes, versions, images, chunks
             )
+            statistics['links_count'] = len(links)
+            statistics['videos_count'] = len(videos)
             
             # Create result
             processing_time = time.time() - start_time
@@ -294,6 +315,8 @@ class DocumentProcessor:
                 products=products,
                 error_codes=error_codes,
                 versions=versions,
+                links=links,
+                videos=videos,
                 validation_errors=validation_errors,
                 processing_time_seconds=processing_time,
                 statistics=statistics
@@ -422,6 +445,74 @@ class DocumentProcessor:
                 'success': False,
                 'error': str(e)
             }
+    
+    def _save_links_to_db(self, links: List[Dict]):
+        """Save extracted links to database"""
+        try:
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping link storage")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            for link in links:
+                # Check for duplicate
+                existing = supabase.table('links') \
+                    .select('id') \
+                    .eq('document_id', link['document_id']) \
+                    .eq('url', link['url']) \
+                    .limit(1) \
+                    .execute()
+                
+                if not existing.data:
+                    supabase.table('links').insert(link).execute()
+            
+            self.logger.success(f"Saved {len(links)} links to database")
+        except Exception as e:
+            self.logger.error(f"Failed to save links: {e}")
+    
+    def _save_videos_to_db(self, videos: List[Dict]):
+        """Save video metadata to database"""
+        try:
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping video storage")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            for video in videos:
+                # Check for duplicate by youtube_id
+                if video.get('youtube_id'):
+                    existing = supabase.table('videos') \
+                        .select('id') \
+                        .eq('youtube_id', video['youtube_id']) \
+                        .limit(1) \
+                        .execute()
+                    
+                    if not existing.data:
+                        supabase.table('videos').insert(video).execute()
+                else:
+                    supabase.table('videos').insert(video).execute()
+            
+            self.logger.success(f"Saved {len(videos)} videos to database")
+        except Exception as e:
+            self.logger.error(f"Failed to save videos: {e}")
     
     def _calculate_statistics(
         self,

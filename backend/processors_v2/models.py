@@ -140,6 +140,8 @@ class ProcessingResult(BaseModel):
     products: List[ExtractedProduct] = Field(default_factory=list)
     error_codes: List[ExtractedErrorCode] = Field(default_factory=list)
     versions: List['ExtractedVersion'] = Field(default_factory=list)
+    links: List[Dict[str, Any]] = Field(default_factory=list)
+    videos: List[Dict[str, Any]] = Field(default_factory=list)
     validation_errors: List[str] = Field(default_factory=list)
     processing_time_seconds: float
     statistics: Dict[str, Any] = Field(default_factory=dict)
@@ -153,6 +155,8 @@ class ProcessingResult(BaseModel):
             "products_extracted": len(self.products),
             "error_codes_extracted": len(self.error_codes),
             "versions_extracted": len(self.versions),
+            "links_extracted": len(self.links),
+            "videos_extracted": len(self.videos),
             "validation_errors": len(self.validation_errors),
             "avg_product_confidence": sum(p.confidence for p in self.products) / len(self.products) if self.products else 0,
             "avg_error_code_confidence": sum(e.confidence for e in self.error_codes) / len(self.error_codes) if self.error_codes else 0,
