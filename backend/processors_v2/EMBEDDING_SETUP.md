@@ -82,8 +82,27 @@ cd backend/processors_v2
 python test_embedding_config.py
 ```
 
-**Expected output:**
+**Expected output (with full config):**
 ```
+📄 Loading .env from: C:\Users\...\KRAI-minimal\.env
+
+🔑 Checking Supabase credentials...
+  • SUPABASE_URL: ✓ Set
+  • SUPABASE_SERVICE_ROLE_KEY: ✓ Set
+  • SUPABASE_ANON_KEY: ✓ Set
+  • Using Key: ✓ Available
+✅ Supabase client created successfully
+✅ Supabase connection verified (can query database)
+
+📊 Configuration Status:
+  ✓ Is Configured: True
+  ✓ Ollama Available: True
+  ✓ Ollama URL: http://localhost:11434
+  ✓ Model Name: embeddinggemma
+  ✓ Embedding Dimension: 768
+  ✓ Batch Size: 100
+  ✓ Supabase Configured: True
+
 ✅ EMBEDDING PROCESSOR IS FULLY CONFIGURED!
    Ready to generate embeddings for semantic search.
 
@@ -92,6 +111,8 @@ python test_embedding_config.py
    • Dimension: 768
    • Sample values: [0.123, -0.456, 0.789]
 ```
+
+**Note:** The test script loads credentials from your `.env` file. In the actual processing pipeline, Supabase is automatically configured by the MasterPipeline.
 
 ---
 

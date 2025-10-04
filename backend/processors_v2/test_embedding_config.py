@@ -12,6 +12,7 @@ Usage:
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -27,8 +28,51 @@ def main():
     logger.info("🔍 TESTING EMBEDDING CONFIGURATION")
     logger.info("=" * 70)
     
-    # Initialize processor
-    processor = EmbeddingProcessor()
+    # Load environment variables
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    if env_path.exists():
+        logger.info(f"\n📄 Loading .env from: {env_path}")
+        load_dotenv(env_path)
+    else:
+        logger.warning(f"\n⚠️  No .env file found at: {env_path}")
+    
+    # Try to initialize Supabase client
+    supabase_client = None
+    supabase_url = os.getenv('SUPABASE_URL')
+    # Try both possible key names
+    supabase_key = os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_ANON_KEY')
+    
+    logger.info("\n🔑 Checking Supabase credentials...")
+    logger.info(f"  • SUPABASE_URL: {'✓ Set' if supabase_url else '✗ Missing'}")
+    logger.info(f"  • SUPABASE_SERVICE_ROLE_KEY: {'✓ Set' if os.getenv('SUPABASE_SERVICE_ROLE_KEY') else '✗ Missing'}")
+    logger.info(f"  • SUPABASE_ANON_KEY: {'✓ Set' if os.getenv('SUPABASE_ANON_KEY') else '✗ Missing'}")
+    logger.info(f"  • Using Key: {'✓ Available' if supabase_key else '✗ Missing'}")
+    
+    if supabase_url and supabase_key:
+        try:
+            from supabase import create_client
+            supabase_client = create_client(supabase_url, supabase_key)
+            logger.success("✅ Supabase client created successfully")
+            
+            # Test connection
+            try:
+                # Try a simple query to verify connection
+                result = supabase_client.table('documents').select("id").limit(1).execute()
+                logger.success("✅ Supabase connection verified (can query database)")
+            except Exception as e:
+                logger.warning(f"⚠️  Supabase client created but query failed: {e}")
+                logger.info("   → This might be OK if tables don't exist yet")
+                
+        except ImportError:
+            logger.error("❌ supabase-py package not installed")
+            logger.info("   → Install: pip install supabase")
+        except Exception as e:
+            logger.error(f"❌ Failed to create Supabase client: {e}")
+    else:
+        logger.warning("⚠️  Supabase credentials not in .env or incomplete")
+    
+    # Initialize processor with Supabase if available
+    processor = EmbeddingProcessor(supabase_client=supabase_client)
     
     # Get detailed status
     status = processor.get_configuration_status()
