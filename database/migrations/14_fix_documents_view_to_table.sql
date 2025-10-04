@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS krai_core.documents (
     processing_results JSONB DEFAULT NULL,
     processing_error TEXT DEFAULT NULL,
     confidence_score DECIMAL(3,2),
-    manual_review_required BOOLEAN DEFAULT false,
     manual_review_completed BOOLEAN DEFAULT false,
     manual_review_notes TEXT,
     ocr_confidence DECIMAL(3,2),
@@ -64,12 +63,12 @@ CREATE TABLE IF NOT EXISTS krai_core.documents (
     -- product_id UUID,       -- REMOVED
     series VARCHAR(100),
     models TEXT[],
+    stage_status JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- ============================================================================
--- PART 3: Create indexes
 -- ============================================================================
 
 CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON krai_core.documents(file_hash);
@@ -81,6 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_documents_created_at ON krai_core.documents(creat
 -- GIN index for JSONB fields
 CREATE INDEX IF NOT EXISTS idx_documents_extracted_metadata ON krai_core.documents USING GIN (extracted_metadata);
 CREATE INDEX IF NOT EXISTS idx_documents_processing_results ON krai_core.documents USING GIN (processing_results);
+CREATE INDEX IF NOT EXISTS idx_documents_stage_status ON krai_core.documents USING GIN (stage_status);
 
 -- GIN index for models array
 CREATE INDEX IF NOT EXISTS idx_documents_models ON krai_core.documents USING GIN (models);
@@ -95,6 +95,7 @@ COMMENT ON COLUMN krai_core.documents.models IS 'Array of model numbers extracte
 COMMENT ON COLUMN krai_core.documents.processing_results IS 'Complete processing results from pipeline (JSONB)';
 COMMENT ON COLUMN krai_core.documents.processing_error IS 'Error message if processing failed';
 COMMENT ON COLUMN krai_core.documents.processing_status IS 'Processing status: pending, processing, completed, failed';
+COMMENT ON COLUMN krai_core.documents.stage_status IS 'Per-stage processing status tracking (JSONB)';
 
 -- ============================================================================
 -- PART 5: Grant permissions
