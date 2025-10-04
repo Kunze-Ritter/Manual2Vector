@@ -182,20 +182,26 @@ def main():
     print("  📊 TEST SUMMARY")
     print("="*80)
     
-    passed = sum(1 for v in results.values() if v)
+    passed_count = sum(1 for v in results.values() if v)
     total = len(results)
     
-    print(f"\n  Results: {passed}/{total} passed")
+    print(f"\n  Results: {passed_count}/{total} passed")
     
-    for test_name, passed in results.items():
-        status = "✅" if passed else "⚠️"
+    for test_name, test_passed in results.items():
+        status = "✅" if test_passed else "⚠️"
         print(f"    {status} {test_name}")
     
-    if passed == total:
+    if passed_count == total:
         print("\n  🎉 ALL TESTS PASSED!")
+        print("\n  Core extraction + OCR + Vision AI all working!")
     else:
-        print("\n  ⚠️  SOME TESTS FAILED (optional features)")
-        print("\n  Core extraction works! OCR and Vision AI are optional.")
+        print("\n  ⚠️  SOME TESTS FAILED")
+        print(f"\n  {passed_count}/{total} tests passed")
+        
+        if results.get('extraction'):
+            print("\n  ✅ Core extraction works!")
+        if not results.get('ocr') or not results.get('vision'):
+            print("  ⚠️  OCR and/or Vision AI are optional features (missing dependencies)")
     
     print("\n" + "="*80 + "\n")
 
