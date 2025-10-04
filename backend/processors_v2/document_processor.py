@@ -5,7 +5,7 @@ Coordinates text extraction, chunking, product/error extraction.
 """
 
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from uuid import UUID, uuid4
 import time
 from .logger import get_logger, log_processing_summary
@@ -14,7 +14,7 @@ from .text_extractor import TextExtractor
 from .product_extractor import ProductExtractor
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
-from .storage_processor import StorageProcessor
+from .image_storage_processor import ImageStorageProcessor
 from .chunker import SmartChunker
 
 
@@ -48,7 +48,7 @@ class DocumentProcessor:
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
-        self.storage_processor = StorageProcessor()  # R2 storage
+        self.image_storage = ImageStorageProcessor()  # R2 for images only
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
             overlap_size=chunk_overlap
@@ -281,27 +281,27 @@ class DocumentProcessor:
                 processing_time
             )
     
-    def upload_to_storage(
+    def upload_images_to_storage(
         self,
         document_id: UUID,
-        file_path: Path,
-        manufacturer: Optional[str] = None,
+        images: List[Dict],
         document_type: str = "service_manual"
     ) -> Dict:
         """
-        Upload document to R2 storage
+        Upload extracted images to R2 storage
+        
+        Note: PDFs stay local! We only upload extracted images.
         
         Args:
             document_id: Document UUID
-            file_path: Path to PDF file
-            manufacturer: Manufacturer name
+            images: List of extracted images with paths
             document_type: Type of document
             
         Returns:
             Dict with upload result
         """
-        if not self.storage_processor.is_configured():
-            self.logger.warning("Storage not configured - skipping upload")
+        if not self.image_storage.is_configured():
+            self.logger.info("Image storage not configured - skipping upload")
             return {
                 'success': False,
                 'error': 'R2 storage not configured',
@@ -309,24 +309,23 @@ class DocumentProcessor:
             }
         
         try:
-            self.logger.info("Uploading to R2 storage...")
+            self.logger.info(f"Uploading {len(images)} images to R2...")
             
-            result = self.storage_processor.upload_document(
+            result = self.image_storage.upload_images(
                 document_id=document_id,
-                file_path=file_path,
-                manufacturer=manufacturer,
+                images=images,
                 document_type=document_type
             )
             
             if result['success']:
-                self.logger.success(f"Uploaded to storage: {result['storage_path']}")
+                self.logger.success(f"Uploaded {result['uploaded_count']} images to R2")
             else:
-                self.logger.error(f"Storage upload failed: {result.get('error')}")
+                self.logger.warning(f"Some images failed: {result.get('failed_count', 0)}")
             
             return result
             
         except Exception as e:
-            self.logger.error(f"Storage upload error: {e}")
+            self.logger.error(f"Image upload error: {e}")
             return {
                 'success': False,
                 'error': str(e)

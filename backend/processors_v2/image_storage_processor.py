@@ -1,13 +1,19 @@
 """
-Storage Processor - Cloudflare R2 Integration
+Image Storage Processor - Cloudflare R2 Integration
 
-Handles document storage, presigned URLs, and lifecycle management.
+Handles EXTRACTED IMAGE storage (not full PDFs!) on R2.
 Cloudflare R2 is S3-compatible, so we use boto3.
 
+Why only images?
+- PDFs stay local (no need to store after processing)
+- Images needed for Vision AI and user viewing
+- Much smaller storage footprint (MBs vs GBs)
+- Lower R2 costs
+
 Features:
-- Upload PDFs to R2
-- Generate presigned URLs
-- File organization (by manufacturer/year)
+- Upload extracted images to R2
+- Generate presigned URLs for image access
+- File organization (by document/type)
 - Storage statistics
 - Cleanup & lifecycle management
 """
@@ -35,11 +41,12 @@ from .logger import get_logger
 from .stage_tracker import StageTracker, StageContext
 
 
-class StorageProcessor:
+class ImageStorageProcessor:
     """
-    Stage 6: Storage Processor
+    Stage 6: Image Storage Processor
     
-    Handles document storage in Cloudflare R2.
+    Handles extracted image storage in Cloudflare R2.
+    PDFs stay local - we only upload extracted images!
     """
     
     def __init__(
@@ -111,6 +118,128 @@ class StorageProcessor:
         """Check if R2 is properly configured"""
         return self.r2_client is not None
     
+    def upload_images(
+        self,
+        document_id: UUID,
+        images: List[Dict[str, Any]],
+        document_type: str = "service_manual"
+    ) -> Dict[str, Any]:
+        """
+        Upload extracted images to R2
+        
+        Args:
+            document_id: Document UUID
+            images: List of dicts with 'path', 'page_num', 'type', etc.
+            document_type: Type of document
+            
+        Returns:
+            Dict with upload results
+        """
+        if not self.is_configured():
+            return {
+                'success': False,
+                'error': 'R2 not configured',
+                'uploaded_count': 0,
+                'image_urls': []
+            }
+        
+        # Start stage tracking
+        if self.stage_tracker:
+            self.stage_tracker.start_stage(str(document_id), 'storage')
+        
+        uploaded_images = []
+        failed_images = []
+        
+        try:
+            for idx, image_info in enumerate(images):
+                image_path = Path(image_info.get('path'))
+                
+                if not image_path.exists():
+                    failed_images.append({'image': str(image_path), 'error': 'File not found'})
+                    continue
+                
+                # Generate storage path
+                storage_path = self._generate_image_storage_path(
+                    document_id,
+                    image_path.name,
+                    image_info.get('page_num'),
+                    image_info.get('type', 'diagram')
+                )
+                
+                # Upload
+                try:
+                    with open(image_path, 'rb') as f:
+                        self.r2_client.upload_fileobj(
+                            f,
+                            self.bucket_name,
+                            storage_path,
+                            ExtraArgs={
+                                'Metadata': {
+                                    'document-id': str(document_id),
+                                    'page-number': str(image_info.get('page_num', 0)),
+                                    'image-type': image_info.get('type', 'diagram'),
+                                    'upload-timestamp': datetime.utcnow().isoformat()
+                                },
+                                'ContentType': image_info.get('mime_type', 'image/png')
+                            }
+                        )
+                    
+                    storage_url = f"{self.endpoint_url}/{self.bucket_name}/{storage_path}"
+                    
+                    uploaded_images.append({
+                        'storage_path': storage_path,
+                        'storage_url': storage_url,
+                        'page_num': image_info.get('page_num'),
+                        'type': image_info.get('type')
+                    })
+                    
+                    self.logger.debug(f"Uploaded image {idx+1}/{len(images)}: {image_path.name}")
+                    
+                except Exception as e:
+                    failed_images.append({'image': str(image_path), 'error': str(e)})
+            
+            # Update stage tracking
+            if self.stage_tracker:
+                if failed_images:
+                    self.stage_tracker.fail_stage(
+                        str(document_id),
+                        'storage',
+                        f"Failed to upload {len(failed_images)} images"
+                    )
+                else:
+                    self.stage_tracker.complete_stage(
+                        str(document_id),
+                        'storage',
+                        metadata={
+                            'images_uploaded': len(uploaded_images),
+                            'total_size': sum(Path(img.get('path')).stat().st_size for img in images if Path(img.get('path')).exists())
+                        }
+                    )
+            
+            self.logger.success(f"Uploaded {len(uploaded_images)}/{len(images)} images to R2")
+            
+            return {
+                'success': len(failed_images) == 0,
+                'uploaded_count': len(uploaded_images),
+                'failed_count': len(failed_images),
+                'image_urls': uploaded_images,
+                'failed_images': failed_images
+            }
+            
+        except Exception as e:
+            error_msg = f"Image upload error: {e}"
+            self.logger.error(error_msg)
+            
+            if self.stage_tracker:
+                self.stage_tracker.fail_stage(str(document_id), 'storage', error_msg)
+            
+            return {
+                'success': False,
+                'error': error_msg,
+                'uploaded_count': len(uploaded_images),
+                'image_urls': uploaded_images
+            }
+    
     def upload_document(
         self,
         document_id: UUID,
@@ -120,7 +249,10 @@ class StorageProcessor:
         metadata: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """
-        Upload document to R2
+        Upload document to R2 (OPTIONAL - PDFs stay local by default!)
+        
+        Use this ONLY if you want to keep original PDFs on R2.
+        For most use cases, use upload_images() instead.
         
         Args:
             document_id: Document UUID
@@ -248,6 +380,30 @@ class StorageProcessor:
                 'storage_path': None
             }
     
+    def _generate_image_storage_path(
+        self,
+        document_id: UUID,
+        filename: str,
+        page_num: Optional[int],
+        image_type: str = "diagram"
+    ) -> str:
+        """
+        Generate organized storage path for images
+        
+        Format: images/{document_id}/{page_num}_{type}_{filename}
+        Example: images/abc-123/0042_diagram_image_001.png
+        """
+        # Sanitize image type
+        type_clean = image_type.lower().replace(' ', '_')
+        
+        # Create path
+        if page_num is not None:
+            path = f"images/{document_id}/{page_num:04d}_{type_clean}_{filename}"
+        else:
+            path = f"images/{document_id}/{type_clean}_{filename}"
+        
+        return path
+    
     def _generate_storage_path(
         self,
         document_id: UUID,
@@ -256,7 +412,7 @@ class StorageProcessor:
         document_type: str
     ) -> str:
         """
-        Generate organized storage path
+        Generate organized storage path (for documents - optional!)
         
         Format: {document_type}/{manufacturer}/{year}/{document_id}/{filename}
         Example: service_manual/hp/2024/abc-123/manual.pdf
@@ -482,19 +638,19 @@ class StorageProcessor:
 if __name__ == "__main__":
     from pathlib import Path
     
-    # Initialize storage processor
-    storage = StorageProcessor()
+    # Initialize image storage processor
+    storage = ImageStorageProcessor()
     
     if storage.is_configured():
-        print("✅ R2 Storage configured")
+        print("✅ R2 Image Storage configured")
         
         # Get statistics
         stats = storage.get_storage_statistics()
         print(f"\n📊 Storage Statistics:")
-        print(f"   Total Documents: {stats.get('total_documents', 0)}")
+        print(f"   Total Images: {stats.get('total_documents', 0)}")
         print(f"   Total Size: {stats.get('total_size_mb', 0)} MB")
     else:
-        print("⚠️  R2 Storage not configured")
+        print("⚠️  R2 Image Storage not configured")
         print("\nSet environment variables:")
         print("  R2_ENDPOINT_URL")
         print("  R2_ACCESS_KEY_ID")
