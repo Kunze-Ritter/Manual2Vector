@@ -217,12 +217,27 @@ class MasterPipeline:
                 results['embeddings'] = stage_result
             
             # ==========================================
-            # Update document status
+            # STAGE 10: Save extracted entities to DB
+            # ==========================================
+            processing_result = results.get('processing', {})
+            
+            # Save error codes
+            error_codes = processing_result.get('error_codes', [])
+            if error_codes:
+                self._save_error_codes(document_id, error_codes)
+            
+            # Save products
+            products = processing_result.get('products', [])
+            if products:
+                self._save_products(document_id, products)
+            
+            # ==========================================
+            # Update document status with processing_results
             # ==========================================
             self._update_document_status(
                 document_id=document_id,
                 status='completed',
-                results=results
+                results=processing_result  # Save clean processing result
             )
             
             # ==========================================
@@ -334,6 +349,94 @@ class MasterPipeline:
                 'stage': stage_name
             }
     
+    def _save_error_codes(self, document_id: UUID, error_codes: list):
+        """Save error codes to krai_intelligence.error_codes table"""
+        try:
+            for error_code in error_codes:
+                # Convert ExtractedErrorCode to dict if needed
+                ec_data = error_code if isinstance(error_code, dict) else {
+                    'error_code': getattr(error_code, 'error_code', ''),
+                    'error_description': getattr(error_code, 'error_description', ''),
+                    'solution_text': getattr(error_code, 'solution_text', None),
+                    'confidence': getattr(error_code, 'confidence', 0.0),
+                    'page_number': getattr(error_code, 'page_number', None),
+                    'context': getattr(error_code, 'context', None)
+                }
+                
+                record = {
+                    'document_id': str(document_id),
+                    'error_code': ec_data.get('error_code'),
+                    'error_description': ec_data.get('error_description'),
+                    'solution_text': ec_data.get('solution_text'),
+                    'confidence': ec_data.get('confidence', 0.8),
+                    'page_number': ec_data.get('page_number'),
+                    'metadata': {
+                        'context': ec_data.get('context'),
+                        'extracted_at': datetime.utcnow().isoformat()
+                    }
+                }
+                
+                self.supabase.table('error_codes').insert(record).execute()
+            
+            self.logger.success(f"Saved {len(error_codes)} error codes to DB")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save error codes: {e}")
+    
+    def _save_products(self, document_id: UUID, products: list):
+        """Save products to krai_core.products table"""
+        try:
+            for product in products:
+                # Convert ExtractedProduct to dict if needed
+                prod_data = product if isinstance(product, dict) else {
+                    'model_number': getattr(product, 'model_number', ''),
+                    'series': getattr(product, 'series', None),
+                    'manufacturer': getattr(product, 'manufacturer', None),
+                    'product_type': getattr(product, 'product_type', 'printer'),
+                    'confidence': getattr(product, 'confidence', 0.0)
+                }
+                
+                # Try to find manufacturer_id
+                manufacturer_id = None
+                if prod_data.get('manufacturer'):
+                    try:
+                        mfr_result = self.supabase.table('manufacturers') \
+                            .select('id') \
+                            .ilike('name', f"%{prod_data['manufacturer']}%") \
+                            .limit(1) \
+                            .execute()
+                        if mfr_result.data:
+                            manufacturer_id = mfr_result.data[0]['id']
+                    except:
+                        pass
+                
+                record = {
+                    'model_number': prod_data.get('model_number'),
+                    'manufacturer_id': manufacturer_id,
+                    'product_type': prod_data.get('product_type', 'printer'),
+                    'metadata': {
+                        'confidence': prod_data.get('confidence', 0.8),
+                        'series': prod_data.get('series'),
+                        'extracted_from_document': str(document_id),
+                        'extracted_at': datetime.utcnow().isoformat()
+                    }
+                }
+                
+                # Check if product already exists
+                existing = self.supabase.table('products') \
+                    .select('id') \
+                    .eq('model_number', record['model_number']) \
+                    .limit(1) \
+                    .execute()
+                
+                if not existing.data:
+                    self.supabase.table('products').insert(record).execute()
+            
+            self.logger.success(f"Saved {len(products)} products to DB")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save products: {e}")
+    
     def _update_document_status(
         self,
         document_id: UUID,
@@ -352,14 +455,35 @@ class MasterPipeline:
                 update_data['processing_error'] = error
             
             if results:
-                update_data['processing_results'] = results
+                # Clean the results for JSONB storage
+                clean_results = {
+                    'metadata': results.get('metadata', {}),
+                    'statistics': results.get('statistics', {}),
+                    'products': [self._serialize_entity(p) for p in results.get('products', [])],
+                    'error_codes': [self._serialize_entity(ec) for ec in results.get('error_codes', [])],
+                    'versions': [self._serialize_entity(v) for v in results.get('versions', [])],
+                    'validation_errors': results.get('validation_errors', []),
+                    'processing_time_seconds': results.get('processing_time_seconds', 0)
+                }
+                update_data['processing_results'] = clean_results
             
             self.supabase.table('documents').update(update_data).eq(
                 'id', str(document_id)
             ).execute()
             
+            self.logger.success(f"Updated document status: {status}")
+            
         except Exception as e:
             self.logger.error(f"Failed to update document status: {e}")
+    
+    def _serialize_entity(self, entity):
+        """Serialize Pydantic model or dict to dict"""
+        if hasattr(entity, 'model_dump'):
+            return entity.model_dump()
+        elif hasattr(entity, 'dict'):
+            return entity.dict()
+        else:
+            return entity
     
     def _create_failed_result(
         self,
