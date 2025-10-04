@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from processors_v2.upload_processor import UploadProcessor, BatchUploadProcessor
 from processors_v2.document_processor import DocumentProcessor
+from processors_v2.stage_tracker import StageTracker
 
 # Load environment
 load_dotenv()
@@ -107,6 +108,7 @@ class ProcessingStatus(BaseModel):
     started_at: Optional[str]
     completed_at: Optional[str]
     error: Optional[str]
+    stage_status: Optional[Dict[str, Any]] = None  # Detailed per-stage status
 
 
 class StageStatistics(BaseModel):
@@ -333,34 +335,43 @@ async def get_document_status(document_id: str, supabase=Depends(get_supabase)):
         
         doc = doc_result.data[0]
         
-        # Get queue status
-        queue_result = supabase.table("processing_queue") \
-            .select("*") \
-            .eq("document_id", document_id) \
-            .execute()
+        # Get stage status using StageTracker
+        tracker = StageTracker(supabase)
         
-        queue_status = queue_result.data[0] if queue_result.data else None
+        current_stage = tracker.get_current_stage(document_id)
+        progress = tracker.get_progress(document_id)
+        stage_status = tracker.get_stage_status(document_id)
         
-        # Calculate progress based on task_type from queue
-        stages = ["text_extraction", "image_processing", "classification", 
-                  "metadata_extraction", "storage", "embedding", "search"]
-        current_stage = queue_status.get("task_type", "text_extraction") if queue_status else "completed"
+        # Get timestamps
+        started_at = doc.get("created_at")
+        completed_at = None
+        error = None
         
-        if doc.get("processing_status") == "completed":
-            progress = 100.0
-        elif current_stage in stages:
-            progress = (stages.index(current_stage) + 1) / len(stages) * 100
-        else:
-            progress = 0.0
+        # Check if all stages completed
+        if stage_status and current_stage == "completed":
+            # Get last stage completion time
+            for stage_name in reversed(StageTracker.STAGES):
+                stage_data = stage_status.get(stage_name, {})
+                if stage_data.get("completed_at"):
+                    completed_at = stage_data["completed_at"]
+                    break
+        
+        # Check for any errors
+        if stage_status:
+            for stage_name, stage_data in stage_status.items():
+                if stage_data.get("status") == "failed":
+                    error = stage_data.get("error")
+                    break
         
         return ProcessingStatus(
             document_id=document_id,
             status=doc.get("processing_status", "unknown"),
             current_stage=current_stage,
             progress=progress,
-            started_at=queue_status.get("started_at") if queue_status else doc.get("created_at"),
-            completed_at=queue_status.get("completed_at") if queue_status else None,
-            error=queue_status.get("error_message") if queue_status else None
+            started_at=started_at,
+            completed_at=completed_at,
+            error=error,
+            stage_status=stage_status
         )
         
     except HTTPException:
@@ -434,6 +445,27 @@ async def get_document_logs(document_id: str, supabase=Depends(get_supabase)):
             "document_id": document_id,
             "log_count": len(logs.data),
             "logs": logs.data
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/stages/statistics", tags=["Monitoring"])
+async def get_stage_statistics(supabase=Depends(get_supabase)):
+    """
+    Get statistics for all processing stages
+    
+    Returns:
+        Stage-wise statistics including pending, processing, completed counts
+    """
+    try:
+        tracker = StageTracker(supabase)
+        stats = tracker.get_statistics()
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "stages": stats
         }
         
     except Exception as e:

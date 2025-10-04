@@ -11,6 +11,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from .logger import get_logger
+from .stage_tracker import StageTracker
 
 
 class UploadProcessor:
@@ -42,6 +43,7 @@ class UploadProcessor:
         self.max_file_size_bytes = max_file_size_mb * 1024 * 1024
         self.allowed_extensions = allowed_extensions or ['.pdf']
         self.logger = get_logger()
+        self.stage_tracker = StageTracker(supabase_client)
     
     def process_upload(
         self,
@@ -111,6 +113,17 @@ class UploadProcessor:
         
         # Step 6: Add to processing queue
         self._add_to_queue(document_id, file_path)
+        
+        # Step 7: Mark upload stage as completed
+        self.stage_tracker.complete_stage(
+            document_id=document_id,
+            stage_name='upload',
+            metadata={
+                'file_hash': file_hash,
+                'file_size': metadata['file_size_bytes'],
+                'page_count': metadata.get('page_count', 0)
+            }
+        )
         
         return {
             'success': True,
