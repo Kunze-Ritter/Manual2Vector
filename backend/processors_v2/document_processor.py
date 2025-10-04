@@ -59,7 +59,7 @@ class DocumentProcessor:
         self.version_extractor = VersionExtractor()
         self.image_processor = ImageProcessor(supabase_client=supabase_client)
         self.image_storage = ImageStorageProcessor(supabase_client=supabase_client)
-        self.embedding_processor = EmbeddingProcessor()
+        self.embedding_processor = EmbeddingProcessor(supabase_client=supabase_client)  # FIXED: Pass supabase client!
         self.chunker = SmartChunker(chunk_size=chunk_size, overlap_size=chunk_overlap)
         self.link_extractor = LinkExtractor(youtube_api_key=youtube_api_key)
         

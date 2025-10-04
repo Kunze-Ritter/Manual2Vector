@@ -70,11 +70,19 @@ class PartsExtractor:
         if manufacturer_key and manufacturer_key in self.patterns_config:
             # Use manufacturer-specific patterns first
             patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
-            logger.debug(f"Using patterns for manufacturer: {manufacturer_key}")
+            pattern_count = len(self.patterns_config[manufacturer_key].get("patterns", []))
+            logger.info(f"🔍 Using {pattern_count} patterns for manufacturer: {manufacturer_key}")
+        else:
+            if manufacturer_name:
+                logger.warning(f"⚠️  No specific patterns found for manufacturer: '{manufacturer_name}' (key: '{manufacturer_key}')")
+                logger.info(f"   Available manufacturers: {list(self.patterns_config.keys())}")
+            else:
+                logger.info("ℹ️  No manufacturer specified, using generic patterns only")
         
         # Always add generic patterns as fallback
         if "generic" in self.patterns_config:
             patterns_to_use.append(("generic", self.patterns_config["generic"]))
+            logger.debug("Added generic patterns as fallback")
         
         # Extract parts
         extracted_parts = []
@@ -106,7 +114,17 @@ class PartsExtractor:
             logger.warning(f"Extracted {len(extracted_parts)} parts, limiting to {max_parts}")
             extracted_parts = extracted_parts[:max_parts]
         
-        logger.info(f"Extracted {len(extracted_parts)} unique parts from text")
+        if extracted_parts:
+            logger.success(f"✅ Extracted {len(extracted_parts)} unique parts from page")
+            # Show top 3 parts as sample
+            if len(extracted_parts) <= 3:
+                for part in extracted_parts:
+                    logger.info(f"   • {part.part_number} ({part.confidence:.2f})")
+            else:
+                logger.info(f"   Top parts: {', '.join([p.part_number for p in extracted_parts[:3]])}...")
+        else:
+            logger.warning(f"⚠️  No parts found on this page")
+            
         return extracted_parts
     
     def _get_manufacturer_key(self, manufacturer_name: Optional[str]) -> Optional[str]:
