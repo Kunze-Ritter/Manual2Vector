@@ -1,5 +1,5 @@
-2025-10-05 01:52:41 - INFO - Document ID: 9ae6b828-5d80-4719-a840-c0382483425d
-2025-10-05 01:52:41 - INFO - Log file: C:\Users\haast\Docker\KRAI-minimal\input_pdfs\HP_E475_CPMD.log.txt
-2025-10-05 01:52:42 - INFO - Step 1/5: Extracting text from PDF...
-2025-10-05 01:52:42 - INFO - Extracting text from: HP_E475_CPMD.pdf
-2025-10-05 01:52:42 - INFO - Using engine: pymupdf
+2025-10-05 01:54:42 - INFO - Document ID: 9ae6b828-5d80-4719-a840-c0382483425d
+2025-10-05 01:54:42 - INFO - Log file: C:\Users\haast\Docker\KRAI-minimal\input_pdfs\HP_E475_CPMD.log.txt
+2025-10-05 01:54:42 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-05 01:54:42 - INFO - Extracting text from: HP_E475_CPMD.pdf
+2025-10-05 01:54:42 - INFO - Using engine: pymupdf

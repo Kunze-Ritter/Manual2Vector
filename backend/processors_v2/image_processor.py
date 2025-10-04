@@ -67,17 +67,26 @@ class ImageProcessor:
             try:
                 import pytesseract
                 
-                # Configure Tesseract path (Windows)
-                try:
-                    from backend.config.tesseract_config import configure_tesseract
-                    configure_tesseract()
-                except:
-                    pass  # Configuration not critical
+                # Configure Tesseract path (Windows) - BEFORE testing version
+                import sys
+                if sys.platform == "win32":
+                    import os
+                    possible_paths = [
+                        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+                    ]
+                    
+                    # Try to find Tesseract
+                    for path in possible_paths:
+                        if os.path.exists(path):
+                            pytesseract.pytesseract.tesseract_cmd = path
+                            self.logger.debug(f"Configured Tesseract: {path}")
+                            break
                 
                 # Test if Tesseract binary is actually installed
-                pytesseract.get_tesseract_version()
+                version = pytesseract.get_tesseract_version()
                 self.ocr_available = True
-                self.logger.info("✅ OCR (Tesseract) available")
+                self.logger.info(f"✅ OCR (Tesseract) available - v{version}")
             except ImportError:
                 self.ocr_available = False
                 self.logger.warning("⚠️  pytesseract not installed - run: pip install pytesseract")

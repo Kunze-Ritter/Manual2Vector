@@ -324,13 +324,19 @@ class LinkExtractor:
             if enable_ocr:
                 try:
                     import pytesseract
+                    import sys
+                    import os
                     
-                    # Configure Tesseract path (Windows)
-                    try:
-                        from backend.config.tesseract_config import configure_tesseract
-                        configure_tesseract()
-                    except:
-                        pass  # Configuration not critical
+                    # Configure Tesseract path (Windows) - BEFORE using OCR
+                    if sys.platform == "win32":
+                        possible_paths = [
+                            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+                        ]
+                        for path in possible_paths:
+                            if os.path.exists(path):
+                                pytesseract.pytesseract.tesseract_cmd = path
+                                break
                     
                     ocr_text = pytesseract.image_to_string(thumbnail_image)
                     if ocr_text.strip():
