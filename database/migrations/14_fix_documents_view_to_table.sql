@@ -3,10 +3,14 @@
 -- Solution: View löschen und als echte Tabelle neu erstellen
 
 -- ============================================================================
--- PART 1: Drop existing VIEW
+-- PART 1: Drop existing VIEW or TABLE
 -- ============================================================================
 
+-- Drop view if it exists
 DROP VIEW IF EXISTS krai_core.documents CASCADE;
+
+-- Drop table if it exists (in case it was already converted)
+DROP TABLE IF EXISTS krai_core.documents CASCADE;
 
 -- ============================================================================
 -- PART 2: Create documents as TABLE (not VIEW)
