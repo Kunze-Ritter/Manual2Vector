@@ -51,11 +51,12 @@ class DocumentProcessor:
         self.logger = get_logger()
         
         # Initialize extractors
+        self.text_extractor = TextExtractor(engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
-        self.image_processor = ImageProcessor(supabase_client=supabase_client)  # Stage 3: Extract images
-        self.image_storage = ImageStorageProcessor(supabase_client=supabase_client)  # R2 for images with hash deduplication
+        self.image_processor = ImageProcessor(supabase_client=supabase_client)
+        self.image_storage = ImageStorageProcessor(supabase_client=supabase_client)
         self.embedding_processor = EmbeddingProcessor()
         self.chunker = SmartChunker(chunk_size=chunk_size, overlap_size=chunk_overlap)
         self.link_extractor = LinkExtractor(youtube_api_key=youtube_api_key)
