@@ -84,7 +84,12 @@ class ExtractedPart(BaseModel):
 
 class ExtractedErrorCode(BaseModel):
     """Error code extracted from document"""
-    error_code: str = Field(..., pattern=r"^\d{2}\.\d{2}(\.\d{2})?$")
+    # Flexible pattern for various error code formats:
+    # - 10.20 or 10.20.30 (Konica Minolta, Xerox)
+    # - E826 (HP alphanumeric)
+    # - 59.F0 (HP hex)
+    # - C-2801 (Canon)
+    error_code: str = Field(..., pattern=r"^[A-Z]?-?\d{1,3}[\.\-]?[0-9A-Fa-f]{1,3}([\.\-][0-9A-Fa-f]{1,3})?$")
     error_description: str = Field(..., min_length=20)
     solution_text: Optional[str] = None
     context_text: str = Field(..., min_length=100)

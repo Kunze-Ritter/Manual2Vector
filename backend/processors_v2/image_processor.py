@@ -66,11 +66,20 @@ class ImageProcessor:
         if self.enable_ocr:
             try:
                 import pytesseract
+                # Test if Tesseract binary is actually installed
+                pytesseract.get_tesseract_version()
                 self.ocr_available = True
-                self.logger.info("OCR (Tesseract) available")
+                self.logger.info("✅ OCR (Tesseract) available")
             except ImportError:
                 self.ocr_available = False
-                self.logger.warning("OCR not available - install pytesseract")
+                self.logger.warning("⚠️  pytesseract not installed - run: pip install pytesseract")
+            except Exception as e:
+                self.ocr_available = False
+                self.logger.warning(f"⚠️  Tesseract OCR not available: {e}")
+                self.logger.info("   Install Tesseract OCR:")
+                self.logger.info("   • Windows: https://github.com/UB-Mannheim/tesseract/wiki")
+                self.logger.info("   • Linux: sudo apt install tesseract-ocr")
+                self.logger.info("   • macOS: brew install tesseract")
         else:
             self.ocr_available = False
         
