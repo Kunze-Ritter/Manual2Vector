@@ -383,22 +383,38 @@ class ImageProcessor:
         try:
             import pytesseract
             
+            success_count = 0
             for img in images:
                 try:
                     # Open image
                     pil_image = Image.open(img['path'])
                     
-                    # Run OCR
+                    # Run OCR with confidence data
+                    ocr_data = pytesseract.image_to_data(pil_image, output_type=pytesseract.Output.DICT)
+                    
+                    # Extract text
                     ocr_text = pytesseract.image_to_string(pil_image)
                     
-                    # Store result
+                    # Calculate average confidence (filter out -1 which means no text)
+                    confidences = [int(conf) for conf in ocr_data['conf'] if int(conf) > 0]
+                    avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+                    
+                    # Store results
                     img['ocr_text'] = ocr_text.strip()
-                    img['ocr_available'] = True
+                    img['ocr_confidence'] = round(avg_confidence / 100, 2)  # Convert to 0-1 scale
+                    img['contains_text'] = len(ocr_text.strip()) > 0
+                    
+                    if ocr_text.strip():
+                        success_count += 1
+                        self.logger.debug(f"OCR extracted {len(ocr_text)} chars from {img['filename']}")
                     
                 except Exception as e:
                     self.logger.debug(f"OCR failed for {img['filename']}: {e}")
                     img['ocr_text'] = ''
-                    img['ocr_available'] = False
+                    img['ocr_confidence'] = 0.0
+                    img['contains_text'] = False
+            
+            self.logger.success(f"✅ OCR processed {success_count}/{len(images)} images with text")
             
             return images
             
@@ -419,23 +435,102 @@ class ImageProcessor:
             max_images: Maximum images to process (to avoid overload)
             
         Returns:
-            Images with 'vision_description' field added
+            Images with 'ai_description' and 'ai_confidence' fields added
         """
         if not self.vision_available:
+            self.logger.debug("Vision AI not available, skipping")
             return images
         
         # Limit to max_images to avoid overwhelming the system
         images_to_process = images[:max_images]
+        skipped_count = len(images) - len(images_to_process)
         
-        self.logger.info(f"Processing {len(images_to_process)} images with Vision AI...")
+        if skipped_count > 0:
+            self.logger.info(f"Processing first {len(images_to_process)} images (skipping {skipped_count} to avoid overload)")
+        else:
+            self.logger.info(f"Processing {len(images_to_process)} images with Vision AI...")
         
-        # This will be implemented in detail
-        # For now, placeholder
-        for img in images_to_process:
-            img['vision_processed'] = False
-            img['vision_description'] = ''
-        
-        return images
+        try:
+            import requests
+            import base64
+            
+            ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+            
+            # Find best vision model
+            try:
+                response = requests.get(f"{ollama_url}/api/tags", timeout=2)
+                models = response.json().get('models', [])
+                vision_models = [m for m in models if 'llava' in m.get('name', '').lower()]
+                
+                if not vision_models:
+                    self.logger.warning("No LLaVA model found")
+                    return images
+                
+                model_name = vision_models[0]['name']
+                self.logger.debug(f"Using vision model: {model_name}")
+                
+            except Exception as e:
+                self.logger.error(f"Failed to get Ollama models: {e}")
+                return images
+            
+            # Process each image
+            success_count = 0
+            for img in images_to_process:
+                try:
+                    # Read image and encode to base64
+                    with open(img['path'], 'rb') as f:
+                        image_data = base64.b64encode(f.read()).decode('utf-8')
+                    
+                    # Prepare prompt
+                    prompt = """Analyze this technical diagram or image from a service manual.
+Describe what you see in 2-3 sentences. Focus on:
+- Type of component or diagram (e.g., circuit board, exploded view, flowchart)
+- Key parts or elements visible
+- Any labels or numbers you can read
+
+Keep it concise and technical."""
+                    
+                    # Call Ollama Vision API
+                    response = requests.post(
+                        f"{ollama_url}/api/generate",
+                        json={
+                            "model": model_name,
+                            "prompt": prompt,
+                            "images": [image_data],
+                            "stream": False
+                        },
+                        timeout=30
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        description = result.get('response', '').strip()
+                        
+                        # Store results
+                        img['ai_description'] = description
+                        img['ai_confidence'] = 0.8  # LLaVA default confidence
+                        img['contains_text'] = any(keyword in description.lower() 
+                                                  for keyword in ['label', 'text', 'number', 'code'])
+                        
+                        success_count += 1
+                        self.logger.debug(f"Analyzed {img['filename']}: {description[:50]}...")
+                    else:
+                        self.logger.warning(f"Vision API error for {img['filename']}: {response.status_code}")
+                        img['ai_description'] = ''
+                        img['ai_confidence'] = 0.0
+                        
+                except Exception as e:
+                    self.logger.debug(f"Vision AI failed for {img['filename']}: {e}")
+                    img['ai_description'] = ''
+                    img['ai_confidence'] = 0.0
+            
+            self.logger.success(f"✅ Vision AI analyzed {success_count}/{len(images_to_process)} images")
+            
+            return images
+            
+        except Exception as e:
+            self.logger.error(f"Vision AI processing failed: {e}")
+            return images
 
 
 # Example usage

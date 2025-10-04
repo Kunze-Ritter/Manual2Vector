@@ -245,6 +245,8 @@ class ImageStorageProcessor:
                     image_record['contains_text'] = metadata['contains_text']
                 if 'ocr_text' in metadata:
                     image_record['ocr_text'] = metadata['ocr_text']
+                if 'ocr_confidence' in metadata:
+                    image_record['ocr_confidence'] = metadata['ocr_confidence']
             
             db_result = self.supabase.table('images').insert(image_record).execute()
             
