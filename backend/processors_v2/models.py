@@ -179,7 +179,8 @@ class ProcessingResult(BaseModel):
                     'text': chunk.text,
                     'chunk_index': chunk.chunk_index,
                     'chunk_type': chunk.chunk_type,
-                    'page_number': chunk.page_number,
+                    'page_start': chunk.page_start,
+                    'page_end': chunk.page_end,
                 }
                 for chunk in self.chunks
             ],

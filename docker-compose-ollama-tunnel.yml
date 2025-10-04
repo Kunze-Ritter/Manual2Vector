@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  # Cloudflare Tunnel für Ollama
+  cloudflared-ollama:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-ollama-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN_OLLAMA}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN_OLLAMA}
+    network_mode: host
+
+# ===========================================
+# Ollama Cloudflare Tunnel
+# ===========================================
+# Tunnel-ID: d31cf264-168b-430b-9ffc-160aa6ffdf24
+# Öffentlicher Hostname: llm.kunze-ritter.com
+# Service: http://host.docker.internal:11434
+#
+# Starten: docker-compose -f docker-compose-ollama-tunnel.yml up -d
+# Logs: docker logs cloudflared-ollama-tunnel -f
+# Stoppen: docker-compose -f docker-compose-ollama-tunnel.yml down

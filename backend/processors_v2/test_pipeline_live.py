@@ -119,10 +119,10 @@ def test_full_pipeline(pipeline, pdf_path):
     print("\n" + "="*80)
     print("TEST 4: Full Pipeline Processing")
     print("="*80)
-    print("\n🚀 Processing document...")
+    print("\n>>> Processing document...")
     print(f"   File: {pdf_path.name}")
     print(f"   Size: {pdf_path.stat().st_size / 1024 / 1024:.1f} MB")
-    print("\n⏳ This may take 1-2 minutes for large documents...")
+    print("\n>>> This may take 1-2 minutes for large documents...")
     
     try:
         result = pipeline.process_document(
@@ -216,10 +216,10 @@ def test_full_pipeline(pipeline, pdf_path):
 def main():
     """Run live pipeline test"""
     
-    print("\n" + "🚀"*40)
-    print("\n   LIVE PIPELINE TEST")
+    print("\n" + "="*80)
+    print("   LIVE PIPELINE TEST")
     print("   Real Document + Real Database")
-    print("\n" + "🚀"*40)
+    print("=" * 80)
     
     # Test 1: Supabase
     supabase = test_supabase_connection()
@@ -244,18 +244,18 @@ def main():
     
     # Summary
     print("\n" + "="*80)
-    print("  📊 FINAL RESULT")
+    print("  FINAL RESULT")
     print("="*80)
     
     if success:
-        print("\n  🎉 ALL TESTS PASSED!")
+        print("\n  >>> ALL TESTS PASSED!")
         print("\n  The pipeline is working end-to-end!")
         print("  You can now:")
         print("    - Search the document semantically")
         print("    - Query products, error codes, versions")
         print("    - Use the extracted images")
     else:
-        print("\n  ⚠️  PIPELINE FAILED")
+        print("\n  [!] PIPELINE FAILED")
         print("\n  Check the logs above for details")
     
     print("\n" + "="*80 + "\n")
