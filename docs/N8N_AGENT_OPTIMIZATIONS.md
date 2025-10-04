@@ -6,7 +6,8 @@ This document contains optimization techniques that should be implemented in the
 1. [Header Cleanup & Metadata](#header-cleanup--metadata)
 2. [Chunk Size Optimization](#chunk-size-optimization)
 3. [Version Extraction](#version-extraction)
-4. [Embedding Best Practices](#embedding-best-practices)
+4. [Link & Video Extraction](#link--video-extraction)
+5. [Embedding Best Practices](#embedding-best-practices)
 
 ---
 
@@ -138,7 +139,124 @@ best_version = max(version_types, key=get_version_number)
 
 ---
 
-## 4️⃣ **Embedding Best Practices**
+## 4️⃣ **Link & Video Extraction**
+
+### **Problem:**
+Links and video references in service manuals are valuable resources but were not being extracted or indexed.
+
+```
+❌ BEFORE (Lost Data):
+"For more information visit: https://support.konicaminolta.com/..."
+"Tutorial: https://youtu.be/XYZ123..."
+→ Links ignored, metadata lost
+
+✅ AFTER (Extracted & Enriched):
+Links Table:
+- url: https://support.konicaminolta.com/...
+- link_type: support
+- page_number: 42
+
+Videos Table (YouTube Metadata):
+- youtube_id: XYZ123
+- title: "How to Replace Drum Unit"
+- duration: 420 seconds
+- thumbnail_url: ...
+- view_count: 15,234
+```
+
+### **Implementation:**
+
+**1. PDF Annotation Extraction**
+```python
+# Extracts hyperlinks embedded in PDF
+- PDF annotations (/Annot with /URI)
+- Confidence: 1.0 (reliable)
+- Position data included
+```
+
+**2. Text URL Detection**
+```python
+# Regex pattern for URLs
+https?://[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b...
+- Extracts from any page text
+- Context around link (±50 chars)
+- Confidence: 0.9
+```
+
+**3. YouTube Metadata Fetching**
+```python
+# Automatic metadata enrichment
+YouTube Data API v3 (with key):
+  - Title, description
+  - Duration, view count, likes
+  - Channel info, publish date
+  - Thumbnail URLs
+  - Tags, category
+
+oEmbed (without key):
+  - Title, channel name
+  - Thumbnail URL
+  - Basic info only
+```
+
+### **Link Classification:**
+- **support:** support.*, help.*, kb.*
+- **download:** driver, software, firmware files
+- **documentation:** manual, doc, pdf links
+- **video:** YouTube, Vimeo
+- **other:** General external links
+
+### **Duplicate Detection:**
+```python
+# URL normalization
+- Convert to lowercase
+- Remove trailing slashes
+- Keep highest confidence version
+- Deduplicate by normalized URL
+```
+
+### **Database Schema:**
+```sql
+krai_content.links:
+- document_id, page_number
+- url, link_type, link_category
+- description (context)
+- video_id (FK if YouTube)
+- confidence_score
+- metadata (JSONB)
+
+krai_content.videos:
+- link_id (FK)
+- youtube_id (unique)
+- title, description, thumbnail_url
+- duration, view_count, like_count
+- channel_id, channel_title
+- published_at, metadata (JSONB)
+```
+
+### **Benefits:**
+- 📺 **Video tutorials** directly accessible from agent
+- 🔗 **Support links** for extended help
+- 📥 **Download links** for drivers/software
+- 📊 **Video metrics** (popularity indicator)
+- 🔍 **Searchable** by title, description
+
+### **N8N Integration:**
+```javascript
+// Agent can now answer:
+"Are there any video tutorials for this error?"
+→ Query videos table, return YouTube links with titles
+
+"Where can I download the driver?"
+→ Query links table, filter link_type='download'
+
+"Show me support resources for this product"
+→ Query links table, filter link_category='support_portal'
+```
+
+---
+
+## 5️⃣ **Embedding Best Practices**
 
 ### **Query Optimization:**
 When user asks a question, preprocess query to remove noise:
@@ -179,11 +297,12 @@ When user asks a question, preprocess query to remove noise:
 1. ✅ Header cleanup with metadata extraction
 2. ✅ Chunk size optimization
 3. ✅ Version extraction fix
+4. ✅ Link & video extraction with YouTube metadata
 
 ### **Phase 2 (Enhancement):**
-4. Query preprocessing
-5. Multi-stage retrieval
-6. Re-ranking algorithm
+5. Query preprocessing
+6. Multi-stage retrieval
+7. Re-ranking algorithm
 
 ### **Phase 3 (Advanced):**
 7. Hybrid search (semantic + keyword)
