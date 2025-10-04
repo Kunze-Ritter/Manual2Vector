@@ -479,14 +479,45 @@ class MasterPipeline:
                     self.logger.warning(f"❌ Skipping product {prod_data.get('model_number')} - no manufacturer_id")
                     continue
                 
+                # Find or create product series
+                series_id = None
+                series_name = prod_data.get('series')
+                
+                if series_name and manufacturer_id:
+                    try:
+                        # Try to find existing series
+                        series_result = self.supabase.table('product_series') \
+                            .select('id') \
+                            .eq('manufacturer_id', manufacturer_id) \
+                            .ilike('series_name', series_name) \
+                            .limit(1) \
+                            .execute()
+                        
+                        if series_result.data:
+                            series_id = series_result.data[0]['id']
+                            self.logger.debug(f"Found series: {series_name}")
+                        else:
+                            # Create new series
+                            new_series = self.supabase.table('product_series').insert({
+                                'manufacturer_id': manufacturer_id,
+                                'series_name': series_name
+                            }).execute()
+                            
+                            if new_series.data:
+                                series_id = new_series.data[0]['id']
+                                self.logger.info(f"✅ Created new series: {series_name}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to find/create series '{series_name}': {e}")
+                
                 record = {
                     'model_number': prod_data.get('model_number'),
                     'manufacturer_id': manufacturer_id,
+                    'series_id': series_id,  # Added series_id FK!
                     'product_type': prod_data.get('product_type', 'printer'),
                     'metadata': {
                         'manufacturer_name': manufacturer_name,
                         'confidence': prod_data.get('confidence', 0.8),
-                        'series': prod_data.get('series'),
+                        'series': series_name,  # Keep in metadata too for reference
                         'extracted_from_document': str(document_id),
                         'extracted_at': datetime.utcnow().isoformat()
                     }
