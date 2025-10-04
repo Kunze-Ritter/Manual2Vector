@@ -5,7 +5,7 @@ Coordinates text extraction, chunking, product/error extraction.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 from uuid import UUID, uuid4
 import time
 from .logger import get_logger, log_processing_summary
@@ -14,6 +14,7 @@ from .text_extractor import TextExtractor
 from .product_extractor import ProductExtractor
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
+from .storage_processor import StorageProcessor
 from .chunker import SmartChunker
 
 
@@ -47,6 +48,7 @@ class DocumentProcessor:
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
+        self.storage_processor = StorageProcessor()  # R2 storage
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
             overlap_size=chunk_overlap
@@ -278,6 +280,57 @@ class DocumentProcessor:
                 str(e),
                 processing_time
             )
+    
+    def upload_to_storage(
+        self,
+        document_id: UUID,
+        file_path: Path,
+        manufacturer: Optional[str] = None,
+        document_type: str = "service_manual"
+    ) -> Dict:
+        """
+        Upload document to R2 storage
+        
+        Args:
+            document_id: Document UUID
+            file_path: Path to PDF file
+            manufacturer: Manufacturer name
+            document_type: Type of document
+            
+        Returns:
+            Dict with upload result
+        """
+        if not self.storage_processor.is_configured():
+            self.logger.warning("Storage not configured - skipping upload")
+            return {
+                'success': False,
+                'error': 'R2 storage not configured',
+                'skipped': True
+            }
+        
+        try:
+            self.logger.info("Uploading to R2 storage...")
+            
+            result = self.storage_processor.upload_document(
+                document_id=document_id,
+                file_path=file_path,
+                manufacturer=manufacturer,
+                document_type=document_type
+            )
+            
+            if result['success']:
+                self.logger.success(f"Uploaded to storage: {result['storage_path']}")
+            else:
+                self.logger.error(f"Storage upload failed: {result.get('error')}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Storage upload error: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
     
     def _calculate_statistics(
         self,
