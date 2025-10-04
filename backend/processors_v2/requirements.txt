@@ -26,6 +26,9 @@ boto3>=1.28.0  # For R2/S3
 Pillow>=10.0.0  # Image manipulation
 pytesseract>=0.3.10  # OCR (optional)
 
+# Embeddings & Vector Search
+numpy>=1.24.0  # For vector calculations
+
 # Utilities
 tqdm>=4.65.0
 httpx>=0.25.0

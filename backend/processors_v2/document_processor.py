@@ -16,6 +16,7 @@ from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
 from .image_storage_processor import ImageStorageProcessor
 from .image_processor import ImageProcessor
+from .embedding_processor import EmbeddingProcessor
 from .chunker import SmartChunker
 
 
@@ -51,6 +52,7 @@ class DocumentProcessor:
         self.version_extractor = VersionExtractor()
         self.image_processor = ImageProcessor()  # Stage 3: Extract images
         self.image_storage = ImageStorageProcessor()  # R2 for images only
+        self.embedding_processor = EmbeddingProcessor()  # Stage 7: Embeddings
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
             overlap_size=chunk_overlap
@@ -342,6 +344,56 @@ class DocumentProcessor:
             
         except Exception as e:
             self.logger.error(f"Image upload error: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def generate_embeddings(
+        self,
+        document_id: UUID,
+        chunks: List[Dict]
+    ) -> Dict:
+        """
+        Generate vector embeddings for chunks
+        
+        Note: This enables semantic search!
+        
+        Args:
+            document_id: Document UUID
+            chunks: List of chunks with text
+            
+        Returns:
+            Dict with embedding result
+        """
+        if not self.embedding_processor.is_configured():
+            self.logger.info("Embedding processor not configured - skipping embeddings")
+            return {
+                'success': False,
+                'error': 'Embedding processor not configured',
+                'skipped': True
+            }
+        
+        try:
+            self.logger.info(f"Generating embeddings for {len(chunks)} chunks...")
+            
+            result = self.embedding_processor.process_document(
+                document_id=document_id,
+                chunks=chunks
+            )
+            
+            if result['success']:
+                self.logger.success(
+                    f"Created {result['embeddings_created']} embeddings "
+                    f"in {result['processing_time']:.1f}s"
+                )
+            else:
+                self.logger.warning(f"Some chunks failed: {result.get('failed_count', 0)}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Embedding generation error: {e}")
             return {
                 'success': False,
                 'error': str(e)
