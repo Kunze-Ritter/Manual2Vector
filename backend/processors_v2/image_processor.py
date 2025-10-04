@@ -66,6 +66,14 @@ class ImageProcessor:
         if self.enable_ocr:
             try:
                 import pytesseract
+                
+                # Configure Tesseract path (Windows)
+                try:
+                    from backend.config.tesseract_config import configure_tesseract
+                    configure_tesseract()
+                except:
+                    pass  # Configuration not critical
+                
                 # Test if Tesseract binary is actually installed
                 pytesseract.get_tesseract_version()
                 self.ocr_available = True

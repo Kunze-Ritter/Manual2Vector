@@ -324,6 +324,14 @@ class LinkExtractor:
             if enable_ocr:
                 try:
                     import pytesseract
+                    
+                    # Configure Tesseract path (Windows)
+                    try:
+                        from backend.config.tesseract_config import configure_tesseract
+                        configure_tesseract()
+                    except:
+                        pass  # Configuration not critical
+                    
                     ocr_text = pytesseract.image_to_string(thumbnail_image)
                     if ocr_text.strip():
                         video_metadata['thumbnail_ocr_text'] = ocr_text.strip()
