@@ -136,10 +136,22 @@ class LinkExtractor:
                             if 'uri' in annot or 'URI' in annot:
                                 url = annot.get('uri') or annot.get('URI')
                                 if url:
+                                    # Safely decode description (may be UTF-16-LE encoded)
+                                    description = annot.get('contents', '')
+                                    if isinstance(description, bytes):
+                                        try:
+                                            # Try UTF-16-LE first (common in PDF annotations)
+                                            description = description.decode('utf-16-le', errors='ignore')
+                                        except:
+                                            try:
+                                                description = description.decode('utf-8', errors='ignore')
+                                            except:
+                                                description = str(description, errors='ignore')
+                                    
                                     links.append({
                                         'url': url,
                                         'page_number': page_num,
-                                        'description': annot.get('contents', ''),
+                                        'description': description if description else '',
                                         'position_data': {
                                             'rect': annot.get('rect'),
                                             'type': 'pdf_annotation'
@@ -296,21 +308,41 @@ class LinkExtractor:
         return hours * 3600 + minutes * 60 + seconds
     
     def _classify_link(self, url: str) -> str:
-        """Classify link type based on URL"""
+        """
+        Classify link type based on URL
+        
+        Valid types (per database constraint):
+        - 'video', 'external', 'tutorial', 'support', 'download', 'email', 'phone'
+        """
         url_lower = url.lower()
         
+        # Email links
+        if url_lower.startswith('mailto:'):
+            return 'email'
+        
+        # Phone links
+        if url_lower.startswith('tel:'):
+            return 'phone'
+        
+        # Support links
         if 'support' in url_lower or 'help' in url_lower or 'kb' in url_lower:
             return 'support'
+        
+        # Download links
         elif 'download' in url_lower or 'driver' in url_lower or 'software' in url_lower:
             return 'download'
-        elif 'manual' in url_lower or 'documentation' in url_lower or 'doc' in url_lower:
-            return 'documentation'
         elif any(ext in url_lower for ext in ['.pdf', '.zip', '.exe', '.dmg', '.pkg']):
             return 'download'
-        elif 'video' in url_lower or 'tutorial' in url_lower:
+        
+        # Video/Tutorial links
+        elif 'video' in url_lower or 'youtube' in url_lower or 'vimeo' in url_lower:
             return 'video'
+        elif 'tutorial' in url_lower or 'how-to' in url_lower or 'guide' in url_lower:
+            return 'tutorial'
+        
+        # Default: external
         else:
-            return 'other'
+            return 'external'
     
     def _categorize_link(self, url: str) -> str:
         """Categorize link by domain/platform"""
