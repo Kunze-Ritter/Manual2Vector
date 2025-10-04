@@ -4,17 +4,17 @@
 -- PART 1: Remove unused columns from krai_core.documents
 -- ============================================================================
 
--- Remove storage_url (no longer using R2 for PDFs)
+-- Remove storage_url (no longer using R2 for PDFs) - CASCADE to drop dependent views
 ALTER TABLE krai_core.documents
-DROP COLUMN IF EXISTS storage_url;
+DROP COLUMN IF EXISTS storage_url CASCADE;
 
 -- Remove product_id (can only reference 1 product - wrong for manuals with many products)
 ALTER TABLE krai_core.documents
-DROP COLUMN IF EXISTS product_id;
+DROP COLUMN IF EXISTS product_id CASCADE;
 
 -- Remove manufacturer_id (redundant - we have manufacturer VARCHAR)
 ALTER TABLE krai_core.documents
-DROP COLUMN IF EXISTS manufacturer_id;
+DROP COLUMN IF EXISTS manufacturer_id CASCADE;
 
 COMMENT ON COLUMN krai_core.documents.manufacturer IS 'Manufacturer name (text) - auto-detected during processing';
 COMMENT ON COLUMN krai_core.documents.models IS 'Array of model numbers extracted from document';
