@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 from uuid import UUID, uuid4
 import time
+import re
 from .logger import get_logger, log_processing_summary
 from .models import ProcessingResult, DocumentMetadata
 from .text_extractor import TextExtractor
@@ -231,10 +232,25 @@ class DocumentProcessor:
                 )
                 versions.extend(page_versions)
             
-            # Get best version (highest confidence)
+            # Get best version (highest version number or latest date)
             if versions:
-                best_version = max(versions, key=lambda v: v.confidence)
-                self.logger.success(f"Extracted version: {best_version.version_string} (confidence: {best_version.confidence:.2f})")
+                # Filter to only 'version' type (not dates, firmware, etc)
+                version_types = [v for v in versions if v.version_type == 'version']
+                
+                if version_types:
+                    # Sort by version number (extract numeric part)
+                    def get_version_number(v):
+                        match = re.search(r'([0-9]+(?:\.[0-9]+)?)', v.version_string)
+                        if match:
+                            return float(match.group(1))
+                        return 0.0
+                    
+                    best_version = max(version_types, key=get_version_number)
+                    self.logger.success(f"Extracted version: {best_version.version_string} (highest from revision list)")
+                else:
+                    # Fallback to highest confidence if no version type found
+                    best_version = max(versions, key=lambda v: v.confidence)
+                    self.logger.success(f"Extracted version: {best_version.version_string} (confidence: {best_version.confidence:.2f})")
             else:
                 self.logger.info("No version found")
             
