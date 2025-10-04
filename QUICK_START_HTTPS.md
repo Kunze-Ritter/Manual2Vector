@@ -1,21 +1,26 @@
 # 🚀 Quick Start: n8n mit HTTPS für Microsoft Teams
 
-Schnellstart-Anleitung um n8n mit **lokalem HTTPS** für Microsoft Teams Chat-Trigger zu nutzen.
+Schnellstart-Anleitung um n8n mit **Cloudflare Tunnel** für Microsoft Teams Chat-Trigger zu nutzen.
 
-## ⚡ Automatisches Setup (2 Minuten)
+## ⚡ Automatisches Setup (3 Minuten)
 
 ```powershell
 # Führe das Setup-Script aus
-.\scripts\setup-n8n-https.ps1
+.\scripts\setup-cloudflare-tunnel.ps1
 ```
 
-Das Script:
-1. ✅ Erstellt SSL-Zertifikat für localhost
-2. ✅ Installiert Zertifikat im Windows Trust Store (optional)
-3. ✅ Startet n8n mit nginx SSL-Proxy
-4. ✅ Testet die Verbindung
+Das Script führt dich durch:
+1. ✅ Cloudflare Tunnel erstellen (mit Anleitung)
+2. ✅ Token und URL in .env eintragen
+3. ✅ Container starten
+4. ✅ Fertig - n8n über HTTPS erreichbar!
 
-**Ergebnis**: n8n läuft auf `https://localhost`
+**Ergebnis**: n8n läuft auf `https://deine-subdomain.trycloudflare.com`
+
+**Vorteile**:
+- ✅ SSL-Zertifikat automatisch vertrauenswürdig (keine Installation nötig!)
+- ✅ Microsoft Teams funktioniert sofort
+- ✅ Von überall erreichbar
 
 ---
 
@@ -23,46 +28,49 @@ Das Script:
 
 ### 1. Webhook in n8n erstellen
 
-1. Öffne n8n: `https://localhost`
+1. Öffne n8n: `https://deine-subdomain.trycloudflare.com`
 2. Erstelle neuen Workflow
 3. Füge "Webhook" Node hinzu
 4. Wähle HTTP Method (meist POST)
-5. Kopiere die Webhook-URL: `https://localhost/webhook/...`
+5. Kopiere die Webhook-URL: `https://deine-subdomain.trycloudflare.com/webhook/...`
 
 ### 2. In Microsoft Teams konfigurieren
 
 **Incoming Webhook (einfach)**:
 1. Gehe zu deinem Team → ⚙️ Einstellungen
 2. Connectors → Incoming Webhook
-3. Füge deine n8n-Webhook-URL ein: `https://localhost/webhook/...`
-4. Teste den Webhook
+3. Füge deine n8n-Webhook-URL ein
+4. Teste den Webhook → Funktioniert sofort! ✅
 
 **Bot Framework (erweitert)**:
 1. Registriere Bot im [Azure Portal](https://portal.azure.com)
 2. Nutze n8n's "Microsoft Teams" Node
-3. Konfiguriere Bot Messaging Endpoint: `https://localhost/webhook/teams`
+3. Konfiguriere Bot Messaging Endpoint mit deiner Webhook-URL
 
-⚠️ **Wichtig**: Das SSL-Zertifikat muss im Windows Trust Store installiert sein!
+✅ **Vorteil**: Cloudflare-Zertifikat ist automatisch vertrauenswürdig!
 
 ---
 
 ## 🔍 Troubleshooting
 
-### Browser zeigt SSL-Warnung
+### Tunnel verbindet nicht
 ```powershell
-# Zertifikat ist nicht installiert
-# Lösung: Führe das Setup-Script erneut aus und installiere das Zertifikat
-.\scripts\setup-n8n-https.ps1
+# Prüfe Tunnel-Logs
+docker logs krai-cloudflare-tunnel -f
+
+# Häufige Ursachen:
+# - Token falsch eingegeben
+# - Public Hostname nicht konfiguriert
+# - Service-URL nicht korrekt: muss 'krai-n8n-chat-agent:5678' sein
 ```
 
-### Microsoft Teams akzeptiert Webhook nicht
+### 502 Bad Gateway
 ```powershell
-# Prüfe ob Zertifikat im Trust Store ist
-certutil -store -user Root | Select-String "localhost"
+# n8n läuft nicht oder startet noch
+docker logs krai-n8n-chat-agent -f
 
-# Installiere Zertifikat manuell:
-# Rechtsklick auf nginx/ssl/localhost.crt -> Zertifikat installieren
-# Speicherort: "Vertrauenswürdige Stammzertifizierungsstellen"
+# Container neu starten
+docker-compose restart
 ```
 
 ### Webhook erhält keine Daten
@@ -70,29 +78,28 @@ certutil -store -user Root | Select-String "localhost"
 # Prüfe n8n-Logs
 docker logs krai-n8n-chat-agent -f
 
-# Prüfe nginx-Logs
-docker logs krai-nginx-ssl -f
+# Prüfe Tunnel-Logs
+docker logs krai-cloudflare-tunnel -f
+
+# Teste Webhook manuell
+Invoke-WebRequest -Uri "https://deine-url/webhook/test" -Method POST
 ```
 
-### 502 Bad Gateway
+### "Invalid credentials" beim Login
 ```powershell
-# Container neu starten
-docker-compose restart
-```
+# Standard-Login:
+# Benutzer: admin
+# Passwort: krai_chat_agent_2024
 
-### Port 443 bereits belegt
-```powershell
-# Prüfe welcher Prozess Port 443 nutzt
-netstat -ano | Select-String ":443"
-
-# Stoppe IIS oder anderen Webserver der Port 443 nutzt
+# Passwort ändern in docker-compose.yml:
+# N8N_BASIC_AUTH_PASSWORD=dein_passwort
 ```
 
 ---
 
 ## 📚 Ausführliche Anleitungen
 
-- **HTTPS Setup**: `docs/setup/N8N_HTTPS_LOCAL_SETUP.md`
+- **Cloudflare Tunnel**: `docs/setup/N8N_CLOUDFLARE_TUNNEL_SETUP.md`
 - **n8n Workflows**: `docs/n8n/N8N_AI_AGENT_MODERN_SETUP.md`
 - **Microsoft Teams Bot**: `docs/n8n/KRAI_AGENT_WORKFLOW_GUIDE.md`
 
@@ -100,7 +107,7 @@ netstat -ano | Select-String ":443"
 
 ## 🎯 Nächste Schritte
 
-1. ✅ HTTPS funktioniert auf `https://localhost`
+1. ✅ Cloudflare Tunnel läuft
 2. 📱 Erstelle einen Test-Workflow in n8n
 3. 🔗 Verbinde Microsoft Teams mit Webhook-URL
 4. 🤖 Baue deinen Chat-Agent mit LangChain
@@ -110,10 +117,14 @@ netstat -ano | Select-String ":443"
 
 ---
 
-## 🔐 Wichtige Hinweise
+## 🔐 Warum Cloudflare Tunnel?
 
-- **Zertifikat installieren**: Für Microsoft Teams zwingend erforderlich!
-- **Firewall**: Stelle sicher, dass Port 443 offen ist
-- **Produktion**: Für öffentliche Server nutze Let's Encrypt statt selbst-signiertem Zertifikat
+- ✅ **SSL-Zertifikat automatisch vertrauenswürdig** - Keine manuelle Installation!
+- ✅ **Microsoft Teams funktioniert sofort** - Keine Zertifikat-Fehler
+- ✅ **Von überall erreichbar** - Lokal, Büro, mobil
+- ✅ **Kostenlos** - Mit *.trycloudflare.com Subdomain
+- ✅ **Sicher** - Cloudflare Zero Trust Protection
 
-**Support**: Siehe `docs/troubleshooting/` oder `docs/setup/N8N_HTTPS_LOCAL_SETUP.md` für Details.
+**Alternative**: Für rein lokale Entwicklung siehe `docs/setup/N8N_HTTPS_LOCAL_SETUP.md`
+
+**Support**: Siehe `docs/troubleshooting/` für weitere Hilfe.

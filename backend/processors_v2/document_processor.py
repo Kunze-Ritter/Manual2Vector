@@ -241,7 +241,7 @@ class DocumentProcessor:
             images = []
             image_result = self.image_processor.process_document(
                 document_id=document_id,
-                pdf_path=file_path
+                pdf_path=pdf_path
             )
             
             if image_result['success']:

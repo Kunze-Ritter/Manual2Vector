@@ -140,9 +140,9 @@ class MasterPipeline:
         manufacturer = manufacturer or self.manufacturer
         
         self.logger.info("="*80)
-        self.logger.info(f"🚀 MASTER PIPELINE START")
-        self.logger.info(f"📄 File: {file_path.name}")
-        self.logger.info(f"🏭 Manufacturer: {manufacturer}")
+        self.logger.info(f">>> MASTER PIPELINE START")
+        self.logger.info(f"File: {file_path.name}")
+        self.logger.info(f"Manufacturer: {manufacturer}")
         self.logger.info("="*80)
         
         document_id = None
@@ -172,7 +172,7 @@ class MasterPipeline:
             stage_result = self._run_stage(
                 stage_name="document_processing",
                 stage_func=lambda: self.document_processor.process_document(
-                    file_path=file_path,
+                    pdf_path=file_path,
                     document_id=document_id
                 )
             )
@@ -228,9 +228,9 @@ class MasterPipeline:
             processing_time = time.time() - start_time
             
             self.logger.info("="*80)
-            self.logger.success("🎉 PIPELINE COMPLETE!")
-            self.logger.info(f"⏱️  Total Time: {processing_time:.1f}s")
-            self.logger.info(f"📊 Results:")
+            self.logger.success(">>> PIPELINE COMPLETE!")
+            self.logger.info(f"Total Time: {processing_time:.1f}s")
+            self.logger.info(f"Results:")
             self.logger.info(f"   Documents: 1")
             self.logger.info(f"   Pages: {results['processing'].get('metadata', {}).get('page_count', 0)}")
             self.logger.info(f"   Chunks: {len(chunks)}")
@@ -284,44 +284,44 @@ class MasterPipeline:
         Returns:
             Stage result dict
         """
-        self.logger.info(f"\n▶️  Stage: {stage_name.upper()}")
+        self.logger.info(f"\n>>> Stage: {stage_name.upper()}")
         
         try:
             result = stage_func()
             
             # Handle skipped optional stages
             if result.get('skipped'):
-                self.logger.info(f"⏭️  {stage_name} skipped (optional)")
+                self.logger.info(f">> {stage_name} skipped (optional)")
                 return result
             
             # Check success
             if result.get('success'):
-                self.logger.success(f"✅ {stage_name} complete")
+                self.logger.success(f"[OK] {stage_name} complete")
                 return result
             else:
                 error = result.get('error', 'Unknown error')
-                self.logger.warning(f"⚠️  {stage_name} failed: {error}")
+                self.logger.warning(f"[!] {stage_name} failed: {error}")
                 
                 # Retry logic
                 if retry_count < self.max_retries:
-                    self.logger.info(f"🔄 Retrying {stage_name} ({retry_count + 1}/{self.max_retries})...")
+                    self.logger.info(f"[RETRY] {stage_name} ({retry_count + 1}/{self.max_retries})...")
                     time.sleep(1)  # Brief delay before retry
                     return self._run_stage(stage_name, stage_func, optional, retry_count + 1)
                 
                 # If optional, continue pipeline
                 if optional:
-                    self.logger.warning(f"⏭️  Skipping optional stage: {stage_name}")
+                    self.logger.warning(f"[SKIP] Skipping optional stage: {stage_name}")
                     return result
                 
                 # Otherwise, stage has failed
                 return result
                 
         except Exception as e:
-            self.logger.error(f"❌ {stage_name} exception: {e}")
+            self.logger.error(f"[ERROR] {stage_name} exception: {e}")
             
             # Retry on exception
             if retry_count < self.max_retries:
-                self.logger.info(f"🔄 Retrying {stage_name} ({retry_count + 1}/{self.max_retries})...")
+                self.logger.info(f"[RETRY] {stage_name} ({retry_count + 1}/{self.max_retries})...")
                 time.sleep(1)
                 return self._run_stage(stage_name, stage_func, optional, retry_count + 1)
             
@@ -369,9 +369,9 @@ class MasterPipeline:
         processing_time = time.time() - start_time
         
         self.logger.error("="*80)
-        self.logger.error(f"❌ PIPELINE FAILED")
-        self.logger.error(f"⏱️  Time: {processing_time:.1f}s")
-        self.logger.error(f"💥 Error: {error}")
+        self.logger.error(f"[FAILED] PIPELINE FAILED")
+        self.logger.error(f"Time: {processing_time:.1f}s")
+        self.logger.error(f"Error: {error}")
         self.logger.error("="*80)
         
         return {
@@ -400,7 +400,7 @@ class MasterPipeline:
             Dict with batch results
         """
         self.logger.info("="*80)
-        self.logger.info(f"📦 BATCH PROCESSING: {len(file_paths)} documents")
+        self.logger.info(f"BATCH PROCESSING: {len(file_paths)} documents")
         self.logger.info("="*80)
         
         start_time = time.time()
@@ -410,7 +410,7 @@ class MasterPipeline:
         failed = 0
         
         for i, file_path in enumerate(file_paths, 1):
-            self.logger.info(f"\n📄 Processing {i}/{len(file_paths)}: {file_path.name}")
+            self.logger.info(f"\nProcessing {i}/{len(file_paths)}: {file_path.name}")
             
             result = self.process_document(
                 file_path=file_path,
@@ -428,11 +428,11 @@ class MasterPipeline:
         total_time = time.time() - start_time
         
         self.logger.info("\n" + "="*80)
-        self.logger.info("📊 BATCH COMPLETE")
-        self.logger.info(f"✅ Successful: {successful}/{len(file_paths)}")
-        self.logger.info(f"❌ Failed: {failed}/{len(file_paths)}")
-        self.logger.info(f"⏱️  Total Time: {total_time:.1f}s")
-        self.logger.info(f"⚡ Avg Time: {total_time/len(file_paths):.1f}s per document")
+        self.logger.info("BATCH COMPLETE")
+        self.logger.info(f"Successful: {successful}/{len(file_paths)}")
+        self.logger.info(f"Failed: {failed}/{len(file_paths)}")
+        self.logger.info(f"Total Time: {total_time:.1f}s")
+        self.logger.info(f"Avg Time: {total_time/len(file_paths):.1f}s per document")
         self.logger.info("="*80)
         
         return {

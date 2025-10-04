@@ -11,10 +11,10 @@ services:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=krai_chat_agent_2024
-      - N8N_HOST=localhost
+      - N8N_HOST=${N8N_HOST}
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://localhost/
+      - WEBHOOK_URL=${WEBHOOK_URL}
       - GENERIC_TIMEZONE=Europe/Berlin
       - N8N_LOG_LEVEL=info
       - N8N_METRICS=true
@@ -30,17 +30,14 @@ services:
     networks:
       - krai-network
 
-  # Nginx Reverse Proxy with SSL for local HTTPS
-  nginx:
-    image: nginx:alpine
-    container_name: krai-nginx-ssl
+  # Cloudflare Tunnel for HTTPS access (no certificate needed!)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: krai-cloudflare-tunnel
     restart: unless-stopped
-    ports:
-      - "443:443"
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
       - krai-network
     depends_on:
