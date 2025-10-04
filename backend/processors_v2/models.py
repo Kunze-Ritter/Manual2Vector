@@ -128,7 +128,7 @@ class TextChunk(BaseModel):
     """Text chunk for embedding"""
     chunk_id: UUID = Field(default_factory=uuid4)
     document_id: UUID
-    text: str = Field(..., min_length=50)
+    text: str = Field(..., min_length=30)  # Reduced to allow valuable short chunks
     chunk_index: int
     page_start: int
     page_end: int
@@ -138,9 +138,9 @@ class TextChunk(BaseModel):
     
     @validator('text')
     def validate_text(cls, v):
-        """Ensure text is meaningful"""
-        if len(v.strip()) < 50:
-            raise ValueError("Chunk text too short after stripping")
+        """Ensure text is meaningful (reduced from 50 to 30 to preserve short but valuable content)"""
+        if len(v.strip()) < 30:
+            raise ValueError("Chunk text too short after stripping (min 30 chars)")
         return v.strip()
 
 
