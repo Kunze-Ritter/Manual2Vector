@@ -91,7 +91,9 @@ class MasterPipeline:
             supabase_client=supabase_client
         )
         
-        self.image_storage = ImageStorageProcessor()
+        self.image_storage = ImageStorageProcessor(
+            supabase_client=supabase_client
+        )
         
         self.embedding_processor = EmbeddingProcessor(
             supabase_client=supabase_client

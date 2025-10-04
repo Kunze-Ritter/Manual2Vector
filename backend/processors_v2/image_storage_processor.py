@@ -1,28 +1,29 @@
 """
-Image Storage Processor - Cloudflare R2 Integration
+Image Storage Processor V2 - WITH HASH DEDUPLICATION
 
-Handles EXTRACTED IMAGE storage (not full PDFs!) on R2.
-Cloudflare R2 is S3-compatible, so we use boto3.
+Handles EXTRACTED IMAGE storage on Cloudflare R2 with:
+- MD5 hash-based deduplication (no duplicate uploads!)
+- Flat storage structure: {hash}.{extension}
+- Database tracking in krai_content.images
+- Automatic metadata extraction
+- Integration with Supabase
 
-Why only images?
-- PDFs stay local (no need to store after processing)
-- Images needed for Vision AI and user viewing
-- Much smaller storage footprint (MBs vs GBs)
-- Lower R2 costs
+Storage Structure:
+    OLD: documents/{doc_id}/images/page_0001_diagram_img.png
+    NEW: a1b2c3d4e5f6.png (just the hash!)
 
-Features:
-- Upload extracted images to R2
-- Generate presigned URLs for image access
-- File organization (by document/type)
-- Storage statistics
-- Cleanup & lifecycle management
+Deduplication Flow:
+    1. Calculate MD5 hash of image
+    2. Check if hash exists in DB
+    3. If exists: Return existing URL (skip upload)
+    4. If new: Upload to R2 + Insert to DB
 """
 
 import os
 from pathlib import Path as FilePath
 from dotenv import load_dotenv
 
-# Load .env from project root (2 levels up from this file)
+# Load .env
 env_path = FilePath(__file__).parent.parent.parent / '.env'
 if env_path.exists():
     load_dotenv(env_path)
@@ -32,91 +33,240 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from pathlib import Path
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 import hashlib
 import mimetypes
 
 from .logger import get_logger
-from .stage_tracker import StageTracker, StageContext
 
 
 class ImageStorageProcessor:
     """
-    Stage 6: Image Storage Processor
+    Image Storage with Hash-based Deduplication
     
-    Handles extracted image storage in Cloudflare R2.
-    PDFs stay local - we only upload extracted images!
+    Features:
+    - MD5 hash calculation
+    - Automatic deduplication
+    - R2 storage (Cloudflare)
+    - Database tracking (krai_content.images)
+    - Flat structure (no folders)
     """
     
-    def __init__(
-        self,
-        supabase_client=None,
-        bucket_name: Optional[str] = None,
-        endpoint_url: Optional[str] = None,
-        access_key: Optional[str] = None,
-        secret_key: Optional[str] = None
-    ):
+    def __init__(self, supabase_client=None):
         """
-        Initialize storage processor
+        Initialize image storage processor
         
         Args:
-            supabase_client: Supabase client for stage tracking
-            bucket_name: R2 bucket name (default: from env)
-            endpoint_url: R2 endpoint URL (default: from env)
-            access_key: R2 access key (default: from env)
-            secret_key: R2 secret key (default: from env)
+            supabase_client: Supabase client for DB tracking
         """
         self.logger = get_logger()
         self.supabase = supabase_client
         
-        # Load R2 credentials
-        # Try multiple bucket name options for backward compatibility
-        self.bucket_name = bucket_name or os.getenv('R2_BUCKET_NAME') or os.getenv('R2_BUCKET_NAME_DOCUMENTS', 'krai-documents-images')
-        self.endpoint_url = endpoint_url or os.getenv('R2_ENDPOINT_URL')
-        self.access_key = access_key or os.getenv('R2_ACCESS_KEY_ID')
-        self.secret_key = secret_key or os.getenv('R2_SECRET_ACCESS_KEY')
+        # R2 Configuration
+        self.access_key = os.getenv('R2_ACCESS_KEY_ID')
+        self.secret_key = os.getenv('R2_SECRET_ACCESS_KEY')
+        self.endpoint_url = os.getenv('R2_ENDPOINT_URL')
+        self.bucket_name = os.getenv('R2_BUCKET_NAME_DOCUMENTS')
+        self.public_url = os.getenv('R2_PUBLIC_URL_DOCUMENTS')
         
-        # Validate configuration
-        if not all([self.endpoint_url, self.access_key, self.secret_key]):
-            self.logger.warning("R2 credentials not fully configured!")
-            self.logger.warning("Set R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY")
-            self.r2_client = None
+        # Initialize R2 client
+        self.r2_client = None
+        if all([self.access_key, self.secret_key, self.endpoint_url, self.bucket_name]):
+            try:
+                self.r2_client = boto3.client(
+                    's3',
+                    endpoint_url=self.endpoint_url,
+                    aws_access_key_id=self.access_key,
+                    aws_secret_access_key=self.secret_key,
+                    config=Config(signature_version='s3v4'),
+                    region_name='auto'
+                )
+                self.logger.info("R2 client initialized successfully")
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize R2 client: {e}")
         else:
-            # Initialize R2 client (S3-compatible)
-            self.r2_client = self._create_r2_client()
-        
-        # Stage tracker
-        if supabase_client:
-            self.stage_tracker = StageTracker(supabase_client)
-        else:
-            self.stage_tracker = None
-    
-    def _create_r2_client(self):
-        """Create boto3 S3 client for R2"""
-        try:
-            client = boto3.client(
-                's3',
-                endpoint_url=self.endpoint_url,
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-                config=Config(
-                    signature_version='s3v4',
-                    s3={'addressing_style': 'path'}
-                ),
-                region_name='auto'  # R2 uses 'auto'
-            )
-            
-            self.logger.success("R2 client initialized")
-            return client
-            
-        except Exception as e:
-            self.logger.error(f"Failed to create R2 client: {e}")
-            return None
+            self.logger.warning("R2 credentials incomplete - storage disabled")
     
     def is_configured(self) -> bool:
-        """Check if R2 is properly configured"""
-        return self.r2_client is not None
+        """Check if R2 and Supabase are configured"""
+        return self.r2_client is not None and self.supabase is not None
+    
+    def calculate_image_hash(self, image_path: Path) -> str:
+        """
+        Calculate MD5 hash of image file
+        
+        Args:
+            image_path: Path to image file
+            
+        Returns:
+            MD5 hash as hex string
+        """
+        md5_hash = hashlib.md5()
+        
+        with open(image_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                md5_hash.update(chunk)
+        
+        return md5_hash.hexdigest()
+    
+    def check_image_exists(self, file_hash: str) -> Optional[Dict[str, Any]]:
+        """
+        Check if image with this hash already exists in DB
+        
+        Args:
+            file_hash: MD5 hash of image
+            
+        Returns:
+            Existing image record or None
+        """
+        if not self.supabase:
+            return None
+        
+        try:
+            result = self.supabase.table('images') \
+                .select('*') \
+                .eq('file_hash', file_hash) \
+                .limit(1) \
+                .execute()
+            
+            if result.data and len(result.data) > 0:
+                return result.data[0]
+            
+            return None
+            
+        except Exception as e:
+            self.logger.debug(f"Error checking image existence: {e}")
+            return None
+    
+    def upload_image(
+        self,
+        image_path: Path,
+        document_id: UUID,
+        page_number: int,
+        image_type: str = "diagram",
+        metadata: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Upload single image with deduplication
+        
+        Args:
+            image_path: Path to image file
+            document_id: Document UUID
+            page_number: Page number
+            image_type: Type of image
+            metadata: Additional metadata
+            
+        Returns:
+            Result dict with storage_url
+        """
+        if not self.is_configured():
+            return {
+                'success': False,
+                'error': 'Storage not configured',
+                'storage_url': None,
+                'deduplicated': False
+            }
+        
+        try:
+            # 1. Calculate hash
+            file_hash = self.calculate_image_hash(image_path)
+            
+            # 2. Check if already exists
+            existing = self.check_image_exists(file_hash)
+            
+            if existing:
+                # Image already exists - just create new mapping
+                self.logger.info(f"Image deduplicated: {file_hash[:8]}... (already exists)")
+                
+                # Create new document_image mapping if needed
+                return {
+                    'success': True,
+                    'storage_url': existing['storage_url'],
+                    'storage_path': existing['storage_path'],
+                    'file_hash': file_hash,
+                    'deduplicated': True,
+                    'existing_id': existing['id']
+                }
+            
+            # 3. New image - upload to R2
+            extension = image_path.suffix.lstrip('.')
+            storage_path = f"{file_hash}.{extension}"
+            
+            # Upload to R2
+            with open(image_path, 'rb') as f:
+                self.r2_client.upload_fileobj(
+                    f,
+                    self.bucket_name,
+                    storage_path,
+                    ExtraArgs={
+                        'Metadata': {
+                            'document-id': str(document_id),
+                            'page-number': str(page_number),
+                            'image-type': image_type,
+                            'file-hash': file_hash,
+                            'upload-timestamp': datetime.utcnow().isoformat()
+                        },
+                        'ContentType': mimetypes.guess_type(image_path)[0] or 'image/png'
+                    }
+                )
+            
+            # Generate public URL
+            if self.public_url:
+                storage_url = f"{self.public_url}/{storage_path}"
+            else:
+                storage_url = f"{self.endpoint_url}/{self.bucket_name}/{storage_path}"
+            
+            # 4. Insert to database
+            image_record = {
+                'document_id': str(document_id),
+                'filename': storage_path,
+                'original_filename': image_path.name,
+                'storage_path': storage_path,
+                'storage_url': storage_url,
+                'file_hash': file_hash,
+                'file_size': image_path.stat().st_size,
+                'image_format': extension.upper(),
+                'page_number': page_number,
+                'image_type': image_type,
+            }
+            
+            # Add metadata if provided
+            if metadata:
+                if 'width' in metadata:
+                    image_record['width_px'] = metadata['width']
+                if 'height' in metadata:
+                    image_record['height_px'] = metadata['height']
+                if 'ai_description' in metadata:
+                    image_record['ai_description'] = metadata['ai_description']
+                if 'ai_confidence' in metadata:
+                    image_record['ai_confidence'] = metadata['ai_confidence']
+                if 'contains_text' in metadata:
+                    image_record['contains_text'] = metadata['contains_text']
+                if 'ocr_text' in metadata:
+                    image_record['ocr_text'] = metadata['ocr_text']
+            
+            db_result = self.supabase.table('images').insert(image_record).execute()
+            
+            self.logger.debug(f"Uploaded new image: {file_hash[:8]}... → {storage_path}")
+            
+            return {
+                'success': True,
+                'storage_url': storage_url,
+                'storage_path': storage_path,
+                'file_hash': file_hash,
+                'deduplicated': False,
+                'db_id': db_result.data[0]['id'] if db_result.data else None
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to upload image: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'storage_url': None,
+                'deduplicated': False
+            }
     
     def upload_images(
         self,
@@ -125,7 +275,7 @@ class ImageStorageProcessor:
         document_type: str = "service_manual"
     ) -> Dict[str, Any]:
         """
-        Upload extracted images to R2
+        Upload multiple images with deduplication
         
         Args:
             document_id: Document UUID
@@ -138,521 +288,139 @@ class ImageStorageProcessor:
         if not self.is_configured():
             return {
                 'success': False,
-                'error': 'R2 not configured',
+                'error': 'Storage not configured',
                 'uploaded_count': 0,
-                'image_urls': []
+                'deduplicated_count': 0,
+                'urls': []
             }
         
-        # Start stage tracking
-        if self.stage_tracker:
-            self.stage_tracker.start_stage(str(document_id), 'storage')
+        uploaded_count = 0
+        deduplicated_count = 0
+        failed_count = 0
+        urls = []
         
-        uploaded_images = []
-        failed_images = []
+        self.logger.info(f"Uploading {len(images)} images to R2 (with deduplication)...")
         
-        try:
-            for idx, image_info in enumerate(images):
-                image_path = Path(image_info.get('path'))
-                
-                if not image_path.exists():
-                    failed_images.append({'image': str(image_path), 'error': 'File not found'})
-                    continue
-                
-                # Generate storage path
-                storage_path = self._generate_image_storage_path(
-                    document_id,
-                    image_path.name,
-                    image_info.get('page_num'),
-                    image_info.get('type', 'diagram')
-                )
-                
-                # Upload
-                try:
-                    with open(image_path, 'rb') as f:
-                        self.r2_client.upload_fileobj(
-                            f,
-                            self.bucket_name,
-                            storage_path,
-                            ExtraArgs={
-                                'Metadata': {
-                                    'document-id': str(document_id),
-                                    'page-number': str(image_info.get('page_num', 0)),
-                                    'image-type': image_info.get('type', 'diagram'),
-                                    'upload-timestamp': datetime.utcnow().isoformat()
-                                },
-                                'ContentType': image_info.get('mime_type', 'image/png')
-                            }
-                        )
-                    
-                    storage_url = f"{self.endpoint_url}/{self.bucket_name}/{storage_path}"
-                    
-                    uploaded_images.append({
-                        'storage_path': storage_path,
-                        'storage_url': storage_url,
-                        'page_num': image_info.get('page_num'),
-                        'type': image_info.get('type')
-                    })
-                    
-                    self.logger.debug(f"Uploaded image {idx+1}/{len(images)}: {image_path.name}")
-                    
-                except Exception as e:
-                    failed_images.append({'image': str(image_path), 'error': str(e)})
+        for idx, image_info in enumerate(images):
+            image_path = Path(image_info.get('path'))
             
-            # Update stage tracking
-            if self.stage_tracker:
-                if failed_images:
-                    self.stage_tracker.fail_stage(
-                        str(document_id),
-                        'storage',
-                        f"Failed to upload {len(failed_images)} images"
-                    )
+            if not image_path.exists():
+                failed_count += 1
+                continue
+            
+            # Upload with deduplication
+            result = self.upload_image(
+                image_path=image_path,
+                document_id=document_id,
+                page_number=image_info.get('page_num', 0),
+                image_type=image_info.get('type', 'diagram'),
+                metadata=image_info.get('metadata')
+            )
+            
+            if result['success']:
+                if result['deduplicated']:
+                    deduplicated_count += 1
                 else:
-                    self.stage_tracker.complete_stage(
-                        str(document_id),
-                        'storage',
-                        metadata={
-                            'images_uploaded': len(uploaded_images),
-                            'total_size': sum(Path(img.get('path')).stat().st_size for img in images if Path(img.get('path')).exists())
-                        }
-                    )
+                    uploaded_count += 1
+                
+                urls.append({
+                    'page_num': image_info.get('page_num'),
+                    'type': image_info.get('type'),
+                    'url': result['storage_url'],
+                    'hash': result['file_hash'],
+                    'deduplicated': result['deduplicated']
+                })
+            else:
+                failed_count += 1
             
-            self.logger.success(f"Uploaded {len(uploaded_images)}/{len(images)} images to R2")
-            
-            return {
-                'success': len(failed_images) == 0,
-                'uploaded_count': len(uploaded_images),
-                'failed_count': len(failed_images),
-                'image_urls': uploaded_images,
-                'failed_images': failed_images
-            }
-            
-        except Exception as e:
-            error_msg = f"Image upload error: {e}"
-            self.logger.error(error_msg)
-            
-            if self.stage_tracker:
-                self.stage_tracker.fail_stage(str(document_id), 'storage', error_msg)
-            
-            return {
-                'success': False,
-                'error': error_msg,
-                'uploaded_count': len(uploaded_images),
-                'image_urls': uploaded_images
-            }
-    
-    def upload_document(
-        self,
-        document_id: UUID,
-        file_path: Path,
-        manufacturer: Optional[str] = None,
-        document_type: str = "service_manual",
-        metadata: Optional[Dict] = None
-    ) -> Dict[str, Any]:
-        """
-        Upload document to R2 (OPTIONAL - PDFs stay local by default!)
-        
-        Use this ONLY if you want to keep original PDFs on R2.
-        For most use cases, use upload_images() instead.
-        
-        Args:
-            document_id: Document UUID
-            file_path: Local file path
-            manufacturer: Manufacturer name
-            document_type: Type of document
-            metadata: Additional metadata
-            
-        Returns:
-            Dict with upload result
-        """
-        if not self.is_configured():
-            return {
-                'success': False,
-                'error': 'R2 not configured',
-                'storage_url': None,
-                'storage_path': None
-            }
-        
-        # Start stage tracking
-        if self.stage_tracker:
-            self.stage_tracker.start_stage(str(document_id), 'storage')
-        
-        try:
-            # Generate storage path
-            storage_path = self._generate_storage_path(
-                document_id,
-                file_path.name,
-                manufacturer,
-                document_type
-            )
-            
-            self.logger.info(f"Uploading to R2: {storage_path}")
-            
-            # Prepare metadata
-            upload_metadata = {
-                'document-id': str(document_id),
-                'document-type': document_type,
-                'original-filename': file_path.name,
-                'upload-timestamp': datetime.utcnow().isoformat()
-            }
-            
-            if manufacturer:
-                upload_metadata['manufacturer'] = manufacturer
-            
-            if metadata:
-                # Add custom metadata (flatten to strings)
-                for key, value in metadata.items():
-                    if isinstance(value, (str, int, float)):
-                        upload_metadata[f'custom-{key}'] = str(value)
-            
-            # Determine content type
-            content_type = mimetypes.guess_type(file_path)[0] or 'application/pdf'
-            
-            # Upload file
-            with open(file_path, 'rb') as f:
-                self.r2_client.upload_fileobj(
-                    f,
-                    self.bucket_name,
-                    storage_path,
-                    ExtraArgs={
-                        'Metadata': upload_metadata,
-                        'ContentType': content_type
-                    }
+            # Progress logging
+            if (idx + 1) % 50 == 0:
+                self.logger.info(
+                    f"Progress: {idx + 1}/{len(images)} "
+                    f"(Uploaded: {uploaded_count}, Deduplicated: {deduplicated_count})"
                 )
-            
-            self.logger.success(f"Uploaded to R2: {storage_path}")
-            
-            # Generate storage URL
-            storage_url = f"{self.endpoint_url}/{self.bucket_name}/{storage_path}"
-            
-            # Update stage tracking
-            if self.stage_tracker:
-                self.stage_tracker.complete_stage(
-                    str(document_id),
-                    'storage',
-                    metadata={
-                        'storage_path': storage_path,
-                        'storage_url': storage_url,
-                        'file_size': file_path.stat().st_size
-                    }
-                )
-            
-            return {
-                'success': True,
-                'storage_url': storage_url,
-                'storage_path': storage_path,
-                'bucket': self.bucket_name,
-                'file_size': file_path.stat().st_size
-            }
-            
-        except ClientError as e:
-            error_msg = f"R2 upload failed: {e}"
-            self.logger.error(error_msg)
-            
-            if self.stage_tracker:
-                self.stage_tracker.fail_stage(
-                    str(document_id),
-                    'storage',
-                    error_msg
-                )
-            
-            return {
-                'success': False,
-                'error': error_msg,
-                'storage_url': None,
-                'storage_path': None
-            }
         
-        except Exception as e:
-            error_msg = f"Upload error: {e}"
-            self.logger.error(error_msg)
-            
-            if self.stage_tracker:
-                self.stage_tracker.fail_stage(
-                    str(document_id),
-                    'storage',
-                    error_msg
-                )
-            
-            return {
-                'success': False,
-                'error': error_msg,
-                'storage_url': None,
-                'storage_path': None
-            }
+        total_processed = uploaded_count + deduplicated_count
+        
+        self.logger.success(
+            f"Processed {total_processed}/{len(images)} images "
+            f"(New: {uploaded_count}, Deduplicated: {deduplicated_count}, Failed: {failed_count})"
+        )
+        
+        return {
+            'success': failed_count == 0,
+            'uploaded_count': uploaded_count,
+            'deduplicated_count': deduplicated_count,
+            'failed_count': failed_count,
+            'total_processed': total_processed,
+            'urls': urls
+        }
     
-    def _generate_image_storage_path(
-        self,
-        document_id: UUID,
-        filename: str,
-        page_num: Optional[int],
-        image_type: str = "diagram"
-    ) -> str:
+    def get_storage_stats(self) -> Dict[str, Any]:
         """
-        Generate organized storage path for images
-        
-        Format: images/{document_id}/{page_num}_{type}_{filename}
-        Example: images/abc-123/0042_diagram_image_001.png
-        """
-        # Sanitize image type
-        type_clean = image_type.lower().replace(' ', '_')
-        
-        # Create path
-        if page_num is not None:
-            path = f"images/{document_id}/{page_num:04d}_{type_clean}_{filename}"
-        else:
-            path = f"images/{document_id}/{type_clean}_{filename}"
-        
-        return path
-    
-    def _generate_storage_path(
-        self,
-        document_id: UUID,
-        filename: str,
-        manufacturer: Optional[str],
-        document_type: str
-    ) -> str:
-        """
-        Generate organized storage path (for documents - optional!)
-        
-        Format: {document_type}/{manufacturer}/{year}/{document_id}/{filename}
-        Example: service_manual/hp/2024/abc-123/manual.pdf
-        """
-        year = datetime.utcnow().year
-        
-        # Sanitize manufacturer name
-        if manufacturer:
-            manufacturer_clean = manufacturer.lower().replace(' ', '_').replace('/', '_')
-        else:
-            manufacturer_clean = 'unknown'
-        
-        # Sanitize document type
-        doc_type_clean = document_type.lower().replace(' ', '_')
-        
-        # Create path
-        path = f"{doc_type_clean}/{manufacturer_clean}/{year}/{document_id}/{filename}"
-        
-        return path
-    
-    def generate_presigned_url(
-        self,
-        storage_path: str,
-        expiration: int = 3600
-    ) -> Optional[str]:
-        """
-        Generate presigned URL for temporary access
-        
-        Args:
-            storage_path: Path in R2 bucket
-            expiration: URL expiration in seconds (default: 1 hour)
-            
-        Returns:
-            Presigned URL or None
-        """
-        if not self.is_configured():
-            self.logger.warning("Cannot generate presigned URL: R2 not configured")
-            return None
-        
-        try:
-            url = self.r2_client.generate_presigned_url(
-                'get_object',
-                Params={
-                    'Bucket': self.bucket_name,
-                    'Key': storage_path
-                },
-                ExpiresIn=expiration
-            )
-            
-            self.logger.debug(f"Generated presigned URL for: {storage_path}")
-            return url
-            
-        except ClientError as e:
-            self.logger.error(f"Failed to generate presigned URL: {e}")
-            return None
-    
-    def download_document(
-        self,
-        storage_path: str,
-        local_path: Path
-    ) -> bool:
-        """
-        Download document from R2
-        
-        Args:
-            storage_path: Path in R2 bucket
-            local_path: Local destination path
-            
-        Returns:
-            True if successful
-        """
-        if not self.is_configured():
-            self.logger.error("Cannot download: R2 not configured")
-            return False
-        
-        try:
-            self.logger.info(f"Downloading from R2: {storage_path}")
-            
-            # Create parent directory if needed
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Download file
-            self.r2_client.download_file(
-                self.bucket_name,
-                storage_path,
-                str(local_path)
-            )
-            
-            self.logger.success(f"Downloaded to: {local_path}")
-            return True
-            
-        except ClientError as e:
-            self.logger.error(f"Download failed: {e}")
-            return False
-    
-    def delete_document(
-        self,
-        storage_path: str
-    ) -> bool:
-        """
-        Delete document from R2
-        
-        Args:
-            storage_path: Path in R2 bucket
-            
-        Returns:
-            True if successful
-        """
-        if not self.is_configured():
-            self.logger.error("Cannot delete: R2 not configured")
-            return False
-        
-        try:
-            self.logger.info(f"Deleting from R2: {storage_path}")
-            
-            self.r2_client.delete_object(
-                Bucket=self.bucket_name,
-                Key=storage_path
-            )
-            
-            self.logger.success(f"Deleted: {storage_path}")
-            return True
-            
-        except ClientError as e:
-            self.logger.error(f"Delete failed: {e}")
-            return False
-    
-    def list_documents(
-        self,
-        prefix: Optional[str] = None,
-        max_keys: int = 1000
-    ) -> List[Dict[str, Any]]:
-        """
-        List documents in R2
-        
-        Args:
-            prefix: Filter by prefix (e.g., 'service_manual/hp/')
-            max_keys: Maximum number of results
-            
-        Returns:
-            List of document info dicts
-        """
-        if not self.is_configured():
-            self.logger.error("Cannot list: R2 not configured")
-            return []
-        
-        try:
-            params = {
-                'Bucket': self.bucket_name,
-                'MaxKeys': max_keys
-            }
-            
-            if prefix:
-                params['Prefix'] = prefix
-            
-            response = self.r2_client.list_objects_v2(**params)
-            
-            documents = []
-            
-            if 'Contents' in response:
-                for obj in response['Contents']:
-                    documents.append({
-                        'key': obj['Key'],
-                        'size': obj['Size'],
-                        'last_modified': obj['LastModified'],
-                        'etag': obj['ETag']
-                    })
-            
-            self.logger.info(f"Found {len(documents)} documents")
-            return documents
-            
-        except ClientError as e:
-            self.logger.error(f"List failed: {e}")
-            return []
-    
-    def get_storage_statistics(self) -> Dict[str, Any]:
-        """
-        Get storage statistics
+        Get storage statistics from DB
         
         Returns:
             Dict with statistics
         """
-        if not self.is_configured():
-            return {
-                'configured': False,
-                'total_documents': 0,
-                'total_size_bytes': 0
-            }
+        if not self.supabase:
+            return {}
         
         try:
-            # List all objects
-            documents = self.list_documents(max_keys=10000)
+            # Total images
+            total_result = self.supabase.table('images') \
+                .select('id', count='exact') \
+                .execute()
             
-            total_size = sum(doc['size'] for doc in documents)
+            total_images = total_result.count if hasattr(total_result, 'count') else 0
             
-            # Group by document type
-            by_type = {}
-            for doc in documents:
-                doc_type = doc['key'].split('/')[0]
-                if doc_type not in by_type:
-                    by_type[doc_type] = {'count': 0, 'size': 0}
-                by_type[doc_type]['count'] += 1
-                by_type[doc_type]['size'] += doc['size']
+            # Unique hashes (deduplicated images)
+            unique_result = self.supabase.rpc('count_unique_image_hashes').execute()
+            unique_hashes = unique_result.data if unique_result.data else 0
+            
+            # Total size
+            size_result = self.supabase.rpc('sum_image_sizes').execute()
+            total_size = size_result.data if size_result.data else 0
             
             return {
-                'configured': True,
-                'total_documents': len(documents),
+                'total_images': total_images,
+                'unique_images': unique_hashes,
+                'deduplication_rate': round((1 - unique_hashes / max(total_images, 1)) * 100, 2),
                 'total_size_bytes': total_size,
-                'total_size_mb': round(total_size / (1024 * 1024), 2),
-                'by_type': by_type,
-                'bucket': self.bucket_name
+                'total_size_mb': round(total_size / 1024 / 1024, 2)
             }
             
         except Exception as e:
-            self.logger.error(f"Failed to get statistics: {e}")
-            return {
-                'configured': True,
-                'error': str(e)
-            }
-
-
-# Example usage
-if __name__ == "__main__":
-    from pathlib import Path
+            self.logger.debug(f"Error getting storage stats: {e}")
+            return {}
     
-    # Initialize image storage processor
-    storage = ImageStorageProcessor()
-    
-    if storage.is_configured():
-        print("✅ R2 Image Storage configured")
+    def cleanup_orphaned_images(self) -> Dict[str, Any]:
+        """
+        Cleanup images not referenced by any document
         
-        # Get statistics
-        stats = storage.get_storage_statistics()
-        print(f"\n📊 Storage Statistics:")
-        print(f"   Total Images: {stats.get('total_documents', 0)}")
-        print(f"   Total Size: {stats.get('total_size_mb', 0)} MB")
-    else:
-        print("⚠️  R2 Image Storage not configured")
-        print("\nSet environment variables:")
-        print("  R2_ENDPOINT_URL")
-        print("  R2_ACCESS_KEY_ID")
-        print("  R2_SECRET_ACCESS_KEY")
-        print("  R2_BUCKET_NAME (optional)")
+        Returns:
+            Cleanup results
+        """
+        # TODO: Implement cleanup logic
+        pass
+
+
+# Convenience function
+def upload_images_to_r2(
+    document_id: UUID,
+    images: List[Dict[str, Any]],
+    supabase_client=None
+) -> Dict[str, Any]:
+    """
+    Convenience function to upload images
+    
+    Args:
+        document_id: Document UUID
+        images: List of image dicts
+        supabase_client: Supabase client
+        
+    Returns:
+        Upload results
+    """
+    processor = ImageStorageProcessor(supabase_client=supabase_client)
+    return processor.upload_images(document_id, images)

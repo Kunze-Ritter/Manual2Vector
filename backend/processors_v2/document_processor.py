@@ -53,7 +53,7 @@ class DocumentProcessor:
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
         self.image_processor = ImageProcessor()  # Stage 3: Extract images
-        self.image_storage = ImageStorageProcessor()  # R2 for images only
+        self.image_storage = ImageStorageProcessor(supabase_client=supabase_client)  # R2 for images with hash deduplication
         self.embedding_processor = EmbeddingProcessor(supabase_client=supabase_client)  # Stage 7: Embeddings
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
