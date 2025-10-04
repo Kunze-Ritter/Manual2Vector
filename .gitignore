@@ -92,6 +92,12 @@ tmp/
 temp_images/
 backend/processors_v2/temp_images/
 
+# PDF Input/Output folders
+input_pdfs/*.pdf
+input_pdfs/*.pdfz
+input_pdfs/processed/*.pdf
+input_pdfs/processed/*.pdfz
+
 # Large files
 *.pdf
 *.docx

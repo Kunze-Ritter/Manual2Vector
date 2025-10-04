@@ -98,38 +98,40 @@ def main():
         print(f"⚠️  Warning: Cannot connect to Ollama: {e}")
         print("   Embeddings will be DISABLED")
     
-    # Find PDF
-    print("\n📊 Step 4/4: Finding PDF to process...")
+    # Find PDFs in input folder
+    print("\n📊 Step 4/4: Finding PDFs to process...")
     
-    # Try to find AccurioPress manual
-    possible_paths = [
-        Path("C:/Users/haast/Docker/KRAI-minimal/AccurioPress_C4080_C4070_C84hc_C74hc_AccurioPrint_C4065_C4065P_SM_EN_20250127.pdf"),
-        Path(__file__).parent.parent.parent / "AccurioPress_C4080_C4070_C84hc_C74hc_AccurioPrint_C4065_C4065P_SM_EN_20250127.pdf",
-    ]
+    input_folder = Path(__file__).parent.parent.parent / "input_pdfs"
+    processed_folder = input_folder / "processed"
     
-    pdf_path = None
-    for path in possible_paths:
-        if path.exists():
-            pdf_path = path
-            break
+    # Create folders if they don't exist
+    input_folder.mkdir(exist_ok=True)
+    processed_folder.mkdir(exist_ok=True)
     
-    if not pdf_path:
-        print("\n❌ Error: No PDF found")
-        print("\nTried:")
-        for path in possible_paths:
-            print(f"   - {path}")
+    # Find all PDFs (including .pdfz compressed)
+    pdf_files = list(input_folder.glob("*.pdf")) + list(input_folder.glob("*.pdfz"))
+    
+    if not pdf_files:
+        print(f"\n❌ No PDFs found in: {input_folder}")
+        print("\n💡 Place your PDF files in:")
+        print(f"   {input_folder.absolute()}")
+        print("\n   Supported formats:")
+        print("   - *.pdf (normal PDFs)")
+        print("   - *.pdfz (compressed PDFs - will be auto-decompressed)")
         return
     
-    print(f"✅ PDF found: {pdf_path.name}")
-    print(f"   Size: {pdf_path.stat().st_size / 1024 / 1024:.1f} MB")
+    print(f"✅ Found {len(pdf_files)} PDF(s):")
+    for i, pdf in enumerate(pdf_files, 1):
+        size_mb = pdf.stat().st_size / 1024 / 1024
+        print(f"   {i}. {pdf.name} ({size_mb:.1f} MB)")
     
     # Confirm production mode
     print("\n" + "="*80)
     print("  READY TO PROCESS IN PRODUCTION MODE")
     print("="*80)
-    print("\n⚠️  This will:")
-    print("   1. Process the complete PDF")
-    print("   2. Extract all text, products, error codes, versions")
+    print(f"\n⚠️  This will process {len(pdf_files)} PDF(s):")
+    print("   1. Process each complete PDF")
+    print("   2. Extract all text, products, error codes, versions, links")
     print("   3. Process all images with OCR + Vision AI")
     if enable_r2:
         print("   4. Upload images to Cloudflare R2 (costs money!)")
@@ -137,6 +139,7 @@ def main():
         print("   4. Skip R2 upload (disabled)")
     print("   5. Generate 768-dim embeddings for all chunks")
     print("   6. Store everything in Supabase")
+    print("   7. Move processed PDFs to processed/ folder")
     
     # Ask for confirmation
     print("\n❓ Continue with FULL PRODUCTION processing?")
@@ -153,7 +156,7 @@ def main():
     
     pipeline = MasterPipeline(
         supabase_client=supabase,
-        manufacturer="Konica Minolta",
+        manufacturer="AUTO",  # Auto-detect manufacturer
         enable_images=True,          # Extract images
         enable_ocr=True,              # OCR on images
         enable_vision=True,           # Vision AI analysis
@@ -162,77 +165,127 @@ def main():
         max_retries=2
     )
     
-    print("\n⏳ Processing... This may take several minutes...\n")
+    # Process each PDF
+    import shutil
+    import gzip
     
-    # Process!
-    result = pipeline.process_document(
-        file_path=pdf_path,
-        document_type="service_manual",
-        manufacturer="Konica Minolta"
-    )
+    total_success = 0
+    total_failed = 0
     
-    # Results
+    for idx, pdf_file in enumerate(pdf_files, 1):
+        print(f"\n{'='*80}")
+        print(f"  📄 PROCESSING [{idx}/{len(pdf_files)}]: {pdf_file.name}")
+        print(f"{'='*80}\n")
+        
+        # Handle .pdfz (compressed) files
+        working_pdf = pdf_file
+        temp_decompressed = None
+        
+        if pdf_file.suffix.lower() == '.pdfz':
+            print(f"🗜️  Decompressing .pdfz file...")
+            temp_decompressed = pdf_file.with_suffix('.pdf')
+            try:
+                with gzip.open(pdf_file, 'rb') as f_in:
+                    with open(temp_decompressed, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                working_pdf = temp_decompressed
+                print(f"✅ Decompressed to: {working_pdf.name}\n")
+            except Exception as e:
+                print(f"❌ Failed to decompress: {e}")
+                total_failed += 1
+                continue
+        
+        print("⏳ Processing... This may take several minutes...\n")
+        
+        # Process!
+        result = pipeline.process_document(
+            file_path=working_pdf,
+            document_type="service_manual",
+            manufacturer="AUTO"  # Auto-detect
+        )
+    
+        # Results for this PDF
+        print("\n" + "="*80)
+        if result['success']:
+            print(f"  ✅ SUCCESS [{idx}/{len(pdf_files)}]")
+            print("="*80)
+            
+            print(f"\n📊 Results:")
+            print(f"   Document ID: {result['document_id']}")
+            print(f"   Processing Time: {result['processing_time']:.1f}s")
+            
+            processing = result['results'].get('processing', {})
+            if processing:
+                metadata = processing.get('metadata', {})
+                print(f"\n📄 Document:")
+                print(f"   Pages: {metadata.get('page_count', 0):,}")
+                print(f"   Words: {metadata.get('word_count', 0):,}")
+                
+                products = processing.get('products', [])
+                error_codes = processing.get('error_codes', [])
+                versions = processing.get('versions', [])
+                links = processing.get('links', [])
+                videos = processing.get('videos', [])
+                images = processing.get('images', [])
+                chunks = processing.get('chunks', [])
+                
+                print(f"\n📦 Extracted:")
+                print(f"   Products: {len(products)}")
+                print(f"   Error Codes: {len(error_codes)}")
+                print(f"   Versions: {len(versions)}")
+                print(f"   Links: {len(links)}")
+                print(f"   Videos: {len(videos)}")
+                print(f"   Images: {len(images)}")
+                print(f"   Chunks: {len(chunks)}")
+                
+                # R2 Upload Results
+                if enable_r2 and 'r2_storage' in result['results']:
+                    r2_result = result['results']['r2_storage']
+                    if r2_result.get('success'):
+                        print(f"\n☁️  R2 Storage:")
+                        print(f"   Uploaded: {r2_result.get('uploaded_count', 0)} images")
+                
+                # Embeddings
+                if 'embeddings' in result['results']:
+                    emb_result = result['results']['embeddings']
+                    if emb_result.get('success'):
+                        print(f"\n🔮 Embeddings:")
+                        print(f"   Created: {emb_result.get('embeddings_created', 0):,}")
+                        print(f"   Time: {emb_result.get('processing_time', 0):.1f}s")
+            
+            # Move to processed folder
+            try:
+                dest = processed_folder / pdf_file.name
+                shutil.move(str(pdf_file), str(dest))
+                print(f"\n✅ Moved to processed/")
+                total_success += 1
+            except Exception as e:
+                print(f"\n⚠️  Could not move file: {e}")
+            
+            # Cleanup temp file
+            if temp_decompressed and temp_decompressed.exists():
+                temp_decompressed.unlink()
+            
+        else:
+            print(f"  ❌ FAILED [{idx}/{len(pdf_files)}]")
+            print("="*80)
+            print(f"\n💥 Error: {result.get('error')}")
+            total_failed += 1
+            
+            # Cleanup temp file even on failure
+            if temp_decompressed and temp_decompressed.exists():
+                temp_decompressed.unlink()
+    
+    # Final Summary
     print("\n" + "="*80)
-    if result['success']:
-        print("  ✅ SUCCESS - PRODUCTION PROCESSING COMPLETE!")
-        print("="*80)
-        
-        print(f"\n📊 Results:")
-        print(f"   Document ID: {result['document_id']}")
-        print(f"   Processing Time: {result['processing_time']:.1f}s")
-        
-        processing = result['results'].get('processing', {})
-        if processing:
-            metadata = processing.get('metadata', {})
-            print(f"\n📄 Document:")
-            print(f"   Pages: {metadata.get('page_count', 0):,}")
-            print(f"   Words: {metadata.get('word_count', 0):,}")
-            
-            products = processing.get('products', [])
-            error_codes = processing.get('error_codes', [])
-            versions = processing.get('versions', [])
-            images = processing.get('images', [])
-            chunks = processing.get('chunks', [])
-            
-            print(f"\n📦 Extracted:")
-            print(f"   Products: {len(products)}")
-            print(f"   Error Codes: {len(error_codes)}")
-            print(f"   Versions: {len(versions)}")
-            print(f"   Images: {len(images)}")
-            print(f"   Chunks: {len(chunks)}")
-            
-            # R2 Upload Results
-            if enable_r2 and 'r2_storage' in result['results']:
-                r2_result = result['results']['r2_storage']
-                if r2_result.get('success'):
-                    print(f"\n☁️  R2 Storage:")
-                    print(f"   Uploaded: {r2_result.get('uploaded_count', 0)} images")
-                    print(f"   URLs: {len(r2_result.get('urls', []))}")
-            
-            # Embeddings
-            if 'embeddings' in result['results']:
-                emb_result = result['results']['embeddings']
-                if emb_result.get('success'):
-                    print(f"\n🔮 Embeddings:")
-                    print(f"   Created: {emb_result.get('embeddings_created', 0):,}")
-                    print(f"   Time: {emb_result.get('processing_time', 0):.1f}s")
-                    rate = emb_result.get('embeddings_created', 0) / max(emb_result.get('processing_time', 1), 1)
-                    print(f"   Speed: {rate:.1f} embeddings/second")
-        
-        print("\n✅ Document is now:")
-        print("   - Fully indexed in Supabase")
-        print("   - Searchable semantically")
-        print("   - Ready for AI queries")
-        if enable_r2:
-            print("   - Images available on R2")
-        
-        print("\n🎉 PRODUCTION PROCESSING SUCCESSFUL!")
-        
-    else:
-        print("  ❌ FAILED")
-        print("="*80)
-        print(f"\n💥 Error: {result.get('error')}")
-    
+    print("  🎉 BATCH PROCESSING COMPLETE!")
+    print("="*80)
+    print(f"\n📊 Summary:")
+    print(f"   Total PDFs: {len(pdf_files)}")
+    print(f"   ✅ Successful: {total_success}")
+    print(f"   ❌ Failed: {total_failed}")
+    print(f"\n💡 Processed files moved to:")
+    print(f"   {processed_folder.absolute()}")
     print("\n" + "="*80 + "\n")
 
 
