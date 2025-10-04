@@ -234,12 +234,21 @@ class DocumentProcessor:
             self.logger.info("Step 3/5: Extracting error codes...")
             error_codes = []
             
+            # Get manufacturer for error code patterns
+            error_manufacturer = None
+            if products:
+                error_manufacturer = products[0].manufacturer_name
+            elif self.manufacturer and self.manufacturer != "AUTO":
+                error_manufacturer = self.manufacturer
+            
             with self.logger.progress_bar(page_texts.items(), "Scanning for error codes") as progress:
                 task = progress.add_task("Scanning pages", total=len(page_texts))
                 
                 for page_num, text in page_texts.items():
                     page_codes = self.error_code_extractor.extract_from_text(
-                        text, page_number=page_num
+                        text=text,
+                        page_number=page_num,
+                        manufacturer_name=error_manufacturer
                     )
                     error_codes.extend(page_codes)
                     progress.update(task, advance=1)

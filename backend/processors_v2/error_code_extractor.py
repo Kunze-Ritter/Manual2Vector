@@ -1,31 +1,17 @@
-"""
-Error Code Extraction Module
+"""Error Code Extraction Module
 
-Extracts error codes with STRICT validation.
-ONLY numeric codes (XX.XX.XX format), NO random words!
+Extracts error codes using manufacturer-specific patterns from JSON config.
 """
 
 import re
-from typing import List, Optional, Tuple
+import json
+from pathlib import Path
+from typing import List, Optional, Tuple, Dict, Any
 from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
 
 
 logger = get_logger()
-
-
-# Strict error code patterns
-ERROR_CODE_PATTERNS = {
-    'hp_standard': re.compile(
-        r'\b(\d{2}\.\d{2}\.\d{2})\b'  # 13.20.01
-    ),
-    'hp_short': re.compile(
-        r'\b(\d{2}\.\d{2})\b'  # 49.38
-    ),
-    'hp_events': re.compile(
-        r'\b(\d{5}-\d{4})\b'  # 12345-6789
-    ),
-}
 
 # Words that are NOT error codes (reject these!)
 REJECT_CODES = {
@@ -46,23 +32,87 @@ TECHNICAL_TERMS = {
 
 
 class ErrorCodeExtractor:
-    """Extract error codes with strict validation"""
+    """Extract error codes using manufacturer-specific patterns"""
     
-    def __init__(self):
-        """Initialize error code extractor"""
+    def __init__(self, config_path: Optional[Path] = None):
+        """Initialize error code extractor with configuration"""
         self.logger = get_logger()
+        
+        if config_path is None:
+            config_path = Path(__file__).parent.parent / "config" / "error_code_patterns.json"
+        
+        self.config_path = config_path
+        self.patterns_config = self._load_config()
+        self.extraction_rules = self.patterns_config.get("extraction_rules", {})
+        
+        logger.info(f"Loaded error code patterns for {len([k for k in self.patterns_config.keys() if k != 'extraction_rules'])} manufacturers")
+    
+    def _load_config(self) -> Dict[str, Any]:
+        """Load error code patterns configuration"""
+        try:
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            return config
+        except FileNotFoundError:
+            logger.warning(f"Error code patterns config not found: {self.config_path}")
+            return {"extraction_rules": {}}
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in error code patterns config: {e}")
+            return {"extraction_rules": {}}
+    
+    def _get_manufacturer_key(self, manufacturer_name: Optional[str]) -> Optional[str]:
+        """Convert manufacturer name to config key"""
+        if not manufacturer_name:
+            return None
+        
+        # Normalize manufacturer name
+        normalized = manufacturer_name.lower().replace(" ", "_").replace("-", "_")
+        
+        # Direct mapping
+        mapping = {
+            "hp": "hp",
+            "hewlett_packard": "hp",
+            "konica_minolta": "konica_minolta",
+            "konica": "konica_minolta",
+            "minolta": "konica_minolta",
+            "canon": "canon",
+            "ricoh": "ricoh",
+            "xerox": "xerox",
+            "lexmark": "lexmark",
+            "brother": "brother",
+            "epson": "epson",
+            "fujifilm": "fujifilm",
+            "riso": "riso",
+            "sharp": "sharp",
+            "kyocera": "kyocera",
+            "toshiba": "toshiba",
+            "oki": "oki"
+        }
+        
+        # Check direct match
+        if normalized in mapping:
+            return mapping[normalized]
+        
+        # Check if any key is in the normalized name
+        for key, value in mapping.items():
+            if key in normalized:
+                return value
+        
+        return None
     
     def extract_from_text(
         self,
         text: str,
-        page_number: int
+        page_number: int,
+        manufacturer_name: Optional[str] = None
     ) -> List[ExtractedErrorCode]:
         """
-        Extract error codes from text
+        Extract error codes from text using manufacturer-specific patterns
         
         Args:
             text: Text to extract from
             page_number: Page number
+            manufacturer_name: Manufacturer name for specific patterns
             
         Returns:
             List of validated error codes
@@ -70,89 +120,129 @@ class ErrorCodeExtractor:
         if not text or len(text) < 20:
             return []
         
+        # Determine which patterns to use
+        manufacturer_key = self._get_manufacturer_key(manufacturer_name)
+        patterns_to_use = []
+        
+        if manufacturer_key and manufacturer_key in self.patterns_config:
+            # Use manufacturer-specific patterns first
+            patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
+            logger.debug(f"Using error code patterns for manufacturer: {manufacturer_key}")
+        
+        # Always add generic patterns as fallback
+        if "generic" in self.patterns_config:
+            patterns_to_use.append(("generic", self.patterns_config["generic"]))
+        
+        # Extract error codes
         found_codes = []
+        seen_codes = set()
         
-        for pattern_name, pattern in ERROR_CODE_PATTERNS.items():
-            matches = pattern.finditer(text)
+        for mfr_key, mfr_config in patterns_to_use:
+            patterns = mfr_config.get("patterns", [])
+            validation_regex = mfr_config.get("validation_regex")
             
-            for match in matches:
-                code = match.group(1)
-                
-                # Validate code format
-                if not self._validate_code_format(code):
-                    continue
-                
-                # Extract context
-                context = self._extract_context(text, match.start(), match.end())
-                
-                # Extract description
-                description = self._extract_description(text, match.end())
-                
-                # Skip if description is too generic
-                if not description or self._is_generic_description(description):
-                    continue
-                
-                # Extract solution
-                solution = self._extract_solution(context, text, match.end())
-                
-                # Calculate confidence
-                confidence = self._calculate_confidence(
-                    code, description, solution, context
-                )
-                
-                # Only add if confidence is high enough
-                if confidence < 0.6:
-                    self.logger.debug(
-                        f"Skipping code '{code}' - confidence too low ({confidence:.2f})"
-                    )
-                    continue
-                
-                # Determine severity
-                severity = self._determine_severity(description, solution)
-                
+            for pattern_str in patterns:
                 try:
-                    error_code = ExtractedErrorCode(
-                        error_code=code,
-                        error_description=description,
-                        solution_text=solution or "No solution found",
-                        context_text=context,
-                        confidence=confidence,
-                        page_number=page_number,
-                        extraction_method=pattern_name,
-                        severity_level=severity
+                    pattern = re.compile(pattern_str, re.IGNORECASE | re.MULTILINE)
+                except re.error as e:
+                    logger.error(f"Invalid regex pattern '{pattern_str}': {e}")
+                    continue
+                
+                matches = pattern.finditer(text)
+                
+                for match in matches:
+                    # Get code from first capture group
+                    code = match.group(1) if match.groups() else match.group(0)
+                    code = code.strip()
+                    
+                    # Validate code format
+                    if validation_regex and not re.match(validation_regex, code):
+                        continue
+                    
+                    # Skip duplicates
+                    if code in seen_codes:
+                        continue
+                    
+                    # Not a reject word
+                    if code.lower() in REJECT_CODES:
+                        continue
+                    
+                    # Extract context
+                    context = self._extract_context(text, match.start(), match.end())
+                    
+                    # Validate context
+                    if not self._validate_context(context):
+                        continue
+                    
+                    # Extract description
+                    description = self._extract_description(text, match.end())
+                    
+                    # Skip if description is too generic
+                    if not description or self._is_generic_description(description):
+                        continue
+                    
+                    # Extract solution
+                    solution = self._extract_solution(context, text, match.end())
+                    
+                    # Calculate confidence
+                    confidence = self._calculate_confidence(
+                        code, description, solution, context
                     )
-                    found_codes.append(error_code)
-                except Exception as e:
-                    self.logger.debug(
-                        f"Validation failed for code '{code}': {e}"
-                    )
+                    
+                    # Only add if confidence is high enough
+                    min_confidence = self.extraction_rules.get("min_confidence", 0.70)
+                    if confidence < min_confidence:
+                        logger.debug(f"Skipping code '{code}' - confidence too low ({confidence:.2f})")
+                        continue
+                    
+                    # Determine severity
+                    severity = self._determine_severity(description, solution)
+                    
+                    try:
+                        error_code = ExtractedErrorCode(
+                            error_code=code,
+                            error_description=description,
+                            solution_text=solution or "No solution found",
+                            context_text=context,
+                            confidence=confidence,
+                            page_number=page_number,
+                            extraction_method=f"{mfr_key}_pattern",
+                            severity_level=severity
+                        )
+                        found_codes.append(error_code)
+                        seen_codes.add(code)
+                    except Exception as e:
+                        logger.debug(f"Validation failed for code '{code}': {e}")
         
-        # Deduplicate
+        # Deduplicate and sort
         unique_codes = self._deduplicate(found_codes)
+        unique_codes.sort(key=lambda x: x.confidence, reverse=True)
+        
+        # Apply max codes limit
+        max_codes = self.extraction_rules.get("max_codes_per_page", 20)
+        if len(unique_codes) > max_codes:
+            logger.warning(f"Extracted {len(unique_codes)} error codes, limiting to {max_codes}")
+            unique_codes = unique_codes[:max_codes]
         
         if unique_codes:
-            self.logger.info(
-                f"Extracted {len(unique_codes)} error codes from page {page_number}"
-            )
+            logger.info(f"Extracted {len(unique_codes)} error codes from page {page_number}")
         
         return unique_codes
     
-    def _validate_code_format(self, code: str) -> bool:
-        """
-        Validate that code matches expected format
+    def _validate_context(self, context: str) -> bool:
+        """Validate that context looks like an error code section"""
+        context_lower = context.lower()
         
-        Returns:
-            True if valid numeric code
-        """
-        # Must match numeric pattern
-        if not re.match(r'^\d{2}\.\d{2}(\.\d{2})?$', code):
-            return False
+        # Check for required keywords
+        required_keywords = self.extraction_rules.get("require_context_keywords", [])
+        has_required = any(kw in context_lower for kw in required_keywords)
         
-        # Not a reject word
-        if code.lower() in REJECT_CODES:
-            return False
+        # Check for excluded keywords
+        excluded_keywords = self.extraction_rules.get("exclude_if_near", [])
+        has_excluded = any(kw in context_lower for kw in excluded_keywords)
         
-        return True
+        return has_required and not has_excluded
+    
     
     def _extract_context(
         self,
