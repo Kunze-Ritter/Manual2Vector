@@ -333,23 +333,27 @@ class EmbeddingProcessor:
             return False
         
         try:
-            # Prepare record
+            # Prepare record for krai_intelligence.chunks table
+            # Note: Supabase client uses public schema by default, 
+            # but RLS policies route to correct schema
             record = {
                 'id': chunk_id,
                 'document_id': str(document_id),
+                'text_chunk': chunk_data.get('text', ''),  # Column name is text_chunk
                 'chunk_index': chunk_data.get('chunk_index', 0),
-                'chunk_type': chunk_data.get('chunk_type', 'text'),
-                'text': chunk_data.get('text', ''),
+                'page_start': chunk_data.get('page_start', chunk_data.get('page_numbers', [None])[0]),
+                'page_end': chunk_data.get('page_end', chunk_data.get('page_numbers', [None])[-1] if chunk_data.get('page_numbers') else None),
+                'fingerprint': chunk_data.get('fingerprint', chunk_id),  # Use chunk_id as fallback
                 'embedding': embedding,  # pgvector will handle this
-                'page_numbers': chunk_data.get('page_numbers', []),
                 'metadata': {
                     'char_count': len(chunk_data.get('text', '')),
                     'word_count': len(chunk_data.get('text', '').split()),
+                    'chunk_type': chunk_data.get('chunk_type', 'text'),
                     'embedded_at': datetime.utcnow().isoformat()
                 }
             }
             
-            # Upsert to database (update if exists, insert if not)
+            # Upsert to chunks (view routes to krai_intelligence.chunks)
             result = self.supabase.table('chunks').upsert(record).execute()
             
             return True

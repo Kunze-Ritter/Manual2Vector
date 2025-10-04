@@ -99,6 +99,17 @@ class StageTracker:
             print(f"Error updating progress: {e}")
             return False
     
+    # Alias for consistency
+    def update_stage_progress(
+        self,
+        document_id: str,
+        stage_name: str,
+        progress: float,
+        metadata: Optional[Dict] = None
+    ) -> bool:
+        """Alias for update_progress"""
+        return self.update_progress(document_id, stage_name, progress, metadata)
+    
     def complete_stage(
         self,
         document_id: str,

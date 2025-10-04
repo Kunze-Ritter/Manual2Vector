@@ -6,25 +6,25 @@
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Add embedding column to chunks table (if not exists)
+-- Add embedding column to krai_intelligence.chunks table (if not exists)
 DO $$ 
 BEGIN
     IF NOT EXISTS (
         SELECT 1 
         FROM information_schema.columns 
-        WHERE table_schema = 'krai_core' 
+        WHERE table_schema = 'krai_intelligence' 
         AND table_name = 'chunks' 
         AND column_name = 'embedding'
     ) THEN
-        ALTER TABLE krai_core.chunks 
+        ALTER TABLE krai_intelligence.chunks 
         ADD COLUMN embedding vector(768);  -- embeddinggemma uses 768 dimensions
     END IF;
 END $$;
 
 -- Create index for fast vector similarity search
 -- Using HNSW (Hierarchical Navigable Small World) for best performance
-CREATE INDEX IF NOT EXISTS chunks_embedding_idx 
-ON krai_core.chunks 
+CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx 
+ON krai_intelligence.chunks 
 USING hnsw (embedding vector_cosine_ops);
 
 -- Alternative: IVFFlat index (faster build, slower search)
@@ -44,15 +44,15 @@ RETURNS TABLE (
     chunk_id uuid,
     document_id uuid,
     chunk_index int,
-    chunk_type text,
-    text text,
-    page_numbers int[],
+    text_chunk text,
+    page_start int,
+    page_end int,
     similarity float,
     metadata jsonb
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = krai_core, public
+SET search_path = krai_intelligence, public
 AS $$
 BEGIN
     RETURN QUERY
@@ -60,12 +60,12 @@ BEGIN
         c.id AS chunk_id,
         c.document_id,
         c.chunk_index,
-        c.chunk_type,
-        c.text,
-        c.page_numbers,
+        c.text_chunk,
+        c.page_start,
+        c.page_end,
         1 - (c.embedding <=> query_embedding) AS similarity,  -- Cosine similarity
         c.metadata
-    FROM krai_core.chunks c
+    FROM krai_intelligence.chunks c
     WHERE 
         c.embedding IS NOT NULL
         AND (filter_document_id IS NULL OR c.document_id = filter_document_id)
@@ -96,8 +96,8 @@ BEGIN
         COUNT(*)::bigint AS total_chunks,
         COUNT(embedding)::bigint AS chunks_with_embeddings,
         (COUNT(embedding)::float / NULLIF(COUNT(*), 0) * 100)::float AS embedding_coverage,
-        AVG(LENGTH(text))::float AS avg_chunk_length
-    FROM krai_core.chunks;
+        AVG(LENGTH(text_chunk))::float AS avg_chunk_length
+    FROM krai_intelligence.chunks;
 END;
 $$;
 
@@ -127,7 +127,7 @@ BEGIN
         AVG(1 - (c.embedding <=> query_embedding))::float AS avg_similarity,
         COUNT(*)::int AS matching_chunks,
         d.filename
-    FROM krai_core.chunks c
+    FROM krai_intelligence.chunks c
     JOIN krai_core.documents d ON d.id = c.document_id
     WHERE 
         c.embedding IS NOT NULL

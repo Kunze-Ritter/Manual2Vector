@@ -9,7 +9,8 @@ services:
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN_OLLAMA}
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN_OLLAMA}
-    network_mode: host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 # ===========================================
 # Ollama Cloudflare Tunnel
