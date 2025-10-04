@@ -215,15 +215,15 @@
     "extraction_settings": {
       "case_sensitive": false,
       "search_order": [
-        "edition_patterns",
+        "standard_patterns",
         "date_patterns", 
         "firmware_patterns",
-        "standard_patterns",
+        "edition_patterns",
         "numeric_patterns"
       ],
-      "max_matches": 1,
-      "prefer_first_match": true,
-      "combine_matches": false
+      "max_matches": 3,
+      "prefer_first_match": false,
+      "combine_matches": true
     },
     "validation": {
       "min_version_length": 1,
