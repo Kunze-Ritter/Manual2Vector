@@ -57,10 +57,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.manufacturers TO service_role;
 CREATE OR REPLACE RULE manufacturers_insert AS
 ON INSERT TO public.manufacturers DO INSTEAD
 INSERT INTO krai_core.manufacturers (
-    id, name, website, support_email, support_phone, metadata,
-    created_at, updated_at
+    id, name, short_name, country, founded_year, website, support_email, 
+    support_phone, logo_url, is_competitor, market_share_percent, 
+    annual_revenue_usd, employee_count, headquarters_address, stock_symbol, 
+    primary_business_segment, created_at, updated_at
 ) VALUES (
-    NEW.id, NEW.name, NEW.website, NEW.support_email, NEW.support_phone, NEW.metadata,
+    NEW.id, NEW.name, NEW.short_name, NEW.country, NEW.founded_year, NEW.website, 
+    NEW.support_email, NEW.support_phone, NEW.logo_url, NEW.is_competitor, 
+    NEW.market_share_percent, NEW.annual_revenue_usd, NEW.employee_count, 
+    NEW.headquarters_address, NEW.stock_symbol, NEW.primary_business_segment,
     NEW.created_at, NEW.updated_at
 ) RETURNING *;
 
@@ -68,10 +73,20 @@ CREATE OR REPLACE RULE manufacturers_update AS
 ON UPDATE TO public.manufacturers DO INSTEAD
 UPDATE krai_core.manufacturers SET 
     name = NEW.name,
+    short_name = NEW.short_name,
+    country = NEW.country,
+    founded_year = NEW.founded_year,
     website = NEW.website,
     support_email = NEW.support_email,
     support_phone = NEW.support_phone,
-    metadata = NEW.metadata,
+    logo_url = NEW.logo_url,
+    is_competitor = NEW.is_competitor,
+    market_share_percent = NEW.market_share_percent,
+    annual_revenue_usd = NEW.annual_revenue_usd,
+    employee_count = NEW.employee_count,
+    headquarters_address = NEW.headquarters_address,
+    stock_symbol = NEW.stock_symbol,
+    primary_business_segment = NEW.primary_business_segment,
     updated_at = NEW.updated_at
 WHERE id = OLD.id
 RETURNING *;
