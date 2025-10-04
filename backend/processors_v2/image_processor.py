@@ -36,7 +36,7 @@ class ImageProcessor:
         self,
         supabase_client=None,
         min_image_size: int = 10000,  # Min 100x100px
-        max_images_per_doc: int = 500,
+        max_images_per_doc: int = 999999,  # Unlimited (user will check manually)
         enable_ocr: bool = True,
         enable_vision: bool = True
     ):
@@ -46,7 +46,7 @@ class ImageProcessor:
         Args:
             supabase_client: Supabase client for stage tracking
             min_image_size: Minimum image size in pixels (width * height)
-            max_images_per_doc: Maximum images to extract per document
+            max_images_per_doc: Maximum images to extract per document (default: unlimited)
             enable_ocr: Enable OCR with Tesseract
             enable_vision: Enable Vision AI with LLaVA
         """
