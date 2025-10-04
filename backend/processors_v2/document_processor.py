@@ -51,7 +51,7 @@ class DocumentProcessor:
         self.logger = get_logger()
         
         # Initialize extractors
-        self.text_extractor = TextExtractor(engine=pdf_engine)
+        self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
