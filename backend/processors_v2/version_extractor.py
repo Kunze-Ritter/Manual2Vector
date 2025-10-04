@@ -150,35 +150,63 @@ class VersionExtractor:
         page_number: Optional[int] = None
     ) -> List[ExtractedVersion]:
         """
-        Extract versions from text using SIMPLE V1 patterns
+        Extract DOCUMENT VERSION from text using MANUFACTURER-SPECIFIC patterns
         
         Args:
-            text: Text to extract from
-            manufacturer: Manufacturer name (optional, not used in V1)
+            text: Text to extract from (first few pages)
+            manufacturer: Manufacturer name (REQUIRED for specific patterns)
             page_number: Page number in document
             
         Returns:
-            List of extracted versions (usually 1 - first match)
+            List with 1 version (first match for manufacturer)
         """
         if not text or len(text.strip()) < 10:
             return []
         
-        # V1 SIMPLE PATTERNS (in priority order)
-        v1_patterns = [
-            (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition_date', 0.95),  # Edition 3, 5/2024
-            (r'edition\s+(\d+(?:\.\d+)?)', 'edition', 0.90),  # Edition 4.0
-            (r'(\d{4}/\d{2}/\d{2})', 'date_full', 0.85),  # 2024/12/25
-            (r'(\d{2}/\d{4})', 'date_short', 0.80),  # 5/2024
-            (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.75),  # Version 1.0
-            (r'v\s*(\d+\.\d+(?:\.\d+)?)', 'version_short', 0.70),  # v1.0
-            (r'rev(?:ision)?\s+(\d+\.\d+)', 'revision', 0.65),  # Rev 1.0
-        ]
+        # MANUFACTURER-SPECIFIC DOCUMENT VERSION PATTERNS
+        manufacturer_patterns = {
+            'hp': [
+                (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition_date', 0.95),  # Edition 3, 5/2024
+                (r'edition\s+(\d+(?:\.\d+)?)', 'edition', 0.90),  # Edition 4.0
+            ],
+            'konica_minolta': [
+                (r'(\d{4}/\d{2}/\d{2})', 'date_full', 0.95),  # 2024/12/25
+                (r'(\d{4}\.\d{2}\.\d{2})', 'date_dotted', 0.90),  # 2024.01.15
+            ],
+            'lexmark': [
+                (r'([A-Z][a-z]+\s+\d{4})', 'month_year', 0.95),  # November 2024
+                (r'(\d{2}/\d{2}/\d{4})', 'us_date', 0.90),  # 11/15/2024
+            ],
+            'utax': [
+                (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.95),  # Version 1.0
+                (r'v\s*(\d+\.\d+)', 'version_short', 0.90),  # v1.0
+            ],
+            'triumph_adler': [
+                (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.95),  # Version 1.0
+                (r'(\d{2}/\d{4})', 'date_short', 0.90),  # 5/2024
+            ],
+        }
+        
+        # Get manufacturer-specific patterns
+        if manufacturer:
+            manufacturer_key = manufacturer.lower().replace(' ', '_').replace('-', '_')
+            patterns = manufacturer_patterns.get(manufacturer_key)
+        else:
+            patterns = None
+        
+        # Fallback to generic patterns if manufacturer not found
+        if not patterns:
+            patterns = [
+                (r'edition\s+(\d+(?:\.\d+)?)\s*,?\s*(\d+/\d{4})', 'edition_date', 0.90),
+                (r'(\d{4}/\d{2}/\d{2})', 'date_full', 0.85),
+                (r'version\s+(\d+\.\d+)', 'version', 0.80),
+            ]
         
         versions = []
-        found_matches = set()  # Avoid duplicates
+        found_matches = set()
         
-        # Try patterns in priority order - STOP AFTER FIRST MATCH
-        for pattern, version_type, confidence in v1_patterns:
+        # Try patterns in order - STOP AFTER FIRST MATCH
+        for pattern, version_type, confidence in patterns:
             matches = re.finditer(pattern, text, re.IGNORECASE)
             
             for match in matches:
@@ -199,14 +227,14 @@ class VersionExtractor:
                     version_string=version_string,
                     version_type=version_type,
                     confidence=confidence,
-                    extraction_method="v1_pattern",
+                    extraction_method=f"manufacturer_{manufacturer_key if manufacturer else 'generic'}",
                     page_number=page_number,
                     context=self._get_context(text, match.start(), match.end())
                 )
                 
                 versions.append(version)
                 
-                # V1: STOP AFTER FIRST MATCH
+                # STOP AFTER FIRST MATCH
                 return versions[:1]  # Return only first match
         
         return versions
