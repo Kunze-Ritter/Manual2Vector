@@ -286,6 +286,7 @@ class SmartChunker:
         # Add header metadata if found
         if header_metadata:
             metadata.update(header_metadata)
+            self.logger.debug(f"📋 Added header metadata to chunk: {list(header_metadata.keys())}")
         
         try:
             return TextChunk(
@@ -385,6 +386,7 @@ class SmartChunker:
         if header_lines:
             full_header = '\n'.join(header_lines)
             header_metadata['page_header'] = full_header
+            header_metadata['header_removed'] = True
             
             # Extract product models
             products = []
@@ -398,6 +400,8 @@ class SmartChunker:
             
             # Remove header from text
             cleaned_text = '\n'.join(lines[content_start_idx:]).strip()
+            
+            self.logger.debug(f"🎯 Found header: '{full_header[:50]}...' | Products: {products}")
         
         return cleaned_text, header_metadata
     

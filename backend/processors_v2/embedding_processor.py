@@ -348,6 +348,23 @@ class EmbeddingProcessor:
             # Prepare record for krai_intelligence.chunks table
             # Note: Supabase client uses public schema by default, 
             # but RLS policies route to correct schema
+            
+            # Preserve existing metadata from chunk (includes header metadata, etc.)
+            existing_metadata = chunk_data.get('metadata', {})
+            
+            # Update with required fields (don't overwrite if already exists)
+            metadata = {
+                'char_count': existing_metadata.get('char_count', len(chunk_data.get('text', ''))),
+                'word_count': existing_metadata.get('word_count', len(chunk_data.get('text', '').split())),
+                'chunk_type': existing_metadata.get('chunk_type', chunk_data.get('chunk_type', 'text')),
+                'embedded_at': datetime.utcnow().isoformat()
+            }
+            
+            # Merge with existing metadata (preserve header_metadata, etc.)
+            for key, value in existing_metadata.items():
+                if key not in metadata:  # Don't overwrite the standard fields
+                    metadata[key] = value
+            
             record = {
                 'id': chunk_id,
                 'document_id': str(document_id),
@@ -357,12 +374,7 @@ class EmbeddingProcessor:
                 'page_end': chunk_data.get('page_end', chunk_data.get('page_numbers', [None])[-1] if chunk_data.get('page_numbers') else None),
                 'fingerprint': chunk_data.get('fingerprint', chunk_id),  # Use chunk_id as fallback
                 'embedding': embedding,  # pgvector will handle this
-                'metadata': {
-                    'char_count': len(chunk_data.get('text', '')),
-                    'word_count': len(chunk_data.get('text', '').split()),
-                    'chunk_type': chunk_data.get('chunk_type', 'text'),
-                    'embedded_at': datetime.utcnow().isoformat()
-                }
+                'metadata': metadata  # Now includes all metadata from chunker!
             }
             
             # Upsert to chunks (view routes to krai_intelligence.chunks)
