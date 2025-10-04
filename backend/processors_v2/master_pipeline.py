@@ -440,8 +440,8 @@ class MasterPipeline:
                     .execute()
                 
                 if not existing.data:
-                    # Insert into krai_core.products (not the view)
-                    result = self.supabase.schema('krai_core').table('products').insert(record).execute()
+                    # Insert via public schema (PostgREST default)
+                    result = self.supabase.table('products').insert(record).execute()
                     # Store product_id for document_products relationship
                     if result.data:
                         prod_data['_db_id'] = result.data[0]['id']
@@ -492,7 +492,7 @@ class MasterPipeline:
                     .execute()
                 
                 if not existing.data:
-                    self.supabase.schema('krai_core').table('document_products').insert(relationship).execute()
+                    self.supabase.table('document_products').insert(relationship).execute()
                     saved_count += 1
             
             self.logger.success(f"Saved {saved_count} document-product relationships")
