@@ -501,32 +501,45 @@ class MasterPipeline:
             self.logger.error(f"Failed to save document_products: {e}")
     
     def _update_document_metadata(self, document_id: UUID, processing_result: Dict):
-        """Update document with extracted manufacturer, models, series"""
+        """Update document with extracted manufacturer, models, series, version"""
         try:
             products = processing_result.get('products', [])
-            if not products:
-                return
+            versions = processing_result.get('versions', [])
             
-            # Extract manufacturer from first product
+            # Extract manufacturer, models, series from products
             manufacturer = None
             models = []
             series_set = set()
             
-            for product in products:
-                prod_data = product if isinstance(product, dict) else {
-                    'manufacturer': getattr(product, 'manufacturer', None),
-                    'model_number': getattr(product, 'model_number', ''),
-                    'series': getattr(product, 'series', None)
-                }
-                
-                if prod_data.get('manufacturer') and not manufacturer:
-                    manufacturer = prod_data['manufacturer']
-                
-                if prod_data.get('model_number'):
-                    models.append(prod_data['model_number'])
-                
-                if prod_data.get('series'):
-                    series_set.add(prod_data['series'])
+            if products:
+                for product in products:
+                    prod_data = product if isinstance(product, dict) else {
+                        'manufacturer': getattr(product, 'manufacturer', None),
+                        'model_number': getattr(product, 'model_number', ''),
+                        'series': getattr(product, 'series', None)
+                    }
+                    
+                    if prod_data.get('manufacturer') and not manufacturer:
+                        manufacturer = prod_data['manufacturer']
+                    
+                    if prod_data.get('model_number'):
+                        models.append(prod_data['model_number'])
+                    
+                    if prod_data.get('series'):
+                        series_set.add(prod_data['series'])
+            
+            # Extract BEST version (highest confidence, first match)
+            document_version = None
+            if versions:
+                # Sort by confidence (highest first)
+                sorted_versions = sorted(
+                    versions,
+                    key=lambda v: v.get('confidence', 0) if isinstance(v, dict) else getattr(v, 'confidence', 0),
+                    reverse=True
+                )
+                # Take first (highest confidence)
+                best_version = sorted_versions[0]
+                document_version = best_version.get('version_string') if isinstance(best_version, dict) else getattr(best_version, 'version_string', None)
             
             # Update document
             update_data = {}
@@ -536,13 +549,16 @@ class MasterPipeline:
                 update_data['models'] = models
             if series_set:
                 update_data['series'] = ','.join(sorted(series_set))  # Join multiple series
+            if document_version:
+                update_data['version'] = document_version
             
             if update_data:
                 self.supabase.table('documents').update(update_data).eq(
                     'id', str(document_id)
                 ).execute()
                 
-                self.logger.success(f"Updated document metadata: {manufacturer}, {len(models)} models")
+                version_msg = f", version: {document_version}" if document_version else ""
+                self.logger.success(f"Updated document metadata: {manufacturer}, {len(models)} models{version_msg}")
         
         except Exception as e:
             self.logger.error(f"Failed to update document metadata: {e}")
