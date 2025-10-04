@@ -156,7 +156,25 @@ JSON:"""
             elif "```" in json_str:
                 json_str = json_str.split("```")[1].split("```")[0]
             
-            data = json.loads(json_str)
+            json_str = json_str.strip()
+            
+            # Try to parse JSON
+            try:
+                data = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                # Try to fix common JSON issues
+                self.logger.warning(f"⚠️  Initial JSON parse failed: {e}")
+                self.logger.info("   Attempting to fix JSON...")
+                
+                # Try to fix unterminated strings by finding the last complete object
+                if json_str.startswith('['):
+                    # Array of products - try to extract complete objects
+                    data = self._extract_partial_json_array(json_str)
+                elif json_str.startswith('{'):
+                    # Single object - try to close it
+                    data = self._extract_partial_json_object(json_str)
+                else:
+                    raise  # Re-raise if we can't handle it
             
             # Handle different response formats
             if isinstance(data, dict):
@@ -236,6 +254,78 @@ JSON:"""
             self.logger.warning(f"LLM returned 0 products. Response: {response[:500]}")
         
         return products
+    
+    def _extract_partial_json_array(self, json_str: str) -> list:
+        """Extract complete JSON objects from a partial array"""
+        objects = []
+        depth = 0
+        current_obj = ""
+        in_string = False
+        escape_next = False
+        
+        for i, char in enumerate(json_str):
+            if escape_next:
+                current_obj += char
+                escape_next = False
+                continue
+            
+            if char == '\\':
+                escape_next = True
+                current_obj += char
+                continue
+            
+            if char == '"' and not escape_next:
+                in_string = not in_string
+            
+            if not in_string:
+                if char == '{':
+                    depth += 1
+                elif char == '}':
+                    depth -= 1
+                    current_obj += char
+                    
+                    # Complete object found
+                    if depth == 0 and current_obj.strip():
+                        try:
+                            obj = json.loads(current_obj)
+                            objects.append(obj)
+                            self.logger.info(f"   ✅ Recovered 1 complete object from partial JSON")
+                        except:
+                            pass
+                        current_obj = ""
+                        continue
+            
+            if depth > 0 or (depth == 0 and char == '{'):
+                current_obj += char
+        
+        if objects:
+            self.logger.success(f"✅ Successfully recovered {len(objects)} objects from partial JSON")
+        return objects
+    
+    def _extract_partial_json_object(self, json_str: str) -> dict:
+        """Try to extract a valid object from partial JSON"""
+        # Find the last complete key-value pair
+        try:
+            # Try progressively shorter strings
+            for end in range(len(json_str), 0, -1):
+                test_str = json_str[:end].rstrip()
+                
+                # Try to close the object
+                if not test_str.endswith('}'):
+                    test_str += '}'
+                
+                try:
+                    obj = json.loads(test_str)
+                    self.logger.info(f"   ✅ Recovered partial object (truncated at char {end})")
+                    return obj
+                except:
+                    continue
+        except:
+            pass
+        
+        # If all else fails, return empty dict
+        self.logger.error("   ❌ Could not recover any valid JSON")
+        return {}
     
     def detect_specification_section(self, page_texts: Dict[int, str]) -> Optional[Dict[str, Any]]:
         """
