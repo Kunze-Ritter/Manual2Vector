@@ -20,8 +20,10 @@ INSERT INTO krai_content.links (
     id, document_id, url, link_type, page_number, description,
     position_data, is_active, created_at, updated_at
 ) VALUES (
-    NEW.id, NEW.document_id, NEW.url, NEW.link_type, NEW.page_number, NEW.description,
-    NEW.position_data, NEW.is_active, NEW.created_at, NEW.updated_at
+    COALESCE(NEW.id, uuid_generate_v4()), 
+    NEW.document_id, NEW.url, NEW.link_type, NEW.page_number, NEW.description,
+    NEW.position_data, NEW.is_active, 
+    COALESCE(NEW.created_at, NOW()), COALESCE(NEW.updated_at, NOW())
 ) RETURNING *;
 
 CREATE OR REPLACE RULE links_update AS

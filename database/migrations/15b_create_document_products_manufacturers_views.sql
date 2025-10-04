@@ -21,8 +21,10 @@ INSERT INTO krai_core.document_products (
     id, document_id, product_id, is_primary_product, confidence_score,
     extraction_method, page_numbers, created_at, updated_at
 ) VALUES (
-    NEW.id, NEW.document_id, NEW.product_id, NEW.is_primary_product, NEW.confidence_score,
-    NEW.extraction_method, NEW.page_numbers, NEW.created_at, NEW.updated_at
+    COALESCE(NEW.id, uuid_generate_v4()), 
+    NEW.document_id, NEW.product_id, NEW.is_primary_product, NEW.confidence_score,
+    NEW.extraction_method, NEW.page_numbers, 
+    COALESCE(NEW.created_at, NOW()), COALESCE(NEW.updated_at, NOW())
 ) RETURNING *;
 
 CREATE OR REPLACE RULE document_products_update AS
@@ -62,11 +64,12 @@ INSERT INTO krai_core.manufacturers (
     annual_revenue_usd, employee_count, headquarters_address, stock_symbol, 
     primary_business_segment, created_at, updated_at
 ) VALUES (
-    NEW.id, NEW.name, NEW.short_name, NEW.country, NEW.founded_year, NEW.website, 
+    COALESCE(NEW.id, uuid_generate_v4()),
+    NEW.name, NEW.short_name, NEW.country, NEW.founded_year, NEW.website, 
     NEW.support_email, NEW.support_phone, NEW.logo_url, NEW.is_competitor, 
     NEW.market_share_percent, NEW.annual_revenue_usd, NEW.employee_count, 
     NEW.headquarters_address, NEW.stock_symbol, NEW.primary_business_segment,
-    NEW.created_at, NEW.updated_at
+    COALESCE(NEW.created_at, NOW()), COALESCE(NEW.updated_at, NOW())
 ) RETURNING *;
 
 CREATE OR REPLACE RULE manufacturers_update AS

@@ -31,8 +31,13 @@ INSERT INTO krai_core.products (
     id, model_number, manufacturer_id, product_type, metadata, 
     created_at, updated_at
 ) VALUES (
-    NEW.id, NEW.model_number, NEW.manufacturer_id, NEW.product_type, NEW.metadata,
-    NEW.created_at, NEW.updated_at
+    COALESCE(NEW.id, uuid_generate_v4()), 
+    NEW.model_number, 
+    NEW.manufacturer_id, 
+    NEW.product_type, 
+    NEW.metadata,
+    COALESCE(NEW.created_at, NOW()),
+    COALESCE(NEW.updated_at, NOW())
 ) RETURNING *;
 
 CREATE OR REPLACE RULE products_update AS

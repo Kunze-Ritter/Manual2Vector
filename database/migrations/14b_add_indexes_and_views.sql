@@ -89,13 +89,14 @@ INSERT INTO krai_core.documents (
     manual_review_notes, ocr_confidence, manufacturer, series, models, 
     created_at, updated_at
 ) VALUES (
-    NEW.id, NEW.filename, NEW.original_filename, NEW.file_size, NEW.file_hash, NEW.storage_path,
+    COALESCE(NEW.id, uuid_generate_v4()),
+    NEW.filename, NEW.original_filename, NEW.file_size, NEW.file_hash, NEW.storage_path,
     NEW.document_type, NEW.language, NEW.version, NEW.publish_date, NEW.page_count, NEW.word_count,
     NEW.character_count, NEW.content_text, NEW.content_summary, NEW.extracted_metadata,
     NEW.processing_status, NEW.processing_results, NEW.processing_error, NEW.stage_status,
     NEW.confidence_score, NEW.manual_review_required, NEW.manual_review_completed,
     NEW.manual_review_notes, NEW.ocr_confidence, NEW.manufacturer, NEW.series, NEW.models,
-    NEW.created_at, NEW.updated_at
+    COALESCE(NEW.created_at, NOW()), COALESCE(NEW.updated_at, NOW())
 ) RETURNING *;
 
 CREATE OR REPLACE RULE documents_update AS
