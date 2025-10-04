@@ -248,7 +248,7 @@ class ImageStorageProcessor:
             
             db_result = self.supabase.table('images').insert(image_record).execute()
             
-            self.logger.debug(f"Uploaded new image: {file_hash[:8]}... → {storage_path}")
+            self.logger.debug(f"Uploaded new image: {file_hash[:8]}... -> {storage_path}")
             
             return {
                 'success': True,

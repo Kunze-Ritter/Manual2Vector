@@ -6,6 +6,7 @@ Uses rich for colored, formatted console output.
 
 import logging
 import sys
+import io
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -56,8 +57,10 @@ class ProcessorLogger:
             console_handler.setLevel(logging.INFO)
             logger.addHandler(console_handler)
         else:
-            # Fallback to basic handler
-            console_handler = logging.StreamHandler(sys.stdout)
+            # Fallback to basic handler with UTF-8 encoding
+            # Force UTF-8 encoding for Windows compatibility with Unicode characters
+            utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            console_handler = logging.StreamHandler(utf8_stdout)
             console_handler.setLevel(logging.INFO)
             formatter = logging.Formatter(
                 '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -66,10 +69,10 @@ class ProcessorLogger:
             console_handler.setFormatter(formatter)
             logger.addHandler(console_handler)
         
-        # File handler (always basic format)
+        # File handler (always basic format with UTF-8 encoding)
         if self.log_file:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(self.log_file)
+            file_handler = logging.FileHandler(self.log_file, encoding='utf-8')
             file_handler.setLevel(logging.DEBUG)
             formatter = logging.Formatter(
                 '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

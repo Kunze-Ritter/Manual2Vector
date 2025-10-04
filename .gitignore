@@ -89,6 +89,8 @@ coverage.xml
 *.temp
 temp/
 tmp/
+temp_images/
+backend/processors_v2/temp_images/
 
 # Large files
 *.pdf
