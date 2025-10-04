@@ -172,11 +172,32 @@ class SmartChunker:
         # Clean and filter
         paragraphs = [p.strip() for p in paragraphs if p.strip()]
         
+        # Force-split paragraphs that are too large (e.g. table of contents)
+        max_paragraph_size = self.chunk_size * 2  # 2x chunk_size max
+        split_paragraphs = []
+        
+        for para in paragraphs:
+            if len(para) > max_paragraph_size:
+                # Split by single newlines instead
+                lines = para.split('\n')
+                current = ""
+                for line in lines:
+                    if len(current) + len(line) > max_paragraph_size:
+                        if current:
+                            split_paragraphs.append(current)
+                        current = line
+                    else:
+                        current = current + "\n" + line if current else line
+                if current:
+                    split_paragraphs.append(current)
+            else:
+                split_paragraphs.append(para)
+        
         # Merge very short paragraphs with next one
         merged = []
         buffer = ""
         
-        for para in paragraphs:
+        for para in split_paragraphs:
             if len(buffer) > 0 and len(buffer) < 100:
                 # Merge with buffer
                 buffer = buffer + "\n\n" + para
