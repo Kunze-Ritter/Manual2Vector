@@ -186,18 +186,24 @@ class ProcessingResult(BaseModel):
             ],
             'products': [
                 {
-                    'model_name': p.model_name,
+                    'model_number': p.model_number,
+                    'product_series': p.product_series,
+                    'product_type': p.product_type,
                     'manufacturer_name': p.manufacturer_name,
                     'confidence': p.confidence,
                     'extraction_method': p.extraction_method,
+                    'specifications': p.specifications,
                 }
                 for p in self.products
             ],
             'error_codes': [
                 {
-                    'code': e.code,
-                    'description': e.description,
+                    'error_code': e.error_code,
+                    'error_description': e.error_description,
+                    'solution_text': e.solution_text,
                     'confidence': e.confidence,
+                    'page_number': e.page_number,
+                    'severity_level': e.severity_level,
                 }
                 for e in self.error_codes
             ],
