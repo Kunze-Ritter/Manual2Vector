@@ -341,20 +341,26 @@ async def get_document_status(document_id: str, supabase=Depends(get_supabase)):
         
         queue_status = queue_result.data[0] if queue_result.data else None
         
-        # Calculate progress
-        stages = ["upload", "text_extraction", "image_processing", "classification", 
+        # Calculate progress based on task_type from queue
+        stages = ["text_extraction", "image_processing", "classification", 
                   "metadata_extraction", "storage", "embedding", "search"]
-        current_stage = doc.get("processing_stage", "upload")
-        progress = (stages.index(current_stage) + 1) / len(stages) * 100 if current_stage in stages else 0
+        current_stage = queue_status.get("task_type", "text_extraction") if queue_status else "completed"
+        
+        if doc.get("processing_status") == "completed":
+            progress = 100.0
+        elif current_stage in stages:
+            progress = (stages.index(current_stage) + 1) / len(stages) * 100
+        else:
+            progress = 0.0
         
         return ProcessingStatus(
             document_id=document_id,
-            status=doc.get("status", "unknown"),
+            status=doc.get("processing_status", "unknown"),
             current_stage=current_stage,
             progress=progress,
-            started_at=queue_status.get("created_at") if queue_status else None,
-            completed_at=doc.get("processed_at"),
-            error=doc.get("error_message")
+            started_at=queue_status.get("started_at") if queue_status else doc.get("created_at"),
+            completed_at=queue_status.get("completed_at") if queue_status else None,
+            error=queue_status.get("error_message") if queue_status else None
         )
         
     except HTTPException:
@@ -382,18 +388,18 @@ async def get_pipeline_status(supabase=Depends(get_supabase)):
             "total_documents": len(documents.data),
             "in_queue": len([q for q in queue.data if q.get("status") == "pending"]),
             "processing": len([q for q in queue.data if q.get("status") == "processing"]),
-            "completed": len([d for d in documents.data if d.get("status") == "completed"]),
-            "failed": len([d for d in documents.data if d.get("status") == "failed"]),
-            "by_stage": {}
+            "completed": len([d for d in documents.data if d.get("processing_status") == "completed"]),
+            "failed": len([d for d in documents.data if d.get("processing_status") == "failed"]),
+            "by_task_type": {}
         }
         
-        # Count by stage
-        stages = ["upload", "text_extraction", "image_processing", "classification",
-                  "metadata_extraction", "storage", "embedding", "search"]
+        # Count by task_type from queue
+        task_types = ["text_extraction", "image_processing", "classification",
+                      "metadata_extraction", "storage", "embedding", "search"]
         
-        for stage in stages:
-            count = len([d for d in documents.data if d.get("processing_stage") == stage])
-            stats["by_stage"][stage] = count
+        for task_type in task_types:
+            count = len([q for q in queue.data if q.get("task_type") == task_type])
+            stats["by_task_type"][task_type] = count
         
         return stats
         

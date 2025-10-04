@@ -236,21 +236,20 @@ class UploadProcessor:
         record = {
             'id': document_id,
             'filename': file_path.name,
-            'file_path': str(file_path),
+            'original_filename': file_path.name,
+            'storage_path': str(file_path),  # Use storage_path instead of file_path
             'file_hash': file_hash,
-            'file_size_bytes': metadata['file_size_bytes'],
+            'file_size': metadata['file_size_bytes'],  # Use file_size not file_size_bytes
             'document_type': document_type,
-            'title': metadata.get('title', file_path.stem),
             'page_count': metadata.get('page_count', 0),
-            'status': 'uploaded',
-            'processing_stage': 'upload',
-            'uploaded_at': datetime.utcnow().isoformat(),
-            'metadata': {
+            'processing_status': 'uploaded',  # Use processing_status not status
+            'extracted_metadata': {  # Use extracted_metadata not metadata
                 'pdf_metadata': metadata,
                 'validation': {
                     'validated_at': datetime.utcnow().isoformat(),
                     'valid': True
-                }
+                },
+                'uploaded_at': datetime.utcnow().isoformat()
             }
         }
         
@@ -272,17 +271,16 @@ class UploadProcessor:
         
         update_data = {
             'file_hash': file_hash,
-            'file_size_bytes': metadata['file_size_bytes'],
+            'file_size': metadata['file_size_bytes'],
             'page_count': metadata.get('page_count', 0),
-            'status': 'reprocessing',
-            'processing_stage': 'upload',
-            'reprocessed_at': datetime.utcnow().isoformat(),
-            'metadata': {
+            'processing_status': 'reprocessing',
+            'extracted_metadata': {
                 'pdf_metadata': metadata,
                 'validation': {
                     'validated_at': datetime.utcnow().isoformat(),
                     'valid': True
-                }
+                },
+                'reprocessed_at': datetime.utcnow().isoformat()
             }
         }
         
@@ -301,14 +299,9 @@ class UploadProcessor:
         
         queue_record = {
             'document_id': document_id,
+            'task_type': 'text_extraction',  # Use task_type instead of current_stage
             'status': 'pending',
-            'current_stage': 'text_extraction',
-            'priority': 0,
-            'created_at': datetime.utcnow().isoformat(),
-            'metadata': {
-                'file_path': str(file_path),
-                'queued_from': 'upload_processor'
-            }
+            'priority': 5  # Default priority (1=highest, 10=lowest)
         }
         
         try:
