@@ -164,17 +164,24 @@ JSON:"""
             except json.JSONDecodeError as e:
                 # Try to fix common JSON issues
                 self.logger.warning(f"⚠️  Initial JSON parse failed: {e}")
-                self.logger.info("   Attempting to fix JSON...")
+                self.logger.info("   Attempting to recover partial JSON...")
                 
                 # Try to fix unterminated strings by finding the last complete object
-                if json_str.startswith('['):
-                    # Array of products - try to extract complete objects
-                    data = self._extract_partial_json_array(json_str)
-                elif json_str.startswith('{'):
-                    # Single object - try to close it
-                    data = self._extract_partial_json_object(json_str)
-                else:
-                    raise  # Re-raise if we can't handle it
+                try:
+                    if json_str.startswith('['):
+                        # Array of products - try to extract complete objects
+                        data = self._extract_partial_json_array(json_str)
+                        self.logger.info(f"   ✅ Recovered {len(data) if isinstance(data, list) else 1} items from partial JSON")
+                    elif json_str.startswith('{'):
+                        # Single object - try to close it
+                        data = self._extract_partial_json_object(json_str)
+                        self.logger.info(f"   ✅ Recovered partial JSON object")
+                    else:
+                        raise  # Re-raise if we can't handle it
+                except Exception as recovery_error:
+                    self.logger.error(f"   ❌ JSON recovery failed: {recovery_error}")
+                    self.logger.debug(f"   Problematic JSON (first 500 chars): {json_str[:500]}")
+                    raise  # Re-raise original error
             
             # Handle different response formats
             if isinstance(data, dict):
