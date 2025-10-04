@@ -87,7 +87,8 @@ class MasterPipeline:
         )
         
         self.document_processor = DocumentProcessor(
-            manufacturer=manufacturer
+            manufacturer=manufacturer,
+            supabase_client=supabase_client
         )
         
         self.image_storage = ImageStorageProcessor()

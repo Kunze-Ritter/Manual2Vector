@@ -29,7 +29,8 @@ class DocumentProcessor:
         chunk_size: int = 1000,
         chunk_overlap: int = 100,
         pdf_engine: str = "pymupdf",
-        debug: bool = False
+        debug: bool = False,
+        supabase_client=None
     ):
         """
         Initialize document processor
@@ -40,6 +41,7 @@ class DocumentProcessor:
             chunk_overlap: Overlap between chunks
             pdf_engine: PDF extraction engine
             debug: Enable debug logging for product extraction
+            supabase_client: Supabase client for embeddings (optional)
         """
         self.manufacturer = manufacturer
         self.debug = debug
@@ -52,7 +54,7 @@ class DocumentProcessor:
         self.version_extractor = VersionExtractor()
         self.image_processor = ImageProcessor()  # Stage 3: Extract images
         self.image_storage = ImageStorageProcessor()  # R2 for images only
-        self.embedding_processor = EmbeddingProcessor()  # Stage 7: Embeddings
+        self.embedding_processor = EmbeddingProcessor(supabase_client=supabase_client)  # Stage 7: Embeddings
         self.chunker = SmartChunker(
             chunk_size=chunk_size,
             overlap_size=chunk_overlap
