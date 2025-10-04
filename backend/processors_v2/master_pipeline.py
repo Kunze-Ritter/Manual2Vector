@@ -430,7 +430,9 @@ class MasterPipeline:
                                 manufacturer_id = new_mfr.data[0]['id']
                                 self.logger.info(f"✅ Created new manufacturer: {prod_data['manufacturer']}")
                     except Exception as e:
-                        self.logger.warning(f"Failed to find/create manufacturer: {e}")
+                        self.logger.error(f"❌ Failed to find/create manufacturer '{prod_data.get('manufacturer')}': {e}")
+                        import traceback
+                        self.logger.error(traceback.format_exc())
                 
                 # Skip product if no manufacturer_id (required field)
                 if not manufacturer_id:
