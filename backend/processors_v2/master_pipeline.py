@@ -363,6 +363,13 @@ class MasterPipeline:
                     'context': getattr(error_code, 'context', None)
                 }
                 
+                # Build metadata with context if available
+                metadata = {
+                    'extracted_at': datetime.utcnow().isoformat()
+                }
+                if ec_data.get('context'):
+                    metadata['context'] = ec_data.get('context')
+                
                 record = {
                     'document_id': str(document_id),
                     'error_code': ec_data.get('error_code'),
@@ -370,10 +377,7 @@ class MasterPipeline:
                     'solution_text': ec_data.get('solution_text'),
                     'confidence_score': ec_data.get('confidence', 0.8),
                     'page_number': ec_data.get('page_number'),
-                    'context_text': ec_data.get('context'),
-                    'metadata': {
-                        'extracted_at': datetime.utcnow().isoformat()
-                    }
+                    'metadata': metadata
                 }
                 
                 self.supabase.table('error_codes').insert(record).execute()
