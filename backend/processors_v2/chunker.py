@@ -7,7 +7,7 @@ Respects paragraph boundaries and error code sections.
 
 import re
 import hashlib
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from uuid import UUID
 
 from .logger import get_logger
@@ -261,24 +261,31 @@ class SmartChunker:
         if len(text) < self.min_chunk_size:
             return None
         
+        # Clean headers and extract metadata
+        cleaned_text, header_metadata = self._clean_headers(text)
+        
         # Generate fingerprint
-        fingerprint = self._generate_fingerprint(text)
+        fingerprint = self._generate_fingerprint(cleaned_text)
         
         # Detect chunk type
-        chunk_type = self._detect_chunk_type(text)
+        chunk_type = self._detect_chunk_type(cleaned_text)
         
         # Create metadata
         metadata = {
-            'char_count': len(text),
-            'word_count': len(text.split()),
-            'has_error_codes': self._contains_error_codes(text),
+            'char_count': len(cleaned_text),
+            'word_count': len(cleaned_text.split()),
+            'has_error_codes': self._contains_error_codes(cleaned_text),
             'chunk_type': chunk_type
         }
+        
+        # Add header metadata if found
+        if header_metadata:
+            metadata.update(header_metadata)
         
         try:
             return TextChunk(
                 document_id=document_id,
-                text=text,
+                text=cleaned_text,
                 chunk_index=chunk_index,
                 page_start=page_start,
                 page_end=page_end,
@@ -289,6 +296,74 @@ class SmartChunker:
         except Exception as e:
             self.logger.error(f"Failed to create chunk: {e}")
             return None
+    
+    def _clean_headers(self, text: str) -> Tuple[str, dict]:
+        """
+        Remove repetitive PDF headers and extract as metadata
+        
+        Args:
+            text: Original chunk text
+            
+        Returns:
+            Tuple of (cleaned_text, header_metadata)
+        """
+        header_metadata = {}
+        cleaned_text = text
+        
+        # Common header patterns (first 1-3 lines)
+        lines = text.split('\n')
+        if len(lines) < 2:
+            return text, {}
+        
+        header_lines = []
+        content_start_idx = 0
+        
+        # Check first few lines for header patterns
+        for i, line in enumerate(lines[:5]):  # Check first 5 lines max
+            line_clean = line.strip()
+            
+            # Stop if we hit actual content (longer lines, paragraphs)
+            if i > 0 and len(line_clean) > 80:
+                break
+            
+            # Detect product model patterns
+            # AccurioPress C4080/C4070/C84hc/C74hc
+            # AccurioPrint C4065/C4065P
+            # bizhub C450i/C550i/C650i
+            if re.search(r'(?:AccurioPress|AccurioPrint|bizhub|LaserJet|OfficeJet|Color LaserJet)', line_clean, re.IGNORECASE):
+                header_lines.append(line_clean)
+                content_start_idx = i + 1
+            # Roman numerals (page numbers in header)
+            elif re.match(r'^[ivxlcdm]+$', line_clean, re.IGNORECASE):
+                header_lines.append(line_clean)
+                content_start_idx = i + 1
+            # Very short lines that look like headers
+            elif i < 2 and len(line_clean) < 60 and line_clean and not line_clean[0].islower():
+                header_lines.append(line_clean)
+                content_start_idx = i + 1
+            else:
+                # Stop looking
+                break
+        
+        # Extract header info
+        if header_lines:
+            full_header = '\n'.join(header_lines)
+            header_metadata['page_header'] = full_header
+            
+            # Extract product models
+            products = []
+            for line in header_lines:
+                # Find model patterns like C4080, C4070, C84hc, etc.
+                models = re.findall(r'[A-Z]\d{4}[a-z]*(?:/[A-Z]\d{4}[a-z]*)*', line)
+                products.extend(models)
+            
+            if products:
+                header_metadata['header_products'] = list(set(products))  # Unique
+            
+            # Remove header from text
+            cleaned_text = '\n'.join(lines[content_start_idx:]).strip()
+        
+        return cleaned_text, header_metadata
     
     def _generate_fingerprint(self, text: str) -> str:
         """
