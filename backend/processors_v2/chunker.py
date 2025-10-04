@@ -326,11 +326,26 @@ class SmartChunker:
             if i > 0 and len(line_clean) > 80:
                 break
             
-            # Detect product model patterns
-            # AccurioPress C4080/C4070/C84hc/C74hc
-            # AccurioPrint C4065/C4065P
-            # bizhub C450i/C550i/C650i
-            if re.search(r'(?:AccurioPress|AccurioPrint|bizhub|LaserJet|OfficeJet|Color LaserJet)', line_clean, re.IGNORECASE):
+            # Detect product model patterns from all major manufacturers
+            # Konica Minolta: AccurioPress C4080, bizhub C450i
+            # HP: LaserJet Enterprise M607, OfficeJet Pro 9025
+            # Lexmark: CX920, MX910, CS820, MS812
+            # UTAX: 5006ci, 4006ci, 2506ci
+            # Kyocera: TASKalfa 5053ci, ECOSYS M8130cidn
+            # Canon: imageRUNNER ADVANCE C5550i
+            # Xerox: VersaLink C7020, AltaLink C8035
+            # Brother: MFC-L8900CDW, HL-L8360CDW
+            manufacturer_patterns = (
+                r'AccurioPress|AccurioPrint|bizhub'  # Konica Minolta
+                r'|LaserJet|OfficeJet|Color LaserJet|PageWide|DeskJet'  # HP
+                r'|CX\d{3,4}|MX\d{3,4}|CS\d{3,4}|MS\d{3,4}|XC\d{3,4}'  # Lexmark
+                r'|UTAX|TA\d{4}ci'  # UTAX/Triumph-Adler
+                r'|TASKalfa|ECOSYS|Kyocera'  # Kyocera
+                r'|imageRUNNER|imageCLASS|imagePRESS'  # Canon
+                r'|VersaLink|AltaLink|WorkCentre|ColorQube'  # Xerox
+                r'|MFC-[A-Z]\d{4}|HL-[A-Z]\d{4}|DCP-[A-Z]\d{4}'  # Brother
+            )
+            if re.search(manufacturer_patterns, line_clean, re.IGNORECASE):
                 header_lines.append(line_clean)
                 content_start_idx = i + 1
             # Roman numerals (page numbers in header)
