@@ -46,7 +46,7 @@ BEGIN
         d.priority_level as priority,
         ec.confidence_score::NUMERIC as relevance_score,
         d.document_type::TEXT,
-        d.title::TEXT as document_title,
+        d.filename::TEXT as document_title,
         jsonb_build_object(
             'document_id', ec.document_id,
             'document_type', d.document_type,
@@ -80,7 +80,7 @@ BEGIN
             d.priority_level + 1 as priority,
             0.7::NUMERIC as relevance_score,
             d.document_type::TEXT,
-            d.title::TEXT as document_title,
+            d.filename::TEXT as document_title,
             jsonb_build_object(
                 'document_id', c.document_id,
                 'chunk_type', c.chunk_type,
@@ -107,21 +107,22 @@ BEGIN
         v.id as resource_id,
         COALESCE(v.title, 'Video Tutorial')::TEXT as title,
         COALESCE(v.description, 'No description')::TEXT as description,
-        v.video_url::TEXT as url,
-        v.page_number,
+        COALESCE(l.url, v.title)::TEXT as url,
+        NULL::INTEGER as page_number,
         3 as priority,
         0.8::NUMERIC as relevance_score,
         'video'::TEXT as document_type,
-        d.title::TEXT as document_title,
+        d.filename::TEXT as document_title,
         jsonb_build_object(
-            'document_id', v.document_id,
+            'link_id', v.link_id,
             'duration', v.duration,
-            'video_type', v.video_type,
+            'channel_title', v.channel_title,
             'thumbnail_url', v.thumbnail_url,
             'related_error_codes', v.related_error_codes
         ) as metadata
     FROM krai_content.videos v
-    LEFT JOIN krai_core.documents d ON v.document_id = d.id
+    LEFT JOIN krai_content.links l ON v.link_id = l.id
+    LEFT JOIN krai_core.documents d ON l.document_id = d.id
     WHERE (
         -- Direct error code match
         p_error_code = ANY(v.related_error_codes)
@@ -148,7 +149,7 @@ BEGIN
         4 as priority,
         0.7::NUMERIC as relevance_score,
         l.link_type::TEXT as document_type,
-        d.title::TEXT as document_title,
+        d.filename::TEXT as document_title,
         jsonb_build_object(
             'document_id', l.document_id,
             'link_type', l.link_type,

@@ -1303,3 +1303,17 @@ postgrest.exceptions.APIError: {'message': "Could not find the 'ai_extracted' co
 2025-10-05 19:11:10 - DEBUG - OCR extracted 383 chars from page_0603_img_002.jpeg
 2025-10-05 19:12:07 - DEBUG - OCR extracted 386 chars from page_0773_img_000.png
 2025-10-05 19:12:09 - DEBUG - OCR extracted 386 chars from page_0775_img_000.png
+2025-10-05 19:12:38 - DEBUG - OCR extracted 208 chars from page_0830_img_000.jpeg
+2025-10-05 19:12:39 - DEBUG - OCR extracted 386 chars from page_0831_img_002.png
+2025-10-05 19:12:43 - DEBUG - OCR extracted 386 chars from page_0836_img_001.png
+2025-10-05 19:12:47 - DEBUG - OCR extracted 15 chars from page_0841_img_001.jpeg
+2025-10-05 19:12:49 - DEBUG - OCR extracted 267 chars from page_0843_img_000.png
+2025-10-05 19:12:51 - DEBUG - OCR extracted 11 chars from page_0846_img_000.png
+2025-10-05 19:13:06 - DEBUG - OCR extracted 3 chars from page_0875_img_002.png
+2025-10-05 19:13:41 - DEBUG - OCR extracted 10 chars from page_0926_img_001.png
+2025-10-05 19:13:42 - DEBUG - OCR extracted 10 chars from page_0928_img_001.png
+2025-10-05 19:13:44 - DEBUG - OCR extracted 6 chars from page_0931_img_001.png
+2025-10-05 19:13:44 - DEBUG - OCR extracted 6 chars from page_0932_img_000.png
+2025-10-05 19:14:22 - DEBUG - OCR extracted 9 chars from page_0968_img_002.jpeg
+2025-10-05 19:14:25 - DEBUG - OCR extracted 9 chars from page_0970_img_002.jpeg
+2025-10-05 19:14:29 - DEBUG - OCR extracted 9 chars from page_0974_img_002.jpeg
