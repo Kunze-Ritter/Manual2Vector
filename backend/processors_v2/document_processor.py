@@ -556,9 +556,24 @@ class DocumentProcessor:
         try:
             self.logger.info(f"Generating embeddings for {len(chunks)} chunks...")
             
+            # Convert TextChunk objects to dicts (preserve ALL metadata!)
+            chunks_dict = []
+            for chunk in chunks:
+                chunk_dict = {
+                    'chunk_id': str(chunk.chunk_id),
+                    'text': chunk.text,
+                    'chunk_index': chunk.chunk_index,
+                    'page_start': chunk.page_start,
+                    'page_end': chunk.page_end,
+                    'chunk_type': chunk.chunk_type,
+                    'fingerprint': chunk.fingerprint,
+                    'metadata': chunk.metadata  # ← CRITICAL: This includes header metadata!
+                }
+                chunks_dict.append(chunk_dict)
+            
             result = self.embedding_processor.process_document(
                 document_id=document_id,
-                chunks=chunks
+                chunks=chunks_dict
             )
             
             if result['success']:
