@@ -103,8 +103,14 @@ SELECT
     COUNT(*) as total_error_codes,
     COUNT(chunk_id) as linked_to_chunks,
     COUNT(image_id) as linked_to_images,
-    ROUND(100.0 * COUNT(chunk_id) / COUNT(*), 2) as chunk_link_percentage,
-    ROUND(100.0 * COUNT(image_id) / COUNT(*), 2) as image_link_percentage
+    CASE 
+        WHEN COUNT(*) > 0 THEN ROUND(100.0 * COUNT(chunk_id) / COUNT(*), 2)
+        ELSE 0
+    END as chunk_link_percentage,
+    CASE 
+        WHEN COUNT(*) > 0 THEN ROUND(100.0 * COUNT(image_id) / COUNT(*), 2)
+        ELSE 0
+    END as image_link_percentage
 FROM krai_intelligence.error_codes;
 
 -- Expected output:
