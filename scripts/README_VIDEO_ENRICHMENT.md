@@ -42,11 +42,13 @@ python scripts/enrich_video_metadata.py --help
 ### What it does
 
 - ✅ Fetches YouTube video metadata (title, description, duration, views, etc.)
-- ✅ Fetches Vimeo video metadata
+- ✅ Fetches Vimeo video metadata via oEmbed API
+- ✅ Fetches Brightcove video metadata via Playback API
 - ✅ Extracts thumbnails
 - ✅ Updates `videos` table with enriched data
 - ✅ Links back to original `links` table
 - ✅ Rate limiting (10,000 quota/day for YouTube)
+- ✅ Handles duplicates (idempotent)
 
 ### YouTube API Quota
 

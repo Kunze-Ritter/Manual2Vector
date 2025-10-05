@@ -81,6 +81,23 @@ class VideoEnricher:
                 return match.group(1)
         return None
     
+    def extract_brightcove_ids(self, url: str) -> Optional[tuple]:
+        """
+        Extract Brightcove account_id and video_id from URL
+        Returns: (account_id, video_id) or None
+        """
+        # Pattern: https://players.brightcove.net/{account_id}/{player_id}/index.html?videoId={video_id}
+        # Video ID can be numeric or reference ID (ref:...)
+        match = re.search(r'players\.brightcove\.net/(\d+)/[^/]+/.*?videoId=([^&\s]+)', url)
+        if match:
+            account_id = match.group(1)
+            video_id = match.group(2)
+            # URL decode video_id (e.g., ref%3A... → ref:...)
+            from urllib.parse import unquote
+            video_id = unquote(video_id)
+            return (account_id, video_id)
+        return None
+    
     def extract_vimeo_id(self, url: str) -> Optional[str]:
         """Extract Vimeo video ID from URL"""
         patterns = [
@@ -160,6 +177,85 @@ class VideoEnricher:
         seconds = int(match.group(3) or 0)
         
         return hours * 3600 + minutes * 60 + seconds
+    
+    async def get_brightcove_metadata(self, account_id: str, video_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch metadata from Brightcove Playback API
+        Note: Uses public playback API (no auth needed for public videos)
+        """
+        try:
+            # Try to get policy key from player config (public)
+            # For now, we'll use a generic approach that works for most public videos
+            
+            # Brightcove Edge Playback API
+            # Note: This requires a policy key. For public videos, we can try without auth
+            # or extract the policy key from the player HTML
+            
+            # Try getting the player page to extract policy key
+            player_url = f"https://players.brightcove.net/{account_id}/default_default/index.min.js"
+            
+            try:
+                player_response = await self.http_client.get(player_url)
+                # Extract policy key from player config
+                policy_match = re.search(r'policyKey["\']:\s*["\']([^"\']+)["\']', player_response.text)
+                policy_key = policy_match.group(1) if policy_match else None
+            except:
+                policy_key = None
+            
+            if not policy_key:
+                logger.warning(f"Could not extract Brightcove policy key for account {account_id}")
+                # Try a fallback approach with basic metadata
+                return {
+                    'title': f'Brightcove Video {video_id}',
+                    'description': 'Brightcove video (policy key required for full metadata)',
+                    'thumbnail_url': None,
+                    'duration': 0,
+                    'view_count': 0,
+                    'channel_title': 'Brightcove',
+                    'brightcove_id': video_id,
+                    'account_id': account_id
+                }
+            
+            # Use Playback API with policy key
+            url = f"https://edge.api.brightcove.com/playback/v1/accounts/{account_id}/videos/{video_id}"
+            headers = {
+                'Accept': f'application/json;pk={policy_key}'
+            }
+            
+            response = await self.http_client.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract thumbnail (first poster or thumbnail)
+            thumbnail_url = None
+            if data.get('poster'):
+                thumbnail_url = data['poster']
+            elif data.get('thumbnail'):
+                thumbnail_url = data['thumbnail']
+            
+            # Duration in milliseconds → seconds
+            duration = data.get('duration', 0) // 1000 if data.get('duration') else 0
+            
+            return {
+                'title': data.get('name', f'Brightcove Video {video_id}'),
+                'description': data.get('description', 'No description available'),
+                'thumbnail_url': thumbnail_url,
+                'duration': duration,
+                'view_count': 0,  # Not available in Playback API
+                'channel_title': data.get('account_name', 'Brightcove'),
+                'brightcove_id': str(data.get('id', video_id)),
+                'account_id': account_id
+            }
+            
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"Brightcove video not found or private: {video_id}")
+            else:
+                logger.error(f"Error fetching Brightcove metadata: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching Brightcove metadata: {e}")
+            return None
     
     async def get_vimeo_metadata(self, video_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -314,6 +410,66 @@ class VideoEnricher:
         
         return False
     
+    async def enrich_brightcove_link(self, link: Dict[str, Any]) -> bool:
+        """Enrich a Brightcove link with metadata"""
+        ids = self.extract_brightcove_ids(link['url'])
+        if not ids:
+            logger.warning(f"Could not extract Brightcove IDs from: {link['url']}")
+            return False
+        
+        account_id, video_id = ids
+        
+        metadata = await self.get_brightcove_metadata(account_id, video_id)
+        if not metadata:
+            return False
+        
+        try:
+            # Check if video already exists (by link_id)
+            existing = supabase.table('videos').select('id').eq('link_id', link['id']).execute()
+            
+            if existing.data:
+                # Video exists, use existing ID
+                video_id_to_link = existing.data[0]['id']
+                logger.info(f"📝 Video already exists, reusing ID")
+            else:
+                # Insert new video
+                video_record = supabase.table('videos').insert({
+                    'link_id': link['id'],
+                    'youtube_id': None,  # Brightcove doesn't use youtube_id
+                    'title': metadata['title'],
+                    'description': metadata['description'],
+                    'thumbnail_url': metadata['thumbnail_url'],
+                    'duration': metadata['duration'],
+                    'view_count': metadata['view_count'],
+                    'channel_title': metadata['channel_title'],
+                    'metadata': {
+                        'enriched_at': datetime.now(timezone.utc).isoformat(),
+                        'source': 'brightcove_api',
+                        'brightcove_id': metadata['brightcove_id'],
+                        'account_id': metadata['account_id']
+                    }
+                }).execute()
+                
+                if not video_record.data:
+                    logger.error("Failed to insert video")
+                    return False
+                
+                video_id_to_link = video_record.data[0]['id']
+            
+            # Update link with video_id
+            supabase.table('links').update({
+                'video_id': video_id_to_link
+            }).eq('id', link['id']).execute()
+            
+            logger.info(f"✅ Enriched Brightcove video: {metadata['title'][:50]}...")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error saving Brightcove metadata: {e}")
+            return False
+        
+        return False
+    
     async def enrich_link(self, link: Dict[str, Any]) -> bool:
         """Enrich a video link based on its type"""
         url = link['url']
@@ -322,6 +478,8 @@ class VideoEnricher:
             return await self.enrich_youtube_link(link)
         elif 'vimeo.com' in url:
             return await self.enrich_vimeo_link(link)
+        elif 'brightcove.net' in url:
+            return await self.enrich_brightcove_link(link)
         else:
             logger.info(f"⏭️  Skipping unsupported video platform: {url}")
             return False
@@ -337,7 +495,7 @@ class VideoEnricher:
             if not force:
                 query = query.is_('video_id', 'null')
             
-            query = query.in_('link_type', ['video', 'youtube', 'vimeo'])
+            query = query.in_('link_type', ['video', 'youtube', 'vimeo', 'brightcove'])
             
             if limit:
                 query = query.limit(limit)
