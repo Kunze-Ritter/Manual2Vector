@@ -260,6 +260,7 @@ class MasterPipeline:
             # ==========================================
             # STAGE 9.6: Link Error Codes to Chunks & Images
             # ==========================================
+            processing_result = results.get('processing', {})  # Get processing result
             error_codes = processing_result.get('error_codes', [])
             if error_codes and chunks:
                 self.logger.info("🔗 Linking error codes to chunks & images...")
@@ -270,7 +271,6 @@ class MasterPipeline:
             # ==========================================
             # STAGE 10: Save extracted entities to DB
             # ==========================================
-            processing_result = results.get('processing', {})
             
             # Error codes are saved immediately after extraction (see document_processor.py Step 3)
             # No need to save again here

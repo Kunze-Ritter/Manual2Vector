@@ -560,19 +560,25 @@ class DocumentProcessor:
         try:
             self.logger.info(f"Generating embeddings for {len(chunks)} chunks...")
             
-            # Convert TextChunk objects to dicts (preserve ALL metadata!)
+            # Chunks might be objects OR dicts - handle both!
             chunks_dict = []
             for chunk in chunks:
-                chunk_dict = {
-                    'chunk_id': str(chunk.chunk_id),
-                    'text': chunk.text,
-                    'chunk_index': chunk.chunk_index,
-                    'page_start': chunk.page_start,
-                    'page_end': chunk.page_end,
-                    'chunk_type': chunk.chunk_type,
-                    'fingerprint': chunk.fingerprint,
-                    'metadata': chunk.metadata  # ← CRITICAL: This includes header metadata!
-                }
+                # Check if it's already a dict or an object
+                if isinstance(chunk, dict):
+                    # Already a dict, use as-is
+                    chunk_dict = chunk
+                else:
+                    # It's a TextChunk object, convert to dict
+                    chunk_dict = {
+                        'chunk_id': str(chunk.chunk_id),
+                        'text': chunk.text,
+                        'chunk_index': chunk.chunk_index,
+                        'page_start': chunk.page_start,
+                        'page_end': chunk.page_end,
+                        'chunk_type': chunk.chunk_type,
+                        'fingerprint': chunk.fingerprint,
+                        'metadata': chunk.metadata  # ← CRITICAL: This includes header metadata!
+                    }
                 chunks_dict.append(chunk_dict)
             
             result = self.embedding_processor.process_document(
