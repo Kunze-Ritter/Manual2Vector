@@ -24,6 +24,8 @@ CREATE OR REPLACE FUNCTION insert_error_code(
 )
 RETURNS UUID
 LANGUAGE plpgsql
+SECURITY DEFINER  -- Run with permissions of function creator (not caller)
+SET search_path = krai_intelligence, krai_core, public
 AS $$
 DECLARE
     v_id UUID;
