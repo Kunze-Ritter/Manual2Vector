@@ -169,37 +169,40 @@ WHERE l.series_id IS NULL
 AND l.document_id IS NOT NULL;
 
 -- Backfill videos if table exists
+-- Note: Videos are linked via link_id (videos.link_id → links.id → links.document_id)
 DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.tables 
         WHERE table_schema = 'krai_content' AND table_name = 'videos'
     ) THEN
-        -- Backfill manufacturer_id (via document_products)
+        -- Backfill manufacturer_id (via links → document_products)
         UPDATE krai_content.videos v
         SET manufacturer_id = (
             SELECT p.manufacturer_id
-            FROM krai_core.document_products dp
+            FROM krai_content.links l
+            JOIN krai_core.document_products dp ON l.document_id = dp.document_id
             JOIN krai_core.products p ON dp.product_id = p.id
-            WHERE dp.document_id = v.document_id
+            WHERE l.id = v.link_id
             AND p.manufacturer_id IS NOT NULL
             LIMIT 1
         )
         WHERE v.manufacturer_id IS NULL
-        AND v.document_id IS NOT NULL;
+        AND v.link_id IS NOT NULL;
         
-        -- Backfill series_id
+        -- Backfill series_id (via links → document_products)
         UPDATE krai_content.videos v
         SET series_id = (
             SELECT p.series_id
-            FROM krai_core.document_products dp
+            FROM krai_content.links l
+            JOIN krai_core.document_products dp ON l.document_id = dp.document_id
             JOIN krai_core.products p ON dp.product_id = p.id
-            WHERE dp.document_id = v.document_id
+            WHERE l.id = v.link_id
             AND p.series_id IS NOT NULL
             LIMIT 1
         )
         WHERE v.series_id IS NULL
-        AND v.document_id IS NOT NULL;
+        AND v.link_id IS NOT NULL;
         
         RAISE NOTICE '✅ Backfilled videos';
     END IF;

@@ -682,15 +682,18 @@ class DocumentProcessor:
                 if should_insert:
                     result = supabase.table('videos').insert(video).execute()
                     
-                    # Auto-link manufacturer/series from document (Migration 28 helper function)
-                    if result.data and len(result.data) > 0:
+                    # Auto-link manufacturer/series via link_id (videos → links → document)
+                    if result.data and len(result.data) > 0 and video.get('link_id'):
                         video_id = result.data[0]['id']
                         try:
-                            supabase.rpc('auto_link_resource_to_document', {
-                                'p_resource_table': 'krai_content.videos',
-                                'p_resource_id': video_id,
-                                'p_document_id': video['document_id']
-                            }).execute()
+                            # Get document_id from link
+                            link_result = supabase.table('links').select('document_id').eq('id', video['link_id']).single().execute()
+                            if link_result.data:
+                                supabase.rpc('auto_link_resource_to_document', {
+                                    'p_resource_table': 'krai_content.videos',
+                                    'p_resource_id': video_id,
+                                    'p_document_id': link_result.data['document_id']
+                                }).execute()
                         except Exception as video_error:
                             self.logger.debug(f"Could not auto-link manufacturer/series: {video_error}")
             
