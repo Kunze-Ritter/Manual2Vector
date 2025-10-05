@@ -199,7 +199,7 @@ class VideoEnricher:
         
         try:
             # Insert into videos table (krai_content schema)
-            video_record = supabase.schema('krai_content').table('videos').insert({
+            video_record = supabase.table('videos').insert({
                 'link_id': link['id'],
                 'youtube_id': metadata['youtube_id'],
                 'title': metadata['title'],
@@ -220,7 +220,7 @@ class VideoEnricher:
             
             if video_record.data:
                 # Update link with video_id
-                supabase.schema('krai_content').table('links').update({
+                supabase.table('links').update({
                     'video_id': video_record.data[0]['id']
                 }).eq('id', link['id']).execute()
                 
@@ -246,7 +246,7 @@ class VideoEnricher:
         
         try:
             # Insert into videos table (simplified for Vimeo)
-            video_record = supabase.schema('krai_content').table('videos').insert({
+            video_record = supabase.table('videos').insert({
                 'link_id': link['id'],
                 'youtube_id': None,  # Vimeo doesn't use youtube_id
                 'title': metadata['title'],
@@ -264,7 +264,7 @@ class VideoEnricher:
             
             if video_record.data:
                 # Update link with video_id
-                supabase.schema('krai_content').table('links').update({
+                supabase.table('links').update({
                     'video_id': video_record.data[0]['id']
                 }).eq('id', link['id']).execute()
                 
@@ -295,7 +295,7 @@ class VideoEnricher:
         
         try:
             # Query for video links without video_id
-            query = supabase.schema('krai_content').table('links').select('*')
+            query = supabase.table('links').select('*')
             
             if not force:
                 query = query.is_('video_id', 'null')
