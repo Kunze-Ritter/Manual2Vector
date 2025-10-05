@@ -309,6 +309,7 @@ DO $$
 DECLARE
     test_error_code VARCHAR(20);
     result_count INTEGER;
+    i RECORD;
 BEGIN
     -- Try to find a real error code from the database
     SELECT error_code INTO test_error_code 
