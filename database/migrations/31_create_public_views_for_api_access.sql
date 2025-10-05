@@ -5,6 +5,30 @@
 --          Supabase PostgREST only exposes tables in public schema by default
 -- ============================================================================
 
+-- ============================================================================
+-- Clean up existing objects (for re-running migration)
+-- ============================================================================
+DROP TRIGGER IF EXISTS videos_insert_trigger ON public.videos;
+DROP TRIGGER IF EXISTS videos_update_trigger ON public.videos;
+DROP TRIGGER IF EXISTS videos_delete_trigger ON public.videos;
+DROP TRIGGER IF EXISTS links_insert_trigger ON public.links;
+DROP TRIGGER IF EXISTS links_update_trigger ON public.links;
+DROP TRIGGER IF EXISTS links_delete_trigger ON public.links;
+
+DROP FUNCTION IF EXISTS public.videos_insert();
+DROP FUNCTION IF EXISTS public.videos_update();
+DROP FUNCTION IF EXISTS public.videos_delete();
+DROP FUNCTION IF EXISTS public.links_insert();
+DROP FUNCTION IF EXISTS public.links_update();
+DROP FUNCTION IF EXISTS public.links_delete();
+
+DROP VIEW IF EXISTS public.videos;
+DROP VIEW IF EXISTS public.links;
+
+-- ============================================================================
+-- Create Views
+-- ============================================================================
+
 -- Create view for videos (expose krai_content.videos as public.videos)
 CREATE OR REPLACE VIEW public.videos AS
 SELECT * FROM krai_content.videos;
