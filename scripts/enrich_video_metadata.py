@@ -83,19 +83,20 @@ class VideoEnricher:
     
     def extract_brightcove_ids(self, url: str) -> Optional[tuple]:
         """
-        Extract Brightcove account_id and video_id from URL
-        Returns: (account_id, video_id) or None
+        Extract Brightcove account_id, player_id, and video_id from URL
+        Returns: (account_id, player_id, video_id) or None
         """
         # Pattern: https://players.brightcove.net/{account_id}/{player_id}/index.html?videoId={video_id}
         # Video ID can be numeric or reference ID (ref:...)
-        match = re.search(r'players\.brightcove\.net/(\d+)/[^/]+/.*?videoId=([^&\s]+)', url)
+        match = re.search(r'players\.brightcove\.net/(\d+)/([^/]+)/.*?videoId=([^&\s]+)', url)
         if match:
             account_id = match.group(1)
-            video_id = match.group(2)
+            player_id = match.group(2)
+            video_id = match.group(3)
             # URL decode video_id (e.g., ref%3A... → ref:...)
             from urllib.parse import unquote
             video_id = unquote(video_id)
-            return (account_id, video_id)
+            return (account_id, player_id, video_id)
         return None
     
     def extract_vimeo_id(self, url: str) -> Optional[str]:
@@ -178,7 +179,7 @@ class VideoEnricher:
         
         return hours * 3600 + minutes * 60 + seconds
     
-    async def get_brightcove_metadata(self, account_id: str, video_id: str) -> Optional[Dict[str, Any]]:
+    async def get_brightcove_metadata(self, account_id: str, player_id: str, video_id: str) -> Optional[Dict[str, Any]]:
         """
         Fetch metadata from Brightcove Playback API
         Note: Uses public playback API (no auth needed for public videos)
@@ -191,16 +192,28 @@ class VideoEnricher:
             # Note: This requires a policy key. For public videos, we can try without auth
             # or extract the policy key from the player HTML
             
-            # Try getting the player page to extract policy key
-            player_url = f"https://players.brightcove.net/{account_id}/default_default/index.min.js"
+            # Try getting the player page to extract policy key (using actual player_id)
+            player_url = f"https://players.brightcove.net/{account_id}/{player_id}/index.min.js"
             
+            policy_key = None
             try:
                 player_response = await self.http_client.get(player_url)
                 # Extract policy key from player config
-                policy_match = re.search(r'policyKey["\']:\s*["\']([^"\']+)["\']', player_response.text)
-                policy_key = policy_match.group(1) if policy_match else None
-            except:
-                policy_key = None
+                # Try multiple patterns
+                patterns = [
+                    r'policyKey["\']:\s*["\']([^"\']+)["\']',
+                    r'"policyKey"\s*:\s*"([^"]+)"',
+                    r'policy_key["\']:\s*["\']([^"\']+)["\']',
+                ]
+                
+                for pattern in patterns:
+                    policy_match = re.search(pattern, player_response.text)
+                    if policy_match:
+                        policy_key = policy_match.group(1)
+                        logger.info(f"🔑 Extracted Brightcove policy key")
+                        break
+            except Exception as e:
+                logger.debug(f"Failed to extract policy key: {e}")
             
             if not policy_key:
                 logger.warning(f"Could not extract Brightcove policy key for account {account_id}")
@@ -416,9 +429,9 @@ class VideoEnricher:
             logger.warning(f"Could not extract Brightcove IDs from: {link['url']}")
             return False
         
-        account_id, video_id = ids
+        account_id, player_id, video_id = ids
         
-        metadata = await self.get_brightcove_metadata(account_id, video_id)
+        metadata = await self.get_brightcove_metadata(account_id, player_id, video_id)
         if not metadata:
             return False
         
