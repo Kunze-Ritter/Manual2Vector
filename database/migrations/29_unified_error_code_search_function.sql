@@ -91,7 +91,6 @@ BEGIN
         FROM krai_intelligence.chunks c
         JOIN krai_core.documents d ON c.document_id = d.id
         WHERE c.text_chunk ILIKE '%' || p_error_code || '%'
-        AND (p_manufacturer_id IS NULL OR d.manufacturer_id = p_manufacturer_id)
         AND (c.metadata->>'chunk_type' IN ('error_code_section', 'troubleshooting') OR c.metadata->>'chunk_type' IS NULL)
         LIMIT 5
     ) chunks
