@@ -112,19 +112,16 @@ DECLARE
     v_series_id UUID;
     v_sql TEXT;
 BEGIN
-    -- Get manufacturer and main series from document
+    -- Get manufacturer and main series from document via document_products
     SELECT 
-        d.manufacturer_id,
-        (
-            SELECT ps.id 
-            FROM krai_core.document_products dp
-            JOIN krai_core.products p ON dp.product_id = p.id
-            JOIN krai_core.product_series ps ON p.series_id = ps.id
-            WHERE dp.document_id = d.id
-            LIMIT 1
-        ) INTO v_manufacturer_id, v_series_id
-    FROM krai_core.documents d
-    WHERE d.id = p_document_id;
+        p.manufacturer_id,
+        p.series_id
+    INTO v_manufacturer_id, v_series_id
+    FROM krai_core.document_products dp
+    JOIN krai_core.products p ON dp.product_id = p.id
+    WHERE dp.document_id = p_document_id
+    AND p.manufacturer_id IS NOT NULL
+    LIMIT 1;
     
     -- Update the resource table
     IF v_manufacturer_id IS NOT NULL THEN
@@ -145,13 +142,18 @@ COMMENT ON FUNCTION auto_link_resource_to_document IS
 -- PART 5: Backfill existing data
 -- ======================================================================
 
--- Backfill manufacturer_id for existing links from their documents
+-- Backfill manufacturer_id for existing links (via document_products)
 UPDATE krai_content.links l
-SET manufacturer_id = d.manufacturer_id
-FROM krai_core.documents d
-WHERE l.document_id = d.id
-AND l.manufacturer_id IS NULL
-AND d.manufacturer_id IS NOT NULL;
+SET manufacturer_id = (
+    SELECT p.manufacturer_id
+    FROM krai_core.document_products dp
+    JOIN krai_core.products p ON dp.product_id = p.id
+    WHERE dp.document_id = l.document_id
+    AND p.manufacturer_id IS NOT NULL
+    LIMIT 1
+)
+WHERE l.manufacturer_id IS NULL
+AND l.document_id IS NOT NULL;
 
 -- Backfill series_id for existing links (take first product's series)
 UPDATE krai_content.links l
@@ -173,13 +175,18 @@ BEGIN
         SELECT 1 FROM information_schema.tables 
         WHERE table_schema = 'krai_content' AND table_name = 'videos'
     ) THEN
-        -- Backfill manufacturer_id
+        -- Backfill manufacturer_id (via document_products)
         UPDATE krai_content.videos v
-        SET manufacturer_id = d.manufacturer_id
-        FROM krai_core.documents d
-        WHERE v.document_id = d.id
-        AND v.manufacturer_id IS NULL
-        AND d.manufacturer_id IS NOT NULL;
+        SET manufacturer_id = (
+            SELECT p.manufacturer_id
+            FROM krai_core.document_products dp
+            JOIN krai_core.products p ON dp.product_id = p.id
+            WHERE dp.document_id = v.document_id
+            AND p.manufacturer_id IS NOT NULL
+            LIMIT 1
+        )
+        WHERE v.manufacturer_id IS NULL
+        AND v.document_id IS NOT NULL;
         
         -- Backfill series_id
         UPDATE krai_content.videos v
