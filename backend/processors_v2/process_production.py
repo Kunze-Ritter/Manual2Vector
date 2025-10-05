@@ -191,9 +191,24 @@ def main():
                 working_pdf = temp_decompressed
                 print(f"✅ Decompressed to: {working_pdf.name}\n")
             except Exception as e:
-                print(f"❌ Failed to decompress: {e}")
-                total_failed += 1
-                continue
+                # Check if it's actually a normal PDF (not compressed)
+                try:
+                    with open(pdf_file, 'rb') as f:
+                        header = f.read(4)
+                        if header.startswith(b'%PDF'):
+                            print(f"⚠️  Not gzipped - treating as normal PDF")
+                            # Just rename to .pdf for processing
+                            shutil.copy(pdf_file, temp_decompressed)
+                            working_pdf = temp_decompressed
+                            print(f"✅ Ready to process: {working_pdf.name}\n")
+                        else:
+                            print(f"❌ Failed to decompress: {e}")
+                            total_failed += 1
+                            continue
+                except Exception as e2:
+                    print(f"❌ Failed to decompress: {e}")
+                    total_failed += 1
+                    continue
         
         print("⏳ Processing... This may take several minutes...\n")
         

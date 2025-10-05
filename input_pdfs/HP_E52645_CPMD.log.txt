@@ -1,0 +1,1562 @@
+2025-10-05 04:51:24 - INFO - Document ID: d52391fa-42dd-47ec-95c2-effaee03727d
+2025-10-05 04:51:24 - INFO - Log file: C:\Users\haast\Docker\KRAI-minimal\input_pdfs\HP_E52645_CPMD.log.txt
+2025-10-05 04:51:24 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-05 04:51:24 - INFO - Extracting text from: HP_E52645_CPMD.pdf
+2025-10-05 04:51:24 - INFO - Using engine: pymupdf
+2025-10-05 04:51:25 - INFO - [green]Extracted 439 pages with PyMuPDF[/green]
+2025-10-05 04:51:25 - INFO - Step 2/5: Extracting product models...
+2025-10-05 04:51:25 - INFO - Extracted 14 products from page 1
+2025-10-05 04:51:25 - INFO - Running LLM extraction on all pages...
+2025-10-05 04:51:49 - INFO - [green]Extracted 14 products[/green]
+2025-10-05 04:51:49 - INFO - Step 2c/5: Extracting spare parts...
+2025-10-05 04:51:49 - INFO - 📦 Document type 'service_manual' - extracting parts with high confidence
+2025-10-05 04:51:49 - INFO - [green]✅ Extracted 106 spare parts[/green]
+2025-10-05 04:51:49 - INFO - Step 3/5: Extracting error codes...
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code 'M527' - confidence too low (0.35)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '10.00.01' - confidence too low (0.35)
+2025-10-05 04:51:49 - DEBUG - Skipping code '10.00.10' - confidence too low (0.35)
+2025-10-05 04:51:49 - DEBUG - Skipping code '10.23.35' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '11.00.02' - confidence too low (0.35)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '30.01.14' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '30.01.43' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '30.03.45' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Skipping code '31.01.47' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '31.03.20' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '31.03.22' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '31.03.30' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Skipping code '31.03.31' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '31.03.33' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Skipping code '31.13.00' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '33.03.03' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Skipping code '40.00.01' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '40.00.02' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '40.00.05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '70.00.00' - confidence too low (0.35)
+2025-10-05 04:51:49 - DEBUG - Skipping code '00.00' - confidence too low (0.35)
+2025-10-05 04:51:49 - DEBUG - Skipping code '62.00.00' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '70.00.00' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '00' - confidence too low (0.45)
+2025-10-05 04:51:49 - DEBUG - Skipping code '00' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '98.00.03' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '98.00.04' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '10.00.34' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Skipping code '10.00.35' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '33.04.05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '33.04.05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '04.05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '04.05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '33.04.05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '33.04.05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Skipping code '05' - confidence too low (0.55)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Skipping code '40.00.03' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Skipping code '40.00.04' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Skipping code '40.00.05' - confidence too low (0.65)
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:49 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Skipping code '80.01.02' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '80.01.03' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '80.01.04' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '01.02' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '01.03' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '01.04' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '80.01.02' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '80.01.03' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '80.01.04' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '02' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '03' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '04' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '02' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '03' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '04' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Skipping code '99.09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '99.09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '99.09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Skipping code '99.09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '99.09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '99.09.67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Skipping code '67' - confidence too low (0.55)
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - INFO - Extracted 1 error codes from page 429
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-05 04:51:50 - INFO - [green]Extracted 1 error codes[/green]
+2025-10-05 04:51:50 - INFO - Step 3b/7: Extracting document versions...
+2025-10-05 04:51:50 - INFO - [green]Extracted version: Edition 2, 2/2025 (confidence: 0.90)[/green]
+2025-10-05 04:51:50 - INFO - Step 3c/8: Extracting images...
+2025-10-05 04:51:50 - INFO - Processing images from: HP_E52645_CPMD.pdf
+2025-10-05 04:51:51 - INFO - Extracted 289 images
+2025-10-05 04:51:51 - INFO - Filtered to 289 relevant images
+2025-10-05 04:51:51 - INFO - Running OCR on images...
+2025-10-05 04:51:52 - DEBUG - OCR extracted 30 chars from page_0018_img_001.jpeg
+2025-10-05 04:51:53 - DEBUG - OCR extracted 36 chars from page_0019_img_000.jpeg
+2025-10-05 04:51:54 - DEBUG - OCR extracted 752 chars from page_0019_img_001.jpeg
+2025-10-05 04:51:54 - DEBUG - OCR extracted 95 chars from page_0020_img_000.jpeg
+2025-10-05 04:51:55 - DEBUG - OCR extracted 25 chars from page_0020_img_001.jpeg
+2025-10-05 04:51:55 - DEBUG - OCR extracted 25 chars from page_0021_img_000.jpeg
+2025-10-05 04:51:56 - DEBUG - OCR extracted 54 chars from page_0021_img_001.jpeg
+2025-10-05 04:51:57 - DEBUG - OCR extracted 110 chars from page_0022_img_002.jpeg
+2025-10-05 04:51:57 - DEBUG - OCR extracted 236 chars from page_0023_img_000.jpeg
+2025-10-05 04:51:58 - DEBUG - OCR extracted 1011 chars from page_0023_img_001.jpeg
+2025-10-05 04:51:59 - DEBUG - OCR extracted 1011 chars from page_0024_img_001.jpeg
+2025-10-05 04:52:00 - DEBUG - OCR extracted 156 chars from page_0024_img_002.jpeg
+2025-10-05 04:52:00 - DEBUG - OCR extracted 6 chars from page_0024_img_003.jpeg
+2025-10-05 04:52:01 - DEBUG - OCR extracted 110 chars from page_0025_img_002.jpeg
+2025-10-05 04:52:02 - DEBUG - OCR extracted 460 chars from page_0026_img_002.jpeg
+2025-10-05 04:52:03 - DEBUG - OCR extracted 1068 chars from page_0026_img_003.jpeg
+2025-10-05 04:52:04 - DEBUG - OCR extracted 156 chars from page_0027_img_002.jpeg
+2025-10-05 04:52:06 - DEBUG - OCR extracted 776 chars from page_0027_img_004.jpeg
+2025-10-05 04:52:06 - DEBUG - OCR extracted 648 chars from page_0028_img_000.jpeg
+2025-10-05 04:52:07 - DEBUG - OCR extracted 174 chars from page_0035_img_001.jpeg
+2025-10-05 04:52:32 - DEBUG - OCR extracted 164 chars from page_0104_img_001.png
+2025-10-05 04:52:33 - DEBUG - OCR extracted 164 chars from page_0105_img_001.png
+2025-10-05 04:52:34 - DEBUG - OCR extracted 195 chars from page_0108_img_001.png
+2025-10-05 04:52:35 - DEBUG - OCR extracted 17 chars from page_0109_img_001.png
+2025-10-05 04:52:35 - DEBUG - OCR extracted 195 chars from page_0110_img_001.png
+2025-10-05 04:52:36 - DEBUG - OCR extracted 17 chars from page_0111_img_001.png
+2025-10-05 04:52:45 - DEBUG - OCR extracted 24 chars from page_0147_img_002.jpeg
+2025-10-05 04:52:48 - DEBUG - OCR extracted 24 chars from page_0152_img_001.jpeg
+2025-10-05 04:52:52 - DEBUG - OCR extracted 24 chars from page_0157_img_001.jpeg
+2025-10-05 04:52:55 - DEBUG - OCR extracted 52 chars from page_0159_img_001.jpeg
+2025-10-05 04:52:55 - DEBUG - OCR extracted 76 chars from page_0160_img_000.jpeg
+2025-10-05 04:52:56 - DEBUG - OCR extracted 194 chars from page_0160_img_001.jpeg
+2025-10-05 04:52:57 - DEBUG - OCR extracted 256 chars from page_0161_img_001.jpeg
+2025-10-05 04:52:58 - DEBUG - OCR extracted 25 chars from page_0162_img_002.png
+2025-10-05 04:53:01 - DEBUG - OCR extracted 24 chars from page_0166_img_002.jpeg
+2025-10-05 04:53:05 - DEBUG - OCR extracted 24 chars from page_0171_img_001.jpeg
+2025-10-05 04:53:09 - DEBUG - OCR extracted 24 chars from page_0176_img_001.jpeg
+2025-10-05 04:53:11 - DEBUG - OCR extracted 52 chars from page_0178_img_001.jpeg
+2025-10-05 04:53:12 - DEBUG - OCR extracted 76 chars from page_0179_img_000.jpeg
+2025-10-05 04:53:12 - DEBUG - OCR extracted 194 chars from page_0179_img_001.jpeg
+2025-10-05 04:53:13 - DEBUG - OCR extracted 256 chars from page_0180_img_001.jpeg
+2025-10-05 04:53:15 - DEBUG - OCR extracted 25 chars from page_0181_img_002.png
+2025-10-05 04:53:18 - DEBUG - OCR extracted 24 chars from page_0185_img_002.jpeg
+2025-10-05 04:53:22 - DEBUG - OCR extracted 24 chars from page_0190_img_001.jpeg
+2025-10-05 04:53:26 - DEBUG - OCR extracted 24 chars from page_0195_img_001.jpeg
+2025-10-05 04:53:28 - DEBUG - OCR extracted 52 chars from page_0197_img_001.jpeg
+2025-10-05 04:53:29 - DEBUG - OCR extracted 76 chars from page_0198_img_000.jpeg
+2025-10-05 04:53:29 - DEBUG - OCR extracted 194 chars from page_0198_img_001.jpeg
+2025-10-05 04:53:30 - DEBUG - OCR extracted 256 chars from page_0199_img_001.jpeg
+2025-10-05 04:53:31 - DEBUG - OCR extracted 25 chars from page_0200_img_002.png
+2025-10-05 04:53:35 - DEBUG - OCR extracted 24 chars from page_0205_img_001.jpeg
+2025-10-05 04:53:39 - DEBUG - OCR extracted 24 chars from page_0210_img_001.jpeg
+2025-10-05 04:53:43 - DEBUG - OCR extracted 24 chars from page_0215_img_001.jpeg
+2025-10-05 04:53:45 - DEBUG - OCR extracted 52 chars from page_0217_img_001.jpeg
+2025-10-05 04:53:46 - DEBUG - OCR extracted 76 chars from page_0218_img_000.jpeg
+2025-10-05 04:53:46 - DEBUG - OCR extracted 194 chars from page_0218_img_001.jpeg
+2025-10-05 04:53:47 - DEBUG - OCR extracted 256 chars from page_0219_img_001.jpeg
+2025-10-05 04:53:48 - DEBUG - OCR extracted 25 chars from page_0220_img_002.png
+2025-10-05 04:53:51 - DEBUG - OCR extracted 8 chars from page_0294_img_000.jpeg
+2025-10-05 04:53:51 - DEBUG - OCR extracted 96 chars from page_0295_img_000.jpeg
+2025-10-05 04:53:53 - DEBUG - OCR extracted 55 chars from page_0318_img_000.jpeg
+2025-10-05 04:53:54 - DEBUG - OCR extracted 55 chars from page_0331_img_000.jpeg
+2025-10-05 04:53:55 - DEBUG - OCR extracted 55 chars from page_0337_img_000.jpeg
+2025-10-05 04:53:56 - DEBUG - OCR extracted 55 chars from page_0341_img_000.jpeg
+2025-10-05 04:53:57 - DEBUG - OCR extracted 5 chars from page_0382_img_000.jpeg
+2025-10-05 04:53:58 - DEBUG - OCR extracted 6 chars from page_0383_img_000.jpeg
+2025-10-05 04:53:59 - DEBUG - OCR extracted 5 chars from page_0385_img_000.jpeg
+2025-10-05 04:54:00 - DEBUG - OCR extracted 6 chars from page_0385_img_001.jpeg
+2025-10-05 04:54:03 - DEBUG - OCR extracted 27 chars from page_0403_img_000.jpeg
+2025-10-05 04:54:05 - DEBUG - OCR extracted 27 chars from page_0417_img_000.jpeg
+2025-10-05 04:54:05 - INFO - [green]✅ OCR processed 70/289 images with text[/green]
+2025-10-05 04:54:05 - INFO - Running Vision AI analysis...
+2025-10-05 04:54:05 - INFO - Processing first 50 images (skipping 239 to avoid overload)
+2025-10-05 04:54:05 - DEBUG - Using vision model: llava:13b
+2025-10-05 04:54:27 - DEBUG - Analyzed page_0001_img_000.png: This is a logo image for HP, showcasing the compan...
+2025-10-05 04:54:52 - DEBUG - Analyzed page_0018_img_001.jpeg: The image is a composite of two separate views, li...
+2025-10-05 04:55:22 - DEBUG - Vision AI failed for page_0019_img_000.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-05 04:55:52 - DEBUG - Vision AI failed for page_0019_img_001.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-05 04:56:10 - DEBUG - Analyzed page_0020_img_000.jpeg: The image shows a webpage for HP Partner Portal re...
+2025-10-05 04:56:40 - DEBUG - Vision AI failed for page_0020_img_001.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-05 04:56:55 - DEBUG - Analyzed page_0021_img_000.jpeg: The image appears to be a screenshot of the websit...
+2025-10-05 04:57:07 - DEBUG - Analyzed page_0021_img_001.jpeg: This is a screenshot from a service manual showing...
+2025-10-05 04:57:37 - DEBUG - Analyzed page_0022_img_001.jpeg: The image provided appears to be a screenshot of a...
+2025-10-05 04:57:55 - DEBUG - Analyzed page_0022_img_002.jpeg: This image appears to be a screenshot from a servi...
+2025-10-05 04:58:17 - DEBUG - Analyzed page_0023_img_000.jpeg: The image displays a screenshot of a web applicati...
+2025-10-05 04:58:32 - DEBUG - Analyzed page_0023_img_001.jpeg: The image appears to be a screenshot from a comput...
+2025-10-05 04:58:53 - DEBUG - Analyzed page_0023_img_002.jpeg: The image is a screenshot from a service manual sh...
+2025-10-05 04:59:11 - DEBUG - Analyzed page_0024_img_001.jpeg: The image is a screenshot of a text message conver...
+2025-10-05 04:59:28 - DEBUG - Analyzed page_0024_img_002.jpeg: The image displays a section from a service manual...
+2025-10-05 04:59:42 - DEBUG - Analyzed page_0024_img_003.jpeg: This is an image depicting a computer motherboard ...
+2025-10-05 05:00:02 - DEBUG - Analyzed page_0025_img_001.jpeg: The image displays a screen from a web application...
+2025-10-05 05:00:27 - DEBUG - Analyzed page_0025_img_002.jpeg: The image displays a product detail page for an HP...
+2025-10-05 05:00:55 - DEBUG - Analyzed page_0026_img_001.jpeg: The image displays a screenshot of a web search re...
+2025-10-05 05:01:17 - DEBUG - Analyzed page_0026_img_002.jpeg: The image appears to be a screenshot from a web pa...
+2025-10-05 05:01:34 - DEBUG - Analyzed page_0026_img_003.jpeg: The image appears to be a screenshot of a webpage ...
+2025-10-05 05:01:55 - DEBUG - Analyzed page_0027_img_002.jpeg: The image shows a screenshot from a service manual...
+2025-10-05 05:02:25 - DEBUG - Vision AI failed for page_0027_img_003.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-05 05:02:55 - DEBUG - Vision AI failed for page_0027_img_004.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-05 05:03:25 - DEBUG - Vision AI failed for page_0028_img_000.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-05 05:03:40 - DEBUG - Analyzed page_0033_img_000.png: The image is an exploded view diagram showing the ...
+2025-10-05 05:03:57 - DEBUG - Analyzed page_0035_img_001.jpeg: This is a screenshot of a computer interface showi...
+2025-10-05 05:04:16 - DEBUG - Analyzed page_0050_img_000.png: This image appears to be a page from a service man...
+2025-10-05 05:04:31 - DEBUG - Analyzed page_0051_img_000.png: This image is an exploded view of a complex electr...
+2025-10-05 05:04:51 - DEBUG - Analyzed page_0052_img_000.png: The image displays a sequence of panels from an ex...
+2025-10-05 05:05:08 - DEBUG - Analyzed page_0052_img_001.png: The image appears to be a technical illustration f...
+2025-10-05 05:05:26 - DEBUG - Analyzed page_0054_img_000.png: This image is a series of schematics from a servic...
+2025-10-05 05:05:48 - DEBUG - Analyzed page_0054_img_001.png: The image appears to be a series of panels from a ...
+2025-10-05 05:06:06 - DEBUG - Analyzed page_0055_img_000.png: This image is an exploded-view diagram from a serv...
+2025-10-05 05:06:22 - DEBUG - Analyzed page_0055_img_001.png: The image is a step-by-step process from an explod...
+2025-10-05 05:06:40 - DEBUG - Analyzed page_0056_img_001.png: This image is a sequence of panels from an explode...
+2025-10-05 05:06:55 - DEBUG - Analyzed page_0057_img_000.png: This image is a step-by-step instructional guide s...
+2025-10-05 05:07:13 - DEBUG - Analyzed page_0058_img_000.png: The image shows an exploded view of a printed circ...
+2025-10-05 05:07:30 - DEBUG - Analyzed page_0058_img_001.png: The image shows an exploded view diagram from a se...
+2025-10-05 05:07:47 - DEBUG - Analyzed page_0059_img_001.png: The image is a composite of several diagrams from ...
+2025-10-05 05:08:09 - DEBUG - Analyzed page_0060_img_000.png: The image shows three different views from a servi...
+2025-10-05 05:08:29 - DEBUG - Analyzed page_0061_img_000.png: The image is an exploded view diagram from a servi...
+2025-10-05 05:08:43 - DEBUG - Analyzed page_0061_img_001.png: The image is an exploded view diagram from a servi...
+2025-10-05 05:09:00 - DEBUG - Analyzed page_0062_img_001.png: The image depicts an exploded view diagram typical...
+2025-10-05 05:09:20 - DEBUG - Analyzed page_0063_img_000.png: The image displays a series of three images that a...
+2025-10-05 05:09:37 - DEBUG - Analyzed page_0064_img_000.png: The image is an exploded view diagram from a servi...
+2025-10-05 05:10:00 - DEBUG - Analyzed page_0064_img_001.png: The image appears to be a composite sequence from ...
+2025-10-05 05:10:15 - DEBUG - Analyzed page_0066_img_000.png: This is an exploded view from a service manual sho...
+2025-10-05 05:10:37 - DEBUG - Analyzed page_0066_img_001.png: The image appears to be a composite or collage of ...
+2025-10-05 05:10:52 - DEBUG - Analyzed page_0070_img_000.jpeg: This image is a schematic illustration from a serv...
+2025-10-05 05:10:52 - INFO - [green]✅ Vision AI analyzed 44/50 images[/green]
+2025-10-05 05:10:52 - INFO - [green]Extracted 289 images[/green]
+2025-10-05 05:10:52 - INFO - Step 3d/8: Extracting links and videos...
+2025-10-05 05:10:52 - WARNING - [yellow]Failed to extract PDF links: 'utf-16-le' codec can't decode byte 0x2e in position 164: truncated data[/yellow]
+2025-10-05 05:10:52 - INFO - [green]Extracted 8 unique links (0 videos)[/green]
+2025-10-05 05:10:52 - INFO - [green]Extracted 8 links (0 videos)[/green]
+2025-10-05 05:10:52 - INFO - Step 4/8: Chunking text...
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Control Panel Message Document (CPMD)
+www.hp.com/s...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'HP LaserJet Enterprise M506, M507,
+MFP M527, MFP M...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Legal information
+Copyright and License...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table of contents...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '31.03.30 Document feeder pick motor error............' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '232...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '407...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Document last updated
+1
+The following is the last ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'About this document
+2
+This document provides error...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Control-panel message types
+3...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 3-1 ERROR CODES: The first two characters (c...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 3-1 ERROR CODES: The first two characters (c...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'How to search for printer documentation
+4...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4.
+Select the Technical Documentation item.
+Figure...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Asia Pacific / Japan (APJ)
+●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Using WISE to search for error codes
+Learn how to ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'You will need the printer type (e.g. HP LaserJet),...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Play the video:
+View a video of how to perform a m...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Printer service information
+5
+Service pin for prin...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Numerical control panel messages
+6...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-1 Memory chip location
+1. Memory chip...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8.
+If the error persists, replace the HVPS....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '10.00.11, 10.00.12 Supply Memory Error
+The printer...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '10.00.34 (event code) Black toner cartridge
+Recomm...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■
+No action necessary....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '10.23.15 Install <supply>...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■
+Install a supply that is designed for this print...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for onsite technicians
+Follow t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-11 Potential values for W and X (continued...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-11 Potential values for W and X (continued...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-11 Potential values for W and X (continued...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'heavy, embossed, or perforated paper, use the manu...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Replace parts as needed....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-3 Paper Tray overfill guide
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Diagnostic Tests...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-6 Paper Tray guides
+Figure 6-7 Paper Tray...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Open the specified tray then remove any jammed ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Troubleshooting...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-11 Paper Tray overfill guide
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Diagnostic Tests...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-15 Paper Tray overfill guide
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Diagnostic Tests...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-19 Paper Tray overfill guide
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Diagnostic Tests...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '20-240V (M507/E50145/M528/E52645)
+RM2-2586-000CN
+S...' | Products: ['E5014', 'E5264']
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '13.B2.D1 Jam in top cover
+Paper delay jam in top c...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '7.
+Open the following menus:...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+13.B2.D5...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Remove the toner cartridge....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5.
+Reinsert the toner cartridge....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Trays 2X Roller Kit part number: RM2-5752-000CN
+12...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Remove the toner cartridge....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5.
+Reinsert the toner cartridge....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Trays 2X Roller Kit part number: RM2-5752-000CN
+Re...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'If a noise is heard run the diagnostics on fuser...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '12....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Paper multifeed jam is detected when printing from...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-31 Paper Tray overfill guide
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+13.B9.C2 (event code)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-36 Paper Tray overfill guide
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4.
+Open the following menus:...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+Verify the media meets HP specification for the...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for call-center agents
+Follow t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '21.XX.YZ error messages
+21.00.00 Page Too ComplexE...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '7....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for onsite technicians
+Follow t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '30.01.36 Upgrade error
+Scanner control board (SCB)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for onsite technicians
+Follow t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-41 Formatter PCA part numbers (continued)
+...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-47 Formatter PCA part numbers (continued)
+...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+Turn the printer off, and then on....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-56 Part numbers to resolve the issue
+Part ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '30.03.45 Scanner Error To continue turn off then o...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Document feeder (E52545c) kit: B5L47-67907...' | Products: ['E5254']
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Document feeder (E52545c) kit: B5L47-67907...' | Products: ['E5254']
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for onsite technicians
+Use the ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Part numbers
+●
+Document feeder (M527c/z) kit: B5L4...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Turn the printer off, and then on....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6.
+Replace the document feeder assembly.
+For instr...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Multiple pages picked...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Lower the document-feeder input tray and then c...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'water. View the How to Clean the Pick Rollers in H...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+Lift the document-feeder input tray and remove ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8.
+If necessary, replace the Document Feeder Kit r...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '9....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '11....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '13....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'ADF Pick Jam
+Recommended action for customer...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Lower the document-feeder input tray and then c...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'water. View the How to Clean the Pick Rollers in H...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+Lift the document-feeder input tray and remove ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8.
+If necessary, replace the Document Feeder Kit r...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '9....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '11....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '13....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+ADF paper jam...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Lower the document-feeder input tray and then c...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'water. View the How to Clean the Pick Rollers in H...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+Lift the document-feeder input tray and remove ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8.
+If necessary, replace the Document Feeder Kit r...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '9....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '11....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '13....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'water. View the How to Clean the Pick Rollers in H...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+Lift the document-feeder input tray and remove ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8.
+If necessary, replace the Document Feeder Kit r...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '9....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '11....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '13....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '32.08.A1, 32.08.A2, 32.08.A3
+An event related to s...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '32.1C.08 (event code)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '32.1C.11 (event code)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '32.1C.40...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■
+No action necessary....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Retry the job....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '32.1C.62...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '33.XX.YZ error messages
+33.* errors...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for onsite technicians
+Follow t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '01.03 (event code)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '33.02.01 Used board/disk installed
+Used board or d...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for onsite technicians
+Follow t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-71 Formatter PCA part numbers
+Product mode...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-72 Formatter PCA part numbers (continued)
+...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-73 Part numbers (continued)
+Description...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '33.04.03 Unknown TPM...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'A new
+TPM cannot be installed for security reasons...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+See recommended action....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+33.05.07 Security alert...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '33.05.2x Intrusion detection errors
+The intrusion ...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Turn the printer off, and then on....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '40.00.03 EIO [x] buffer overflow To continue, touc...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Z = 1: From Tray 1...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '41.03.01, 41.03.A1, 41.03.B1, 41.03.C1
+The printer...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '9....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'e the Tray/Bin manual sensor test to verify that t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '10....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-82 Engine test-page switch...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'For instructions: See the Repair Service Manual fo...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '9....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'e the Tray/Bin manual sensor test to verify that t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '10....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Part Number (M501/M506/E50045/M527/E52545): RM2-56...' | Products: ['E5004', 'E5254', 'E5014', 'E5264']
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '8....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Y = C: Label...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5.
+If the error persists, replace the laser/scanne...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-91 DC Controller part numbers (continued)
+...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Z = 0: Photo Media (1, 2, or 3)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+Z = 5 Tray 5...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '42.B0.01 or 42.B0.02
+Missing string in firmware er...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+If the issue persists, download and reinstall t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Search for...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Turn the printer off, and then on....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+If the issue persists, replace the hard disk dr...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-100 Power consumption (avg. in watts)
+Prin...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-105 Part numbers (continued)
+Part Name...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '50.7X.YZ Fuser Error
+Fuser pressure release failur...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Turn the printer off, and then on....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-114 Fuser assembly (For 110V and 220V) Par...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '51.XX.YZ, 52.XX.YZ error messages
+51.* errors...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+If the error persists, replace the laser/scanne...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+Upgrade the firmware....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '"Z" = Tray number.
+●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '-authorized service or support provider, or contac...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'DC controller no engine response.
+●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 6-84 Engine test-page switch...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Reset the printer....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6.
+Check and reseat the connections in the DC Cont...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-121 DC Controller part numbers (continued)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'View the following video on how to replace the DCC...' | Products: ['E5264']
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'See the Repair Service Manual for this product.
+2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '6....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'For instructions: See the Repair Service Manual fo...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '66.WX.YZ error messages
+66.* errors...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Turn the printer off, and then on....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+66.80.22 (event code)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'System error 15 (FW error)
+●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '70.XX.YY error messages
+70.* errors...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-129 DC Controller part numbers (continued)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-131 Formatter PCA part numbers (continued)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-132 Formatter PCA part numbers (continued)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Turn the printer off, and then on....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for customers
+Follow these trou...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Drive....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-133 HDD part numbers (continued)
+Descripti...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '98.00.00...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-135 HDD part numbers
+Description...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'DD)
+L41606-011...' | Products: ['L4160']
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'For instructions: See the Repair Service Manual fo...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: ', download and install the latest printer firmware...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'This is an indication of a good physical...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '99.00.03 Upgrade not performed error writing to di...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+If the error persists, Upgrade the firmware....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '2.
+If the error persists, replace the hard disk dr...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 6-142 HDD part numbers
+Description...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1.
+Download the remote firmware upgrade (RFU) file...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '●
+99.00.23 (event log)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '99.02.01
+Firmware installation was successful....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'For the steps to perform a Clean or Format Disk pr...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'The system is not bootable after this action...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'For the steps to perform a Clean or Format Disk pr...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action for onsite technicians
+Follow t...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '99.09.63 Incorrect disk...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: ': HP Enterprise, HP Managed - Update the printer...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '9.
+Ship a new hard disk drive....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'For instructions: See the Repair Service Manual fo...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '99.39.64 eMMC Nonfunctional
+The eMMC is not functi...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Alphabetical control panel messages
+7...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Canceling...<jobname>
+The printer is canceling the...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+See recommended action....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+See recommended action....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Data received To print last page press “OK”...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '1....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Select the SR4 Output Bin Full Sensor....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 7-3 Lift up the output bin full actuator
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 7-5 Lift up the output bin full actuator
+3....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 7-3 DC Controller part numbers (continued)
+P...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Incompatible supplies...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '5.
+Reinstall the fuser correctly....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Internal disk not initialized...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Output Bin Full...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '3.
+Select the SR4 Output Bin Full Sensor....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 7-9 Lift up the output bin full actuator
+5....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Figure 7-11 Lift up the output bin full actuator
+3...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Table 7-6 DC Controller part numbers (continued)
+P...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+See recommended action....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+See recommended action....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Processing......' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Receiving Upgrade
+The printer is receiving a firmw...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Size Mismatch...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Supply memory warning...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Tray 2
+●...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '4....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Tray <X> overfilled
+The tray is filled above the s...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Recommended action
+Follow these troubleshooting st...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: '■
+Touch the OK button to clear the error....' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'Index
+Symbols/Numerics...' | Products: []
+2025-10-05 05:10:52 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-05 05:10:52 - DEBUG - 🎯 Found header: 'T
+tray motor error (LaserJet)...' | Products: []
+2025-10-05 05:10:52 - DEBUG - ⏭️  Skipped chunk (too short after header cleaning): 26 chars (min: 30)
+2025-10-05 05:10:52 - INFO - [green]✅ Created 536 chunks from 439 pages[/green]
+2025-10-05 05:10:52 - INFO -    Types: error_code_section: 167, general: 83, procedure: 83, troubleshooting: 203
+2025-10-05 05:10:52 - INFO -    Headers preserved: 355/536 chunks
+2025-10-05 05:10:52 - INFO - [green]Created 536 chunks[/green]
+2025-10-05 05:10:52 - INFO - Step 5/8: Saving links and videos...
+2025-10-05 05:10:54 - INFO - [green]Saved 8 links to database[/green]
+2025-10-05 05:10:54 - INFO - Step 6/8: Calculating statistics...
+2025-10-05 05:10:54 - INFO - [green]Processing completed in 1169.84s[/green]
