@@ -77,23 +77,23 @@ Link B: https://youtu.be/ABC123
 - **Cost per video:** 1 unit
 - **You can enrich:** ~10,000 videos/day
 
----
 
 ## 🔗 Link Checker & Fixer
 
 Checks links for validity and attempts to fix broken ones.
 
-### Features
-
-- ✅ HTTP status check (200, 404, etc.)
-- ✅ Multiline link detection and fixing
-- ✅ URL encoding fixes (spaces → %20)
-- ✅ Protocol fixes (http → https)
+### **Features:**
+- ✅ Auto-clean trailing punctuation (PDF extraction artifacts)
+- ✅ Follow redirects (301/302/307/308) with extended timeout (30s)
+- ✅ GET fallback for servers that reject HEAD or timeout
+- ✅ Auto-fix common issues (http→https, www, etc.)
+- ✅ Retry mechanism for slow servers (e.g., HP support)
 - ✅ Redirect following
 - ✅ Auto-deactivate broken links (404)
 - ✅ Auto-update database with fixed links
 
 ### Usage
+{{ ... }}
 
 ```bash
 # Check and fix all links

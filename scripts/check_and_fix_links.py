@@ -61,9 +61,11 @@ class LinkChecker:
     
     def __init__(self, check_only: bool = False):
         self.check_only = check_only
+        # Use longer timeout for slow servers and redirect chains
         self.http_client = httpx.AsyncClient(
-            timeout=15.0,
+            timeout=httpx.Timeout(30.0, connect=10.0),  # 30s total, 10s connect
             follow_redirects=True,
+            max_redirects=10,  # Allow up to 10 redirects
             headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -213,6 +215,11 @@ class LinkChecker:
             final_url_str = str(response.url)
             # Only return final_url if it's different (redirect happened)
             final_url = final_url_str if final_url_str != url else None
+            
+            # Log redirect info
+            if final_url and response.status_code in [200, 201, 202, 203, 204]:
+                logger.debug(f"Followed redirect: {url} → {final_url}")
+            
             return (response.status_code, "OK" if response.is_success else "Error", final_url)
             
         except httpx.HTTPStatusError as e:
@@ -228,7 +235,15 @@ class LinkChecker:
         except httpx.ConnectError:
             return (0, "Connection failed", None)
         except httpx.TimeoutException:
-            return (0, "Timeout", None)
+            # On timeout, try GET as a last resort (some servers ignore HEAD)
+            logger.debug(f"HEAD timeout, trying GET with longer timeout...")
+            try:
+                response = await self.http_client.get(url, follow_redirects=True)
+                final_url_str = str(response.url)
+                final_url = final_url_str if final_url_str != url else None
+                return (response.status_code, "OK" if response.is_success else "Error", final_url)
+            except:
+                return (0, "Timeout", None)
         except Exception as e:
             return (0, str(e), None)
     
