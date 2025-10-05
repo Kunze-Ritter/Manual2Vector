@@ -303,15 +303,13 @@ class VideoEnricher:
             return False
         
         try:
-            # Check if video already exists (by youtube_id or link_id)
-            existing = supabase.table('videos').select('id').or_(
-                f"youtube_id.eq.{metadata['youtube_id']},link_id.eq.{link['id']}"
-            ).execute()
+            # DEDUPLICATION: Check if video already exists by youtube_id (from ANY link)
+            existing = supabase.table('videos').select('id').eq('youtube_id', metadata['youtube_id']).limit(1).execute()
             
             if existing.data:
-                # Video exists, use existing ID
+                # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
-                logger.info(f"📝 Video already exists, reusing ID")
+                logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
                 video_record = supabase.table('videos').insert({
@@ -365,13 +363,14 @@ class VideoEnricher:
             return False
         
         try:
-            # Check if video already exists (by link_id)
-            existing = supabase.table('videos').select('id').eq('link_id', link['id']).execute()
+            # DEDUPLICATION: Check if video already exists by vimeo_id (from ANY link)
+            # Vimeo ID is stored in metadata JSON
+            existing = supabase.table('videos').select('id').filter('metadata->>vimeo_id', 'eq', video_id).limit(1).execute()
             
             if existing.data:
-                # Video exists, use existing ID
+                # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
-                logger.info(f"📝 Video already exists, reusing ID")
+                logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
                 video_record = supabase.table('videos').insert({
@@ -424,13 +423,14 @@ class VideoEnricher:
             return False
         
         try:
-            # Check if video already exists (by link_id)
-            existing = supabase.table('videos').select('id').eq('link_id', link['id']).execute()
+            # DEDUPLICATION: Check if video already exists by brightcove_id (from ANY link)
+            # Brightcove ID is stored in metadata JSON
+            existing = supabase.table('videos').select('id').filter('metadata->>brightcove_id', 'eq', metadata['brightcove_id']).limit(1).execute()
             
             if existing.data:
-                # Video exists, use existing ID
+                # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
-                logger.info(f"📝 Video already exists, reusing ID")
+                logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
                 video_record = supabase.table('videos').insert({

@@ -48,7 +48,28 @@ python scripts/enrich_video_metadata.py --help
 - ✅ Updates `videos` table with enriched data
 - ✅ Links back to original `links` table
 - ✅ Rate limiting (10,000 quota/day for YouTube)
-- ✅ Handles duplicates (idempotent)
+- ✅ **Full Deduplication:** Same video from different links = single record
+
+### Deduplication Strategy
+
+**Smart deduplication prevents duplicate video metadata:**
+
+- **YouTube:** Checks by `youtube_id` first (e.g., `ABC123` from `youtube.com/watch?v=ABC123` or `youtu.be/ABC123`)
+- **Vimeo:** Checks by `vimeo_id` in metadata JSON
+- **Brightcove:** Checks by `brightcove_id` in metadata JSON
+
+**Example:**
+```
+Link A: https://youtube.com/watch?v=ABC123
+Link B: https://youtu.be/ABC123
+→ Creates only 1 video record
+→ Both links point to the same video
+```
+
+**Benefits:**
+- 💾 Saves storage space
+- 📊 Better analytics (views counted once)
+- 🔗 Multiple links can share same video metadata
 
 ### YouTube API Quota
 
