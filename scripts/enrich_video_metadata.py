@@ -321,6 +321,17 @@ class VideoEnricher:
             logger.error(f"Error fetching Vimeo metadata: {e}")
             return None
     
+    def get_link_context(self, link: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract manufacturer, series, and error codes from link context
+        Returns dict with manufacturer_id, series_id, related_error_codes
+        """
+        return {
+            'manufacturer_id': link.get('manufacturer_id'),
+            'series_id': link.get('series_id'),
+            'related_error_codes': link.get('related_error_codes', [])
+        }
+    
     async def enrich_youtube_link(self, link: Dict[str, Any]) -> bool:
         """Enrich a YouTube link with metadata"""
         video_id = self.extract_youtube_id(link['url'])
@@ -335,6 +346,9 @@ class VideoEnricher:
         try:
             # DEDUPLICATION: Check if video already exists by youtube_id (from ANY link)
             existing = supabase.table('videos').select('id').eq('youtube_id', metadata['youtube_id']).limit(1).execute()
+            
+            # Get contextual information from link
+            context = self.get_link_context(link)
             
             if existing.data:
                 # Video exists from another link! Reuse it
@@ -355,6 +369,9 @@ class VideoEnricher:
                     'channel_id': metadata['channel_id'],
                     'channel_title': metadata['channel_title'],
                     'published_at': metadata['published_at'],
+                    'manufacturer_id': context['manufacturer_id'],
+                    'series_id': context['series_id'],
+                    'related_error_codes': context['related_error_codes'],
                     'metadata': {
                         'enriched_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'youtube_api'
@@ -397,6 +414,9 @@ class VideoEnricher:
             # Vimeo ID is stored in metadata JSON
             existing = supabase.table('videos').select('id').filter('metadata->>vimeo_id', 'eq', video_id).limit(1).execute()
             
+            # Get contextual information from link
+            context = self.get_link_context(link)
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
@@ -412,6 +432,9 @@ class VideoEnricher:
                     'duration': metadata['duration'],
                     'view_count': metadata['view_count'],
                     'channel_title': metadata['channel_title'],
+                    'manufacturer_id': context['manufacturer_id'],
+                    'series_id': context['series_id'],
+                    'related_error_codes': context['related_error_codes'],
                     'metadata': {
                         'enriched_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'vimeo_api',
@@ -457,6 +480,9 @@ class VideoEnricher:
             # Brightcove ID is stored in metadata JSON
             existing = supabase.table('videos').select('id').filter('metadata->>brightcove_id', 'eq', metadata['brightcove_id']).limit(1).execute()
             
+            # Get contextual information from link
+            context = self.get_link_context(link)
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
@@ -472,6 +498,9 @@ class VideoEnricher:
                     'duration': metadata['duration'],
                     'view_count': metadata['view_count'],
                     'channel_title': metadata['channel_title'],
+                    'manufacturer_id': context['manufacturer_id'],
+                    'series_id': context['series_id'],
+                    'related_error_codes': context['related_error_codes'],
                     'metadata': {
                         'enriched_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'brightcove_api',

@@ -146,6 +146,14 @@ python scripts/check_and_fix_links.py --help
 **🔍 Smart URL Cleaning:**
 The link checker automatically removes trailing punctuation that often comes from PDF text extraction (e.g., URLs at the end of sentences).
 
+**📊 Contextual Metadata:**
+Videos are automatically linked to manufacturers, product series, and error codes based on the source document:
+- `manufacturer_id`: Which manufacturer this video relates to (e.g., HP, Canon)
+- `series_id`: Which product series (e.g., LaserJet Pro, OfficeJet)
+- `related_error_codes`: Array of error codes mentioned in the source document
+
+This enables powerful filtering like "Show me all HP LaserJet videos about error 49.4C02".
+
 ---
 
 ## 🔄 Automated Workflow (N8N)
