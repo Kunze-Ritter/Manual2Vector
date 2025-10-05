@@ -77,15 +77,16 @@ TEXT:
 
 INSTRUCTIONS:
 1. Find ALL product model numbers, series names, and types
-2. Extract specifications (speed, resolution, capacity, dimensions, etc.)
-3. Include accessories, options, finishers, feeders, trays
-4. Return ONLY valid JSON array (empty array if no products found)
+2. IMPORTANT: Extract the product series/family name (e.g., "AccurioPress", "LaserJet", "bizhub")
+3. Extract specifications (speed, resolution, capacity, dimensions, etc.)
+4. Include accessories, options, finishers, feeders, trays
+5. Return ONLY valid JSON array (empty array if no products found)
 
 JSON FORMAT:
 [
   {{
     "model_number": "REQUIRED - e.g. C4080, MK-746, SD-513",
-    "product_series": "Optional - e.g. AccurioPress, LaserJet",
+    "product_series": "IMPORTANT - Product series/family (e.g. AccurioPress, LaserJet, bizhub, OfficeJet, ECOSYS)",
     "product_type": "printer|accessory|finisher|feeder|tray|cabinet|consumable",
     "specifications": {{
       "ANY_SPEC_NAME": "ANY_VALUE",
@@ -105,6 +106,12 @@ RULES:
 - Use null if value unknown
 - Return [] if NO products found
 - Be flexible with spec names
+
+EXAMPLES:
+- Konica Minolta AccurioPress C4080: model_number="C4080", product_series="AccurioPress"
+- HP LaserJet Enterprise M607: model_number="M607", product_series="LaserJet Enterprise"
+- Kyocera TASKalfa 5053ci: model_number="5053ci", product_series="TASKalfa"
+- Canon imageRUNNER C5550i: model_number="C5550i", product_series="imageRUNNER"
 
 JSON:"""
         
@@ -241,15 +248,20 @@ JSON:"""
                         product_type=product_type,
                         manufacturer_name=manufacturer,
                         confidence=0.85,  # LLM extraction confidence
-                        source_page=page_number,
-                        extraction_method="llm",
-                        specifications=specifications  # All specs in JSONB
+                        specifications=specifications
                     )
+                    
+                    # Debug logging for product series
+                    if product.product_series:
+                        self.logger.debug(f"   Series: {product.product_series}")
+                    else:
+                        self.logger.debug(f"   Series: None (not extracted)")
+                    
                     products.append(product)
                     
                 except ValidationError as e:
                     if self.debug:
-                        self.logger.debug(f"Validation failed for item: {e}")
+                        self.logger.debug(f"Product validation failed: {e}")
                     continue
         
         except json.JSONDecodeError as e:

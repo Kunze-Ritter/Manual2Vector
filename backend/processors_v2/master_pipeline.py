@@ -483,6 +483,8 @@ class MasterPipeline:
                 series_id = None
                 series_name = prod_data.get('series')
                 
+                self.logger.debug(f"Product '{prod_data.get('model_number')}' - Series: {series_name or 'None'}")
+                
                 if series_name and manufacturer_id:
                     try:
                         # Try to find existing series
