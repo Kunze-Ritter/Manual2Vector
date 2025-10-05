@@ -323,9 +323,11 @@ class LinkChecker:
             # Query links
             query = supabase.table('links').select('id,url,link_type,is_active')
             
-            # Note: is_active might be NULL, so we check for not FALSE
+            # Note: is_active might be NULL (default), so we include NULL and TRUE
+            # PostgREST doesn't have OR directly, so we use 'or' filter syntax
             if not check_inactive:
-                query = query.neq('is_active', False)
+                # Include links where is_active is NULL or TRUE (exclude only FALSE)
+                query = query.or_('is_active.is.null,is_active.eq.true')
             
             if limit:
                 query = query.limit(limit)
