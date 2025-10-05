@@ -1,12 +1,19 @@
 -- ======================================================================
--- Migration 23: Cleanup Unused Error Code Columns
+-- Migration 23: Fix PostgREST Cache via DROP + RECREATE
 -- ======================================================================
--- Description: Remove unused columns from error_codes table
+-- Description: Reset PostgREST cache by dropping and recreating columns
 -- Date: 2025-10-05
--- Reason: Supabase PostgREST cache issues + unused fields
+-- Reason: Supabase PostgREST cache is broken - DROP + RECREATE fixes it!
 -- ======================================================================
 
--- Remove ALL Migration 09 columns (Supabase PostgREST cache is broken for them!)
+-- STEP 1: DROP all problematic columns (this clears PostgREST cache)
+ALTER TABLE krai_intelligence.error_codes
+DROP COLUMN IF EXISTS context_text;
+
+ALTER TABLE krai_intelligence.error_codes
+DROP COLUMN IF EXISTS metadata;
+
+-- Remove unused columns while we're at it
 ALTER TABLE krai_intelligence.error_codes
 DROP COLUMN IF EXISTS ai_extracted;
 
@@ -19,20 +26,19 @@ DROP COLUMN IF EXISTS verified_by;
 ALTER TABLE krai_intelligence.error_codes
 DROP COLUMN IF EXISTS verified_at;
 
+-- STEP 2: RECREATE the columns we need (fresh schema, cache will update!)
 ALTER TABLE krai_intelligence.error_codes
-DROP COLUMN IF EXISTS context_text;
+ADD COLUMN context_text TEXT;
 
 ALTER TABLE krai_intelligence.error_codes
-DROP COLUMN IF EXISTS metadata;
+ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
 
--- Keep these useful columns (BASE SCHEMA - Migration 01):
--- - image_id: Links to screenshot (will be populated via SQL function)
--- - chunk_id: Links to text context (will be populated via SQL function)
--- - extraction_method: How error was found (BASE SCHEMA)
--- All other essential fields from BASE SCHEMA remain
+-- Add helpful comments
+COMMENT ON COLUMN krai_intelligence.error_codes.context_text IS 
+'Surrounding text where error code was found (for context)';
 
--- NOTE: image_id and chunk_id linking happens AFTER initial INSERT
--- via link_error_codes_to_chunks_and_images() SQL function
+COMMENT ON COLUMN krai_intelligence.error_codes.metadata IS 
+'Flexible JSONB storage for extraction metadata (smart matching info, etc.)';
 
 -- ======================================================================
 -- Verification
@@ -45,5 +51,7 @@ WHERE table_schema = 'krai_intelligence'
   AND table_name = 'error_codes'
 ORDER BY ordinal_position;
 
--- Expected output: Should NOT show ai_extracted, verified, verified_by, verified_at, context_text, metadata
--- SHOULD show: image_id, chunk_id (from Migration 09 - these work!)
+-- Expected output: 
+-- Should SHOW: context_text, metadata (freshly created!)
+-- Should NOT show: ai_extracted, verified, verified_by, verified_at
+-- Should SHOW: image_id, chunk_id (from Migration 09 - these still work!)
