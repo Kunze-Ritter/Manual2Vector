@@ -772,7 +772,7 @@ class MasterPipeline:
                 """
                 
                 # Use PostgREST query (fallback approach)
-                result = self.supabase.rpc('exec_sql', {'sql': query}).execute()
+                result = self.supabase.rpc('exec_sql', {'sql_text': query}).execute()
                 return len(result.data) if result.data else 0
                 
             except Exception as e2:

@@ -27,6 +27,11 @@ ALTER TABLE krai_intelligence.error_codes
 DROP COLUMN IF EXISTS verified_at;
 
 -- STEP 2: RECREATE the columns we need (fresh schema, cache will update!)
+
+-- Add image_id if it doesn't exist (from Migration 09 - might not have been run)
+ALTER TABLE krai_intelligence.error_codes
+ADD COLUMN IF NOT EXISTS image_id UUID REFERENCES krai_content.images(id) ON DELETE SET NULL;
+
 ALTER TABLE krai_intelligence.error_codes
 ADD COLUMN context_text TEXT;
 
@@ -34,6 +39,9 @@ ALTER TABLE krai_intelligence.error_codes
 ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
 
 -- Add helpful comments
+COMMENT ON COLUMN krai_intelligence.error_codes.image_id IS 
+'Reference to screenshot/image where error code was found (for Smart Vision AI matching)';
+
 COMMENT ON COLUMN krai_intelligence.error_codes.context_text IS 
 'Surrounding text where error code was found (for context)';
 

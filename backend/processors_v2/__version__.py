@@ -3,12 +3,13 @@ Version Information for KRAI Processing Pipeline
 Auto-updated with each significant release
 """
 
-__version__ = "2.0.42"
+__version__ = "2.0.43"
 __commit__ = "TBD"
 __date__ = "2025-10-05"
 
 # Version History:
-# 2.0.42 (TBD) - Fix: Embedding processor dict/object mismatch + scope error
+# 2.0.43 (TBD) - Fix: exec_sql parameter name + ensure image_id exists in Migration 23
+# 2.0.42 (7cb6b00) - Fix: Embedding processor dict/object mismatch + scope error
 # 2.0.41 (77b174f) - Fix: ULTIMATE - Use RPC Function to bypass PostgREST cache!
 # 2.0.40 (ad934a4) - Fix: DROP + RECREATE columns to reset PostgREST cache!
 # 2.0.39 (4445d62) - Fix: ONLY use BASE SCHEMA - PostgREST cache broken for Migration 09 columns
