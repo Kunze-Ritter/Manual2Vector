@@ -134,12 +134,17 @@ python scripts/check_and_fix_links.py --help
 
 | Problem | Fix |
 |---------|-----|
+| `https://example.com.` (trailing dot from PDF) | Remove trailing `.` |
+| `https://example.com,` (trailing comma) | Remove trailing `,;:!?)]}` |
 | `http://example.com` → 404 | Try `https://example.com` |
 | `example.com/page ` (trailing space) | Remove whitespace |
 | `example.com/page` (no protocol) | Add `https://` |
 | Missing `www.` | Try with/without `www.` |
 | Redirects | Follow to final URL |
 | URL with spaces | Encode as `%20` |
+
+**🔍 Smart URL Cleaning:**
+The link checker automatically removes trailing punctuation that often comes from PDF text extraction (e.g., URLs at the end of sentences).
 
 ---
 

@@ -80,6 +80,22 @@ class LinkChecker:
         """Close HTTP client"""
         await self.http_client.aclose()
     
+    def clean_url(self, url: str) -> str:
+        """
+        Clean URL by removing common trailing characters from PDF extraction
+        Examples:
+        - https://example.com. → https://example.com
+        - https://example.com, → https://example.com
+        - https://example.com) → https://example.com
+        """
+        url = url.strip()
+        
+        # Remove trailing punctuation that's likely from sentence end
+        while url and url[-1] in '.,;:!?)]}':
+            url = url[:-1]
+        
+        return url
+    
     def is_valid_url(self, url: str) -> bool:
         """Basic URL validation"""
         try:
@@ -221,15 +237,22 @@ class LinkChecker:
         url = link['url']
         link_id = link['id']
         
-        logger.info(f"\n🔗 Checking: {url[:80]}...")
+        # Clean URL (remove trailing punctuation from PDF extraction)
+        url_cleaned = self.clean_url(url)
+        if url_cleaned != url:
+            logger.info(f"\n🔗 Checking: {url[:80]}...")
+            logger.info(f"   🧹 Cleaned: {url_cleaned[:80]}...")
+            url = url_cleaned
+        else:
+            logger.info(f"\n🔗 Checking: {url[:80]}...")
         
         result = {
             'id': link_id,
-            'original_url': url,
+            'original_url': link['url'],  # Store ORIGINAL (with trailing dot)
             'status': 'unknown',
             'status_code': 0,
-            'fixed_url': None,
-            'needs_update': False,
+            'fixed_url': url if url != link['url'] else None,  # Mark as fixed if cleaned
+            'needs_update': url != link['url'],  # Update needed if cleaned
             'error': None
         }
         
@@ -240,15 +263,25 @@ class LinkChecker:
             
             if 200 <= status < 400:
                 # Link is working
-                result['status'] = 'working'
-                logger.info(f"   ✅ Working (Status: {status})")
-                self.valid_count += 1
+                # Check if it was auto-fixed by cleaning
+                if result['fixed_url']:
+                    result['status'] = 'fixed'
+                    logger.info(f"   ✅ Working after cleaning (Status: {status})")
+                    self.fixed_count += 1
+                else:
+                    result['status'] = 'working'
+                    logger.info(f"   ✅ Working (Status: {status})")
+                    self.valid_count += 1
                 
                 # Check if redirected
                 if final_url and final_url != url:
                     logger.info(f"   🔀 Redirects to: {final_url}")
                     result['fixed_url'] = final_url
                     result['needs_update'] = True
+                    if result['status'] == 'working':
+                        result['status'] = 'fixed'
+                        self.valid_count -= 1
+                        self.fixed_count += 1
                 
             else:
                 # Link is broken
