@@ -83,7 +83,7 @@ BEGIN
             d.filename::TEXT as document_title,
             jsonb_build_object(
                 'document_id', c.document_id,
-                'chunk_type', c.chunk_type,
+                'chunk_type', c.metadata->>'chunk_type',
                 'page_start', c.page_start,
                 'page_end', c.page_end,
                 'chunk_index', c.chunk_index
@@ -92,7 +92,7 @@ BEGIN
         JOIN krai_core.documents d ON c.document_id = d.id
         WHERE c.text_chunk ILIKE '%' || p_error_code || '%'
         AND (p_manufacturer_id IS NULL OR d.manufacturer_id = p_manufacturer_id)
-        AND c.chunk_type IN ('error_code_section', 'troubleshooting')
+        AND (c.metadata->>'chunk_type' IN ('error_code_section', 'troubleshooting') OR c.metadata->>'chunk_type' IS NULL)
         LIMIT 5
     ) chunks
     
