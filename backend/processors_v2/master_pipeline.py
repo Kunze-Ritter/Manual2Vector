@@ -249,6 +249,15 @@ class MasterPipeline:
                 self.logger.warning("⚠️  No chunks to embed (empty document?)")
             
             # ==========================================
+            # STAGE 9.5: Link Images to Chunks
+            # ==========================================
+            if images and chunks:
+                self.logger.info("🔗 Linking images to chunks...")
+                linked_count = self._link_images_to_chunks(document_id)
+                if linked_count > 0:
+                    self.logger.success(f"✅ Linked {linked_count} images to chunks")
+            
+            # ==========================================
             # STAGE 10: Save extracted entities to DB
             # ==========================================
             processing_result = results.get('processing', {})
@@ -670,6 +679,61 @@ class MasterPipeline:
             
         except Exception as e:
             self.logger.error(f"Failed to save parts: {e}")
+    
+    def _link_images_to_chunks(self, document_id: UUID) -> int:
+        """
+        Link images to chunks based on page numbers
+        
+        Runs AFTER embedding so chunks are in database
+        Links images where: chunk.page_start <= image.page_number <= chunk.page_end
+        
+        Args:
+            document_id: Document UUID
+            
+        Returns:
+            Number of images successfully linked
+        """
+        try:
+            # SQL to update images with matching chunk_id
+            # Note: We use raw SQL here because Supabase PostgREST doesn't support
+            # complex UPDATE with subqueries easily
+            result = self.supabase.rpc('link_images_to_chunks_for_document', {
+                'p_document_id': str(document_id)
+            }).execute()
+            
+            if result.data:
+                return result.data
+            return 0
+            
+        except Exception as e:
+            # Fallback: Try direct SQL if RPC doesn't exist
+            try:
+                from supabase import create_client
+                # Execute raw SQL update
+                query = f"""
+                    UPDATE krai_content.images i
+                    SET chunk_id = (
+                        SELECT c.id 
+                        FROM krai_intelligence.chunks c
+                        WHERE c.document_id = i.document_id
+                          AND c.page_start <= i.page_number 
+                          AND c.page_end >= i.page_number
+                        LIMIT 1
+                    )
+                    WHERE i.chunk_id IS NULL 
+                      AND i.document_id = '{document_id}'
+                      AND i.page_number IS NOT NULL
+                    RETURNING id
+                """
+                
+                # Use PostgREST query (fallback approach)
+                result = self.supabase.rpc('exec_sql', {'sql': query}).execute()
+                return len(result.data) if result.data else 0
+                
+            except Exception as e2:
+                self.logger.warning(f"Image-to-chunk linking failed: {e2}")
+                self.logger.info("   Images can still be found by page_number")
+                return 0
     
     def _update_document_metadata(self, document_id: UUID, processing_result: Dict):
         """Update document with extracted manufacturer, models, series, version"""

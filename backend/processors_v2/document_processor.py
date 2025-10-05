@@ -663,13 +663,13 @@ class DocumentProcessor:
     
     def _calculate_statistics(
         self,
-        page_texts: dict,
-        products: list,
-        error_codes: list,
-        versions: list,
-        images: list,
-        chunks: list
-    ) -> dict:
+        page_texts: Dict[int, str],
+        products: List,
+        error_codes: List,
+        versions: List,
+        images: List[Dict],
+        chunks: List
+    ) -> Dict[str, Any]:
         """Calculate processing statistics"""
         total_chars = sum(len(text) for text in page_texts.values())
         total_words = sum(len(text.split()) for text in page_texts.values())
