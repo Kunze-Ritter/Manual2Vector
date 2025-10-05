@@ -365,6 +365,7 @@ class SmartChunker:
                 # HP - Office & Plotter
                 r'|LaserJet|OfficeJet|Color LaserJet|PageWide|DeskJet|ScanJet'
                 r'|DesignJet|PageWide XL'  # HP Plotter
+                r'|colorlj[A-Z][0-9]+|Color LaserJet [A-Z][0-9]+'  # HP model codes (colorljM455, etc.)
                 # Lexmark
                 r'|Lexmark\s+[A-Z]{1,2}\d{3,4}|CX\d{3,4}|MX\d{3,4}|CS\d{3,4}|MS\d{3,4}|XC\d{3,4}|MC\d{3,4}'
                 # UTAX / Triumph-Adler
@@ -390,6 +391,14 @@ class SmartChunker:
             elif re.match(r'^[ivxlcdm]+$', line_clean, re.IGNORECASE):
                 header_lines.append(line_clean)
                 content_start_idx = i + 1
+            # Document type headers (e.g., "Control Panel Messages Document")
+            elif i < 3 and re.search(r'\b(Document|Manual|Guide|Instruction|Service|Technical|CPMD)\b', line_clean, re.IGNORECASE):
+                header_lines.append(line_clean)
+                content_start_idx = i + 1
+            # URLs (support pages, product pages)
+            elif i < 5 and re.match(r'^(https?://|www\.)', line_clean):
+                header_lines.append(line_clean)
+                content_start_idx = i + 1
             # Very short lines that look like headers
             elif i < 2 and len(line_clean) < 60 and line_clean and not line_clean[0].islower():
                 header_lines.append(line_clean)
@@ -410,6 +419,10 @@ class SmartChunker:
                 # Find model patterns like C4080, C4070, C84hc, etc.
                 models = re.findall(r'[A-Z]\d{4}[a-z]*(?:/[A-Z]\d{4}[a-z]*)*', line)
                 products.extend(models)
+                
+                # Extract HP model codes from URLs (colorljM455, colorljE47528MFP)
+                url_models = re.findall(r'colorlj([A-Z]\d+[A-Z]*)', line, re.IGNORECASE)
+                products.extend(url_models)
             
             if products:
                 header_metadata['header_products'] = list(set(products))  # Unique
