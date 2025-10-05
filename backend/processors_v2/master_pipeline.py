@@ -258,6 +258,16 @@ class MasterPipeline:
                     self.logger.success(f"✅ Linked {linked_count} images to chunks")
             
             # ==========================================
+            # STAGE 9.6: Link Error Codes to Chunks & Images
+            # ==========================================
+            error_codes = processing_result.get('error_codes', [])
+            if error_codes and chunks:
+                self.logger.info("🔗 Linking error codes to chunks & images...")
+                linked_count = self._link_error_codes_to_chunks_and_images(document_id)
+                if linked_count > 0:
+                    self.logger.success(f"✅ Linked {linked_count} error codes")
+            
+            # ==========================================
             # STAGE 10: Save extracted entities to DB
             # ==========================================
             processing_result = results.get('processing', {})
@@ -769,6 +779,73 @@ class MasterPipeline:
                 self.logger.warning(f"Image-to-chunk linking failed: {e2}")
                 self.logger.info("   Images can still be found by page_number")
                 return 0
+    
+    def _link_error_codes_to_chunks_and_images(self, document_id: UUID) -> int:
+        """
+        Link error codes to chunks and images based on page numbers
+        
+        For each error code on page X:
+        - Link to chunk where chunk.page_start <= X <= chunk.page_end
+        - Link to first image on page X (error code screenshot/diagram)
+        
+        Args:
+            document_id: Document UUID
+            
+        Returns:
+            Number of error codes successfully linked
+        """
+        try:
+            # Update chunk_id for error codes
+            chunk_update_query = f"""
+                UPDATE krai_intelligence.error_codes ec
+                SET chunk_id = (
+                    SELECT c.id 
+                    FROM krai_intelligence.chunks c
+                    WHERE c.document_id = ec.document_id
+                      AND c.page_start <= ec.page_number 
+                      AND c.page_end >= ec.page_number
+                    LIMIT 1
+                )
+                WHERE ec.chunk_id IS NULL 
+                  AND ec.document_id = '{document_id}'
+                  AND ec.page_number IS NOT NULL
+            """
+            
+            # Update image_id for error codes (first image on same page)
+            image_update_query = f"""
+                UPDATE krai_intelligence.error_codes ec
+                SET image_id = (
+                    SELECT i.id 
+                    FROM krai_content.images i
+                    WHERE i.document_id = ec.document_id
+                      AND i.page_number = ec.page_number
+                    ORDER BY i.image_index
+                    LIMIT 1
+                )
+                WHERE ec.image_id IS NULL 
+                  AND ec.document_id = '{document_id}'
+                  AND ec.page_number IS NOT NULL
+            """
+            
+            # Execute linking via database function
+            result = self.supabase.rpc('link_error_codes_to_chunks_and_images', {
+                'p_document_id': str(document_id)
+            }).execute()
+            
+            if result.data and len(result.data) > 0:
+                chunk_links = result.data[0].get('linked_to_chunks', 0)
+                image_links = result.data[0].get('linked_to_images', 0)
+                
+                self.logger.debug(f"   Chunks: {chunk_links} | Images: {image_links}")
+                
+                return chunk_links + image_links
+            
+            return 0
+            
+        except Exception as e:
+            self.logger.warning(f"Error code linking failed: {e}")
+            self.logger.info("   Error codes can still be found by page_number")
+            return 0
     
     def _update_document_metadata(self, document_id: UUID, processing_result: Dict):
         """Update document with extracted manufacturer, models, series, version"""

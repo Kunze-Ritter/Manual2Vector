@@ -3,12 +3,13 @@ Version Information for KRAI Processing Pipeline
 Auto-updated with each significant release
 """
 
-__version__ = "2.0.35"
+__version__ = "2.0.36"
 __commit__ = "TBD"
 __date__ = "2025-10-05"
 
 # Version History:
-# 2.0.35 (TBD) - Feat: Re-add metadata + context_text + ai_extracted fields
+# 2.0.36 (TBD) - Feat: Link error codes to chunks & images (N8N Agent integration!)
+# 2.0.35 (71ca96e) - Feat: Re-add metadata + context_text + ai_extracted fields
 # 2.0.34 (b2a4763) - Fix: Remove metadata field - column doesn't exist in schema
 # 2.0.33 (53dcb99) - Fix: Schema mismatch - documents.manufacturer not manufacturer_id
 # 2.0.32 (a1ec31f) - Feat: Save error codes IMMEDIATELY after extraction (no waiting!)
