@@ -782,11 +782,12 @@ class MasterPipeline:
     
     def _link_error_codes_to_chunks_and_images(self, document_id: UUID) -> int:
         """
-        Link error codes to chunks and images based on page numbers
+        Link error codes to chunks and images with SMART MATCHING
         
         For each error code on page X:
+        - SMART: Try to find image where ai_description contains error code
+        - FALLBACK: Use first image on page X
         - Link to chunk where chunk.page_start <= X <= chunk.page_end
-        - Link to first image on page X (error code screenshot/diagram)
         
         Args:
             document_id: Document UUID
@@ -795,52 +796,104 @@ class MasterPipeline:
             Number of error codes successfully linked
         """
         try:
-            # Update chunk_id for error codes
-            chunk_update_query = f"""
-                UPDATE krai_intelligence.error_codes ec
-                SET chunk_id = (
-                    SELECT c.id 
-                    FROM krai_intelligence.chunks c
-                    WHERE c.document_id = ec.document_id
-                      AND c.page_start <= ec.page_number 
-                      AND c.page_end >= ec.page_number
-                    LIMIT 1
-                )
-                WHERE ec.chunk_id IS NULL 
-                  AND ec.document_id = '{document_id}'
-                  AND ec.page_number IS NOT NULL
-            """
+            # ==========================================
+            # PHASE 1: SMART IMAGE MATCHING via Vision AI
+            # ==========================================
             
-            # Update image_id for error codes (first image on same page)
-            image_update_query = f"""
-                UPDATE krai_intelligence.error_codes ec
-                SET image_id = (
-                    SELECT i.id 
-                    FROM krai_content.images i
-                    WHERE i.document_id = ec.document_id
-                      AND i.page_number = ec.page_number
-                    ORDER BY i.image_index
-                    LIMIT 1
-                )
-                WHERE ec.image_id IS NULL 
-                  AND ec.document_id = '{document_id}'
-                  AND ec.page_number IS NOT NULL
-            """
+            # Get all error codes for this document (without image_id)
+            error_codes = self.supabase.table('error_codes') \
+                .select('id, error_code, page_number') \
+                .eq('document_id', str(document_id)) \
+                .is_('image_id', 'null') \
+                .execute()
             
-            # Execute linking via database function
+            smart_matches = 0
+            fallback_matches = 0
+            
+            if error_codes.data:
+                for ec in error_codes.data:
+                    error_code_text = ec['error_code']
+                    page_num = ec['page_number']
+                    
+                    if not page_num:
+                        continue
+                    
+                    # Get images on same page with Vision AI descriptions
+                    images = self.supabase.table('images') \
+                        .select('id, ai_description, image_index') \
+                        .eq('document_id', str(document_id)) \
+                        .eq('page_number', page_num) \
+                        .order('image_index') \
+                        .execute()
+                    
+                    if not images.data:
+                        continue
+                    
+                    matched_image_id = None
+                    match_confidence = 0.5  # Default for fallback
+                    
+                    # SMART MATCH: Look for error code in Vision AI description
+                    for img in images.data:
+                        if img.get('ai_description'):
+                            description = img['ai_description'].lower()
+                            error_variations = [
+                                error_code_text.lower(),
+                                error_code_text.replace('-', '').lower(),
+                                error_code_text.replace('.', '').lower()
+                            ]
+                            
+                            # Check if any variation appears in description
+                            if any(var in description for var in error_variations):
+                                matched_image_id = img['id']
+                                match_confidence = 0.95
+                                smart_matches += 1
+                                self.logger.debug(f"   ✨ Smart match: {error_code_text} → Image {img['image_index']}")
+                                break
+                    
+                    # FALLBACK: First image on page
+                    if not matched_image_id and images.data:
+                        matched_image_id = images.data[0]['id']
+                        match_confidence = 0.5
+                        fallback_matches += 1
+                    
+                    # Update error code with matched image
+                    if matched_image_id:
+                        self.supabase.table('error_codes') \
+                            .update({
+                                'image_id': matched_image_id,
+                                'metadata': {
+                                    'image_match_method': 'smart_vision_ai' if match_confidence > 0.9 else 'fallback_first_on_page',
+                                    'image_match_confidence': match_confidence
+                                }
+                            }) \
+                            .eq('id', ec['id']) \
+                            .execute()
+            
+            if smart_matches > 0:
+                self.logger.info(f"   ✨ Smart matches: {smart_matches} | Fallback: {fallback_matches}")
+            
+            # ==========================================
+            # PHASE 2: CHUNK & FALLBACK IMAGE LINKING via SQL Function
+            # ==========================================
+            # This also links images for error codes that Phase 1 didn't match
+            # (e.g., when Vision AI description doesn't mention error code)
+            
             result = self.supabase.rpc('link_error_codes_to_chunks_and_images', {
                 'p_document_id': str(document_id)
             }).execute()
             
+            chunk_links = 0
+            remaining_image_links = 0
+            
             if result.data and len(result.data) > 0:
                 chunk_links = result.data[0].get('linked_to_chunks', 0)
-                image_links = result.data[0].get('linked_to_images', 0)
+                remaining_image_links = result.data[0].get('linked_to_images', 0)
                 
-                self.logger.debug(f"   Chunks: {chunk_links} | Images: {image_links}")
-                
-                return chunk_links + image_links
+                self.logger.debug(f"   Chunks: {chunk_links} | Remaining images: {remaining_image_links}")
             
-            return 0
+            total_links = smart_matches + fallback_matches + chunk_links + remaining_image_links
+            
+            return total_links
             
         except Exception as e:
             self.logger.warning(f"Error code linking failed: {e}")
