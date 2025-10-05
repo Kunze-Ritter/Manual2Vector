@@ -98,8 +98,46 @@ BEGIN
     UNION ALL
     
     -- ====================================================================
-    -- SOURCE 3: Videos related to error code
+    -- SOURCE 3A: Video Links (from links table with video type)
     -- Priority: 3 (video tutorials)
+    -- NOTE: Videos table might be empty, so we search links with video type
+    -- ====================================================================
+    SELECT 
+        'video'::TEXT as resource_type,
+        l.id as resource_id,
+        COALESCE(l.description, 'Video Tutorial')::TEXT as title,
+        COALESCE(l.description, 'No description')::TEXT as description,
+        l.url::TEXT as url,
+        l.page_number,
+        3 as priority,
+        0.85::NUMERIC as relevance_score,
+        'video'::TEXT as document_type,
+        d.filename::TEXT as document_title,
+        jsonb_build_object(
+            'link_id', l.id,
+            'link_type', l.link_type,
+            'video_id', l.video_id,
+            'related_error_codes', l.related_error_codes
+        ) as metadata
+    FROM krai_content.links l
+    LEFT JOIN krai_core.documents d ON l.document_id = d.id
+    WHERE l.link_type IN ('video', 'youtube', 'vimeo')
+    AND l.is_active = true
+    AND (
+        -- Direct error code match
+        p_error_code = ANY(l.related_error_codes)
+        -- Or mentioned in description/url
+        OR l.description ILIKE '%' || p_error_code || '%'
+        OR l.url ILIKE '%' || p_error_code || '%'
+    )
+    AND (p_manufacturer_id IS NULL OR l.manufacturer_id = p_manufacturer_id)
+    AND (p_series_id IS NULL OR l.series_id = p_series_id)
+    
+    UNION ALL
+    
+    -- ====================================================================
+    -- SOURCE 3B: Video Metadata (from videos table if populated)
+    -- Priority: 3 (video tutorials with full metadata)
     -- ====================================================================
     SELECT 
         'video'::TEXT as resource_type,
@@ -109,7 +147,7 @@ BEGIN
         COALESCE(l.url, v.title)::TEXT as url,
         NULL::INTEGER as page_number,
         3 as priority,
-        0.8::NUMERIC as relevance_score,
+        0.9::NUMERIC as relevance_score,
         'video'::TEXT as document_type,
         d.filename::TEXT as document_title,
         jsonb_build_object(

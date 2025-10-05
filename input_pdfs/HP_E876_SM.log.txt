@@ -1,0 +1,9 @@
+2025-10-05 19:42:31 - INFO - Document ID: c82c0689-ae71-4411-8345-3264ce235e29
+2025-10-05 19:42:31 - INFO - Log file: C:\Users\haast\Docker\KRAI-minimal\input_pdfs\HP_E876_SM.log.txt
+2025-10-05 19:42:31 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-05 19:42:31 - INFO - Extracting text from: HP_E876_SM.pdf
+2025-10-05 19:42:31 - INFO - Using engine: pymupdf
+2025-10-05 19:42:48 - INFO - [green]Extracted 3141 pages with PyMuPDF[/green]
+2025-10-05 19:42:48 - INFO - Step 2/5: Extracting product models...
+2025-10-05 19:42:48 - INFO - Extracted 6 products from page 1
+2025-10-05 19:42:48 - INFO - Running LLM extraction on all pages...
