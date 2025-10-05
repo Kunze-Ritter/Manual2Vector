@@ -192,28 +192,45 @@ class VideoEnricher:
             # Note: This requires a policy key. For public videos, we can try without auth
             # or extract the policy key from the player HTML
             
-            # Try getting the player page to extract policy key (using actual player_id)
-            player_url = f"https://players.brightcove.net/{account_id}/{player_id}/index.min.js"
-            
+            # Try getting the player config to extract policy key
+            # Try both config.json and index.min.js
             policy_key = None
+            
+            # Method 1: Try config.json (contains policy key directly)
             try:
-                player_response = await self.http_client.get(player_url)
-                # Extract policy key from player config
-                # Try multiple patterns
-                patterns = [
-                    r'policyKey["\']:\s*["\']([^"\']+)["\']',
-                    r'"policyKey"\s*:\s*"([^"]+)"',
-                    r'policy_key["\']:\s*["\']([^"\']+)["\']',
-                ]
+                config_url = f"https://players.brightcove.net/{account_id}/{player_id}/config.json"
+                config_response = await self.http_client.get(config_url)
+                config_data = config_response.json()
                 
-                for pattern in patterns:
-                    policy_match = re.search(pattern, player_response.text)
-                    if policy_match:
-                        policy_key = policy_match.group(1)
-                        logger.info(f"🔑 Extracted Brightcove policy key")
-                        break
+                # Policy key is usually in video_cloud.policy_key
+                if 'video_cloud' in config_data and 'policy_key' in config_data['video_cloud']:
+                    policy_key = config_data['video_cloud']['policy_key']
+                    logger.info(f"🔑 Extracted Brightcove policy key from config.json")
             except Exception as e:
-                logger.debug(f"Failed to extract policy key: {e}")
+                logger.debug(f"Could not fetch config.json: {e}")
+            
+            # Method 2: Try index.min.js (fallback)
+            if not policy_key:
+                try:
+                    player_url = f"https://players.brightcove.net/{account_id}/{player_id}/index.min.js"
+                    player_response = await self.http_client.get(player_url)
+                    
+                    # Try multiple patterns
+                    patterns = [
+                        r'policyKey["\']:\s*["\']([^"\']+)["\']',
+                        r'"policyKey"\s*:\s*"([^"]+)"',
+                        r'policy_key["\']:\s*["\']([^"\']+)["\']',
+                        r'BCPolicyKey["\']:\s*["\']([^"\']+)["\']',
+                    ]
+                    
+                    for pattern in patterns:
+                        policy_match = re.search(pattern, player_response.text)
+                        if policy_match:
+                            policy_key = policy_match.group(1)
+                            logger.info(f"🔑 Extracted Brightcove policy key from index.min.js")
+                            break
+                except Exception as e:
+                    logger.debug(f"Could not extract policy key from JS: {e}")
             
             if not policy_key:
                 logger.warning(f"Could not extract Brightcove policy key for account {account_id}")
