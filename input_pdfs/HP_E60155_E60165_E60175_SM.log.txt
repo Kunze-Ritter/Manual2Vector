@@ -8,3 +8,4 @@
 2025-10-05 12:23:04 - INFO - Extracted 33 products from page 1
 2025-10-05 12:23:04 - INFO - Running LLM extraction on all pages...
 2025-10-05 12:25:18 - ERROR - [red]LLM extraction failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)[/red]
+2025-10-05 12:27:23 - ERROR - [red]LLM extraction failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)[/red]
