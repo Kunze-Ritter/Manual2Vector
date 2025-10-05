@@ -1,0 +1,64 @@
+{
+  "name": "Tool: Error Code Search",
+  "description": "NEW N8N Tool Node for Error Code Search with Images & Context",
+  "instructions": "Copy this node definition and add it to your KRAI-Agent-Fixed.json workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "name": "search_error_code",
+        "description": "Search for error codes in the knowledge base. Returns error description, solution, screenshot image URL, and text context. Example: search for 'C-2801' or '10.20'",
+        "workflowId": "={{ $workflow.id }}",
+        "fields": {
+          "values": [
+            {
+              "name": "error_code",
+              "type": "string",
+              "description": "The error code to search for (e.g. C-2801, 10.20, E826)"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [1280, 400],
+      "id": "tool-error-code",
+      "name": "Tool: Error Code Search"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  ec.error_code,\n  ec.error_description,\n  ec.solution_text,\n  ec.page_number,\n  ec.confidence_score,\n  ec.severity_level,\n  ec.requires_technician,\n  ec.requires_parts,\n  ec.metadata,\n  c.text_chunk as context_text,\n  i.storage_url as screenshot_url,\n  i.ai_description as screenshot_description,\n  d.filename as document_name,\n  d.manufacturer\nFROM krai_intelligence.error_codes ec\nLEFT JOIN krai_intelligence.chunks c ON ec.chunk_id = c.id\nLEFT JOIN krai_content.images i ON ec.image_id = i.id\nLEFT JOIN krai_core.documents d ON ec.document_id = d.id\nWHERE ec.error_code ILIKE '%{{ $json.error_code }}%'\nLIMIT 5;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1040, 400],
+      "id": "query-error-code",
+      "name": "Query Error Code",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Error Code Results for LLM\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return {\n    result: 'Kein Error Code gefunden. Bitte prüfe die Schreibweise.'\n  };\n}\n\nconst errorCode = items[0].json;\n\n// Build response with all available information\nlet response = `🔴 Error Code: ${errorCode.error_code}\\n\\n`;\n\nif (errorCode.error_description) {\n  response += `📝 Beschreibung:\\n${errorCode.error_description}\\n\\n`;\n}\n\nif (errorCode.solution_text) {\n  response += `🔧 Lösung:\\n${errorCode.solution_text}\\n\\n`;\n}\n\nif (errorCode.context_text) {\n  response += `📄 Context aus Manual (Seite ${errorCode.page_number}):\\n${errorCode.context_text.substring(0, 500)}...\\n\\n`;\n}\n\nif (errorCode.screenshot_url) {\n  response += `🖼️ Screenshot:\\n${errorCode.screenshot_url}\\n`;\n  if (errorCode.screenshot_description) {\n    response += `   (${errorCode.screenshot_description})\\n`;\n  }\n  response += `\\n`;\n}\n\n// Add technical details\nresponse += `ℹ️ Details:\\n`;\nresponse += `  - Dokument: ${errorCode.document_name}\\n`;\nresponse += `  - Hersteller: ${errorCode.manufacturer}\\n`;\nresponse += `  - Seite: ${errorCode.page_number}\\n`;\nresponse += `  - Schweregrad: ${errorCode.severity_level || 'Unbekannt'}\\n`;\n\nif (errorCode.requires_technician) {\n  response += `  - ⚠️ Techniker erforderlich\\n`;\n}\nif (errorCode.requires_parts) {\n  response += `  - ⚠️ Ersatzteile erforderlich\\n`;\n}\n\nresponse += `  - Konfidenz: ${Math.round((errorCode.confidence_score || 0) * 100)}%\\n`;\n\n// Smart matching info\nif (errorCode.metadata?.image_match_method === 'smart_vision_ai') {\n  response += `  - ✨ Screenshot: Smart Vision AI Match (${Math.round((errorCode.metadata.image_match_confidence || 0) * 100)}% Genauigkeit)\\n`;\n}\n\nreturn {\n  result: response,\n  error_code: errorCode.error_code,\n  screenshot_url: errorCode.screenshot_url,\n  has_solution: !!errorCode.solution_text\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 280],
+      "id": "format-error-code",
+      "name": "Format Error Code"
+    }
+  ],
+  "connections": {
+    "Tool: Error Code Search": {
+      "main": [[{ "node": "Query Error Code", "type": "main", "index": 0 }]]
+    },
+    "Query Error Code": {
+      "main": [[{ "node": "Format Error Code", "type": "main", "index": 0 }]]
+    }
+  }
+}
