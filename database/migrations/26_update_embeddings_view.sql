@@ -20,18 +20,18 @@ DROP VIEW IF EXISTS public.vw_embeddings CASCADE;
 CREATE OR REPLACE VIEW public.vw_embeddings AS
 SELECT 
     id,
-    id as chunk_id,                    -- For compatibility (chunks are embeddings now)
-    'embeddinggemma' as embedding_model,  -- Current model
-    embedding as embedding_vector,     -- Renamed column
-    768 as embedding_dimensions,       -- embeddinggemma dimension
+    id as chunk_id,
+    'embeddinggemma' as embedding_model,
+    embedding as embedding_vector,
+    768 as embedding_dimensions,
     created_at,
-    document_id,                       -- Extra: helpful for filtering
-    text_chunk,                        -- Extra: the actual text
-    chunk_index,                       -- Extra: for ordering
-    page_start,                        -- Extra: for context
-    page_end                           -- Extra: for context
+    document_id,
+    text_chunk,
+    chunk_index,
+    page_start,
+    page_end
 FROM krai_intelligence.chunks
-WHERE embedding IS NOT NULL;          -- Only chunks with embeddings
+WHERE embedding IS NOT NULL;
 
 -- Grant access
 GRANT SELECT ON public.vw_embeddings TO anon, authenticated, service_role;
