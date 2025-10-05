@@ -727,25 +727,26 @@ class DocumentProcessor:
                 if ec_data.get('context_text'):
                     metadata['context'] = ec_data.get('context_text')
                 
-                record = {
-                    'document_id': str(document_id),
-                    'manufacturer_id': manufacturer_id,
-                    'error_code': ec_data.get('error_code'),
-                    'error_description': ec_data.get('error_description'),
-                    'solution_text': ec_data.get('solution_text'),
-                    'confidence_score': ec_data.get('confidence', 0.8),
-                    'page_number': ec_data.get('page_number'),
-                    'severity_level': ec_data.get('severity_level', 'medium'),
-                    'extraction_method': ec_data.get('extraction_method', 'regex_pattern'),
-                    'requires_technician': ec_data.get('requires_technician', False),
-                    'requires_parts': ec_data.get('requires_parts', False),
-                    'context_text': ec_data.get('context_text'),
-                    'metadata': metadata
-                    # image_id, chunk_id will be linked AFTER via SQL function
-                }
+                # USE RPC FUNCTION to bypass PostgREST schema cache!
+                # Direct INSERT via PostgREST fails due to cache issues
+                result = supabase.rpc('insert_error_code', {
+                    'p_document_id': str(document_id),
+                    'p_manufacturer_id': manufacturer_id,
+                    'p_error_code': ec_data.get('error_code'),
+                    'p_error_description': ec_data.get('error_description'),
+                    'p_solution_text': ec_data.get('solution_text'),
+                    'p_confidence_score': ec_data.get('confidence', 0.8),
+                    'p_page_number': ec_data.get('page_number'),
+                    'p_severity_level': ec_data.get('severity_level', 'medium'),
+                    'p_extraction_method': ec_data.get('extraction_method', 'regex_pattern'),
+                    'p_requires_technician': ec_data.get('requires_technician', False),
+                    'p_requires_parts': ec_data.get('requires_parts', False),
+                    'p_context_text': ec_data.get('context_text'),
+                    'p_metadata': metadata
+                }).execute()
                 
-                supabase.table('error_codes').insert(record).execute()
-                saved_count += 1
+                if result.data:
+                    saved_count += 1
             
             self.logger.success(f"💾 Saved {saved_count} error codes to DB")
             
