@@ -24,7 +24,7 @@ import re
 import sys
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from pathlib import Path
 
@@ -83,8 +83,16 @@ class VideoEnricher:
     
     def extract_vimeo_id(self, url: str) -> Optional[str]:
         """Extract Vimeo video ID from URL"""
-        match = re.search(r'vimeo\.com\/(\d+)', url)
-        return match.group(1) if match else None
+        patterns = [
+            r'player\.vimeo\.com\/video\/(\d+)',  # player.vimeo.com/video/123
+            r'vimeo\.com\/(\d+)'                    # vimeo.com/123
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return None
     
     async def get_youtube_metadata(self, video_id: str) -> Optional[Dict[str, Any]]:
         """Fetch metadata from YouTube API"""
@@ -190,8 +198,8 @@ class VideoEnricher:
             return False
         
         try:
-            # Insert into videos table
-            video_record = supabase.table('videos').insert({
+            # Insert into videos table (krai_content schema)
+            video_record = supabase.schema('krai_content').table('videos').insert({
                 'link_id': link['id'],
                 'youtube_id': metadata['youtube_id'],
                 'title': metadata['title'],
@@ -205,14 +213,14 @@ class VideoEnricher:
                 'channel_title': metadata['channel_title'],
                 'published_at': metadata['published_at'],
                 'metadata': {
-                    'enriched_at': datetime.utcnow().isoformat(),
+                    'enriched_at': datetime.now(timezone.utc).isoformat(),
                     'source': 'youtube_api'
                 }
             }).execute()
             
             if video_record.data:
                 # Update link with video_id
-                supabase.table('links').update({
+                supabase.schema('krai_content').table('links').update({
                     'video_id': video_record.data[0]['id']
                 }).eq('id', link['id']).execute()
                 
@@ -238,7 +246,7 @@ class VideoEnricher:
         
         try:
             # Insert into videos table (simplified for Vimeo)
-            video_record = supabase.table('videos').insert({
+            video_record = supabase.schema('krai_content').table('videos').insert({
                 'link_id': link['id'],
                 'youtube_id': None,  # Vimeo doesn't use youtube_id
                 'title': metadata['title'],
@@ -248,7 +256,7 @@ class VideoEnricher:
                 'view_count': metadata['view_count'],
                 'channel_title': metadata['channel_title'],
                 'metadata': {
-                    'enriched_at': datetime.utcnow().isoformat(),
+                    'enriched_at': datetime.now(timezone.utc).isoformat(),
                     'source': 'vimeo_api',
                     'vimeo_id': video_id
                 }
@@ -256,7 +264,7 @@ class VideoEnricher:
             
             if video_record.data:
                 # Update link with video_id
-                supabase.table('links').update({
+                supabase.schema('krai_content').table('links').update({
                     'video_id': video_record.data[0]['id']
                 }).eq('id', link['id']).execute()
                 
@@ -287,7 +295,7 @@ class VideoEnricher:
         
         try:
             # Query for video links without video_id
-            query = supabase.table('links').select('*')
+            query = supabase.schema('krai_content').table('links').select('*')
             
             if not force:
                 query = query.is_('video_id', 'null')
