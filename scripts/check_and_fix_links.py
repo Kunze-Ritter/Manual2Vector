@@ -321,10 +321,11 @@ class LinkChecker:
         
         try:
             # Query links
-            query = supabase.table('links').select('*')
+            query = supabase.table('links').select('id,url,link_type,is_active')
             
+            # Note: is_active might be NULL, so we check for not FALSE
             if not check_inactive:
-                query = query.eq('is_active', True)
+                query = query.neq('is_active', False)
             
             if limit:
                 query = query.limit(limit)
@@ -332,8 +333,11 @@ class LinkChecker:
             response = query.execute()
             links = response.data
             
+            logger.info(f"📊 Query returned {len(links) if links else 0} links")
+            
             if not links:
                 logger.info("✅ No links found to check!")
+                logger.info("ℹ️  Try: --inactive flag to check all links")
                 return
             
             logger.info(f"🔗 Found {len(links)} links to check")
