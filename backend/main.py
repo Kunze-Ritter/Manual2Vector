@@ -36,12 +36,15 @@ from services.object_storage_service import ObjectStorageService
 from services.ai_service import AIService
 from services.config_service import ConfigService
 from services.features_service import FeaturesService
+from services.video_enrichment_service import VideoEnrichmentService
+from services.link_checker_service import LinkCheckerService
 
 # Import APIs
 from api.document_api import DocumentAPI
 from api.search_api import SearchAPI
 from api.defect_detection_api import DefectDetectionAPI
 from api.features_api import FeaturesAPI
+from api.content_management_api import ContentManagementAPI
 
 # Global services
 database_service = None
@@ -49,11 +52,14 @@ storage_service = None
 ai_service = None
 config_service = None
 features_service = None
+video_enrichment_service = None
+link_checker_service = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     global database_service, storage_service, ai_service, config_service, features_service
+    global video_enrichment_service, link_checker_service
     
     # Startup
     print("🚀 Starting KR-AI-Engine...")
@@ -93,6 +99,14 @@ async def lifespan(app: FastAPI):
         # Initialize features service
         features_service = FeaturesService(ai_service, database_service)
         print("✅ Features service initialized")
+        
+        # Initialize video enrichment service
+        video_enrichment_service = VideoEnrichmentService()
+        print("✅ Video enrichment service initialized")
+        
+        # Initialize link checker service
+        link_checker_service = LinkCheckerService()
+        print("✅ Link checker service initialized")
         
         print("🎯 KR-AI-Engine ready!")
         
@@ -134,23 +148,30 @@ document_api = None
 search_api = None
 defect_detection_api = None
 features_api = None
+content_management_api = None
 
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
-    global document_api, search_api, defect_detection_api, features_api
+    global document_api, search_api, defect_detection_api, features_api, content_management_api
     
     # Initialize APIs with services
     document_api = DocumentAPI(database_service, storage_service, ai_service)
     search_api = SearchAPI(database_service, ai_service)
     defect_detection_api = DefectDetectionAPI(ai_service, database_service)
     features_api = FeaturesAPI(database_service, features_service)
+    content_management_api = ContentManagementAPI(
+        database_service=database_service,
+        video_enrichment_service=video_enrichment_service,
+        link_checker_service=link_checker_service
+    )
     
     # Include routers
     app.include_router(document_api.router)
     app.include_router(search_api.router)
     app.include_router(defect_detection_api.router)
     app.include_router(features_api.router)
+    app.include_router(content_management_api.router)
 
 # Root endpoint
 @app.get("/")
@@ -166,6 +187,7 @@ async def root():
             "search": "/search",
             "defect_detection": "/defect-detection",
             "features": "/features",
+            "content_management": "/content",
             "health": "/health"
         }
     }
@@ -248,7 +270,9 @@ async def system_info():
                 "defect_detection": True,
                 "features_management": True,
                 "vector_search": True,
-                "ai_classification": True
+                "ai_classification": True,
+                "video_enrichment": True,
+                "link_checking": True
             },
             "processing_pipeline": [
                 "Upload Processor",
@@ -260,6 +284,15 @@ async def system_info():
                 "Embedding Processor",
                 "Search Processor"
             ],
+            "content_management": {
+                "video_enrichment": {
+                    "platforms": ["YouTube", "Vimeo", "Brightcove"],
+                    "features": ["metadata", "thumbnails", "duration", "deduplication"]
+                },
+                "link_checking": {
+                    "features": ["validation", "redirect_following", "auto_fixing", "url_cleaning"]
+                }
+            },
             "timestamp": datetime.utcnow().isoformat()
         }
         
