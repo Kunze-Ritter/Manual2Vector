@@ -20,9 +20,20 @@ SELECT * FROM krai_content.links;
 -- Trigger for INSERT on videos view
 CREATE OR REPLACE FUNCTION public.videos_insert()
 RETURNS TRIGGER AS $$
+DECLARE
+    new_id UUID;
 BEGIN
-    INSERT INTO krai_content.videos
-    SELECT NEW.*;
+    INSERT INTO krai_content.videos (
+        link_id, youtube_id, title, description, thumbnail_url,
+        duration, view_count, like_count, comment_count,
+        channel_id, channel_title, published_at, metadata
+    ) VALUES (
+        NEW.link_id, NEW.youtube_id, NEW.title, NEW.description, NEW.thumbnail_url,
+        NEW.duration, NEW.view_count, NEW.like_count, NEW.comment_count,
+        NEW.channel_id, NEW.channel_title, NEW.published_at, NEW.metadata
+    ) RETURNING id INTO new_id;
+    
+    NEW.id := new_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -76,9 +87,20 @@ FOR EACH ROW EXECUTE FUNCTION public.videos_delete();
 -- Trigger for INSERT on links view
 CREATE OR REPLACE FUNCTION public.links_insert()
 RETURNS TRIGGER AS $$
+DECLARE
+    new_id UUID;
 BEGIN
-    INSERT INTO krai_content.links
-    SELECT NEW.*;
+    INSERT INTO krai_content.links (
+        document_id, url, link_type, description, page_number,
+        is_active, video_id, manufacturer_id, series_id,
+        related_error_codes, metadata
+    ) VALUES (
+        NEW.document_id, NEW.url, NEW.link_type, NEW.description, NEW.page_number,
+        NEW.is_active, NEW.video_id, NEW.manufacturer_id, NEW.series_id,
+        NEW.related_error_codes, NEW.metadata
+    ) RETURNING id INTO new_id;
+    
+    NEW.id := new_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
