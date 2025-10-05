@@ -291,6 +291,10 @@ class DocumentProcessor:
             
             self.logger.success(f"Extracted {len(error_codes)} error codes")
             
+            # Save error codes immediately (don't wait until end)
+            if error_codes:
+                self._save_error_codes_to_db(document_id, error_codes)
+            
             # Step 3b: Extract versions
             self.logger.info("Step 3b/7: Extracting document versions...")
             versions = []
@@ -660,6 +664,80 @@ class DocumentProcessor:
             self.logger.success(f"Saved {len(videos)} videos to database")
         except Exception as e:
             self.logger.error(f"Failed to save videos: {e}")
+    
+    def _save_error_codes_to_db(self, document_id: UUID, error_codes: list):
+        """Save error codes immediately after extraction"""
+        try:
+            from supabase import create_client
+            from datetime import datetime
+            import os
+            from dotenv import load_dotenv
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping error code storage")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            # Get manufacturer_id from document
+            doc_result = supabase.table('documents') \
+                .select('manufacturer_id') \
+                .eq('id', str(document_id)) \
+                .limit(1) \
+                .execute()
+            
+            manufacturer_id = doc_result.data[0]['manufacturer_id'] if doc_result.data else None
+            
+            saved_count = 0
+            for error_code in error_codes:
+                # Convert ExtractedErrorCode to dict if needed
+                ec_data = error_code if isinstance(error_code, dict) else {
+                    'error_code': getattr(error_code, 'error_code', ''),
+                    'error_description': getattr(error_code, 'error_description', ''),
+                    'solution_text': getattr(error_code, 'solution_text', None),
+                    'confidence': getattr(error_code, 'confidence', 0.0),
+                    'page_number': getattr(error_code, 'page_number', None),
+                    'context_text': getattr(error_code, 'context_text', None),
+                    'severity_level': getattr(error_code, 'severity_level', 'medium'),
+                    'requires_technician': getattr(error_code, 'requires_technician', False),
+                    'requires_parts': getattr(error_code, 'requires_parts', False)
+                }
+                
+                # Build metadata
+                metadata = {
+                    'extracted_at': datetime.utcnow().isoformat(),
+                    'extraction_method': ec_data.get('extraction_method', 'regex_pattern')
+                }
+                if ec_data.get('context_text'):
+                    metadata['context'] = ec_data.get('context_text')
+                
+                record = {
+                    'document_id': str(document_id),
+                    'manufacturer_id': manufacturer_id,
+                    'error_code': ec_data.get('error_code'),
+                    'error_description': ec_data.get('error_description'),
+                    'solution_text': ec_data.get('solution_text'),
+                    'confidence_score': ec_data.get('confidence', 0.8),
+                    'page_number': ec_data.get('page_number'),
+                    'severity_level': ec_data.get('severity_level', 'medium'),
+                    'requires_technician': ec_data.get('requires_technician', False),
+                    'requires_parts': ec_data.get('requires_parts', False),
+                    'metadata': metadata
+                }
+                
+                supabase.table('error_codes').insert(record).execute()
+                saved_count += 1
+            
+            self.logger.success(f"💾 Saved {saved_count} error codes to DB")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save error codes: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
     
     def _calculate_statistics(
         self,

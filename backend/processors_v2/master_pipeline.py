@@ -262,10 +262,8 @@ class MasterPipeline:
             # ==========================================
             processing_result = results.get('processing', {})
             
-            # Save error codes
-            error_codes = processing_result.get('error_codes', [])
-            if error_codes:
-                self._save_error_codes(document_id, error_codes)
+            # Error codes are saved immediately after extraction (see document_processor.py Step 3)
+            # No need to save again here
             
             # Save products to products table AND document_products relationship
             products = processing_result.get('products', [])
