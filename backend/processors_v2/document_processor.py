@@ -683,14 +683,26 @@ class DocumentProcessor:
             
             supabase = create_client(supabase_url, supabase_key)
             
-            # Get manufacturer_id from document
+            # Get manufacturer from document and find manufacturer_id
             doc_result = supabase.table('documents') \
-                .select('manufacturer_id') \
+                .select('manufacturer') \
                 .eq('id', str(document_id)) \
                 .limit(1) \
                 .execute()
             
-            manufacturer_id = doc_result.data[0]['manufacturer_id'] if doc_result.data else None
+            manufacturer_id = None
+            if doc_result.data and doc_result.data[0].get('manufacturer'):
+                manufacturer_name = doc_result.data[0]['manufacturer']
+                
+                # Find manufacturer_id by name
+                mfr_result = supabase.table('manufacturers') \
+                    .select('id') \
+                    .ilike('name', f"%{manufacturer_name}%") \
+                    .limit(1) \
+                    .execute()
+                
+                if mfr_result.data:
+                    manufacturer_id = mfr_result.data[0]['id']
             
             saved_count = 0
             for error_code in error_codes:

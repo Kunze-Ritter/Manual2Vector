@@ -3,12 +3,13 @@ Version Information for KRAI Processing Pipeline
 Auto-updated with each significant release
 """
 
-__version__ = "2.0.32"
+__version__ = "2.0.33"
 __commit__ = "TBD"
 __date__ = "2025-10-05"
 
 # Version History:
-# 2.0.32 (TBD) - Feat: Save error codes IMMEDIATELY after extraction (no waiting!)
+# 2.0.33 (TBD) - Fix: Schema mismatch - documents.manufacturer not manufacturer_id
+# 2.0.32 (a1ec31f) - Feat: Save error codes IMMEDIATELY after extraction (no waiting!)
 # 2.0.31 (96582f0) - Feat: Version tracking + banner
 # 2.0.30 (ac6c400) - Fix: Error codes manufacturer_id + severity_level
 # 2.0.29 (9ef0e2b) - Feat: Auto-link images to chunks after embedding
