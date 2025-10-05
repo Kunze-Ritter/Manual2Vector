@@ -22,11 +22,18 @@ env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
 from processors_v2.master_pipeline import MasterPipeline
+from processors_v2.__version__ import __version__, __commit__, __date__
 from supabase import create_client
 
 
 def main():
     """Process document in FULL PRODUCTION MODE"""
+    
+    # Show version info
+    print("\n" + "=" * 80)
+    print(f"  KRAI PROCESSING PIPELINE v{__version__}")
+    print(f"  Commit: {__commit__} | Date: {__date__}")
+    print("=" * 80 + "\n")
     
     print("\n" + "="*80)
     print("  PRODUCTION MODE - FULL PROCESSING")
