@@ -3,12 +3,13 @@ Version Information for KRAI Processing Pipeline
 Auto-updated with each significant release
 """
 
-__version__ = "2.0.38"
+__version__ = "2.0.39"
 __commit__ = "TBD"
 __date__ = "2025-10-05"
 
 # Version History:
-# 2.0.38 (TBD) - Fix: Remove ai_extracted field (Supabase cache issue)
+# 2.0.39 (TBD) - Fix: ONLY use BASE SCHEMA - PostgREST cache broken for Migration 09 columns
+# 2.0.38 (803eec1) - Fix: Remove ai_extracted field (Supabase cache issue)
 # 2.0.37 (c745775) - Feat: SMART image matching via Vision AI descriptions!
 # 2.0.36 (1cc51e7) - Feat: Link error codes to chunks & images (N8N Agent integration!)
 # 2.0.35 (71ca96e) - Feat: Re-add metadata + context_text + ai_extracted fields

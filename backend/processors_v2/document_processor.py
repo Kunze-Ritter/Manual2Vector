@@ -719,14 +719,8 @@ class DocumentProcessor:
                     'requires_parts': getattr(error_code, 'requires_parts', False)
                 }
                 
-                # Build metadata
-                metadata = {
-                    'extracted_at': datetime.utcnow().isoformat(),
-                    'extraction_method': ec_data.get('extraction_method', 'regex_pattern')
-                }
-                if ec_data.get('context_text'):
-                    metadata['context'] = ec_data.get('context_text')
-                
+                # ONLY use BASE SCHEMA columns (Migration 01)
+                # Migration 09 columns (image_id, context_text, metadata) cause PostgREST cache issues!
                 record = {
                     'document_id': str(document_id),
                     'manufacturer_id': manufacturer_id,
@@ -738,9 +732,9 @@ class DocumentProcessor:
                     'severity_level': ec_data.get('severity_level', 'medium'),
                     'extraction_method': ec_data.get('extraction_method', 'regex_pattern'),
                     'requires_technician': ec_data.get('requires_technician', False),
-                    'requires_parts': ec_data.get('requires_parts', False),
-                    'context_text': ec_data.get('context_text'),
-                    'metadata': metadata
+                    'requires_parts': ec_data.get('requires_parts', False)
+                    # image_id, chunk_id will be linked later via SQL function
+                    # context_text, metadata removed due to PostgREST cache issues
                 }
                 
                 supabase.table('error_codes').insert(record).execute()
