@@ -162,9 +162,13 @@ class VideoEnricher:
         return hours * 3600 + minutes * 60 + seconds
     
     async def get_vimeo_metadata(self, video_id: str) -> Optional[Dict[str, Any]]:
-        """Fetch metadata from Vimeo API (unauthenticated)"""
+        """
+        Fetch metadata from Vimeo using oEmbed API (no auth required)
+        Note: Vimeo API v2 is deprecated, oEmbed has limited data
+        """
         try:
-            url = f"https://vimeo.com/api/v2/video/{video_id}.json"
+            # Try oEmbed API (works for public videos)
+            url = f"https://vimeo.com/api/oembed.json?url=https://vimeo.com/{video_id}"
             response = await self.http_client.get(url)
             response.raise_for_status()
             data = response.json()
@@ -172,16 +176,21 @@ class VideoEnricher:
             if not data:
                 return None
             
-            video = data[0]
             return {
-                'title': video.get('title'),
-                'description': video.get('description'),
-                'thumbnail_url': video.get('thumbnail_large'),
-                'duration': video.get('duration'),
-                'view_count': video.get('stats_number_of_plays', 0),
-                'channel_title': video.get('user_name')
+                'title': data.get('title', f'Vimeo Video {video_id}'),
+                'description': data.get('description', 'No description available'),
+                'thumbnail_url': data.get('thumbnail_url'),
+                'duration': data.get('duration', 0),
+                'view_count': 0,  # Not available via oEmbed
+                'channel_title': data.get('author_name', 'Unknown')
             }
             
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"Vimeo video not found or private: {video_id}")
+            else:
+                logger.error(f"Error fetching Vimeo metadata: {e}")
+            return None
         except Exception as e:
             logger.error(f"Error fetching Vimeo metadata: {e}")
             return None
