@@ -207,34 +207,49 @@ class VideoEnricher:
             return False
         
         try:
-            # Insert into videos table (krai_content schema)
-            video_record = supabase.table('videos').insert({
-                'link_id': link['id'],
-                'youtube_id': metadata['youtube_id'],
-                'title': metadata['title'],
-                'description': metadata['description'],
-                'thumbnail_url': metadata['thumbnail_url'],
-                'duration': metadata['duration'],
-                'view_count': metadata['view_count'],
-                'like_count': metadata['like_count'],
-                'comment_count': metadata['comment_count'],
-                'channel_id': metadata['channel_id'],
-                'channel_title': metadata['channel_title'],
-                'published_at': metadata['published_at'],
-                'metadata': {
-                    'enriched_at': datetime.now(timezone.utc).isoformat(),
-                    'source': 'youtube_api'
-                }
-            }).execute()
+            # Check if video already exists (by youtube_id or link_id)
+            existing = supabase.table('videos').select('id').or_(
+                f"youtube_id.eq.{metadata['youtube_id']},link_id.eq.{link['id']}"
+            ).execute()
             
-            if video_record.data:
-                # Update link with video_id
-                supabase.table('links').update({
-                    'video_id': video_record.data[0]['id']
-                }).eq('id', link['id']).execute()
+            if existing.data:
+                # Video exists, use existing ID
+                video_id_to_link = existing.data[0]['id']
+                logger.info(f"📝 Video already exists, reusing ID")
+            else:
+                # Insert new video
+                video_record = supabase.table('videos').insert({
+                    'link_id': link['id'],
+                    'youtube_id': metadata['youtube_id'],
+                    'title': metadata['title'],
+                    'description': metadata['description'],
+                    'thumbnail_url': metadata['thumbnail_url'],
+                    'duration': metadata['duration'],
+                    'view_count': metadata['view_count'],
+                    'like_count': metadata['like_count'],
+                    'comment_count': metadata['comment_count'],
+                    'channel_id': metadata['channel_id'],
+                    'channel_title': metadata['channel_title'],
+                    'published_at': metadata['published_at'],
+                    'metadata': {
+                        'enriched_at': datetime.now(timezone.utc).isoformat(),
+                        'source': 'youtube_api'
+                    }
+                }).execute()
                 
-                logger.info(f"✅ Enriched YouTube video: {metadata['title'][:50]}...")
-                return True
+                if not video_record.data:
+                    logger.error("Failed to insert video")
+                    return False
+                
+                video_id_to_link = video_record.data[0]['id']
+            
+            # Update link with video_id
+            supabase.table('links').update({
+                'video_id': video_id_to_link
+            }).eq('id', link['id']).execute()
+            
+            logger.info(f"✅ Enriched YouTube video: {metadata['title'][:50]}...")
+            return True
             
         except Exception as e:
             logger.error(f"Error saving YouTube metadata: {e}")
@@ -254,31 +269,44 @@ class VideoEnricher:
             return False
         
         try:
-            # Insert into videos table (simplified for Vimeo)
-            video_record = supabase.table('videos').insert({
-                'link_id': link['id'],
-                'youtube_id': None,  # Vimeo doesn't use youtube_id
-                'title': metadata['title'],
-                'description': metadata['description'],
-                'thumbnail_url': metadata['thumbnail_url'],
-                'duration': metadata['duration'],
-                'view_count': metadata['view_count'],
-                'channel_title': metadata['channel_title'],
-                'metadata': {
-                    'enriched_at': datetime.now(timezone.utc).isoformat(),
-                    'source': 'vimeo_api',
-                    'vimeo_id': video_id
-                }
-            }).execute()
+            # Check if video already exists (by link_id)
+            existing = supabase.table('videos').select('id').eq('link_id', link['id']).execute()
             
-            if video_record.data:
-                # Update link with video_id
-                supabase.table('links').update({
-                    'video_id': video_record.data[0]['id']
-                }).eq('id', link['id']).execute()
+            if existing.data:
+                # Video exists, use existing ID
+                video_id_to_link = existing.data[0]['id']
+                logger.info(f"📝 Video already exists, reusing ID")
+            else:
+                # Insert new video
+                video_record = supabase.table('videos').insert({
+                    'link_id': link['id'],
+                    'youtube_id': None,  # Vimeo doesn't use youtube_id
+                    'title': metadata['title'],
+                    'description': metadata['description'],
+                    'thumbnail_url': metadata['thumbnail_url'],
+                    'duration': metadata['duration'],
+                    'view_count': metadata['view_count'],
+                    'channel_title': metadata['channel_title'],
+                    'metadata': {
+                        'enriched_at': datetime.now(timezone.utc).isoformat(),
+                        'source': 'vimeo_api',
+                        'vimeo_id': video_id
+                    }
+                }).execute()
                 
-                logger.info(f"✅ Enriched Vimeo video: {metadata['title'][:50]}...")
-                return True
+                if not video_record.data:
+                    logger.error("Failed to insert video")
+                    return False
+                
+                video_id_to_link = video_record.data[0]['id']
+            
+            # Update link with video_id
+            supabase.table('links').update({
+                'video_id': video_id_to_link
+            }).eq('id', link['id']).execute()
+            
+            logger.info(f"✅ Enriched Vimeo video: {metadata['title'][:50]}...")
+            return True
             
         except Exception as e:
             logger.error(f"Error saving Vimeo metadata: {e}")
