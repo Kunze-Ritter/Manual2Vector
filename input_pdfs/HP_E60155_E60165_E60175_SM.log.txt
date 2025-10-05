@@ -1,11 +1,10 @@
-2025-10-05 11:29:08 - INFO - Document ID: 43f6066c-7e99-4220-ab96-a1faabe29197
-2025-10-05 11:29:08 - INFO - Log file: C:\Users\haast\Docker\KRAI-minimal\input_pdfs\HP_E60155_E60165_E60175_SM.log.txt
-2025-10-05 11:29:08 - INFO - Step 1/5: Extracting text from PDF...
-2025-10-05 11:29:08 - INFO - Extracting text from: HP_E60155_E60165_E60175_SM.pdf
-2025-10-05 11:29:08 - INFO - Using engine: pymupdf
-2025-10-05 11:29:12 - INFO - [green]Extracted 2737 pages with PyMuPDF[/green]
-2025-10-05 11:29:12 - INFO - Step 2/5: Extracting product models...
-2025-10-05 11:29:12 - INFO - Extracted 33 products from page 1
-2025-10-05 11:29:12 - INFO - Running LLM extraction on all pages...
-2025-10-05 11:31:26 - ERROR - [red]LLM extraction failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)[/red]
-2025-10-05 11:33:32 - ERROR - [red]LLM extraction failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)[/red]
+2025-10-05 12:22:59 - INFO - Document ID: 43f6066c-7e99-4220-ab96-a1faabe29197
+2025-10-05 12:22:59 - INFO - Log file: C:\Users\haast\Docker\KRAI-minimal\input_pdfs\HP_E60155_E60165_E60175_SM.log.txt
+2025-10-05 12:22:59 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-05 12:22:59 - INFO - Extracting text from: HP_E60155_E60165_E60175_SM.pdf
+2025-10-05 12:22:59 - INFO - Using engine: pymupdf
+2025-10-05 12:23:04 - INFO - [green]Extracted 2737 pages with PyMuPDF[/green]
+2025-10-05 12:23:04 - INFO - Step 2/5: Extracting product models...
+2025-10-05 12:23:04 - INFO - Extracted 33 products from page 1
+2025-10-05 12:23:04 - INFO - Running LLM extraction on all pages...
+2025-10-05 12:25:18 - ERROR - [red]LLM extraction failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)[/red]

@@ -470,7 +470,6 @@ class MasterPipeline:
                     'requires_technician': ec_data.get('requires_technician', False),
                     'requires_parts': ec_data.get('requires_parts', False),
                     'context_text': ec_data.get('context_text'),
-                    'ai_extracted': False,  # Currently using regex patterns
                     'metadata': metadata
                 }
                 
