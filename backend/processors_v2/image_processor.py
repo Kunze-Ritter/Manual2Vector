@@ -451,14 +451,14 @@ class ImageProcessor:
     def _run_vision_ai(
         self,
         images: List[Dict[str, Any]],
-        max_images: int = 20
+        max_images: int = 50  # Increased from 20 to process more diagrams/technical drawings
     ) -> List[Dict[str, Any]]:
         """
         Run Vision AI (LLaVA) on images
         
         Args:
             images: List of images
-            max_images: Maximum images to process (to avoid overload)
+            max_images: Maximum images to process (default: 50, ~10-15 min processing time)
             
         Returns:
             Images with 'ai_description' and 'ai_confidence' fields added
