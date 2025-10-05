@@ -168,43 +168,13 @@ BEGIN
     AND (p_series_id IS NULL OR l.series_id = p_series_id)
     AND l.is_active = true
     
-    UNION ALL
     
     -- ====================================================================
     -- SOURCE 5: Related Spare Parts (if mentioned in error context)
     -- Priority: 5 (parts for replacement)
+    -- NOTE: Skipped for now as krai_parts.spare_parts table doesn't exist yet
     -- ====================================================================
-    SELECT * FROM (
-        SELECT 
-            'spare_part'::TEXT as resource_type,
-            sp.id as resource_id,
-            (COALESCE(sp.part_name, sp.part_number))::TEXT as title,
-            COALESCE(sp.description, 'No description')::TEXT as description,
-            NULL::TEXT as url,
-            NULL::INTEGER as page_number,
-            5 as priority,
-            0.6::NUMERIC as relevance_score,
-            'spare_part'::TEXT as document_type,
-            NULL::TEXT as document_title,
-            jsonb_build_object(
-                'part_number', sp.part_number,
-                'price', sp.price,
-                'currency', sp.currency,
-                'stock_status', sp.stock_status,
-                'compatibility', sp.compatibility
-            ) as metadata
-        FROM krai_parts.spare_parts sp
-        WHERE sp.manufacturer_id = p_manufacturer_id
-        AND (
-            -- Mentioned in description
-            sp.description ILIKE '%' || p_error_code || '%'
-            -- Or common error-related parts
-            OR (sp.part_name ILIKE '%fuser%' AND p_error_code LIKE '%fuser%')
-            OR (sp.part_name ILIKE '%drum%' AND p_error_code LIKE '%drum%')
-            OR (sp.part_name ILIKE '%toner%' AND p_error_code LIKE '%toner%')
-        )
-        LIMIT 3
-    ) parts
+    -- Will be enabled once spare parts table is created
     
     -- ====================================================================
     -- ORDER BY: Priority (bulletins first), then relevance score
