@@ -191,14 +191,39 @@ class LinkChecker:
         """
         Check if URL is accessible.
         Returns: (status_code, status_text, final_url)
+        
+        Note: HEAD requests are faster but some servers don't support them or
+        handle redirects differently. We try HEAD first, then fall back to GET.
         """
         if not self.is_valid_url(url):
             return (0, "Invalid URL", None)
         
+        # Try HEAD first (faster, less bandwidth)
         try:
-            response = await self.http_client.head(url)
-            return (response.status_code, "OK" if response.is_success else "Error", str(response.url))
+            response = await self.http_client.head(url, follow_redirects=True)
+            
+            # Some servers return 405 (Method Not Allowed) for HEAD
+            # or other error codes that might work with GET
+            if response.status_code == 405 or (400 <= response.status_code < 500 and response.status_code != 404):
+                # Fallback to GET
+                logger.debug(f"HEAD failed with {response.status_code}, trying GET...")
+                response = await self.http_client.get(url, follow_redirects=True)
+            
+            # Return final URL after redirects
+            final_url_str = str(response.url)
+            # Only return final_url if it's different (redirect happened)
+            final_url = final_url_str if final_url_str != url else None
+            return (response.status_code, "OK" if response.is_success else "Error", final_url)
+            
         except httpx.HTTPStatusError as e:
+            # For 3xx redirects that raise errors, try GET
+            if 300 <= e.response.status_code < 400:
+                try:
+                    response = await self.http_client.get(url, follow_redirects=True)
+                    final_url = str(response.url) if response.url != url else None
+                    return (response.status_code, "OK" if response.is_success else "Error", final_url)
+                except:
+                    pass
             return (e.response.status_code, str(e), None)
         except httpx.ConnectError:
             return (0, "Connection failed", None)
