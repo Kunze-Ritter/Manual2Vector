@@ -604,7 +604,7 @@ class DocumentProcessor:
             }
     
     def _save_links_to_db(self, links: List[Dict]):
-        """Save extracted links to database"""
+        """Save extracted links to database with auto-linked manufacturer/series"""
         try:
             from supabase import create_client
             import os
@@ -630,14 +630,27 @@ class DocumentProcessor:
                     .execute()
                 
                 if not existing.data:
-                    supabase.table('links').insert(link).execute()
+                    # Insert link
+                    result = supabase.table('links').insert(link).execute()
+                    
+                    # Auto-link manufacturer/series from document (Migration 28 helper function)
+                    if result.data and len(result.data) > 0:
+                        link_id = result.data[0]['id']
+                        try:
+                            supabase.rpc('auto_link_resource_to_document', {
+                                'p_resource_table': 'krai_content.links',
+                                'p_resource_id': link_id,
+                                'p_document_id': link['document_id']
+                            }).execute()
+                        except Exception as link_error:
+                            self.logger.debug(f"Could not auto-link manufacturer/series: {link_error}")
             
             self.logger.success(f"Saved {len(links)} links to database")
         except Exception as e:
             self.logger.error(f"Failed to save links: {e}")
     
     def _save_videos_to_db(self, videos: List[Dict]):
-        """Save video metadata to database"""
+        """Save video metadata to database with auto-linked manufacturer/series"""
         try:
             from supabase import create_client
             import os
@@ -655,17 +668,31 @@ class DocumentProcessor:
             
             for video in videos:
                 # Check for duplicate by youtube_id
+                should_insert = False
                 if video.get('youtube_id'):
                     existing = supabase.table('videos') \
                         .select('id') \
                         .eq('youtube_id', video['youtube_id']) \
                         .limit(1) \
                         .execute()
-                    
-                    if not existing.data:
-                        supabase.table('videos').insert(video).execute()
+                    should_insert = not existing.data
                 else:
-                    supabase.table('videos').insert(video).execute()
+                    should_insert = True
+                
+                if should_insert:
+                    result = supabase.table('videos').insert(video).execute()
+                    
+                    # Auto-link manufacturer/series from document (Migration 28 helper function)
+                    if result.data and len(result.data) > 0:
+                        video_id = result.data[0]['id']
+                        try:
+                            supabase.rpc('auto_link_resource_to_document', {
+                                'p_resource_table': 'krai_content.videos',
+                                'p_resource_id': video_id,
+                                'p_document_id': video['document_id']
+                            }).execute()
+                        except Exception as video_error:
+                            self.logger.debug(f"Could not auto-link manufacturer/series: {video_error}")
             
             self.logger.success(f"Saved {len(videos)} videos to database")
         except Exception as e:
