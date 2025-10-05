@@ -1281,3 +1281,11 @@ postgrest.exceptions.APIError: {'message': "Could not find the 'ai_extracted' co
 2025-10-05 19:06:32 - DEBUG - OCR extracted 829 chars from page_0308_img_000.jpeg
 2025-10-05 19:06:39 - DEBUG - OCR extracted 829 chars from page_0317_img_000.jpeg
 2025-10-05 19:06:51 - DEBUG - OCR extracted 829 chars from page_0332_img_002.jpeg
+2025-10-05 19:08:08 - DEBUG - OCR extracted 9 chars from page_0424_img_001.jpeg
+2025-10-05 19:08:10 - DEBUG - OCR extracted 9 chars from page_0426_img_000.jpeg
+2025-10-05 19:08:14 - DEBUG - OCR extracted 9 chars from page_0430_img_001.jpeg
+2025-10-05 19:08:16 - DEBUG - OCR extracted 9 chars from page_0432_img_000.jpeg
+2025-10-05 19:08:20 - DEBUG - OCR extracted 9 chars from page_0436_img_001.jpeg
+2025-10-05 19:08:22 - DEBUG - OCR extracted 9 chars from page_0438_img_001.jpeg
+2025-10-05 19:08:33 - DEBUG - OCR extracted 7 chars from page_0448_img_001.png
+2025-10-05 19:09:08 - DEBUG - OCR extracted 7 chars from page_0481_img_001.png
