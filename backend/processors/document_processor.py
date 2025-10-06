@@ -719,60 +719,42 @@ class DocumentProcessor:
             
             supabase = create_client(supabase_url, supabase_key)
             
-            # Get manufacturer from document and find manufacturer_id
-            doc_result = supabase.table('documents') \
-                .select('manufacturer') \
-                .eq('id', str(document_id)) \
-                .limit(1) \
-                .execute()
-            
+            # AUTO-CREATE MANUFACTURER IF MISSING
             manufacturer_id = None
-            if doc_result.data and doc_result.data[0].get('manufacturer'):
-                manufacturer_name = doc_result.data[0]['manufacturer']
-                
-                # Find manufacturer_id by name
-                mfr_result = supabase.table('manufacturers') \
-                    .select('id') \
-                    .ilike('name', f"%{manufacturer_name}%") \
-                    .limit(1) \
-                    .execute()
-                
-                if mfr_result.data:
-                    manufacturer_id = mfr_result.data[0]['id']
-                else:
-                    self.logger.warning(f"Manufacturer '{manufacturer_name}' not found in DB - creating entry")
-                    # Try exact match first
-                    create_result = supabase.table('manufacturers') \
-                        .insert({'name': manufacturer_name}) \
-                        .execute()
-                    if create_result.data:
-                        manufacturer_id = create_result.data[0]['id']
-            
+            if manufacturer_name:
+                try:
+                    # Check if manufacturer exists
+                    result = supabase.table('krai_core.manufacturers').select('id').eq('name', manufacturer_name).execute()
+                    if result.data:
+                        manufacturer_id = result.data[0]['id']
+                        self.logger.info(f"✅ Found existing manufacturer: {manufacturer_name} ({manufacturer_id})")
+                    else:
+                        # Auto-create manufacturer
+                        result = supabase.table('krai_core.manufacturers').insert({
+                            'name': manufacturer_name,
+                            'description': f'Auto-created for {manufacturer_name} error code processing',
+                            'is_active': True
+                        }).execute()
+
+                        if result.data:
+                            manufacturer_id = result.data[0]['id']
+                            self.logger.success(f"🔨 Auto-created manufacturer: {manufacturer_name} ({manufacturer_id})")
+
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to get/create manufacturer '{manufacturer_name}': {e}")
+
             # CRITICAL: Skip if no manufacturer_id found
             if not manufacturer_id:
-                self.logger.warning(f"⚠️ No manufacturer_id for document {document_id} - skipping error codes")
-                return
+                self.logger.warning(f"⚠️ No manufacturer_id for manufacturer '{manufacturer_name}' - skipping error codes")
+                saved_count = 0
+                continue
             
-            saved_count = 0
             for error_code in error_codes:
-                # Convert ExtractedErrorCode to dict if needed
-                ec_data = error_code if isinstance(error_code, dict) else {
-                    'error_code': getattr(error_code, 'error_code', ''),
-                    'error_description': getattr(error_code, 'error_description', ''),
-                    'solution_text': getattr(error_code, 'solution_text', None),
-                    'confidence': getattr(error_code, 'confidence', 0.0),
-                    'page_number': getattr(error_code, 'page_number', None),
-                    'context_text': getattr(error_code, 'context_text', None),
-                    'severity_level': getattr(error_code, 'severity_level', 'medium'),
-                    'requires_technician': getattr(error_code, 'requires_technician', False),
-                    'requires_parts': getattr(error_code, 'requires_parts', False)
-                }
                 
                 # Build metadata with smart matching info
                 metadata = {
                     'extracted_at': datetime.utcnow().isoformat(),
                     'extraction_method': ec_data.get('extraction_method', 'regex_pattern')
-                }
                 if ec_data.get('context_text'):
                     metadata['context'] = ec_data.get('context_text')
                 
