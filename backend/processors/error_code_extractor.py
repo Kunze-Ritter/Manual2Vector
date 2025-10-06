@@ -316,29 +316,96 @@ class ErrorCodeExtractor:
         """
         Extract solution steps from context or following text
         
+        Handles multiple formats:
+        - "Recommended action for customers" (HP style)
+        - "Solution:" sections
+        - Numbered troubleshooting steps
+        - Bullet point lists
+        
         Returns:
             Solution text or None
         """
-        # Look for numbered lists or bullet points in context
-        solution_pattern = re.compile(
-            r'(?:solution|fix|remedy|action|steps?):\s*(.{50,1000})',
+        # Extended text window for better extraction
+        text_after = full_text[code_end_pos:code_end_pos + 2500]
+        combined_text = context + "\n" + text_after
+        
+        # Pattern 1: HP/Manufacturer style "Recommended action"
+        recommended_action_pattern = re.compile(
+            r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure)'
+            r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?))?'
+            r'\s*[\n:]+((?:(?:\d+\.|•|-|\*)\s+.{15,}[\n\r]?){2,})',
+            re.IGNORECASE | re.MULTILINE | re.DOTALL
+        )
+        
+        match = recommended_action_pattern.search(combined_text)
+        if match:
+            solution = match.group(1).strip()
+            # Clean up and limit length
+            lines = solution.split('\n')
+            # Take up to 15 lines or until we hit a new section
+            filtered_lines = []
+            for line in lines[:15]:
+                if re.match(r'^(?:\d+\.|•|-|\*)\s+', line):
+                    filtered_lines.append(line.strip())
+                elif filtered_lines:  # Stop at non-list content after we started
+                    break
+            if filtered_lines:
+                return '\n'.join(filtered_lines)
+        
+        # Pattern 2: Standard "Solution:" or "Fix:" sections
+        solution_keywords_pattern = re.compile(
+            r'(?:solution|fix|remedy|resolution|procedure|action|steps?)'
+            r'\s*[:]\s*(.{50,1500})',
             re.IGNORECASE | re.DOTALL
         )
         
-        match = solution_pattern.search(context)
+        match = solution_keywords_pattern.search(combined_text)
         if match:
-            return match.group(1).strip()
+            solution = match.group(1).strip()
+            # Extract until next section header or end
+            end_patterns = [
+                r'\n\s*(?:note|warning|caution|important|tip)',
+                r'\n\s*[A-Z][a-z]+\s+[A-Z]',  # New section title
+                r'\n\s*\d+\.\d+\s',  # Numbered section
+            ]
+            for pattern in end_patterns:
+                section_end = re.search(pattern, solution, re.IGNORECASE)
+                if section_end:
+                    solution = solution[:section_end.start()]
+                    break
+            return solution[:1000].strip()  # Limit length
         
-        # Look for numbered steps (1., 2., etc.)
-        steps_pattern = re.compile(
-            r'((?:\d+\.\s+.{20,}){2,})',  # At least 2 numbered steps
+        # Pattern 3: Numbered steps without header (1., 2., 3., ...)
+        numbered_steps_pattern = re.compile(
+            r'((?:(?:\d+\.|Step\s+\d+)\s+.{20,}[\n\r]?){2,})',
+            re.MULTILINE | re.IGNORECASE
+        )
+        
+        match = numbered_steps_pattern.search(text_after)
+        if match:
+            steps = match.group(1).strip()
+            # Take up to 10 steps
+            lines = [l.strip() for l in steps.split('\n') if l.strip()]
+            step_lines = []
+            for line in lines[:10]:
+                if re.match(r'(?:\d+\.|Step\s+\d+)', line, re.IGNORECASE):
+                    step_lines.append(line)
+                elif step_lines and len(line) > 20:  # Continuation of previous step
+                    step_lines[-1] += ' ' + line
+            if len(step_lines) >= 2:
+                return '\n'.join(step_lines)
+        
+        # Pattern 4: Bullet point lists
+        bullet_pattern = re.compile(
+            r'((?:(?:•|-|\*|–)\s+.{15,}[\n\r]?){2,})',
             re.MULTILINE
         )
         
-        text_after = full_text[code_end_pos:code_end_pos + 1000]
-        match = steps_pattern.search(text_after)
+        match = bullet_pattern.search(combined_text)
         if match:
-            return match.group(1).strip()
+            bullets = match.group(1).strip()
+            lines = [l.strip() for l in bullets.split('\n') if l.strip()][:8]
+            return '\n'.join(lines)
         
         return None
     
