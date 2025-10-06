@@ -739,6 +739,19 @@ class DocumentProcessor:
                 
                 if mfr_result.data:
                     manufacturer_id = mfr_result.data[0]['id']
+                else:
+                    self.logger.warning(f"Manufacturer '{manufacturer_name}' not found in DB - creating entry")
+                    # Try exact match first
+                    create_result = supabase.table('manufacturers') \
+                        .insert({'name': manufacturer_name}) \
+                        .execute()
+                    if create_result.data:
+                        manufacturer_id = create_result.data[0]['id']
+            
+            # CRITICAL: Skip if no manufacturer_id found
+            if not manufacturer_id:
+                self.logger.warning(f"⚠️ No manufacturer_id for document {document_id} - skipping error codes")
+                return
             
             saved_count = 0
             for error_code in error_codes:

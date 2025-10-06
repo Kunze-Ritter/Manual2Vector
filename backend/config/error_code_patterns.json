@@ -396,9 +396,9 @@
   },
   
   "extraction_rules": {
-    "min_confidence": 0.70,
-    "max_codes_per_page": 20,
-    "context_window_chars": 150,
+    "min_confidence": 0.75,
+    "max_codes_per_page": 15,
+    "context_window_chars": 200,
     "require_context_keywords": [
       "error", "code", "fault", "trouble", "malfunction", "failure", "alarm",
       "warning", "service", "maintenance", "troubleshooting", "diagnostic",
