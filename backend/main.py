@@ -143,35 +143,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize APIs
-document_api = None
-search_api = None
-defect_detection_api = None
-features_api = None
-content_management_api = None
+# Initialize APIs with services
+document_api = DocumentAPI(database_service, storage_service, ai_service)
+search_api = SearchAPI(database_service, ai_service)
+defect_detection_api = DefectDetectionAPI(ai_service, database_service)
+features_api = FeaturesAPI(database_service, features_service)
+content_management_api = ContentManagementAPI(
+    database_service=database_service,
+    video_enrichment_service=video_enrichment_service,
+    link_checker_service=link_checker_service
+)
+
+# Include routers (MUST be done before startup, not in startup event!)
+app.include_router(document_api.router)
+app.include_router(search_api.router)
+app.include_router(defect_detection_api.router)
+app.include_router(features_api.router)
+app.include_router(content_management_api.router)
 
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
-    global document_api, search_api, defect_detection_api, features_api, content_management_api
-    
-    # Initialize APIs with services
-    document_api = DocumentAPI(database_service, storage_service, ai_service)
-    search_api = SearchAPI(database_service, ai_service)
-    defect_detection_api = DefectDetectionAPI(ai_service, database_service)
-    features_api = FeaturesAPI(database_service, features_service)
-    content_management_api = ContentManagementAPI(
-        database_service=database_service,
-        video_enrichment_service=video_enrichment_service,
-        link_checker_service=link_checker_service
-    )
-    
-    # Include routers
-    app.include_router(document_api.router)
-    app.include_router(search_api.router)
-    app.include_router(defect_detection_api.router)
-    app.include_router(features_api.router)
-    app.include_router(content_management_api.router)
+    # Any async startup tasks can go here
+    pass
 
 # Root endpoint
 @app.get("/")
