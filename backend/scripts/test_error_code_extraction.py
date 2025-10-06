@@ -77,6 +77,9 @@ class ErrorCodeExtractionTester:
             all_error_codes = []
             total_pages = len(pdf_text)
             
+            # Import exception for proper handling
+            from processors.exceptions import ManufacturerPatternNotFoundError
+            
             for page_num, page_text in pdf_text.items():
                 try:
                     error_codes = self.extractor.extract_from_text(
@@ -89,6 +92,10 @@ class ErrorCodeExtractionTester:
                         all_error_codes.extend(error_codes)
                         logger.info(f"  Page {page_num}: Found {len(error_codes)} error codes")
                     
+                except ManufacturerPatternNotFoundError as e:
+                    # Re-raise pattern errors - these should stop processing
+                    logger.error(f"\n{e}")
+                    return {"error": str(e), "test_name": test_name or Path(pdf_path).stem}
                 except Exception as e:
                     logger.debug(f"  Page {page_num}: Error - {e}")
                     continue
