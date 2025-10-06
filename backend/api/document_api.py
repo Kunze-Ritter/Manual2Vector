@@ -14,9 +14,9 @@ from services.database_service import DatabaseService
 from services.object_storage_service import ObjectStorageService
 from services.ai_service import AIService
 from processors.upload_processor import UploadProcessor
-from processors.text_processor import TextProcessor
+from processors.document_processor import DocumentProcessor
 from processors.image_processor import ImageProcessor
-from processors.classification_processor import ClassificationProcessor
+from processors.master_pipeline import MasterPipeline
 
 class DocumentAPI:
     """
@@ -39,11 +39,11 @@ class DocumentAPI:
         self.logger = logging.getLogger("krai.api.document")
         self._setup_logging()
         
-        # Initialize processors
+        # Initialize processors (V2)
+        # Note: DocumentAPI is legacy - consider using MasterPipeline directly
         self.upload_processor = UploadProcessor(database_service)
-        self.text_processor = TextProcessor(database_service, None)  # Config service will be injected
-        self.image_processor = ImageProcessor(database_service, storage_service, ai_service)
-        self.classification_processor = ClassificationProcessor(database_service, ai_service, None)  # Features service will be injected
+        # V2 processors have different initialization - simplified for now
+        # For full processing, use MasterPipeline from processors.master_pipeline
         
         # Create router
         self.router = APIRouter(prefix="/documents", tags=["documents"])
@@ -263,23 +263,11 @@ class DocumentAPI:
                 )
                 
                 # Process through pipeline
-                # 1. Text processing
-                text_result = await self.text_processor.safe_process(context)
-                if not text_result.success:
-                    self.logger.error(f"Text processing failed: {text_result.error}")
-                    return
-                
-                # 2. Image processing
-                image_result = await self.image_processor.safe_process(context)
-                if not image_result.success:
-                    self.logger.error(f"Image processing failed: {image_result.error}")
-                    return
-                
-                # 3. Classification processing
-                classification_result = await self.classification_processor.safe_process(context)
-                if not classification_result.success:
-                    self.logger.error(f"Classification processing failed: {classification_result.error}")
-                    return
+                # NOTE: DocumentAPI is legacy - for full processing use MasterPipeline
+                # This simplified version just logs the upload
+                self.logger.info(f"Document {document_id} uploaded successfully")
+                self.logger.info(f"For full processing, use MasterPipeline from processors.master_pipeline")
+                # TODO: Integrate MasterPipeline here or deprecate this API
                 
                 # Update document status
                 await self.database_service.update_document(
