@@ -1,0 +1,1615 @@
+2025-10-06 15:50:20 - INFO - Document ID: ca9fa8ee-46c1-4861-b158-58e1bee8159b
+2025-10-06 15:50:20 - INFO - Log file: C:\Users\haast\Docker\KRAI-minimal\input_pdfs\HP_X580_SM.log.txt
+2025-10-06 15:50:20 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-06 15:50:20 - INFO - Extracting text from: HP_X580_SM.pdf
+2025-10-06 15:50:20 - INFO - Using engine: pymupdf
+2025-10-06 15:50:24 - INFO - [green]Extracted 1362 pages with PyMuPDF[/green]
+2025-10-06 15:50:24 - INFO - 🔍 Auto-detected manufacturer: Hp
+2025-10-06 15:50:24 - INFO -    Confidence: 3/3 sources (filename, title, text)
+2025-10-06 15:50:24 - INFO - [green]   ✅ High confidence (all 3 sources agree!)[/green]
+2025-10-06 15:50:25 - INFO - ✅ Set document manufacturer: Hp
+2025-10-06 15:50:25 - INFO - Step 2/5: Extracting product models...
+2025-10-06 15:50:25 - INFO - Extracted 5 products from page 1
+2025-10-06 15:50:25 - INFO - Running LLM extraction on all pages...
+2025-10-06 15:51:22 - DEBUG -    Series: AccurioPress
+2025-10-06 15:51:22 - DEBUG -    Series: AccurioPress
+2025-10-06 15:51:36 - INFO - [green]Extracted 7 products[/green]
+2025-10-06 15:51:36 - INFO - Step 2c/5: Extracting spare parts...
+2025-10-06 15:51:36 - INFO - 📦 Document type 'service_manual' - extracting parts with high confidence
+2025-10-06 15:51:37 - INFO - [green]✅ Extracted 139 spare parts[/green]
+2025-10-06 15:51:37 - INFO - Step 3/5: Extracting error codes...
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - INFO - Extracted 1 error codes from page 304
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Skipping code '10.22.15' - confidence too low (0.55)
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - INFO - Extracted 1 error codes from page 445
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - INFO - Extracted 1 error codes from page 447
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Skipping code '13.84' - confidence too low (0.60)
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - DEBUG - Using error code patterns for manufacturer: hp
+2025-10-06 15:51:37 - INFO - [green]Extracted 3 error codes[/green]
+2025-10-06 15:51:39 - DEBUG - Found existing manufacturer: Hp (ID: 5343cfe1-1170-4387-ac17-555d6c4e5105)
+2025-10-06 15:51:40 - INFO - [green]💾 Saved 3 error codes to DB[/green]
+2025-10-06 15:51:40 - INFO - Step 3b/7: Extracting document versions...
+2025-10-06 15:51:40 - INFO - [green]Extracted version: Edition 14, 4/2025 (confidence: 0.90)[/green]
+2025-10-06 15:51:40 - INFO - Step 3c/8: Extracting images...
+2025-10-06 15:51:40 - INFO - Processing images from: HP_X580_SM.pdf
+2025-10-06 15:51:53 - INFO - Extracted 1697 images
+2025-10-06 15:51:53 - INFO - Filtered to 1680 relevant images
+2025-10-06 15:51:53 - INFO - Running OCR on images...
+2025-10-06 15:51:55 - DEBUG - OCR extracted 7 chars from page_0056_img_001.jpeg
+2025-10-06 15:52:05 - DEBUG - OCR extracted 114 chars from page_0074_img_000.jpeg
+2025-10-06 15:52:07 - DEBUG - OCR extracted 63 chars from page_0106_img_000.jpeg
+2025-10-06 15:52:08 - DEBUG - OCR extracted 187 chars from page_0137_img_001.jpeg
+2025-10-06 15:52:09 - DEBUG - OCR extracted 145 chars from page_0137_img_003.jpeg
+2025-10-06 15:52:10 - DEBUG - OCR extracted 30 chars from page_0138_img_002.jpeg
+2025-10-06 15:52:11 - DEBUG - OCR extracted 1011 chars from page_0138_img_003.jpeg
+2025-10-06 15:52:12 - DEBUG - OCR extracted 1011 chars from page_0139_img_001.jpeg
+2025-10-06 15:52:13 - DEBUG - OCR extracted 156 chars from page_0139_img_002.jpeg
+2025-10-06 15:52:13 - DEBUG - OCR extracted 6 chars from page_0139_img_003.jpeg
+2025-10-06 15:52:14 - DEBUG - OCR extracted 110 chars from page_0140_img_002.jpeg
+2025-10-06 15:52:15 - DEBUG - OCR extracted 236 chars from page_0140_img_003.jpeg
+2025-10-06 15:52:16 - DEBUG - OCR extracted 1011 chars from page_0141_img_002.jpeg
+2025-10-06 15:52:16 - DEBUG - OCR extracted 34 chars from page_0141_img_003.jpeg
+2025-10-06 15:52:17 - DEBUG - OCR extracted 47 chars from page_0141_img_004.jpeg
+2025-10-06 15:52:17 - DEBUG - OCR extracted 212 chars from page_0142_img_001.jpeg
+2025-10-06 15:52:18 - DEBUG - OCR extracted 25 chars from page_0142_img_003.jpeg
+2025-10-06 15:52:19 - DEBUG - OCR extracted 30 chars from page_0143_img_000.jpeg
+2025-10-06 15:52:19 - DEBUG - OCR extracted 36 chars from page_0143_img_001.jpeg
+2025-10-06 15:52:20 - DEBUG - OCR extracted 752 chars from page_0143_img_002.jpeg
+2025-10-06 15:52:21 - DEBUG - OCR extracted 25 chars from page_0144_img_000.jpeg
+2025-10-06 15:52:21 - DEBUG - OCR extracted 95 chars from page_0144_img_001.jpeg
+2025-10-06 15:52:22 - DEBUG - OCR extracted 14 chars from page_0150_img_005.jpeg
+2025-10-06 15:52:23 - DEBUG - OCR extracted 32 chars from page_0150_img_007.jpeg
+2025-10-06 15:52:30 - DEBUG - OCR extracted 52 chars from page_0156_img_004.jpeg
+2025-10-06 15:52:32 - DEBUG - OCR extracted 3 chars from page_0158_img_001.jpeg
+2025-10-06 15:52:32 - DEBUG - OCR extracted 4 chars from page_0158_img_002.jpeg
+2025-10-06 15:52:39 - DEBUG - OCR extracted 54 chars from page_0161_img_001.jpeg
+2025-10-06 15:52:41 - DEBUG - OCR extracted 26 chars from page_0162_img_001.jpeg
+2025-10-06 15:52:41 - DEBUG - OCR extracted 19 chars from page_0163_img_001.jpeg
+2025-10-06 15:52:42 - DEBUG - OCR extracted 51 chars from page_0163_img_002.jpeg
+2025-10-06 15:52:42 - DEBUG - OCR extracted 2 chars from page_0164_img_001.jpeg
+2025-10-06 15:52:43 - DEBUG - OCR extracted 53 chars from page_0165_img_001.jpeg
+2025-10-06 15:52:43 - DEBUG - OCR extracted 53 chars from page_0165_img_002.jpeg
+2025-10-06 15:52:44 - DEBUG - OCR extracted 40 chars from page_0166_img_001.jpeg
+2025-10-06 15:52:46 - DEBUG - OCR extracted 4 chars from page_0195_img_000.jpeg
+2025-10-06 15:52:47 - DEBUG - OCR extracted 35 chars from page_0247_img_000.jpeg
+2025-10-06 15:52:49 - DEBUG - OCR extracted 614 chars from page_0247_img_002.jpeg
+2025-10-06 15:52:49 - DEBUG - OCR extracted 18 chars from page_0249_img_000.jpeg
+2025-10-06 15:52:50 - DEBUG - OCR extracted 492 chars from page_0249_img_002.jpeg
+2025-10-06 15:52:56 - DEBUG - OCR extracted 4 chars from page_0313_img_001.jpeg
+2025-10-06 15:53:01 - DEBUG - OCR extracted 52 chars from page_0320_img_006.jpeg
+2025-10-06 15:53:04 - DEBUG - OCR extracted 3 chars from page_0322_img_001.jpeg
+2025-10-06 15:53:04 - DEBUG - OCR extracted 4 chars from page_0322_img_002.jpeg
+2025-10-06 15:53:11 - DEBUG - OCR extracted 54 chars from page_0325_img_001.jpeg
+2025-10-06 15:53:13 - DEBUG - OCR extracted 26 chars from page_0326_img_001.jpeg
+2025-10-06 15:53:13 - DEBUG - OCR extracted 19 chars from page_0327_img_001.jpeg
+2025-10-06 15:53:14 - DEBUG - OCR extracted 51 chars from page_0327_img_002.jpeg
+2025-10-06 15:53:14 - DEBUG - OCR extracted 2 chars from page_0328_img_001.jpeg
+2025-10-06 15:53:15 - DEBUG - OCR extracted 53 chars from page_0329_img_001.jpeg
+2025-10-06 15:53:15 - DEBUG - OCR extracted 40 chars from page_0330_img_000.jpeg
+2025-10-06 15:53:21 - DEBUG - OCR extracted 534 chars from page_0335_img_001.jpeg
+2025-10-06 15:53:22 - DEBUG - OCR extracted 80 chars from page_0338_img_003.jpeg
+2025-10-06 15:53:23 - DEBUG - OCR extracted 63 chars from page_0338_img_004.jpeg
+2025-10-06 15:53:24 - DEBUG - OCR extracted 19 chars from page_0339_img_002.jpeg
+2025-10-06 15:53:24 - DEBUG - OCR extracted 19 chars from page_0340_img_001.jpeg
+2025-10-06 15:53:24 - DEBUG - OCR extracted 18 chars from page_0340_img_002.jpeg
+2025-10-06 15:53:25 - DEBUG - OCR extracted 19 chars from page_0341_img_001.jpeg
+2025-10-06 15:53:26 - DEBUG - OCR extracted 187 chars from page_0343_img_001.jpeg
+2025-10-06 15:53:27 - DEBUG - OCR extracted 145 chars from page_0343_img_003.jpeg
+2025-10-06 15:53:28 - DEBUG - OCR extracted 30 chars from page_0344_img_002.jpeg
+2025-10-06 15:53:29 - DEBUG - OCR extracted 1011 chars from page_0344_img_003.jpeg
+2025-10-06 15:53:30 - DEBUG - OCR extracted 1011 chars from page_0345_img_001.jpeg
+2025-10-06 15:53:30 - DEBUG - OCR extracted 156 chars from page_0345_img_002.jpeg
+2025-10-06 15:53:31 - DEBUG - OCR extracted 6 chars from page_0345_img_003.jpeg
+2025-10-06 15:53:32 - DEBUG - OCR extracted 110 chars from page_0346_img_002.jpeg
+2025-10-06 15:53:34 - DEBUG - OCR extracted 236 chars from page_0346_img_003.jpeg
+2025-10-06 15:53:35 - DEBUG - OCR extracted 1011 chars from page_0347_img_002.jpeg
+2025-10-06 15:53:35 - DEBUG - OCR extracted 34 chars from page_0347_img_003.jpeg
+2025-10-06 15:53:36 - DEBUG - OCR extracted 47 chars from page_0347_img_004.jpeg
+2025-10-06 15:53:36 - DEBUG - OCR extracted 212 chars from page_0348_img_001.jpeg
+2025-10-06 15:53:37 - DEBUG - OCR extracted 25 chars from page_0348_img_003.jpeg
+2025-10-06 15:53:37 - DEBUG - OCR extracted 30 chars from page_0349_img_000.jpeg
+2025-10-06 15:53:38 - DEBUG - OCR extracted 36 chars from page_0349_img_001.jpeg
+2025-10-06 15:53:39 - DEBUG - OCR extracted 752 chars from page_0349_img_002.jpeg
+2025-10-06 15:53:39 - DEBUG - OCR extracted 25 chars from page_0350_img_000.jpeg
+2025-10-06 15:53:40 - DEBUG - OCR extracted 95 chars from page_0350_img_001.jpeg
+2025-10-06 15:55:01 - DEBUG - OCR extracted 3 chars from page_0447_img_000.jpeg
+2025-10-06 15:55:06 - DEBUG - OCR extracted 6 chars from page_0458_img_001.jpeg
+2025-10-06 15:55:10 - DEBUG - OCR extracted 50 chars from page_0464_img_000.png
+2025-10-06 15:55:11 - DEBUG - OCR extracted 43 chars from page_0464_img_001.png
+2025-10-06 15:55:11 - DEBUG - OCR extracted 4 chars from page_0465_img_001.png
+2025-10-06 15:55:16 - DEBUG - OCR extracted 43 chars from page_0468_img_000.png
+2025-10-06 15:55:17 - DEBUG - OCR extracted 50 chars from page_0469_img_000.png
+2025-10-06 15:55:17 - DEBUG - OCR extracted 4 chars from page_0470_img_000.png
+2025-10-06 15:55:22 - DEBUG - OCR extracted 3 chars from page_0470_img_013.png
+2025-10-06 15:55:37 - DEBUG - OCR extracted 97 chars from page_0493_img_002.png
+2025-10-06 15:55:37 - DEBUG - OCR extracted 35 chars from page_0494_img_000.png
+2025-10-06 15:55:38 - DEBUG - OCR extracted 177 chars from page_0494_img_001.jpeg
+2025-10-06 15:56:35 - DEBUG - OCR extracted 13 chars from page_0565_img_002.jpeg
+2025-10-06 15:56:37 - DEBUG - OCR extracted 13 chars from page_0567_img_000.jpeg
+2025-10-06 15:57:38 - DEBUG - OCR extracted 19 chars from page_0652_img_002.jpeg
+2025-10-06 15:58:08 - DEBUG - OCR extracted 2 chars from page_0691_img_000.jpeg
+2025-10-06 15:59:20 - DEBUG - OCR extracted 7 chars from page_0778_img_003.jpeg
+2025-10-06 16:01:52 - DEBUG - OCR extracted 2 chars from page_0931_img_002.jpeg
+2025-10-06 16:02:12 - DEBUG - OCR extracted 7 chars from page_0956_img_001.jpeg
+2025-10-06 16:05:01 - DEBUG - OCR extracted 7 chars from page_1170_img_001.jpeg
+2025-10-06 16:05:04 - DEBUG - OCR extracted 8 chars from page_1175_img_003.jpeg
+2025-10-06 16:05:05 - DEBUG - OCR extracted 7 chars from page_1177_img_000.jpeg
+2025-10-06 16:05:07 - DEBUG - OCR extracted 8 chars from page_1178_img_001.jpeg
+2025-10-06 16:05:08 - DEBUG - OCR extracted 7 chars from page_1180_img_000.jpeg
+2025-10-06 16:05:11 - DEBUG - OCR extracted 8 chars from page_1182_img_000.jpeg
+2025-10-06 16:05:13 - DEBUG - OCR extracted 7 chars from page_1185_img_000.jpeg
+2025-10-06 16:05:14 - DEBUG - OCR extracted 12 chars from page_1186_img_003.jpeg
+2025-10-06 16:05:14 - DEBUG - OCR extracted 7 chars from page_1188_img_000.jpeg
+2025-10-06 16:05:17 - DEBUG - OCR extracted 8 chars from page_1190_img_000.jpeg
+2025-10-06 16:05:22 - DEBUG - OCR extracted 7 chars from page_1195_img_000.jpeg
+2025-10-06 16:05:25 - DEBUG - OCR extracted 8 chars from page_1197_img_000.jpeg
+2025-10-06 16:05:35 - DEBUG - OCR extracted 21 chars from page_1204_img_002.jpeg
+2025-10-06 16:05:41 - DEBUG - OCR extracted 7 chars from page_1211_img_000.jpeg
+2025-10-06 16:05:46 - DEBUG - OCR extracted 7 chars from page_1218_img_000.jpeg
+2025-10-06 16:05:49 - DEBUG - OCR extracted 8 chars from page_1220_img_001.jpeg
+2025-10-06 16:05:55 - DEBUG - OCR extracted 21 chars from page_1225_img_002.jpeg
+2025-10-06 16:05:56 - DEBUG - OCR extracted 7 chars from page_1228_img_000.jpeg
+2025-10-06 16:05:59 - DEBUG - OCR extracted 8 chars from page_1230_img_000.jpeg
+2025-10-06 16:06:10 - DEBUG - OCR extracted 21 chars from page_1237_img_002.jpeg
+2025-10-06 16:06:14 - DEBUG - OCR extracted 7 chars from page_1242_img_000.jpeg
+2025-10-06 16:06:22 - DEBUG - OCR extracted 7 chars from page_1250_img_000.jpeg
+2025-10-06 16:06:24 - DEBUG - OCR extracted 7 chars from page_1253_img_000.jpeg
+2025-10-06 16:06:26 - DEBUG - OCR extracted 7 chars from page_1257_img_000.jpeg
+2025-10-06 16:06:30 - DEBUG - OCR extracted 2028 chars from page_1336_img_000.png
+2025-10-06 16:06:31 - DEBUG - OCR extracted 1519 chars from page_1340_img_000.jpeg
+2025-10-06 16:06:31 - INFO - [green]✅ OCR processed 122/1680 images with text[/green]
+2025-10-06 16:06:31 - INFO - Running Vision AI analysis...
+2025-10-06 16:06:31 - INFO - Processing first 50 images (skipping 1630 to avoid overload)
+2025-10-06 16:06:31 - DEBUG - Using vision model: llava:13b
+2025-10-06 16:07:00 - DEBUG - Analyzed page_0001_img_000.png: The image displays the logo of Hewlett Packard Ent...
+2025-10-06 16:07:15 - DEBUG - Analyzed page_0056_img_001.jpeg: This is an exploded view from a service manual sho...
+2025-10-06 16:07:39 - DEBUG - Analyzed page_0056_img_002.jpeg: The image appears to be a close-up photograph of a...
+2025-10-06 16:07:55 - DEBUG - Analyzed page_0063_img_002.jpeg: The image appears to be a disassembled computer mo...
+2025-10-06 16:08:05 - DEBUG - Analyzed page_0064_img_001.jpeg: This is an exploded view diagram from a service ma...
+2025-10-06 16:08:24 - DEBUG - Analyzed page_0066_img_000.png: This image depicts an exploded view diagram with a...
+2025-10-06 16:08:36 - DEBUG - Analyzed page_0066_img_001.png: The image is an exploded view illustration from a ...
+2025-10-06 16:08:53 - DEBUG - Analyzed page_0066_img_002.png: The image is a close-up shot of an opened applianc...
+2025-10-06 16:09:17 - DEBUG - Analyzed page_0067_img_001.jpeg: The image shows a person's hand interacting with a...
+2025-10-06 16:09:38 - DEBUG - Analyzed page_0067_img_002.jpeg: The image appears to be a photograph capturing the...
+2025-10-06 16:09:57 - DEBUG - Analyzed page_0068_img_000.jpeg: The image shows a person working with an electroni...
+2025-10-06 16:10:11 - DEBUG - Analyzed page_0068_img_001.jpeg: The image shows a close-up view of an electrical c...
+2025-10-06 16:10:26 - DEBUG - Analyzed page_0068_img_002.jpeg: The image is an exploded view diagram from a servi...
+2025-10-06 16:10:45 - DEBUG - Analyzed page_0069_img_002.jpeg: The image appears to be an exploded view diagram f...
+2025-10-06 16:11:02 - DEBUG - Analyzed page_0069_img_003.jpeg: This is an image depicting a close-up view of the ...
+2025-10-06 16:11:24 - DEBUG - Analyzed page_0069_img_004.jpeg: This image is an exploded view from a service manu...
+2025-10-06 16:11:41 - DEBUG - Analyzed page_0070_img_000.jpeg: This image appears to be from a service manual sho...
+2025-10-06 16:11:52 - DEBUG - Analyzed page_0070_img_001.jpeg: This is an exploded view diagram from a service ma...
+2025-10-06 16:12:08 - DEBUG - Analyzed page_0070_img_002.jpeg: This image shows a close-up view of an electronic ...
+2025-10-06 16:12:25 - DEBUG - Analyzed page_0074_img_000.jpeg: The image appears to be a simplified representatio...
+2025-10-06 16:12:42 - DEBUG - Analyzed page_0081_img_000.jpeg: The image is a schematic diagram illustrating the ...
+2025-10-06 16:12:56 - DEBUG - Analyzed page_0103_img_000.png: The image appears to be a technical diagram from a...
+2025-10-06 16:13:17 - DEBUG - Analyzed page_0106_img_000.jpeg: The image appears to be a schematic diagram from a...
+2025-10-06 16:13:39 - DEBUG - Analyzed page_0136_img_001.jpeg: The image shows a web interface with a navigation ...
+2025-10-06 16:14:03 - DEBUG - Analyzed page_0137_img_001.jpeg: The image appears to be a screenshot of a web inte...
+2025-10-06 16:14:18 - DEBUG - Analyzed page_0137_img_002.jpeg: The image appears to be a screenshot from an error...
+2025-10-06 16:14:38 - DEBUG - Analyzed page_0137_img_003.jpeg: The image appears to be a screenshot from a softwa...
+2025-10-06 16:15:02 - DEBUG - Analyzed page_0138_img_001.jpeg: This image appears to be a low-resolution screensh...
+2025-10-06 16:15:20 - DEBUG - Analyzed page_0138_img_002.jpeg: The image appears to be a screenshot from an error...
+2025-10-06 16:15:39 - DEBUG - Analyzed page_0138_img_003.jpeg: The image provided appears to be a screenshot of a...
+2025-10-06 16:15:59 - DEBUG - Analyzed page_0139_img_001.jpeg: The image appears to be a screenshot of an email c...
+2025-10-06 16:16:16 - DEBUG - Analyzed page_0139_img_002.jpeg: This is a screenshot of a search result within a s...
+2025-10-06 16:16:46 - DEBUG - Vision AI failed for page_0139_img_003.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-06 16:17:12 - DEBUG - Analyzed page_0140_img_001.jpeg: This image shows a screenshot of an online product...
+2025-10-06 16:17:29 - DEBUG - Analyzed page_0140_img_002.jpeg: This is a screenshot from an online service manual...
+2025-10-06 16:17:54 - DEBUG - Analyzed page_0140_img_003.jpeg: This image appears to be a screenshot of an error ...
+2025-10-06 16:18:16 - DEBUG - Analyzed page_0141_img_002.jpeg: The image shows a screenshot of a computer interfa...
+2025-10-06 16:18:33 - DEBUG - Analyzed page_0141_img_003.jpeg: The image displays a screenshot of an email addres...
+2025-10-06 16:18:54 - DEBUG - Analyzed page_0141_img_004.jpeg: The image is a screenshot of a web page with the t...
+2025-10-06 16:19:12 - DEBUG - Analyzed page_0142_img_001.jpeg: This is a screenshot from an online service manual...
+2025-10-06 16:19:35 - DEBUG - Analyzed page_0142_img_002.jpeg: This image appears to be a screenshot of a webpage...
+2025-10-06 16:20:05 - DEBUG - Vision AI failed for page_0142_img_003.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-06 16:20:35 - DEBUG - Vision AI failed for page_0143_img_000.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-06 16:20:59 - DEBUG - Analyzed page_0143_img_001.jpeg: The image is a screenshot of the HP Partner Portal...
+2025-10-06 16:21:22 - DEBUG - Analyzed page_0143_img_002.jpeg: This is a screenshot of a webpage titled "HP Partn...
+2025-10-06 16:21:52 - DEBUG - Vision AI failed for page_0144_img_000.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-06 16:22:21 - DEBUG - Analyzed page_0144_img_001.jpeg: The image is a screenshot of an HP Partner Portal ...
+2025-10-06 16:22:47 - DEBUG - Analyzed page_0150_img_005.jpeg: The image is a photograph of a printed document fr...
+2025-10-06 16:23:17 - DEBUG - Vision AI failed for page_0150_img_007.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-06 16:23:37 - DEBUG - Analyzed page_0151_img_002.jpeg: This image appears to be a screenshot from the int...
+2025-10-06 16:23:37 - INFO - [green]✅ Vision AI analyzed 45/50 images[/green]
+2025-10-06 16:23:37 - INFO - [green]Extracted 1680 images[/green]
+2025-10-06 16:23:37 - INFO - Step 3d/8: Extracting links and videos...
+2025-10-06 16:24:05 - INFO - [green]Extracted 103 unique links (39 videos)[/green]
+2025-10-06 16:24:05 - INFO - Analyzing 39 video thumbnails...
+2025-10-06 16:24:07 - DEBUG - OCR extracted 78 chars from video thumbnail
+2025-10-06 16:24:27 - DEBUG - Thumbnail Vision AI failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=20)
+2025-10-06 16:24:47 - DEBUG - Vision AI analyzed thumbnail: The image appears to be a screenshot of a video th...
+2025-10-06 16:24:48 - DEBUG - OCR extracted 64 chars from video thumbnail
+2025-10-06 16:25:07 - DEBUG - Vision AI analyzed thumbnail: The image shows a printer, specifically an HP Colo...
+2025-10-06 16:25:26 - DEBUG - Vision AI analyzed thumbnail: The image displays a thumbnail for a video that ap...
+2025-10-06 16:25:27 - DEBUG - OCR extracted 89 chars from video thumbnail
+2025-10-06 16:25:47 - DEBUG - Thumbnail Vision AI failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=20)
+2025-10-06 16:25:48 - DEBUG - OCR extracted 86 chars from video thumbnail
+2025-10-06 16:25:59 - DEBUG - Vision AI analyzed thumbnail: The image shows a printer with the text "How to Fi...
+2025-10-06 16:26:00 - DEBUG - OCR extracted 98 chars from video thumbnail
+2025-10-06 16:26:15 - DEBUG - Vision AI analyzed thumbnail: The image appears to be a thumbnail for an instruc...
+2025-10-06 16:26:36 - DEBUG - Thumbnail Vision AI failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=20)
+2025-10-06 16:26:37 - DEBUG - OCR extracted 85 chars from video thumbnail
+2025-10-06 16:26:57 - DEBUG - Vision AI analyzed thumbnail: The image shows a printer on top of a sheet of pap...
+2025-10-06 16:26:58 - DEBUG - OCR extracted 90 chars from video thumbnail
+2025-10-06 16:27:16 - DEBUG - Vision AI analyzed thumbnail: The image shows a printer on the left side and som...
+2025-10-06 16:27:17 - DEBUG - OCR extracted 79 chars from video thumbnail
+2025-10-06 16:27:36 - DEBUG - Vision AI analyzed thumbnail: The image appears to be a screenshot of a YouTube ...
+2025-10-06 16:27:37 - DEBUG - OCR extracted 76 chars from video thumbnail
+2025-10-06 16:27:52 - DEBUG - Vision AI analyzed thumbnail: The image is a screenshot of a video thumbnail fea...
+2025-10-06 16:27:53 - DEBUG - OCR extracted 71 chars from video thumbnail
+2025-10-06 16:28:07 - DEBUG - Vision AI analyzed thumbnail: The image shows a printer with a white and blue co...
+2025-10-06 16:28:08 - DEBUG - OCR extracted 72 chars from video thumbnail
+2025-10-06 16:28:27 - DEBUG - Vision AI analyzed thumbnail: The image appears to be a thumbnail for a video. I...
+2025-10-06 16:28:28 - DEBUG - OCR extracted 72 chars from video thumbnail
+2025-10-06 16:28:42 - DEBUG - Vision AI analyzed thumbnail: The image shows a thumbnail for a YouTube video ti...
+2025-10-06 16:28:58 - DEBUG - Vision AI analyzed thumbnail: The image appears to be a thumbnail for a video th...
+2025-10-06 16:29:00 - DEBUG - OCR extracted 68 chars from video thumbnail
+2025-10-06 16:29:12 - DEBUG - Vision AI analyzed thumbnail: The image shows a thumbnail for a video titled "Ho...
+2025-10-06 16:29:14 - DEBUG - OCR extracted 75 chars from video thumbnail
+2025-10-06 16:29:34 - DEBUG - Thumbnail Vision AI failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=20)
+2025-10-06 16:29:35 - DEBUG - OCR extracted 78 chars from video thumbnail
+2025-10-06 16:29:55 - DEBUG - Thumbnail Vision AI failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=20)
+2025-10-06 16:29:57 - DEBUG - OCR extracted 82 chars from video thumbnail
+2025-10-06 16:30:13 - DEBUG - Vision AI analyzed thumbnail: The image appears to be a thumbnail for a video, p...
+2025-10-06 16:30:14 - DEBUG - OCR extracted 88 chars from video thumbnail
