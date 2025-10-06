@@ -21,6 +21,7 @@ from .image_processor import ImageProcessor
 from .embedding_processor import EmbeddingProcessor
 from .chunker import SmartChunker
 from .link_extractor import LinkExtractor
+from .exceptions import ManufacturerNotFoundError
 
 
 class DocumentProcessor:
@@ -603,6 +604,64 @@ class DocumentProcessor:
                 'error': str(e)
             }
     
+    def _ensure_manufacturer_exists(self, manufacturer_name: str, supabase) -> Optional[UUID]:
+        """
+        Ensure manufacturer exists in database, create if needed
+        
+        Args:
+            manufacturer_name: Name of manufacturer (e.g., "HP", "Konica Minolta")
+            supabase: Supabase client instance
+            
+        Returns:
+            manufacturer_id (UUID) if found/created, None if failed
+            
+        Raises:
+            ManufacturerNotFoundError: If manufacturer cannot be created
+        """
+        if not manufacturer_name:
+            return None
+        
+        try:
+            # 1. Try to find existing manufacturer (case-insensitive)
+            result = supabase.table('manufacturers') \
+                .select('id') \
+                .ilike('name', f"%{manufacturer_name}%") \
+                .limit(1) \
+                .execute()
+            
+            if result.data:
+                manufacturer_id = result.data[0]['id']
+                self.logger.debug(f"Found existing manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
+                return manufacturer_id
+            
+            # 2. Manufacturer not found - create new entry
+            self.logger.info(f"📝 Creating new manufacturer entry: {manufacturer_name}")
+            
+            create_result = supabase.table('manufacturers') \
+                .insert({'name': manufacturer_name}) \
+                .execute()
+            
+            if create_result.data:
+                manufacturer_id = create_result.data[0]['id']
+                self.logger.success(f"✅ Created manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
+                return manufacturer_id
+            else:
+                # Creation failed
+                raise ManufacturerNotFoundError(
+                    manufacturer=manufacturer_name,
+                    reason="Database insert returned no data"
+                )
+        
+        except Exception as e:
+            if isinstance(e, ManufacturerNotFoundError):
+                raise
+            
+            self.logger.error(f"Failed to ensure manufacturer exists: {e}")
+            raise ManufacturerNotFoundError(
+                manufacturer=manufacturer_name,
+                reason=str(e)
+            )
+    
     def _save_links_to_db(self, links: List[Dict]):
         """Save extracted links to database with auto-linked manufacturer/series"""
         try:
@@ -719,42 +778,49 @@ class DocumentProcessor:
             
             supabase = create_client(supabase_url, supabase_key)
             
-            # AUTO-CREATE MANUFACTURER IF MISSING
+            # Get manufacturer from document
+            doc_result = supabase.table('documents') \
+                .select('manufacturer') \
+                .eq('id', str(document_id)) \
+                .limit(1) \
+                .execute()
+            
             manufacturer_id = None
-            if manufacturer_name:
+            if doc_result.data and doc_result.data[0].get('manufacturer'):
+                manufacturer_name = doc_result.data[0]['manufacturer']
+                
+                # Use unified helper to ensure manufacturer exists
                 try:
-                    # Check if manufacturer exists
-                    result = supabase.table('krai_core.manufacturers').select('id').eq('name', manufacturer_name).execute()
-                    if result.data:
-                        manufacturer_id = result.data[0]['id']
-                        self.logger.info(f"✅ Found existing manufacturer: {manufacturer_name} ({manufacturer_id})")
-                    else:
-                        # Auto-create manufacturer
-                        result = supabase.table('krai_core.manufacturers').insert({
-                            'name': manufacturer_name,
-                            'description': f'Auto-created for {manufacturer_name} error code processing',
-                            'is_active': True
-                        }).execute()
-
-                        if result.data:
-                            manufacturer_id = result.data[0]['id']
-                            self.logger.success(f"🔨 Auto-created manufacturer: {manufacturer_name} ({manufacturer_id})")
-
-                except Exception as e:
-                    self.logger.error(f"❌ Failed to get/create manufacturer '{manufacturer_name}': {e}")
-
+                    manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
+                except ManufacturerNotFoundError as e:
+                    self.logger.error(f"Failed to ensure manufacturer exists: {e}")
+                    return
+            
             # CRITICAL: Skip if no manufacturer_id found
             if not manufacturer_id:
-                self.logger.warning(f"⚠️ No manufacturer_id for manufacturer '{manufacturer_name}' - skipping error codes")
-                saved_count = 0
-                continue
+                self.logger.warning(f"⚠️ No manufacturer_id for document {document_id} - skipping error codes")
+                return
             
+            saved_count = 0
             for error_code in error_codes:
+                # Convert ExtractedErrorCode to dict if needed
+                ec_data = error_code if isinstance(error_code, dict) else {
+                    'error_code': getattr(error_code, 'error_code', ''),
+                    'error_description': getattr(error_code, 'error_description', ''),
+                    'solution_text': getattr(error_code, 'solution_text', None),
+                    'confidence': getattr(error_code, 'confidence', 0.0),
+                    'page_number': getattr(error_code, 'page_number', None),
+                    'context_text': getattr(error_code, 'context_text', None),
+                    'severity_level': getattr(error_code, 'severity_level', 'medium'),
+                    'requires_technician': getattr(error_code, 'requires_technician', False),
+                    'requires_parts': getattr(error_code, 'requires_parts', False)
+                }
                 
                 # Build metadata with smart matching info
                 metadata = {
                     'extracted_at': datetime.utcnow().isoformat(),
                     'extraction_method': ec_data.get('extraction_method', 'regex_pattern')
+                }
                 if ec_data.get('context_text'):
                     metadata['context'] = ec_data.get('context_text')
                 

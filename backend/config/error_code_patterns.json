@@ -373,30 +373,6 @@
     }
   },
   
-  "generic": {
-    "manufacturer_name": "Generic",
-    "description": "Generic error code patterns for unknown manufacturers",
-    "format": "Various formats",
-    "patterns": [
-      "error\\s+code\\s+([A-Z]\\d{2,4})",
-      "error\\s+([A-Z]\\d{2,4})",
-      "code\\s+([A-Z]\\d{2,4})",
-      "([A-Z]\\d{2,4})\\s+error",
-      "error\\s+code\\s+(\\d{2,4})",
-      "error\\s+(\\d{2,4})",
-      "code\\s+(\\d{2,4})",
-      "(\\d{2,4})\\s+error",
-      "\\b([A-Z]\\d{2,4})\\b",
-      "\\b(\\d{2,4})\\b(?=\\s*(error|code))"
-    ],
-    "validation_regex": "^[A-Z]\\d{2,4}$|^\\d{2,4}$",
-    "categories": {
-      "system": "System and general errors",
-      "paper_jam": "Paper handling errors",
-      "general": "General error category"
-    }
-  },
-  
   "extraction_rules": {
     "min_confidence": 0.75,
     "max_codes_per_page": 15,
