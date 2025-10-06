@@ -11,7 +11,8 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
+        "resource": "database",
+        "operation": "runSql",
         "query": "=SELECT \n  ec.error_code,\n  ec.error_description,\n  ec.solution_text,\n  ec.severity_level,\n  ec.requires_technician,\n  ec.confidence_score,\n  c.text_chunk as context_text,\n  c.metadata->>'page_number' as page_number,\n  i.storage_url as screenshot_url,\n  i.ai_description as screenshot_description,\n  d.filename as document_name,\n  d.manufacturer,\n  d.series,\n  ec.metadata->>'image_match_method' as match_method,\n  ec.created_at\nFROM krai_intelligence.error_codes ec\nLEFT JOIN krai_intelligence.chunks c ON ec.chunk_id = c.id\nLEFT JOIN krai_content.images i ON ec.image_id = i.id\nLEFT JOIN krai_core.documents d ON ec.document_id = d.id\nWHERE UPPER(ec.error_code) = UPPER('{{ $json.error_code }}')\nLIMIT 1;",
         "options": {}
       },

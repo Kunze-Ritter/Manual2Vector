@@ -11,7 +11,8 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
+        "resource": "database",
+        "operation": "runSql",
         "query": "=SELECT \n  d.id,\n  d.filename,\n  d.document_type,\n  d.manufacturer,\n  d.series,\n  d.models,\n  d.version,\n  d.file_size,\n  d.processing_status,\n  d.created_at,\n  COUNT(DISTINCT c.id) as chunk_count,\n  COUNT(DISTINCT i.id) as image_count,\n  COUNT(DISTINCT ec.id) as error_code_count\nFROM krai_core.documents d\nLEFT JOIN krai_intelligence.chunks c ON d.id = c.document_id\nLEFT JOIN krai_content.images i ON d.id = i.document_id\nLEFT JOIN krai_intelligence.error_codes ec ON d.id = ec.document_id\nWHERE d.document_type = '{{ $json.document_type }}'\n{{ $json.manufacturer ? \"AND d.manufacturer ILIKE '%\" + $json.manufacturer + \"%'\" : \"\" }}\nGROUP BY d.id\nORDER BY d.created_at DESC\nLIMIT {{ $json.limit || 10 }};",
         "options": {}
       },
