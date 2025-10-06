@@ -21,8 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
-from processors_v2.master_pipeline import MasterPipeline
-from processors_v2.__version__ import __version__, __commit__, __date__
+from processors.master_pipeline import MasterPipeline
+from processors.__version__ import __version__, __commit__, __date__
 from supabase import create_client
 
 

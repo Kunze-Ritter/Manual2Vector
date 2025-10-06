@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors_v2.models import ExtractedProduct
+from processors.models import ExtractedProduct
 
 # Test data from LLM
 test_data = {

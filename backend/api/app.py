@@ -19,9 +19,9 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors_v2.upload_processor import UploadProcessor, BatchUploadProcessor
-from processors_v2.document_processor import DocumentProcessor
-from processors_v2.stage_tracker import StageTracker
+from processors.upload_processor import UploadProcessor, BatchUploadProcessor
+from processors.document_processor import DocumentProcessor
+from processors.stage_tracker import StageTracker
 
 # Load environment
 load_dotenv()

@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors_v2.llm_extractor import LLMProductExtractor
+from processors.llm_extractor import LLMProductExtractor
 
 # Sample text
 text = """

@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Load environment variables
 load_dotenv()
 
-from processors_v2.master_pipeline import MasterPipeline
+from processors.master_pipeline import MasterPipeline
 from supabase import create_client
 
 
@@ -172,7 +172,7 @@ def example_semantic_search():
     print("  SEMANTIC SEARCH EXAMPLE")
     print("="*80)
     
-    from processors_v2.embedding_processor import EmbeddingProcessor
+    from processors.embedding_processor import EmbeddingProcessor
     
     # Initialize
     supabase = create_client(
