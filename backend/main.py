@@ -46,6 +46,13 @@ from api.defect_detection_api import DefectDetectionAPI
 from api.features_api import FeaturesAPI
 from api.content_management_api import ContentManagementAPI
 
+# Create FastAPI application FIRST
+app = FastAPI(
+    title="KR-AI-Engine",
+    description="AI-powered document processing system for technical documentation",
+    version="1.0.0"
+)
+
 # Global services
 database_service = None
 storage_service = None
@@ -55,11 +62,19 @@ features_service = None
 video_enrichment_service = None
 link_checker_service = None
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan manager"""
+# Global APIs (initialized in startup)
+document_api = None
+search_api = None
+defect_detection_api = None
+features_api = None
+content_management_api = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Startup event handler"""
     global database_service, storage_service, ai_service, config_service, features_service
     global video_enrichment_service, link_checker_service
+    global document_api, search_api, defect_detection_api, features_api, content_management_api
     
     # Startup
     print("🚀 Starting KR-AI-Engine...")
@@ -108,15 +123,34 @@ async def lifespan(app: FastAPI):
         link_checker_service = LinkCheckerService()
         print("✅ Link checker service initialized")
         
+        # NOW initialize APIs with services
+        document_api = DocumentAPI(database_service, storage_service, ai_service)
+        search_api = SearchAPI(database_service, ai_service)
+        defect_detection_api = DefectDetectionAPI(ai_service, database_service)
+        features_api = FeaturesAPI(database_service, features_service)
+        content_management_api = ContentManagementAPI(
+            database_service=database_service,
+            video_enrichment_service=video_enrichment_service,
+            link_checker_service=link_checker_service
+        )
+        
+        # Include routers
+        app.include_router(document_api.router)
+        app.include_router(search_api.router)
+        app.include_router(defect_detection_api.router)
+        app.include_router(features_api.router)
+        app.include_router(content_management_api.router)
+        print("✅ API routers registered")
+        
         print("🎯 KR-AI-Engine ready!")
         
     except Exception as e:
         print(f"❌ Startup failed: {e}")
         raise
-    
-    yield
-    
-    # Shutdown
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event handler"""
     print("🛑 Shutting down KR-AI-Engine...")
     if database_service:
         print("✅ Database service disconnected")
@@ -126,14 +160,6 @@ async def lifespan(app: FastAPI):
         print("✅ AI service disconnected")
     print("👋 KR-AI-Engine stopped")
 
-# Create FastAPI application
-app = FastAPI(
-    title="KR-AI-Engine",
-    description="AI-powered document processing system for technical documentation",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -142,30 +168,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize APIs with services
-document_api = DocumentAPI(database_service, storage_service, ai_service)
-search_api = SearchAPI(database_service, ai_service)
-defect_detection_api = DefectDetectionAPI(ai_service, database_service)
-features_api = FeaturesAPI(database_service, features_service)
-content_management_api = ContentManagementAPI(
-    database_service=database_service,
-    video_enrichment_service=video_enrichment_service,
-    link_checker_service=link_checker_service
-)
-
-# Include routers (MUST be done before startup, not in startup event!)
-app.include_router(document_api.router)
-app.include_router(search_api.router)
-app.include_router(defect_detection_api.router)
-app.include_router(features_api.router)
-app.include_router(content_management_api.router)
-
-@app.on_event("startup")
-async def startup_event():
-    """Startup event handler"""
-    # Any async startup tasks can go here
-    pass
 
 # Root endpoint
 @app.get("/")
