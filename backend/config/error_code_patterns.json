@@ -407,9 +407,8 @@
       "status", "message", "alert", "problem", "issue", "exception"
     ],
     "exclude_if_near": [
-      "page", "figure", "table", "section", "chapter", "model", "serial",
-      "copyright", "trademark", "manual", "guide", "version", "revision",
-      "date", "user", "customer", "contact", "support"
+      "page", "figure", "table", "section", "model", "serial",
+      "copyright", "trademark", "version", "revision"
     ],
     "error_indicators": [
       "error code", "error message", "fault code", "trouble code",

@@ -1,0 +1,32 @@
+
+================================================================================
+ERROR CODE EXTRACTION TEST REPORT
+================================================================================
+Generated: 2025-10-06 13:39:25
+
+SUMMARY
+-------
+Total PDFs tested:        1
+Total error codes found:  159
+Unique error codes:       103
+Codes with solutions:     159 (100.0%)
+Average confidence:       0.85
+
+DETAILED RESULTS
+----------------
+
+1. HP_E778_CPMD
+   Manufacturer:    hp
+   Pages:           816
+   Codes found:     159 (103 unique)
+   With solutions:  159 (100.0%)
+   With desc.:      159 (100.0%)
+   Avg confidence:  0.85
+   Top codes:
+     [✓] W9210 (p.33, conf: 1.0)
+     [✓] W9211 (p.33, conf: 1.0)
+     [✓] W9213 (p.33, conf: 1.0)
+     [✓] W9212 (p.33, conf: 1.0)
+     [✓] W9210 (p.34, conf: 0.75)
+
+================================================================================

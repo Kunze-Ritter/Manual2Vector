@@ -1,0 +1,465 @@
+[
+  {
+    "test_name": "HP_E778_CPMD",
+    "pdf_path": "C:\\Manuals\\HP\\HP_E778_CPMD.pdf",
+    "manufacturer": "hp",
+    "total_pages": 816,
+    "error_codes_found": 159,
+    "unique_codes": 103,
+    "with_solution": 159,
+    "with_description": 159,
+    "avg_confidence": 0.8484276729559749,
+    "error_codes": [
+      {
+        "code": "W9210",
+        "page": 33,
+        "description": "67901 - Black Managed LJ Toner Cartridge",
+        "solution_length": 207,
+        "has_solution": true,
+        "confidence": 1.0,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9211",
+        "page": 33,
+        "description": "67901 - Cyan Managed LJ Toner Cartridge",
+        "solution_length": 207,
+        "has_solution": true,
+        "confidence": 1.0,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9213",
+        "page": 33,
+        "description": "67901 - Magenta Managed LJ Toner Cartridge",
+        "solution_length": 207,
+        "has_solution": true,
+        "confidence": 1.0,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9212",
+        "page": 33,
+        "description": "67901 - Yellow Managed LJ Toner Cartridge",
+        "solution_length": 207,
+        "has_solution": true,
+        "confidence": 1.0,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9210",
+        "page": 34,
+        "description": "67901 - Black Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9211",
+        "page": 34,
+        "description": "67901 - Cyan Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9213",
+        "page": 34,
+        "description": "67901 - Magenta Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9212",
+        "page": 34,
+        "description": "67901 - Yellow Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "10.00.35",
+        "page": 38,
+        "description": "Black toner cartridge",
+        "solution_length": 151,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.01.35",
+        "page": 38,
+        "description": "Cyan toner cartridge",
+        "solution_length": 151,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.02.35",
+        "page": 38,
+        "description": "Magenta toner cartridge",
+        "solution_length": 151,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.03.35",
+        "page": 38,
+        "description": "Yellow toner cartridge",
+        "solution_length": 151,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "W9190",
+        "page": 44,
+        "description": "67902 - Kit-Black Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9191",
+        "page": 45,
+        "description": "67902 - Kit-Cyan Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9192",
+        "page": 45,
+        "description": "67902 - Kit-Yellow Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9193",
+        "page": 45,
+        "description": "67902 - Kit-Magenta Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9210",
+        "page": 45,
+        "description": "67901 - Black Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9211",
+        "page": 45,
+        "description": "67901 - Cyan Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9212",
+        "page": 45,
+        "description": "67901 - Yellow Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "W9213",
+        "page": 45,
+        "description": "67901 - Magenta Managed LJ Toner Cartridge",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "10.26.15",
+        "page": 50,
+        "description": "Fuser assembly not installed",
+        "solution_length": 96,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.26.35",
+        "page": 51,
+        "description": "Incompatible fuser assembly",
+        "solution_length": 96,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.31.15",
+        "page": 53,
+        "description": "Toner collection unit not installed",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.32.60",
+        "page": 58,
+        "description": "Black developer unit",
+        "solution_length": 96,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.32.70",
+        "page": 59,
+        "description": "Black developer unit",
+        "solution_length": 96,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.34.70",
+        "page": 59,
+        "description": "Magenta developer unit",
+        "solution_length": 96,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "10.36.70",
+        "page": 60,
+        "description": "Image transfer belt (ITB) cleaner worn",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "99.09.67",
+        "page": 62,
+        "description": "for more information",
+        "solution_length": 153,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "09.67",
+        "page": 62,
+        "description": "for more information",
+        "solution_length": 153,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "67",
+        "page": 62,
+        "description": "for more information",
+        "solution_length": 153,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "113",
+        "page": 327,
+        "description": "0350, run the diagnostic test for the entrance sensor: Support Tools> >",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "S13",
+        "page": 399,
+        "description": "is clear of any debris and moves freely",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "30.01.56",
+        "page": 415,
+        "description": "Scanner Error, power off/on",
+        "solution_length": 96,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "E778",
+        "page": 416,
+        "description": "/E783/E725 z bundle: JC92-02964A",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "E778",
+        "page": 417,
+        "description": "/E783/E725 z bundle: JC39-02423A",
+        "solution_length": 446,
+        "has_solution": true,
+        "confidence": 1.0,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "E783",
+        "page": 417,
+        "description": "/E725 z bundle: JC39-02423A",
+        "solution_length": 446,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "E725",
+        "page": 417,
+        "description": "z bundle: JC39-02423A",
+        "solution_length": 446,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "31.03.39",
+        "page": 418,
+        "description": "mes up with the other event code such as 30",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "31.03.39",
+        "page": 419,
+        "description": "mes up with the other event code such as 30",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "31.03.41",
+        "page": 420,
+        "description": "The document feeder pickup cam is not working",
+        "solution_length": 125,
+        "has_solution": true,
+        "confidence": 1.0,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "31.03.41",
+        "page": 421,
+        "description": "mes up with the other event code such as 30",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "E876",
+        "page": 434,
+        "description": ", E825 du (or LX) part number JC92-02962A",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "E825",
+        "page": 434,
+        "description": "u (or LX) part number JC92-02962A",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "generic_pattern"
+      },
+      {
+        "code": "33.05.10",
+        "page": 473,
+        "description": "Firmware verification Error: XX (Event code)",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "33.05.11",
+        "page": 473,
+        "description": "Firmware verification Error: XX (Event code)",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "33.05.12",
+        "page": 473,
+        "description": "Firmware verification Error: XX (Event code)",
+        "solution_length": 17,
+        "has_solution": true,
+        "confidence": 0.75,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "33.05.51",
+        "page": 474,
+        "description": "Potential intrusion (Event code)",
+        "solution_length": 185,
+        "has_solution": true,
+        "confidence": 0.95,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "33.05.52",
+        "page": 474,
+        "description": "Cannot scan for potential intrusions (Event code)",
+        "solution_length": 185,
+        "has_solution": true,
+        "confidence": 0.95,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "33.05.53",
+        "page": 474,
+        "description": "Intrusion detection not initialized (Event code)",
+        "solution_length": 185,
+        "has_solution": true,
+        "confidence": 0.95,
+        "extraction_method": "hp_pattern"
+      },
+      {
+        "code": "33.05.54",
+        "page": 474,
+        "description": "Intrusion detection initialization error (Event code)",
+        "solution_length": 185,
+        "has_solution": true,
+        "confidence": 0.85,
+        "extraction_method": "hp_pattern"
+      }
+    ]
+  }
+]

@@ -1,0 +1,26 @@
+
+================================================================================
+ERROR CODE EXTRACTION TEST REPORT
+================================================================================
+Generated: 2025-10-06 13:20:20
+
+SUMMARY
+-------
+Total PDFs tested:        1
+Total error codes found:  0
+Unique error codes:       0
+Codes with solutions:     0 (0.0%)
+Average confidence:       0.00
+
+DETAILED RESULTS
+----------------
+
+1. 7566-69x_sm
+   Manufacturer:    lexmark
+   Pages:           1768
+   Codes found:     0 (0 unique)
+   With solutions:  0 (0.0%)
+   With desc.:      0 (0.0%)
+   Avg confidence:  0.00
+
+================================================================================

@@ -1,0 +1,32 @@
+
+================================================================================
+ERROR CODE EXTRACTION TEST REPORT
+================================================================================
+Generated: 2025-10-06 13:44:55
+
+SUMMARY
+-------
+Total PDFs tested:        1
+Total error codes found:  87
+Unique error codes:       76
+Codes with solutions:     87 (100.0%)
+Average confidence:       0.86
+
+DETAILED RESULTS
+----------------
+
+1. HP_E778_CPMD
+   Manufacturer:    hp
+   Pages:           816
+   Codes found:     87 (76 unique)
+   With solutions:  87 (100.0%)
+   With desc.:      87 (100.0%)
+   Avg confidence:  0.86
+   Top codes:
+     [✓] 10.00.35 (p.38, conf: 0.85)
+     [✓] 10.01.35 (p.38, conf: 0.85)
+     [✓] 10.02.35 (p.38, conf: 0.85)
+     [✓] 10.03.35 (p.38, conf: 0.85)
+     [✓] 10.26.15 (p.50, conf: 0.85)
+
+================================================================================

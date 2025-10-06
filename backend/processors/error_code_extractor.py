@@ -125,13 +125,13 @@ class ErrorCodeExtractor:
         patterns_to_use = []
         
         if manufacturer_key and manufacturer_key in self.patterns_config:
-            # Use manufacturer-specific patterns first
+            # Use manufacturer-specific patterns ONLY (no generic fallback to avoid false positives like part numbers)
             patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
             logger.debug(f"Using error code patterns for manufacturer: {manufacturer_key}")
-        
-        # Always add generic patterns as fallback
-        if "generic" in self.patterns_config:
-            patterns_to_use.append(("generic", self.patterns_config["generic"]))
+        else:
+            # Only use generic patterns if no manufacturer specified
+            if "generic" in self.patterns_config:
+                patterns_to_use.append(("generic", self.patterns_config["generic"]))
         
         # Extract error codes
         found_codes = []
