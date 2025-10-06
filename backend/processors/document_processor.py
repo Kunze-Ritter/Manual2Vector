@@ -125,6 +125,55 @@ class DocumentProcessor:
             self.logger.info("Step 1/5: Extracting text from PDF...")
             page_texts, metadata = self.text_extractor.extract_text(pdf_path, document_id)
             
+            # CRITICAL: Detect manufacturer EARLY from metadata/filename
+            # This ensures _save_error_codes_to_db can find the manufacturer
+            detected_manufacturer = self.manufacturer
+            if detected_manufacturer == "AUTO" and metadata:
+                # Try to detect from filename or title
+                filename_lower = pdf_path.stem.lower()
+                title_lower = (metadata.title or "").lower()
+                
+                # Common manufacturer patterns
+                mfr_patterns = {
+                    'hp': ['hp', 'hewlett', 'packard'],
+                    'konica_minolta': ['konica', 'minolta', 'bizhub'],
+                    'canon': ['canon', 'imagerunner'],
+                    'ricoh': ['ricoh', 'aficio'],
+                    'xerox': ['xerox'],
+                    'brother': ['brother'],
+                    'lexmark': ['lexmark'],
+                    'kyocera': ['kyocera', 'taskalfa'],
+                    'sharp': ['sharp', 'mx-'],
+                    'epson': ['epson'],
+                    'utax': ['utax'],
+                }
+                
+                for mfr_key, keywords in mfr_patterns.items():
+                    if any(kw in filename_lower or kw in title_lower for kw in keywords):
+                        detected_manufacturer = mfr_key.upper().replace('_', ' ').title()
+                        self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
+                        break
+            
+            # Save manufacturer to document IMMEDIATELY
+            if detected_manufacturer and detected_manufacturer != "AUTO":
+                try:
+                    from supabase import create_client
+                    import os
+                    from dotenv import load_dotenv
+                    
+                    load_dotenv()
+                    supabase_url = os.getenv('SUPABASE_URL')
+                    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+                    
+                    if supabase_url and supabase_key:
+                        supabase = create_client(supabase_url, supabase_key)
+                        supabase.table('documents').update({
+                            'manufacturer': detected_manufacturer
+                        }).eq('id', str(document_id)).execute()
+                        self.logger.info(f"✅ Set document manufacturer: {detected_manufacturer}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to set manufacturer early: {e}")
+            
             if not page_texts:
                 self.logger.error("No text extracted from PDF!")
                 try:
