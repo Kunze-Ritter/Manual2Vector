@@ -325,15 +325,16 @@ class ErrorCodeExtractor:
         Returns:
             Solution text or None
         """
-        # Extended text window for better extraction
-        text_after = full_text[code_end_pos:code_end_pos + 2500]
+        # Extended text window for better extraction (increased for multi-page procedures)
+        text_after = full_text[code_end_pos:code_end_pos + 5000]
         combined_text = context + "\n" + text_after
         
         # Pattern 1: HP/Manufacturer style "Recommended action" OR Konica Minolta "Procedure"
+        # Supports: 1., 1), Step 1, • bullets
         recommended_action_pattern = re.compile(
             r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure|procedure|remedy|repair\s+procedure)'
             r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?))?'
-            r'\s*[\n:]+((?:(?:\d+\.|•|-|\*)\s+.{15,}[\n\r]?){2,})',
+            r'\s*[\n:]+((?:(?:\d+[\.\)]|•|-|\*|step\s+\d+)\s+.{15,}[\n\r]?){2,})',
             re.IGNORECASE | re.MULTILINE | re.DOTALL
         )
         
@@ -342,12 +343,17 @@ class ErrorCodeExtractor:
             solution = match.group(1).strip()
             # Clean up and limit length
             lines = solution.split('\n')
-            # Take up to 15 lines or until we hit a new section
+            # Take up to 20 lines or until we hit a new section (increased for complex procedures)
             filtered_lines = []
-            for line in lines[:15]:
-                if re.match(r'^(?:\d+\.|•|-|\*)\s+', line):
+            for line in lines[:20]:
+                # Match main steps (1., 1)) AND sub-steps (  1), 2), a), etc.)
+                if re.match(r'^(?:\s{0,4}\d+[\.\)]|•|-|\*|[a-z][\.\)])\s+', line):
                     filtered_lines.append(line.strip())
-                elif filtered_lines:  # Stop at non-list content after we started
+                elif filtered_lines and len(line.strip()) > 20:  # Continuation line
+                    filtered_lines[-1] += ' ' + line.strip()
+                elif filtered_lines and not line.strip():  # Empty line between steps - keep going
+                    continue
+                elif filtered_lines:  # Stop at section header
                     break
             if filtered_lines:
                 return '\n'.join(filtered_lines)
@@ -375,20 +381,20 @@ class ErrorCodeExtractor:
                     break
             return solution[:1000].strip()  # Limit length
         
-        # Pattern 3: Numbered steps without header (1., 2., 3., ...)
+        # Pattern 3: Numbered steps without header (1., 1), 2), Step 1, ...)
         numbered_steps_pattern = re.compile(
-            r'((?:(?:\d+\.|Step\s+\d+)\s+.{20,}[\n\r]?){2,})',
+            r'((?:(?:\d+[\.\)]|Step\s+\d+)\s+.{20,}[\n\r]?){2,})',
             re.MULTILINE | re.IGNORECASE
         )
         
         match = numbered_steps_pattern.search(text_after)
         if match:
             steps = match.group(1).strip()
-            # Take up to 10 steps
+            # Take up to 15 steps (increased for complex multi-step procedures)
             lines = [l.strip() for l in steps.split('\n') if l.strip()]
             step_lines = []
-            for line in lines[:10]:
-                if re.match(r'(?:\d+\.|Step\s+\d+)', line, re.IGNORECASE):
+            for line in lines[:15]:
+                if re.match(r'(?:\d+[\.\)]|Step\s+\d+)', line, re.IGNORECASE):
                     step_lines.append(line)
                 elif step_lines and len(line) > 20:  # Continuation of previous step
                     step_lines[-1] += ' ' + line
