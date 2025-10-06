@@ -289,7 +289,7 @@ class MasterPipeline:
             # ==========================================
             # Update document metadata (manufacturer, models, etc.)
             # ==========================================
-            self._update_document_metadata(document_id, processing_result)
+            self._update_document_metadata(document_id, processing_result, manufacturer)
             
             # ==========================================
             # Update document status with processing_results
@@ -900,7 +900,7 @@ class MasterPipeline:
             self.logger.info("   Error codes can still be found by page_number")
             return 0
     
-    def _update_document_metadata(self, document_id: UUID, processing_result: Dict):
+    def _update_document_metadata(self, document_id: UUID, processing_result: Dict, initial_manufacturer: Optional[str] = None):
         """Update document with extracted manufacturer, models, series, version"""
         try:
             products = processing_result.get('products', [])
@@ -927,6 +927,11 @@ class MasterPipeline:
                     
                     if prod_data.get('series'):
                         series_set.add(prod_data['series'])
+            
+            # Use initial_manufacturer as fallback if no manufacturer found in products
+            if not manufacturer and initial_manufacturer and initial_manufacturer != "AUTO":
+                manufacturer = initial_manufacturer
+                self.logger.info(f"Using initial manufacturer (no products extracted): {manufacturer}")
             
             # Extract BEST version (highest confidence, first match)
             document_version = None
