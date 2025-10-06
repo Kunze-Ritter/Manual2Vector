@@ -18,10 +18,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from processors.error_code_extractor import ErrorCodeExtractor
 from processors.text_extractor import extract_text_from_pdf
-from utils.logger import get_logger
+from utils.colored_logging import setup_colored_logging
 from uuid import uuid4
+import logging
 
-logger = get_logger()
+logger = setup_colored_logging(__name__)
 
 
 class ErrorCodeExtractionTester:
@@ -58,17 +59,15 @@ class ErrorCodeExtractionTester:
             # Extract text from PDF
             from pathlib import Path
             document_id = uuid4()
-            result = extract_text_from_pdf(
+            pdf_text, metadata = extract_text_from_pdf(
                 pdf_path=Path(pdf_path),
                 document_id=document_id,
                 engine="pymupdf"
             )
             
-            if not result or not result.get("page_texts"):
+            if not pdf_text:
                 logger.error("Failed to extract text from PDF")
                 return {"error": "Text extraction failed"}
-            
-            pdf_text = result["page_texts"]  # Dict[int, str]
             
             # Get manufacturer from filename if not provided
             if not manufacturer:
