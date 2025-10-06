@@ -1,0 +1,50 @@
+{
+  "name": "TOOL: Error Code Search v2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  ec.error_code,\n  ec.error_description,\n  ec.solution_text,\n  ec.severity_level,\n  ec.requires_technician,\n  ec.confidence_score,\n  ec.page_number,\n  COALESCE(c.text_chunk, '') as context_text,\n  COALESCE(i.storage_url, '') as screenshot_url,\n  COALESCE(i.ai_description, '') as screenshot_description,\n  COALESCE(d.filename, '') as document_name,\n  COALESCE(d.manufacturer, m.name, '') as manufacturer,\n  COALESCE(d.series, '') as series,\n  COALESCE(ec.metadata->>'image_match_method', '') as match_method,\n  ec.created_at\nFROM krai_intelligence.error_codes ec\nLEFT JOIN krai_intelligence.chunks c ON ec.chunk_id = c.id\nLEFT JOIN krai_content.images i ON ec.image_id = i.id\nLEFT JOIN krai_core.documents d ON ec.document_id = d.id\nLEFT JOIN krai_core.manufacturers m ON ec.manufacturer_id = m.id\nWHERE UPPER(TRIM(ec.error_code)) = UPPER(TRIM('{{ $json.error_code }}'))\nORDER BY \n  CASE \n    WHEN UPPER(ec.error_code) = UPPER('{{ $json.error_code }}') THEN 1\n    ELSE 2\n  END\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [500, 300],
+      "id": "query-error",
+      "name": "Query Error Code",
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Error Code Response with improved context handling\nconst item = $input.first().json;\n\nif (!item || !item.error_code) {\n  return {\n    found: false,\n    message: `🔴 Error Code nicht gefunden: ${$('Execute Workflow Trigger').item.json.error_code}\\n\\n❌ Dieser Error Code ist nicht in der Datenbank.\\n\\n💡 Versuche:\\n- Prüfe die Schreibweise (z.B. 10.26.15 vs 10.26)\\n- Nutze Vector Search für ähnliche Probleme\\n- Beschreibe das Problem direkt`\n  };\n}\n\n// Format solution text with proper line breaks\nconst formatSolution = (text) => {\n  if (!text) return 'Keine Lösung verfügbar';\n  const lines = text.split('\\n').filter(line => line.trim());\n  if (lines[0] && lines[0].match(/^\\d+[\\.\\)]\\s/)) {\n    return lines.join('\\n');\n  }\n  return lines.map((line, i) => `${i + 1}. ${line.trim()}`).join('\\n');\n};\n\n// Build formatted response\nlet response = `🔴 ERROR CODE: ${item.error_code}\\n\\n`;\n\n// Description\nif (item.error_description) {\n  response += `📝 BESCHREIBUNG:\\n${item.error_description}\\n\\n`;\n}\n\n// Solution (most important!)\nif (item.solution_text) {\n  response += `🔧 LÖSUNG:\\n${formatSolution(item.solution_text)}\\n\\n`;\n} else {\n  response += `🔧 LÖSUNG:\\n⚠️ Keine Lösung verfügbar - siehe Context\\n\\n`;\n}\n\n// Context from manual (NOW AVAILABLE via chunk_id!)\nif (item.context_text && item.context_text.trim()) {\n  const contextPreview = item.context_text.substring(0, 400).trim();\n  response += `📄 CONTEXT AUS MANUAL:\\n${contextPreview}${item.context_text.length > 400 ? '...' : ''}\\n\\n`;\n}\n\n// Screenshot\nif (item.screenshot_url) {\n  response += `🖼️ SCREENSHOT:\\n${item.screenshot_url}\\n`;\n  if (item.screenshot_description) {\n    response += `   📝 ${item.screenshot_description}\\n`;\n  }\n  if (item.match_method === 'smart_vision_ai') {\n    response += `   ✨ Smart Match: Vision AI erkannte Error Code\\n`;\n  }\n  response += `\\n`;\n}\n\n// Source information\nresponse += `ℹ️ DETAILS:\\n`;\nif (item.document_name) response += `  📄 Dokument: ${item.document_name}\\n`;\nif (item.manufacturer) response += `  🏭 Hersteller: ${item.manufacturer}\\n`;\nif (item.series) response += `  📦 Serie: ${item.series}\\n`;\nif (item.page_number) response += `  📄 Seite: ${item.page_number}\\n`;\nif (item.confidence_score) response += `  📊 Confidence: ${(item.confidence_score * 100).toFixed(0)}%\\n`;\nif (item.severity_level) response += `  ⚠️ Severity: ${item.severity_level}\\n`;\nif (item.requires_technician) response += `  👨‍🔧 Techniker: Ja\\n`;\n\nreturn {\n  found: true,\n  error_code: item.error_code,\n  message: response,\n  raw_data: item\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "format-error",
+      "name": "Format Error Code"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Query Error Code", "type": "main", "index": 0}]]
+    },
+    "Query Error Code": {
+      "main": [[{"node": "Format Error Code", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}
