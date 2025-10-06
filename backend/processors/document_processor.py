@@ -125,13 +125,22 @@ class DocumentProcessor:
             self.logger.info("Step 1/5: Extracting text from PDF...")
             page_texts, metadata = self.text_extractor.extract_text(pdf_path, document_id)
             
-            # CRITICAL: Detect manufacturer EARLY from metadata/filename
+            # CRITICAL: Detect manufacturer EARLY from 3 sources (filename, metadata, document text)
             # This ensures _save_error_codes_to_db can find the manufacturer
             detected_manufacturer = self.manufacturer
-            if detected_manufacturer == "AUTO" and metadata:
-                # Try to detect from filename or title
+            if detected_manufacturer == "AUTO":
+                # Source 1: Filename
                 filename_lower = pdf_path.stem.lower()
-                title_lower = (metadata.title or "").lower()
+                
+                # Source 2: PDF Metadata (Title)
+                title_lower = (metadata.title or "").lower() if metadata else ""
+                
+                # Source 3: First 3 pages of document text
+                first_pages_text = ""
+                if page_texts:
+                    first_page_keys = sorted(page_texts.keys())[:3]
+                    first_pages_text = ' '.join([page_texts[p] for p in first_page_keys])
+                    first_pages_text = first_pages_text[:2000].lower()  # Limit to 2000 chars
                 
                 # Common manufacturer patterns
                 mfr_patterns = {
@@ -148,11 +157,46 @@ class DocumentProcessor:
                     'utax': ['utax'],
                 }
                 
+                # 3-way validation: Check all sources and count matches
+                detection_votes = {}
                 for mfr_key, keywords in mfr_patterns.items():
-                    if any(kw in filename_lower or kw in title_lower for kw in keywords):
-                        detected_manufacturer = mfr_key.upper().replace('_', ' ').title()
-                        self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
-                        break
+                    votes = 0
+                    sources = []
+                    
+                    # Check filename
+                    if any(kw in filename_lower for kw in keywords):
+                        votes += 1
+                        sources.append("filename")
+                    
+                    # Check metadata title
+                    if any(kw in title_lower for kw in keywords):
+                        votes += 1
+                        sources.append("title")
+                    
+                    # Check document text
+                    if any(kw in first_pages_text for kw in keywords):
+                        votes += 1
+                        sources.append("text")
+                    
+                    if votes > 0:
+                        detection_votes[mfr_key] = {'votes': votes, 'sources': sources}
+                
+                # Select manufacturer with most votes (highest confidence)
+                if detection_votes:
+                    best_match = max(detection_votes.items(), key=lambda x: x[1]['votes'])
+                    mfr_key = best_match[0]
+                    votes = best_match[1]['votes']
+                    sources = best_match[1]['sources']
+                    
+                    detected_manufacturer = mfr_key.upper().replace('_', ' ').title()
+                    self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
+                    self.logger.info(f"   Confidence: {votes}/3 sources ({', '.join(sources)})")
+                    
+                    # Warn if low confidence (only 1 source)
+                    if votes == 1:
+                        self.logger.warning(f"   ⚠️  Low confidence detection (only 1 source)")
+                    elif votes == 3:
+                        self.logger.success(f"   ✅ High confidence (all 3 sources agree!)")
             
             # Save manufacturer to document IMMEDIATELY
             if detected_manufacturer and detected_manufacturer != "AUTO":
