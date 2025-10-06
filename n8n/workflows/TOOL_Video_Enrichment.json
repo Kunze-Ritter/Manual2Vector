@@ -11,24 +11,11 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:8000/content/videos/enrich/sync",
+        "method": "POST",
+        "url": "http://localhost:8000/content/videos/enrich/single",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "url",
-              "value": "={{ $json.url }}"
-            },
-            {
-              "name": "document_id",
-              "value": "={{ $json.document_id || null }}"
-            },
-            {
-              "name": "manufacturer_id",
-              "value": "={{ $json.manufacturer_id || null }}"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $json.url, document_id: $json.document_id || null, manufacturer_id: $json.manufacturer_id || null }) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",

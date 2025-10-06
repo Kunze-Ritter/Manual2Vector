@@ -16,6 +16,11 @@ class VideoEnrichmentRequest(BaseModel):
     limit: Optional[int] = Field(None, description="Limit number of videos to process")
     force: bool = Field(False, description="Re-process already enriched videos")
 
+class SingleVideoEnrichmentRequest(BaseModel):
+    url: str = Field(..., description="Video URL to enrich")
+    document_id: Optional[str] = Field(None, description="Document ID to associate with")
+    manufacturer_id: Optional[str] = Field(None, description="Manufacturer ID")
+
 class VideoEnrichmentResponse(BaseModel):
     status: str
     message: str
@@ -139,6 +144,49 @@ class ContentManagementAPI:
                 
             except Exception as e:
                 logger.error(f"Error in video enrichment: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.router.post("/videos/enrich/single")
+        async def enrich_single_video(request: SingleVideoEnrichmentRequest):
+            """
+            Enrich a single video URL synchronously
+            
+            Accepts a video URL and enriches it immediately.
+            """
+            try:
+                if not self.video_enrichment_service:
+                    raise HTTPException(status_code=503, detail="Video enrichment service not available")
+                
+                # Enrich the single video URL
+                result = await self.video_enrichment_service.enrich_video_url(
+                    url=request.url,
+                    document_id=request.document_id,
+                    manufacturer_id=request.manufacturer_id
+                )
+                
+                if result.get("error"):
+                    return {
+                        "success": False,
+                        "error": result["error"],
+                        "platform": result.get("platform")
+                    }
+                
+                return {
+                    "success": True,
+                    "video_id": result.get("video_id"),
+                    "title": result.get("title"),
+                    "platform": result.get("platform"),
+                    "duration": result.get("duration"),
+                    "view_count": result.get("view_count"),
+                    "like_count": result.get("like_count"),
+                    "channel_title": result.get("channel_title"),
+                    "description": result.get("description"),
+                    "thumbnail_url": result.get("thumbnail_url"),
+                    "video_url": result.get("url")
+                }
+                
+            except Exception as e:
+                logger.error(f"Error enriching single video: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.router.post("/links/check", response_model=LinkCheckResponse)
