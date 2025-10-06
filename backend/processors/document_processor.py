@@ -482,6 +482,13 @@ class DocumentProcessor:
             
             self.logger.success(f"Created {len(chunks)} chunks")
             
+            # Step 4b: Link error codes to chunks (now that chunks exist!)
+            if error_codes:
+                self.logger.info("Step 4b/8: Linking error codes to chunks...")
+                linked_count = self._link_error_codes_to_chunks(document_id)
+                if linked_count > 0:
+                    self.logger.success(f"✅ Linked {linked_count} error codes to chunks")
+            
             # Step 5: Save links and videos to database
             self.logger.info("Step 5/8: Saving links and videos...")
             if links:
@@ -852,6 +859,77 @@ class DocumentProcessor:
             self.logger.success(f"Saved {len(videos)} videos to database")
         except Exception as e:
             self.logger.error(f"Failed to save videos: {e}")
+    
+    def _link_error_codes_to_chunks(self, document_id: UUID) -> int:
+        """
+        Link error codes to chunks based on page numbers
+        
+        Updates error_codes.chunk_id where:
+        chunk.page_start <= error_code.page_number <= chunk.page_end
+        
+        Args:
+            document_id: Document UUID
+            
+        Returns:
+            Number of error codes successfully linked
+        """
+        try:
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping chunk linking")
+                return 0
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            # Get all error codes for this document without chunk_id
+            error_codes = supabase.table('error_codes') \
+                .select('id, page_number') \
+                .eq('document_id', str(document_id)) \
+                .is_('chunk_id', 'null') \
+                .execute()
+            
+            if not error_codes.data:
+                return 0
+            
+            linked_count = 0
+            
+            for ec in error_codes.data:
+                page_num = ec.get('page_number')
+                if not page_num:
+                    continue
+                
+                # Find chunk that contains this page
+                chunk = supabase.table('chunks') \
+                    .select('id') \
+                    .eq('document_id', str(document_id)) \
+                    .lte('page_start', page_num) \
+                    .gte('page_end', page_num) \
+                    .limit(1) \
+                    .execute()
+                
+                if chunk.data:
+                    chunk_id = chunk.data[0]['id']
+                    
+                    # Update error code with chunk_id
+                    supabase.table('error_codes') \
+                        .update({'chunk_id': chunk_id}) \
+                        .eq('id', ec['id']) \
+                        .execute()
+                    
+                    linked_count += 1
+            
+            return linked_count
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to link error codes to chunks: {e}")
+            return 0
     
     def _save_error_codes_to_db(self, document_id: UUID, error_codes: list):
         """Save error codes immediately after extraction"""
