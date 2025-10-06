@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
 from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
+from .exceptions import ManufacturerPatternNotFoundError
 
 
 logger = get_logger()
@@ -129,9 +130,16 @@ class ErrorCodeExtractor:
             patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
             logger.debug(f"Using error code patterns for manufacturer: {manufacturer_key}")
         else:
-            # Only use generic patterns if no manufacturer specified
-            if "generic" in self.patterns_config:
-                patterns_to_use.append(("generic", self.patterns_config["generic"]))
+            # NO generic fallback - raise clear error with instructions
+            if manufacturer_name:
+                raise ManufacturerPatternNotFoundError(
+                    manufacturer=manufacturer_name,
+                    stage="Error Code Extraction"
+                )
+            else:
+                # No manufacturer specified at all - cannot extract
+                logger.warning("No manufacturer specified for error code extraction - skipping")
+                return []
         
         # Extract error codes
         found_codes = []
