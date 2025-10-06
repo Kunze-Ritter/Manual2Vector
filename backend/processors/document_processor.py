@@ -489,12 +489,14 @@ class DocumentProcessor:
                 if linked_count > 0:
                     self.logger.success(f"✅ Linked {linked_count} error codes to chunks")
             
-            # Step 5: Save links and videos to database
-            self.logger.info("Step 5/8: Saving links and videos...")
-            if links:
-                self._save_links_to_db(links)
+            # Step 5: Save videos and links to database (videos FIRST!)
+            self.logger.info("Step 5/8: Saving videos and links...")
+            # Save videos FIRST because links reference video_id
             if videos:
                 self._save_videos_to_db(videos)
+            # Then save links (which may have video_id foreign key)
+            if links:
+                self._save_links_to_db(links)
             
             # Step 6: Statistics
             self.logger.info("Step 6/8: Calculating statistics...")
@@ -839,7 +841,12 @@ class DocumentProcessor:
                     should_insert = True
                 
                 if should_insert:
-                    result = supabase.table('videos').insert(video).execute()
+                    # Only insert fields that exist in videos table
+                    # Remove thumbnail analysis fields if they don't exist in schema
+                    video_data = {k: v for k, v in video.items() 
+                                  if k not in ['thumbnail_ocr_text', 'thumbnail_ai_description']}
+                    
+                    result = supabase.table('videos').insert(video_data).execute()
                     
                     # Auto-link manufacturer/series via link_id (videos → links → document)
                     if result.data and len(result.data) > 0 and video.get('link_id'):
