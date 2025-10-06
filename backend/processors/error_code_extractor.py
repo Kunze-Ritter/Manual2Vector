@@ -329,9 +329,9 @@ class ErrorCodeExtractor:
         text_after = full_text[code_end_pos:code_end_pos + 2500]
         combined_text = context + "\n" + text_after
         
-        # Pattern 1: HP/Manufacturer style "Recommended action"
+        # Pattern 1: HP/Manufacturer style "Recommended action" OR Konica Minolta "Procedure"
         recommended_action_pattern = re.compile(
-            r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure)'
+            r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure|procedure|remedy|repair\s+procedure)'
             r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?))?'
             r'\s*[\n:]+((?:(?:\d+\.|•|-|\*)\s+.{15,}[\n\r]?){2,})',
             re.IGNORECASE | re.MULTILINE | re.DOTALL
