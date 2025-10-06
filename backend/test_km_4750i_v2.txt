@@ -1,0 +1,26 @@
+
+================================================================================
+ERROR CODE EXTRACTION TEST REPORT
+================================================================================
+Generated: 2025-10-06 12:53:56
+
+SUMMARY
+-------
+Total PDFs tested:        1
+Total error codes found:  0
+Unique error codes:       0
+Codes with solutions:     0 (0.0%)
+Average confidence:       0.00
+
+DETAILED RESULTS
+----------------
+
+1. KM_4750i_4050i_4751i_4051i_SM
+   Manufacturer:    konica_minolta
+   Pages:           694
+   Codes found:     0 (0 unique)
+   With solutions:  0 (0.0%)
+   With desc.:      0 (0.0%)
+   Avg confidence:  0.00
+
+================================================================================

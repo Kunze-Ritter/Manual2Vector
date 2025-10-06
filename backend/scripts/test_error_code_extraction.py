@@ -79,10 +79,10 @@ class ErrorCodeExtractionTester:
             
             for page_num, page_text in pdf_text.items():
                 try:
-                    error_codes = self.extractor.extract_error_codes(
+                    error_codes = self.extractor.extract_from_text(
                         text=page_text,
                         page_number=page_num,
-                        manufacturer=manufacturer
+                        manufacturer_name=manufacturer
                     )
                     
                     if error_codes:

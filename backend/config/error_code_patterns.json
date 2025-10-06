@@ -407,7 +407,7 @@
     "exclude_if_near": [
       "page", "figure", "table", "section", "chapter", "model", "serial",
       "copyright", "trademark", "manual", "guide", "version", "revision",
-      "date", "time", "user", "customer", "contact", "support"
+      "date", "user", "customer", "contact", "support"
     ],
     "error_indicators": [
       "error code", "error message", "fault code", "trouble code",
