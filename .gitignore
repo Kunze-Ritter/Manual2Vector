@@ -60,6 +60,8 @@ Thumbs.db
 logs/
 log/
 error.md
+backend/logs/
+git_log*.txt
 
 # Database
 *.db
