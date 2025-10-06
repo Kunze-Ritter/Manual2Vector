@@ -6,20 +6,17 @@
   "hp": {
     "manufacturer_name": "HP",
     "description": "Hewlett Packard error code patterns",
-    "format": "XX.XX.XX or XX.XX or XX.Xx.XX (x=wildcard)",
+    "format": "XX.XX.XX or XX.Xx.XX (x=wildcard)",
     "patterns": [
       "error\\s+code\\s+(\\d{2}\\.\\d{2}\\.\\d{2})",
       "error\\s+(\\d{2}\\.\\d{2}\\.\\d{2})",
       "code\\s+(\\d{2}\\.\\d{2}\\.\\d{2})",
       "(\\d{2}\\.\\d{2}\\.\\d{2})\\s+error",
-      "error\\s+(\\d{2}\\.\\d{2})",
-      "(\\d{2}\\.\\d{2})\\s+error",
       "\\b(\\d{2}\\.\\dx\\.\\d{2})\\b",
       "\\b(\\d{2}\\.\\dX\\.\\d{2})\\b",
-      "\\b(\\d{2}\\.\\d{2}\\.\\d{2})\\b",
-      "\\b(\\d{2}\\.\\d{2})\\b"
+      "\\b(\\d{2}\\.\\d{2}\\.\\d{2})\\b"
     ],
-    "validation_regex": "^\\d{2}\\.\\d[xX]\\.\\d{2}$|^\\d{2}\\.\\d{2}(?:\\.\\d{2})?$",
+    "validation_regex": "^\\d{2}\\.\\d[xX]\\.\\d{2}$|^\\d{2}\\.\\d{2}\\.\\d{2}$",
     "categories": {
       "paper_jam": "Paper handling and jam errors",
       "fuser": "Fuser assembly and temperature errors",

@@ -895,6 +895,8 @@ class DocumentProcessor:
                 return
             
             saved_count = 0
+            skipped_duplicates = 0
+            
             for error_code in error_codes:
                 # Convert ExtractedErrorCode to dict if needed
                 ec_data = error_code if isinstance(error_code, dict) else {
@@ -908,6 +910,24 @@ class DocumentProcessor:
                     'requires_technician': getattr(error_code, 'requires_technician', False),
                     'requires_parts': getattr(error_code, 'requires_parts', False)
                 }
+                
+                # DEDUPLICATION: Check if this exact error code already exists on this page
+                try:
+                    existing = supabase.table('error_codes') \
+                        .select('id') \
+                        .eq('document_id', str(document_id)) \
+                        .eq('error_code', ec_data['error_code']) \
+                        .eq('page_number', ec_data['page_number']) \
+                        .limit(1) \
+                        .execute()
+                    
+                    if existing.data:
+                        skipped_duplicates += 1
+                        self.logger.debug(f"Skipping duplicate: {ec_data['error_code']} on page {ec_data['page_number']}")
+                        continue
+                except Exception as dup_check_error:
+                    self.logger.debug(f"Duplicate check failed: {dup_check_error}")
+                    # Continue with insert if check fails
                 
                 # Build metadata with smart matching info
                 metadata = {
@@ -938,6 +958,8 @@ class DocumentProcessor:
                 if result.data:
                     saved_count += 1
             
+            if skipped_duplicates > 0:
+                self.logger.info(f"⏭️  Skipped {skipped_duplicates} duplicate error codes")
             self.logger.success(f"💾 Saved {saved_count} error codes to DB")
             
         except Exception as e:
