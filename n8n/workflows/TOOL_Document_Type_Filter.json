@@ -1,0 +1,50 @@
+{
+  "name": "TOOL: Document Type Filter",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  d.id,\n  d.filename,\n  d.document_type,\n  d.manufacturer,\n  d.series,\n  d.models,\n  d.version,\n  d.file_size,\n  d.processing_status,\n  d.created_at,\n  COUNT(DISTINCT c.id) as chunk_count,\n  COUNT(DISTINCT i.id) as image_count,\n  COUNT(DISTINCT ec.id) as error_code_count\nFROM krai_core.documents d\nLEFT JOIN krai_intelligence.chunks c ON d.id = c.document_id\nLEFT JOIN krai_content.images i ON d.id = i.document_id\nLEFT JOIN krai_intelligence.error_codes ec ON d.id = ec.document_id\nWHERE d.document_type = '{{ $json.document_type }}'\n{{ $json.manufacturer ? \"AND d.manufacturer ILIKE '%\" + $json.manufacturer + \"%'\" : \"\" }}\nGROUP BY d.id\nORDER BY d.created_at DESC\nLIMIT {{ $json.limit || 10 }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "id": "query-documents",
+      "name": "Query Documents",
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Document List\nconst items = $input.all();\nconst params = $('Execute Workflow Trigger').item.json;\n\nif (items.length === 0) {\n  return {\n    found: false,\n    message: `📄 Keine ${params.document_type} Dokumente gefunden${params.manufacturer ? ' für ' + params.manufacturer : ''}.`\n  };\n}\n\n// Document type labels\nconst typeLabels = {\n  'service_bulletin': '📋 Service Bulletin',\n  'service_manual': '📕 Service Manual',\n  'parts_catalog': '🔧 Parts Catalog',\n  'user_manual': '📘 User Manual'\n};\n\nconst typeIcon = typeLabels[params.document_type] || '📄';\n\n// Format file size\nconst formatSize = (bytes) => {\n  if (!bytes) return 'N/A';\n  const mb = bytes / (1024 * 1024);\n  return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;\n};\n\n// Format date\nconst formatDate = (dateStr) => {\n  return new Date(dateStr).toLocaleDateString('de-DE', {\n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric'\n  });\n};\n\n// Build response\nlet response = `${typeIcon} GEFUNDENE DOKUMENTE\\n`;\nresponse += `Filter: ${params.document_type}${params.manufacturer ? ' | ' + params.manufacturer : ''}\\n\\n`;\n\nitems.forEach((item, index) => {\n  const doc = item.json;\n  response += `${index + 1}. ${doc.filename}\\n`;\n  \n  if (doc.manufacturer) response += `   🏭 ${doc.manufacturer}`;\n  if (doc.series) response += ` - ${doc.series}`;\n  if (doc.models && doc.models.length > 0) response += ` (${doc.models.join(', ')})`;\n  response += `\\n`;\n  \n  if (doc.version) response += `   📌 Version: ${doc.version}\\n`;\n  response += `   📅 Datum: ${formatDate(doc.created_at)}\\n`;\n  response += `   💾 Größe: ${formatSize(doc.file_size)}\\n`;\n  \n  if (doc.chunk_count || doc.image_count || doc.error_code_count) {\n    response += `   📊 Inhalt: `;\n    const parts = [];\n    if (doc.chunk_count) parts.push(`${doc.chunk_count} Chunks`);\n    if (doc.image_count) parts.push(`${doc.image_count} Bilder`);\n    if (doc.error_code_count) parts.push(`${doc.error_code_count} Error Codes`);\n    response += parts.join(', ') + `\\n`;\n  }\n  \n  response += `\\n`;\n});\n\nresponse += `\\n✅ Gesamt: ${items.length} ${params.document_type} Dokument${items.length > 1 ? 'e' : ''}`;\n\nreturn {\n  found: true,\n  count: items.length,\n  document_type: params.document_type,\n  formatted_response: response,\n  documents: items.map(i => i.json)\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "format-documents",
+      "name": "Format Document List"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Query Documents", "type": "main", "index": 0}]]
+    },
+    "Query Documents": {
+      "main": [[{"node": "Format Document List", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

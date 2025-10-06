@@ -1,0 +1,60 @@
+{
+  "name": "TOOL: Video Enrichment",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/content/videos/enrich/sync",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "document_id",
+              "value": "={{ $json.document_id || null }}"
+            },
+            {
+              "name": "manufacturer_id",
+              "value": "={{ $json.manufacturer_id || null }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "id": "http-enrich",
+      "name": "Call Video API"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Video Enrichment Response\nconst response = $input.first().json;\n\nif (response.error) {\n  return {\n    success: false,\n    message: `❌ Video konnte nicht analysiert werden:\\n${response.error}\\n\\n💡 Unterstützte Plattformen:\\n- YouTube (youtube.com, youtu.be)\\n- Vimeo (vimeo.com)\\n- Brightcove (players.brightcove.net)`\n  };\n}\n\n// Format duration\nconst formatDuration = (seconds) => {\n  if (!seconds) return 'N/A';\n  const hours = Math.floor(seconds / 3600);\n  const minutes = Math.floor((seconds % 3600) / 60);\n  const secs = seconds % 60;\n  \n  if (hours > 0) {\n    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;\n  }\n  return `${minutes}:${String(secs).padStart(2, '0')}`;\n};\n\n// Format numbers\nconst formatNumber = (num) => {\n  if (!num) return 'N/A';\n  return num.toLocaleString('de-DE');\n};\n\n// Build formatted response\nlet message = `🎬 VIDEO ERFOLGREICH ANALYSIERT!\\n\\n`;\n\nif (response.title) message += `📌 Titel: ${response.title}\\n`;\nif (response.platform) message += `🌐 Platform: ${response.platform}\\n`;\nif (response.duration) message += `⏱️ Dauer: ${formatDuration(response.duration)}\\n`;\nif (response.channel_title) message += `👤 Kanal: ${response.channel_title}\\n`;\nif (response.view_count) message += `👁️ Aufrufe: ${formatNumber(response.view_count)}\\n`;\nif (response.like_count) message += `👍 Likes: ${formatNumber(response.like_count)}\\n`;\n\nif (response.description) {\n  const descPreview = response.description.substring(0, 200);\n  message += `\\n📝 Beschreibung:\\n${descPreview}${response.description.length > 200 ? '...' : ''}\\n`;\n}\n\nif (response.thumbnail_url) {\n  message += `\\n🖼️ Thumbnail: ${response.thumbnail_url}\\n`;\n}\n\nif (response.video_url) {\n  message += `\\n🔗 Video-URL: ${response.video_url}\\n`;\n}\n\nif (response.video_id) {\n  message += `\\n✅ Video wurde in der Datenbank gespeichert!\\n`;\n  message += `   ID: ${response.video_id}\\n`;\n  \n  if (response.duplicate_detected) {\n    message += `   ℹ️ Hinweis: Dieses Video war bereits vorhanden (Deduplizierung)\\n`;\n  }\n}\n\nif (response.manufacturer_id) {\n  message += `   🏭 Verknüpft mit Hersteller\\n`;\n}\n\nreturn {\n  success: true,\n  message: message,\n  raw_data: response\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "format-video",
+      "name": "Format Video Response"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Call Video API", "type": "main", "index": 0}]]
+    },
+    "Call Video API": {
+      "main": [[{"node": "Format Video Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

@@ -1,0 +1,50 @@
+{
+  "name": "TOOL: System Status",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(DISTINCT d.id) as total_documents,\n  COUNT(DISTINCT CASE WHEN d.document_type = 'service_manual' THEN d.id END) as service_manuals,\n  COUNT(DISTINCT CASE WHEN d.document_type = 'service_bulletin' THEN d.id END) as service_bulletins,\n  COUNT(DISTINCT CASE WHEN d.document_type = 'parts_catalog' THEN d.id END) as parts_catalogs,\n  COUNT(DISTINCT CASE WHEN d.processing_status = 'completed' THEN d.id END) as completed_documents,\n  COUNT(DISTINCT CASE WHEN d.processing_status IN ('pending', 'processing') THEN d.id END) as pending_documents,\n  COUNT(DISTINCT c.id) as total_chunks,\n  COUNT(DISTINCT i.id) as total_images,\n  COUNT(DISTINCT v.id) as total_videos,\n  COUNT(DISTINCT l.id) as total_links,\n  COUNT(DISTINCT CASE WHEN l.is_active = true THEN l.id END) as active_links,\n  COUNT(DISTINCT ec.id) as total_error_codes,\n  COUNT(DISTINCT CASE WHEN ec.image_id IS NOT NULL THEN ec.id END) as error_codes_with_screenshots,\n  COUNT(DISTINCT p.id) as total_products,\n  COUNT(DISTINCT d.manufacturer) as total_manufacturers,\n  MAX(d.created_at) as last_document_added,\n  MAX(v.created_at) as last_video_added,\n  MAX(ec.created_at) as last_error_code_added\nFROM krai_core.documents d\nLEFT JOIN krai_intelligence.chunks c ON d.id = c.document_id\nLEFT JOIN krai_content.images i ON d.id = i.document_id\nLEFT JOIN krai_content.videos v ON d.id = v.document_id\nLEFT JOIN krai_content.links l ON d.id = l.document_id\nLEFT JOIN krai_intelligence.error_codes ec ON d.id = ec.document_id\nLEFT JOIN krai_core.products p ON d.id IN (\n  SELECT document_id FROM krai_core.document_products WHERE product_id = p.id\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "id": "query-status",
+      "name": "Query System Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format System Status for LLM\nconst data = $input.first().json;\n\n// Calculate percentages\nconst errorCodePercentage = data.total_error_codes > 0 \n  ? Math.round((data.error_codes_with_screenshots / data.total_error_codes) * 100)\n  : 0;\n\nconst linkHealthPercentage = data.total_links > 0\n  ? Math.round((data.active_links / data.total_links) * 100)\n  : 0;\n\nconst completionPercentage = data.total_documents > 0\n  ? Math.round((data.completed_documents / data.total_documents) * 100)\n  : 0;\n\n// Format dates\nconst formatDate = (dateStr) => {\n  if (!dateStr) return 'Keine Daten';\n  return new Date(dateStr).toLocaleString('de-DE', {\n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  });\n};\n\nconst statusText = `📊 KRAI SYSTEM STATUS V2.1\n\n📄 DOKUMENTE:\n  ├─ Gesamt: ${data.total_documents || 0}\n  ├─ Service Manuals: ${data.service_manuals || 0}\n  ├─ Service Bulletins: ${data.service_bulletins || 0}\n  ├─ Parts Catalogs: ${data.parts_catalogs || 0}\n  ├─ Abgeschlossen: ${data.completed_documents || 0} (${completionPercentage}%)\n  └─ In Bearbeitung: ${data.pending_documents || 0}\n\n📝 INHALTE:\n  ├─ Text-Chunks: ${(data.total_chunks || 0).toLocaleString('de-DE')}\n  ├─ Bilder: ${(data.total_images || 0).toLocaleString('de-DE')}\n  ├─ Videos: ${data.total_videos || 0}\n  ├─ Links: ${data.total_links || 0} (${linkHealthPercentage}% aktiv)\n  └─ Error Codes: ${data.total_error_codes || 0} (${errorCodePercentage}% mit Screenshots)\n\n🏭 KATALOG:\n  ├─ Produkte: ${(data.total_products || 0).toLocaleString('de-DE')}\n  └─ Hersteller: ${data.total_manufacturers || 0}\n\n⏱️ LETZTE AKTIVITÄTEN:\n  ├─ Dokument: ${formatDate(data.last_document_added)}\n  ├─ Video: ${formatDate(data.last_video_added)}\n  └─ Error Code: ${formatDate(data.last_error_code_added)}\n\n✅ System: Betriebsbereit`;\n\nreturn {\n  status_text: statusText,\n  raw_data: data,\n  summary: {\n    total_documents: data.total_documents || 0,\n    total_content_items: (data.total_chunks || 0) + (data.total_images || 0) + (data.total_videos || 0),\n    error_codes_with_screenshots_pct: errorCodePercentage,\n    link_health_pct: linkHealthPercentage,\n    completion_pct: completionPercentage\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "format-status",
+      "name": "Format Status"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Query System Status", "type": "main", "index": 0}]]
+    },
+    "Query System Status": {
+      "main": [[{"node": "Format Status", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

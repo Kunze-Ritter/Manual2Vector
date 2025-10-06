@@ -1,0 +1,56 @@
+{
+  "name": "TOOL: Link Validation",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/content/links/check/sync",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_id",
+              "value": "={{ $json.document_id || null }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.limit || 50 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "id": "http-validate",
+      "name": "Call Link API"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Link Validation Response\nconst response = $input.first().json;\n\nif (response.error) {\n  return {\n    success: false,\n    message: `❌ Link-Überprüfung fehlgeschlagen:\\n${response.error}`\n  };\n}\n\n// Calculate percentages\nconst total = response.total_checked || 0;\nconst active = response.active_links || 0;\nconst broken = response.broken_links || 0;\nconst redirected = response.redirected_links || 0;\nconst fixed = response.fixed_links || 0;\n\nconst activePercentage = total > 0 ? Math.round((active / total) * 100) : 0;\nconst brokenPercentage = total > 0 ? Math.round((broken / total) * 100) : 0;\n\n// Build formatted response\nlet message = `🔗 LINK-ÜBERPRÜFUNG ABGESCHLOSSEN\\n\\n`;\n\nmessage += `📊 ÜBERSICHT:\\n`;\nmessage += `  ├─ Überprüft: ${total} Links\\n`;\nmessage += `  ├─ ✅ Aktiv: ${active} (${activePercentage}%)\\n`;\nmessage += `  ├─ ⚠️ Weitergeleitet: ${redirected}\\n`;\nmessage += `  ├─ ❌ Defekt: ${broken} (${brokenPercentage}%)\\n`;\nmessage += `  └─ 🔧 Automatisch gefixt: ${fixed}\\n\\n`;\n\n// Fixes applied\nif (response.fixes_applied && response.fixes_applied.length > 0) {\n  message += `✨ ANGEWANDTE FIXES:\\n`;\n  response.fixes_applied.forEach(fix => {\n    message += `  • ${fix}\\n`;\n  });\n  message += `\\n`;\n}\n\n// Processing time\nif (response.processing_time_seconds) {\n  message += `⏱️ Verarbeitungszeit: ${response.processing_time_seconds.toFixed(1)}s\\n\\n`;\n}\n\n// Broken links details\nif (response.broken_links_details && response.broken_links_details.length > 0) {\n  message += `❌ DEFEKTE LINKS:\\n`;\n  response.broken_links_details.slice(0, 5).forEach((link, index) => {\n    message += `\\n${index + 1}. ${link.url}\\n`;\n    if (link.status_code) message += `   Status: ${link.status_code}\\n`;\n    if (link.error) message += `   Fehler: ${link.error}\\n`;\n    if (link.document_name) message += `   Dokument: ${link.document_name}\\n`;\n  });\n  \n  if (response.broken_links_details.length > 5) {\n    message += `\\n...und ${response.broken_links_details.length - 5} weitere\\n`;\n  }\n  message += `\\n`;\n}\n\n// Summary\nif (activePercentage >= 95) {\n  message += `✅ Sehr gut! ${activePercentage}% der Links sind aktiv.`;\n} else if (activePercentage >= 80) {\n  message += `⚠️ Achtung! ${brokenPercentage}% defekte Links sollten geprüft werden.`;\n} else {\n  message += `❌ Warnung! Viele defekte Links gefunden (${brokenPercentage}%). Dringender Handlungsbedarf!`;\n}\n\nreturn {\n  success: true,\n  message: message,\n  summary: {\n    total: total,\n    active: active,\n    broken: broken,\n    redirected: redirected,\n    fixed: fixed,\n    active_percentage: activePercentage\n  },\n  raw_data: response\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "format-links",
+      "name": "Format Link Response"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Call Link API", "type": "main", "index": 0}]]
+    },
+    "Call Link API": {
+      "main": [[{"node": "Format Link Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

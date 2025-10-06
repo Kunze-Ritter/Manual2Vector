@@ -1,0 +1,50 @@
+{
+  "name": "TOOL: Error Code Search",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  ec.error_code,\n  ec.error_description,\n  ec.solution_text,\n  ec.severity_level,\n  ec.requires_technician,\n  ec.confidence_score,\n  c.text_chunk as context_text,\n  c.metadata->>'page_number' as page_number,\n  i.storage_url as screenshot_url,\n  i.ai_description as screenshot_description,\n  d.filename as document_name,\n  d.manufacturer,\n  d.series,\n  ec.metadata->>'image_match_method' as match_method,\n  ec.created_at\nFROM krai_intelligence.error_codes ec\nLEFT JOIN krai_intelligence.chunks c ON ec.chunk_id = c.id\nLEFT JOIN krai_content.images i ON ec.image_id = i.id\nLEFT JOIN krai_core.documents d ON ec.document_id = d.id\nWHERE UPPER(ec.error_code) = UPPER('{{ $json.error_code }}')\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "id": "query-error",
+      "name": "Query Error Code",
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Error Code Response\nconst item = $input.first().json;\n\nif (!item || !item.error_code) {\n  return {\n    found: false,\n    message: `🔴 Error Code nicht gefunden: ${$('Execute Workflow Trigger').item.json.error_code}\\n\\n❌ Dieser Error Code ist nicht in der Datenbank.\\n\\n💡 Versuche:\\n- Prüfe die Schreibweise (z.B. C-2801 vs C2801)\\n- Nutze Vector Search für ähnliche Probleme\\n- Beschreibe das Problem direkt`\n  };\n}\n\n// Format solution text with proper line breaks\nconst formatSolution = (text) => {\n  if (!text) return 'Keine Lösung verfügbar';\n  return text.split('\\n').map((line, i) => {\n    if (line.match(/^\\d+\\./)) return line;  // Already numbered\n    return `${i + 1}. ${line.trim()}`;\n  }).join('\\n');\n};\n\n// Build formatted response\nlet response = `🔴 ERROR CODE: ${item.error_code}\\n\\n`;\n\n// Description\nresponse += `📝 BESCHREIBUNG:\\n${item.error_description || 'Keine Beschreibung verfügbar'}\\n\\n`;\n\n// Solution\nif (item.solution_text) {\n  response += `🔧 LÖSUNG:\\n${formatSolution(item.solution_text)}\\n\\n`;\n}\n\n// Context from manual\nif (item.context_text) {\n  const contextPreview = item.context_text.substring(0, 300);\n  response += `📄 CONTEXT AUS MANUAL:\\n${contextPreview}${item.context_text.length > 300 ? '...' : ''}\\n\\n`;\n}\n\n// Screenshot\nif (item.screenshot_url) {\n  response += `🖼️ SCREENSHOT:\\n${item.screenshot_url}\\n`;\n  if (item.screenshot_description) {\n    response += `   ${item.screenshot_description}\\n`;\n  }\n  if (item.match_method) {\n    response += `   ✨ Match-Methode: ${item.match_method}\\n`;\n  }\n  response += `\\n`;\n}\n\n// Source information\nresponse += `ℹ️ DETAILS:\\n`;\nif (item.document_name) response += `  📄 Dokument: ${item.document_name}\\n`;\nif (item.manufacturer) response += `  🏭 Hersteller: ${item.manufacturer}\\n`;\nif (item.series) response += `  📦 Serie: ${item.series}\\n`;\nif (item.page_number) response += `  📖 Seite: ${item.page_number}\\n`;\nif (item.severity_level) response += `  ⚠️ Schweregrad: ${item.severity_level}\\n`;\nif (item.requires_technician !== null) {\n  response += `  👨‍🔧 Techniker: ${item.requires_technician ? 'Erforderlich' : 'Nicht erforderlich'}\\n`;\n}\nif (item.confidence_score) {\n  const confidence = Math.round(item.confidence_score * 100);\n  response += `  📊 Konfidenz: ${confidence}%\\n`;\n}\n\nreturn {\n  found: true,\n  error_code: item.error_code,\n  formatted_response: response,\n  raw_data: item\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "format-error",
+      "name": "Format Error Code"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Query Error Code", "type": "main", "index": 0}]]
+    },
+    "Query Error Code": {
+      "main": [[{"node": "Format Error Code", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

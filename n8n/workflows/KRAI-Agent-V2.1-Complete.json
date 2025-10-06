@@ -1,0 +1,322 @@
+{
+  "name": "KRAI AI Agent V2.1 - Complete",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Du bist der KRAI AI Agent V2.1 - ein hochintelligenter technischer Assistent für Service-Dokumentation.\n\n🎯 DEINE HAUPTAUFGABEN:\n1. Technische Fragen zu Druckern, Kopierern und Geräten beantworten\n2. Fehlercode-Analyse mit Screenshots und Context\n3. Service-Anleitungen und Reparatur-Guides finden\n4. Video-Tutorials analysieren und verknüpfen\n5. Links validieren und reparieren\n6. Dokumenttypen unterscheiden (Service Bulletins vs. Manuals)\n\n🔧 VERFÜGBARE TOOLS:\n\n1. **krai_intelligence** (Vector Search)\n   - Durchsucht ALLE technischen Dokumente semantisch\n   - Nutze für: Anleitungen, Spezifikationen, Troubleshooting\n   - Beispiel: \"Wie wechsle ich den Toner?\"\n\n2. **search_error_code** (SQL Query)\n   - Findet Error Codes MIT Screenshot & Context\n   - Nutze für: \"Was ist Error C-2801?\"\n   - Zeigt: Beschreibung, Lösung, Screenshot, Seitenreferenz\n\n3. **search_by_document_type** (SQL Query)\n   - Filtert nach Dokumenttyp\n   - Nutze für: \"Zeige alle Service Bulletins\"\n   - Typen: service_bulletin, service_manual, parts_catalog\n\n4. **enrich_video** (HTTP API)\n   - Analysiert YouTube/Vimeo/Brightcove Videos\n   - Nutze wenn User Video-URL sendet\n   - Extrahiert: Titel, Beschreibung, Dauer, Thumbnails\n\n5. **validate_links** (HTTP API)\n   - Überprüft und repariert Links\n   - Nutze für: \"Überprüfe Links\"\n   - Findet: Defekte Links, Redirects, Auto-Fixes\n\n6. **get_system_status** (Workflow)\n   - Zeigt vollständige System-Statistiken\n   - Nutze für: \"System Status\", \"Statistiken\"\n   - Zeigt: Dokumente, Videos, Links, Error Codes\n\n📝 ANTWORT-STIL:\n- Immer auf Deutsch\n- Strukturiert mit Listen/Aufzählungen\n- Mit Quellenangaben (Dokument, Seite)\n- Bei Screenshots: URL anzeigen\n- Bei Videos: Dauer + Beschreibung\n- Ehrlich wenn keine Info gefunden\n\n🎨 FORMATIERUNG:\n- 🔴 für Error Codes\n- 📄 für Dokumente\n- 🎬 für Videos\n- 🔗 für Links\n- ⚠️ für Warnungen\n- ✅ für erfolgreiche Actions\n\n💡 SPEZIAL-FEATURES:\n- Unterscheide Service Bulletins (Kurz-Infos) vs. Service Manuals (Vollständig)\n- Priorisiere neueste Bulletins bei Updates\n- Zeige Screenshots wenn verfügbar\n- Verlinke relevante Videos\n- Validiere Links automatisch\n\nBEISPIEL-ANTWORTEN:\n\nUser: \"Was ist Error C-2801?\"\nDu: [Nutze search_error_code]\n\"🔴 Error Code: C-2801\n\n📝 Paper jam in duplex unit\n\n🔧 Lösung:\n1. Open duplex unit cover\n2. Remove jammed paper\n3. Close cover and restart\n\n📄 Quelle: KM_C3320i_SM.pdf (Seite 278)\n🖼️ Screenshot: [URL]\n⚠️ Techniker: Nicht erforderlich\"\n\nUser: \"Zeige Service Bulletins zu Firmware Updates\"\nDu: [Nutze search_by_document_type mit type='service_bulletin']\n\"📄 Gefundene Service Bulletins:\n\n1. SB-2024-015: Firmware Update 4.2.1\n   Datum: 15.03.2024\n   Hersteller: Konica Minolta\n   \n2. SB-2024-012: Security Patch 4.1.9\n   Datum: 02.02.2024\n   ...\"\n\nUser: \"Video: https://youtube.com/watch?v=abc\"\nDu: [Nutze enrich_video]\n\"🎬 Video analysiert!\n\nTitel: HP Printer Maintenance Guide\nDauer: 15:32\nKanal: HP Support\nAufrufe: 12,543\n\n✅ In Datenbank gespeichert!\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1200, 400],
+      "id": "ai-agent-main",
+      "name": "KRAI AI Agent V2.1"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7,
+          "numPredict": 3000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [1400, 600],
+      "id": "ollama-chat",
+      "name": "Ollama LLM",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "tableName": {
+          "__rl": true,
+          "value": "vw_agent_memory",
+          "mode": "list",
+          "cachedResultName": "vw_agent_memory"
+        },
+        "sessionIdKey": "session_id",
+        "messageKey": "message",
+        "roleKey": "role",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [1400, 740],
+      "id": "postgres-memory",
+      "name": "Conversation Memory",
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "krai_intelligence",
+        "toolDescription": "🔍 SEMANTIC SEARCH - Durchsuche die gesamte KRAI Wissensdatenbank!\n\nNUTZE DIESES TOOL FÜR:\n✅ Technische Anleitungen (z.B. 'Toner wechseln', 'Wartung durchführen')\n✅ Reparatur-Guides (z.B. 'Paper jam beheben', 'Druckkopf reinigen')\n✅ Spezifikationen (z.B. 'HP LaserJet M607 Specs', 'Druckgeschwindigkeit')\n✅ Troubleshooting (z.B. 'Drucker druckt nicht', 'Streifen auf Ausdruck')\n✅ Bedienungsanleitungen (z.B. 'Duplex-Druck einstellen')\n✅ Allgemeine Fragen zu Geräten\n\n❌ NUTZE ES NICHT FÜR:\n- Error Codes (nutze search_error_code)\n- Service Bulletins (nutze search_by_document_type)\n- Videos (nutze enrich_video)\n- Links (nutze validate_links)\n\nBEISPIELE:\n- 'Wie wechsle ich den Toner bei HP LaserJet M607?'\n- 'Wartungsanleitung Konica Minolta C3320i'\n- 'Paper jam in duplex unit'\n- 'Druckkopf Alignment Prozedur'\n\nGib präzise Suchbegriffe ein - je spezifischer, desto besser!",
+        "tableName": {
+          "__rl": true,
+          "value": "vw_embeddings",
+          "mode": "list",
+          "cachedResultName": "vw_embeddings"
+        },
+        "queryName": "embedding",
+        "topK": 5,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [1600, 300],
+      "id": "vector-store",
+      "name": "Tool: Vector Search",
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOEfJ5TSCcCT8bKn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [1600, 440],
+      "id": "embeddings-ollama",
+      "name": "Embeddings Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [1000, 400],
+      "id": "chat-trigger",
+      "name": "When chat message received",
+      "webhookId": "ee735bd8-0333-40b8-b43c-5da5fce5f385"
+    },
+    {
+      "parameters": {
+        "name": "get_system_status",
+        "description": "📊 Zeigt vollständige System-Statistiken:\n- Dokumente (gesamt, Service Manuals, Bulletins, Parts Catalogs)\n- Chunks, Bilder, Videos, Links\n- Error Codes (mit/ohne Screenshots)\n- Produkte, Hersteller\n- Verarbeitungs-Queue\n- Letzte Aktivitäten\n\nNutze wenn User fragt: 'System Status', 'Statistiken', 'Wie viele Dokumente', 'Was ist im System'",
+        "workflowId": "={{ $workflow.id }}",
+        "responsePropertyName": "status_data",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{}",
+        "toolDescription": "Get comprehensive system statistics"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [1600, 160],
+      "id": "tool-system-status",
+      "name": "Tool: System Status"
+    },
+    {
+      "parameters": {
+        "name": "search_error_code",
+        "description": "🔴 ERROR CODE SEARCH - Findet Error Codes MIT allen Details!\n\nWAS ES LIEFERT:\n✅ Error Code Beschreibung\n✅ Komplette Lösung (Schritt-für-Schritt)\n✅ Screenshot vom Manual (wenn verfügbar)\n✅ Context-Text von der Seite\n✅ Dokument + Seiten-Nummer\n✅ Hersteller & Modell\n✅ Schweregrad\n✅ Ob Techniker nötig ist\n✅ Konfidenz-Score\n\nNUTZE FÜR:\n- 'Was ist Error Code C-2801?'\n- 'Fehler E045'\n- 'Error 13.01'\n- 'Code J4-12'\n\nEXAMPLE INPUT:\n{\n  \"error_code\": \"C-2801\"\n}\n\nEXAMPLE OUTPUT:\n{\n  \"error_code\": \"C-2801\",\n  \"description\": \"Paper jam in duplex unit\",\n  \"solution\": \"1. Open cover\\n2. Remove paper\\n3. Close\",\n  \"screenshot_url\": \"https://r2.../image.png\",\n  \"context_text\": \"When C-2801 appears...\",\n  \"page\": \"278\",\n  \"document\": \"KM_C3320i_SM.pdf\",\n  \"manufacturer\": \"Konica Minolta\",\n  \"severity\": \"medium\",\n  \"requires_technician\": false,\n  \"confidence\": 0.95\n}",
+        "workflowId": "={{ $workflow.id }}",
+        "responsePropertyName": "error_data",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"error_code\": \"C-2801\"\n}",
+        "toolDescription": "Search for error codes with screenshots and context"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [1600, 580],
+      "id": "tool-error-code",
+      "name": "Tool: Error Code Search"
+    },
+    {
+      "parameters": {
+        "name": "search_by_document_type",
+        "description": "📑 DOCUMENT TYPE FILTER - Suche nach Dokumenttyp!\n\nDOKUMENTTYPEN:\n1. **service_bulletin** - Kurze Service-Infos, Updates, Firmware\n2. **service_manual** - Vollständige Reparatur-Handbücher\n3. **parts_catalog** - Ersatzteil-Kataloge\n4. **user_manual** - Bedienungsanleitungen\n\nNUTZE FÜR:\n- 'Zeige alle Service Bulletins'\n- 'Liste Parts Catalogs'\n- 'Service Manuals zu HP'\n- 'Firmware Updates' (→ service_bulletin)\n\nEXAMPLE INPUT:\n{\n  \"document_type\": \"service_bulletin\",\n  \"manufacturer\": \"Konica Minolta\",\n  \"limit\": 10\n}\n\nEXAMPLE OUTPUT:\n[\n  {\n    \"filename\": \"SB-2024-015_Firmware_Update.pdf\",\n    \"document_type\": \"service_bulletin\",\n    \"manufacturer\": \"Konica Minolta\",\n    \"series\": \"bizhub C360\",\n    \"created_at\": \"2024-03-15\",\n    \"file_size\": \"2.3 MB\"\n  }\n]",
+        "workflowId": "={{ $workflow.id }}",
+        "responsePropertyName": "documents",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"document_type\": \"service_bulletin\",\n  \"manufacturer\": null,\n  \"limit\": 10\n}",
+        "toolDescription": "Filter documents by type (bulletins, manuals, catalogs)"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [1600, 720],
+      "id": "tool-document-type",
+      "name": "Tool: Document Type Filter"
+    },
+    {
+      "parameters": {
+        "name": "enrich_video",
+        "description": "🎬 VIDEO ENRICHMENT - Analysiert Videos von YouTube, Vimeo, Brightcove!\n\nWAS ES MACHT:\n✅ Extrahiert Video Metadata (Titel, Beschreibung, Dauer)\n✅ Speichert in Datenbank\n✅ Verknüpft mit Herstellern/Modellen\n✅ Dedupliziert automatisch\n\nSUPPORTED PLATFORMS:\n- YouTube (youtube.com, youtu.be)\n- Vimeo (vimeo.com)\n- Brightcove (players.brightcove.net)\n\nNUTZE WENN:\n- User sendet Video-URL\n- User fragt 'Was ist in diesem Video?'\n- User will Video zur Dokumentation hinzufügen\n\nEXAMPLE INPUT:\n{\n  \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n  \"document_id\": null,\n  \"manufacturer_id\": null\n}\n\nEXAMPLE OUTPUT:\n{\n  \"video_id\": \"uuid\",\n  \"title\": \"HP Printer Maintenance\",\n  \"duration\": \"15:32\",\n  \"views\": \"12,543\",\n  \"thumbnail_url\": \"https://...\",\n  \"status\": \"saved\"\n}",
+        "workflowId": "={{ $workflow.id }}",
+        "responsePropertyName": "video_data",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n  \"document_id\": null,\n  \"manufacturer_id\": null\n}",
+        "toolDescription": "Enrich video URLs (YouTube/Vimeo/Brightcove)"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [1800, 160],
+      "id": "tool-video",
+      "name": "Tool: Video Enrichment"
+    },
+    {
+      "parameters": {
+        "name": "validate_links",
+        "description": "🔗 LINK VALIDATION - Überprüft und repariert Links!\n\nWAS ES MACHT:\n✅ Validiert alle Links in Dokumenten\n✅ Folgt Redirects (301/302/307/308)\n✅ Auto-Fix: http→https, www-Präfixe\n✅ Entfernt trailing Punktation\n✅ Markiert defekte Links\n✅ Speichert Fixes in Datenbank\n\nNUTZE FÜR:\n- 'Überprüfe Links'\n- 'Sind alle Links aktiv?'\n- 'Repariere defekte Links'\n- 'Link Status'\n\nEXAMPLE INPUT:\n{\n  \"document_id\": null,\n  \"limit\": 50\n}\n\nEXAMPLE OUTPUT:\n{\n  \"total_links\": 45,\n  \"active\": 42,\n  \"redirected\": 3,\n  \"broken\": 2,\n  \"fixed\": 3,\n  \"fixes_applied\": [\n    \"http→https: 2 links\",\n    \"Removed trailing '.': 1 link\"\n  ]\n}",
+        "workflowId": "={{ $workflow.id }}",
+        "responsePropertyName": "link_data",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"document_id\": null,\n  \"limit\": 50\n}",
+        "toolDescription": "Validate and fix document links"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [1800, 300],
+      "id": "tool-links",
+      "name": "Tool: Link Validation"
+    }
+  ],
+  "connections": {
+    "KRAI AI Agent V2.1": {
+      "main": [[]]
+    },
+    "Ollama LLM": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Vector Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Model": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Tool: Vector Search",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: System Status": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Error Code Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Document Type Filter": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Video Enrichment": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Link Validation": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI AI Agent V2.1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-10-06T07:30:00.000Z",
+  "versionId": "v2.1.0"
+}
