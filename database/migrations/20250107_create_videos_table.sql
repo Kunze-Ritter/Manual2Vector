@@ -2,8 +2,11 @@
 -- Date: 2025-01-07
 -- Purpose: Store enriched metadata for video links (YouTube, Vimeo, Brightcove)
 
+-- Drop existing videos table if it exists (clean slate)
+DROP TABLE IF EXISTS krai_content.videos CASCADE;
+
 -- Create videos table
-CREATE TABLE IF NOT EXISTS krai_content.videos (
+CREATE TABLE krai_content.videos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     link_id UUID REFERENCES krai_content.links(id) ON DELETE CASCADE,
     
@@ -33,7 +36,7 @@ CREATE TABLE IF NOT EXISTS krai_content.videos (
     document_id UUID REFERENCES krai_core.documents(id),
     
     -- Metadata
-    metadata JSONB,  -- Platform-specific extra data
+    metadata JSONB,  -- Platform-specific extra data (vimeo_id, brightcove_id, etc.)
     
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -42,11 +45,11 @@ CREATE TABLE IF NOT EXISTS krai_content.videos (
 );
 
 -- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_videos_link_id ON krai_content.videos(link_id);
-CREATE INDEX IF NOT EXISTS idx_videos_youtube_id ON krai_content.videos(youtube_id);
-CREATE INDEX IF NOT EXISTS idx_videos_platform ON krai_content.videos(platform);
-CREATE INDEX IF NOT EXISTS idx_videos_manufacturer_id ON krai_content.videos(manufacturer_id);
-CREATE INDEX IF NOT EXISTS idx_videos_document_id ON krai_content.videos(document_id);
+CREATE INDEX idx_videos_link_id ON krai_content.videos(link_id);
+CREATE INDEX idx_videos_youtube_id ON krai_content.videos(youtube_id);
+CREATE INDEX idx_videos_platform ON krai_content.videos(platform);
+CREATE INDEX idx_videos_manufacturer_id ON krai_content.videos(manufacturer_id);
+CREATE INDEX idx_videos_document_id ON krai_content.videos(document_id);
 
 -- Comments
 COMMENT ON TABLE krai_content.videos IS 'Enriched video metadata for links (YouTube, Vimeo, Brightcove)';
