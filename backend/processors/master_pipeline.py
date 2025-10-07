@@ -916,7 +916,7 @@ class MasterPipeline:
                     prod_data = product if isinstance(product, dict) else {
                         'manufacturer': getattr(product, 'manufacturer', None),
                         'model_number': getattr(product, 'model_number', ''),
-                        'series': getattr(product, 'series', None)
+                        'series': getattr(product, 'product_series', None)  # Fixed: use product_series
                     }
                     
                     if prod_data.get('manufacturer') and not manufacturer:
