@@ -245,10 +245,26 @@ class VideoEnricher:
                         return manufacturer_id
                     else:
                         logger.warning(f"⚠️ Manufacturer '{manufacturer_name}' not found in database")
-                        # List available manufacturers for debugging
-                        all_manufacturers = supabase.table('manufacturers').select('name').limit(10).execute()
-                        logger.info(f"📋 Available manufacturers: {[m['name'] for m in all_manufacturers.data]}")
-                        return None
+                        
+                        # Auto-create manufacturer
+                        try:
+                            logger.info(f"🔨 Creating manufacturer: {manufacturer_name}")
+                            new_manufacturer = supabase.table('manufacturers').insert({
+                                'name': manufacturer_name,
+                                'website': f'https://{domain_key}',
+                                'is_active': True
+                            }).execute()
+                            
+                            if new_manufacturer.data:
+                                manufacturer_id = new_manufacturer.data[0]['id']
+                                logger.info(f"✅ Created manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
+                                return manufacturer_id
+                            else:
+                                logger.error(f"❌ Failed to create manufacturer: {manufacturer_name}")
+                                return None
+                        except Exception as e:
+                            logger.error(f"❌ Error creating manufacturer: {e}")
+                            return None
             
             logger.info(f"ℹ️ No manufacturer detected from domain: {domain}")
             return None
@@ -358,7 +374,7 @@ class VideoEnricher:
                                 config=Config(signature_version='s3v4')
                             )
                             
-                            bucket_name = os.getenv('R2_BUCKET_NAME') or os.getenv('R2_BUCKET_NAME_DOCUMENTS', 'krai-content')
+                            bucket_name = os.getenv('R2_BUCKET_NAME') or os.getenv('R2_BUCKET_NAME_DOCUMENTS', 'krai-documents-images')
                             logger.info(f"📦 Bucket: {bucket_name}, File: {thumbnail_filename}")
                             
                             r2_client.put_object(
