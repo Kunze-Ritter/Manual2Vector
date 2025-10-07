@@ -604,6 +604,96 @@ class VideoEnricher:
             
         except Exception as e:
             logger.error(f"Error processing links: {e}")
+    
+    async def enrich_single_url(
+        self, 
+        url: str, 
+        document_id: Optional[str] = None,
+        manufacturer_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Enrich a single video URL
+        
+        Args:
+            url: Video URL to enrich
+            document_id: Optional document ID to link to
+            manufacturer_id: Optional manufacturer ID to link to
+            
+        Returns:
+            Dictionary with video metadata
+        """
+        try:
+            # Create a fake link object for processing
+            fake_link = {
+                'id': None,  # No link_id for direct URL enrichment
+                'url': url,
+                'link_type': 'video',
+                'document_id': document_id
+            }
+            
+            # Determine platform and enrich
+            if 'youtube.com' in url or 'youtu.be' in url:
+                video_id = self.extract_youtube_id(url)
+                if not video_id:
+                    return {'error': 'Could not extract YouTube video ID'}
+                
+                metadata = await self.get_youtube_metadata(video_id)
+                if metadata:
+                    return {
+                        'platform': 'youtube',
+                        'video_id': video_id,
+                        'title': metadata.get('title'),
+                        'description': metadata.get('description'),
+                        'duration': metadata.get('duration'),
+                        'view_count': metadata.get('view_count'),
+                        'like_count': metadata.get('like_count'),
+                        'channel_title': metadata.get('channel_title'),
+                        'thumbnail_url': metadata.get('thumbnail_url'),
+                        'video_url': url
+                    }
+                    
+            elif 'vimeo.com' in url:
+                video_id = self.extract_vimeo_id(url)
+                if not video_id:
+                    return {'error': 'Could not extract Vimeo video ID'}
+                
+                metadata = await self.get_vimeo_metadata(video_id)
+                if metadata:
+                    return {
+                        'platform': 'vimeo',
+                        'video_id': video_id,
+                        'title': metadata.get('title'),
+                        'description': metadata.get('description'),
+                        'duration': metadata.get('duration'),
+                        'view_count': metadata.get('view_count'),
+                        'channel_title': metadata.get('channel_title'),
+                        'thumbnail_url': metadata.get('thumbnail_url'),
+                        'video_url': url
+                    }
+                    
+            elif 'brightcove' in url:
+                ids = self.extract_brightcove_ids(url)
+                if not ids:
+                    return {'error': 'Could not extract Brightcove IDs'}
+                
+                account_id, player_id, video_id = ids
+                metadata = await self.get_brightcove_metadata(account_id, player_id, video_id)
+                if metadata:
+                    return {
+                        'platform': 'brightcove',
+                        'video_id': video_id,
+                        'title': metadata.get('title'),
+                        'description': metadata.get('description'),
+                        'duration': metadata.get('duration'),
+                        'thumbnail_url': metadata.get('thumbnail_url'),
+                        'video_url': url
+                    }
+            
+            return {'error': 'Unsupported video platform'}
+            
+        except Exception as e:
+            logger.error(f"Error enriching single URL: {e}")
+            return {'error': str(e)}
 
 
 async def main():
