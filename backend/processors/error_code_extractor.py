@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple, Dict, Any
 from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
 from .exceptions import ManufacturerPatternNotFoundError
+from utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
 
 
 logger = get_logger()
@@ -419,7 +420,17 @@ class ErrorCodeExtractor:
         if match:
             bullets = match.group(1).strip()
             lines = [l.strip() for l in bullets.split('\n') if l.strip()][:8]
-            return '\n'.join(lines)
+            solution = '\n'.join(lines)
+            
+            # HP-specific: Filter to technician-only solution
+            if is_hp_multi_level_format(combined_text):
+                solution = extract_hp_technician_solution(solution)
+            
+            return solution
+        
+        # No solution found - check if HP format and extract technician section
+        if is_hp_multi_level_format(combined_text):
+            return extract_hp_technician_solution(combined_text)
         
         return None
     
