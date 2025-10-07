@@ -24,7 +24,7 @@ from pathlib import Path as FilePath
 try:
     from dotenv import load_dotenv
 except ImportError:
-    load_dotenv = lambda: None  # Fallback
+    load_dotenv = lambda *args, **kwargs: None  # Fallback accepts any args
 
 # Load .env
 env_path = FilePath(__file__).parent.parent.parent / '.env'
