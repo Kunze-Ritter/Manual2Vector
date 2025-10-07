@@ -695,6 +695,24 @@ class VideoEnricher:
                 else:
                     return {'error': 'Could not fetch Brightcove metadata', 'platform': 'brightcove'}
             
+            # Direct video files (MP4, etc.)
+            elif url.endswith(('.mp4', '.webm', '.mov', '.avi', '.mkv')):
+                # Extract filename as title
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                filename = parsed.path.split('/')[-1]
+                title = filename.replace('-', ' ').replace('_', ' ').rsplit('.', 1)[0]
+                
+                return {
+                    'platform': 'direct',
+                    'video_id': None,
+                    'title': title,
+                    'description': f'Direct video file: {filename}',
+                    'duration': None,
+                    'thumbnail_url': None,
+                    'video_url': url
+                }
+            
             return {'error': 'Unsupported video platform', 'platform': None}
             
         except Exception as e:
