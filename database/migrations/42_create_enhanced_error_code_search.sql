@@ -11,7 +11,7 @@ RETURNS TABLE (
   source_type TEXT,
   source_id UUID,
   source_title TEXT,
-  error_code TEXT,
+  code TEXT,
   error_description TEXT,
   solution_text TEXT,
   parts_list TEXT,
