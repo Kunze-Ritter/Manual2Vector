@@ -833,11 +833,91 @@ class VideoEnricher:
         
         return False
     
+    async def enrich_direct_video_link(self, link: Dict[str, Any]) -> bool:
+        """Enrich a direct video file link with metadata"""
+        url = link['url']
+        
+        try:
+            # Extract metadata using OpenCV
+            metadata_result = await self.extract_direct_video_metadata(url)
+            
+            if not metadata_result.get('duration'):
+                logger.warning(f"Could not extract metadata from: {url}")
+                return False
+            
+            # Extract filename and models
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            filename = parsed.path.split('/')[-1]
+            raw_title = filename.replace('-', ' ').replace('_', ' ').rsplit('.', 1)[0]
+            
+            models = self.extract_models_from_text(raw_title)
+            cleaned_title = self.cleanup_title(raw_title, models)
+            
+            # Detect manufacturer
+            manufacturer_id = await self.detect_manufacturer_from_url(url)
+            
+            # Get context from link
+            context = self.get_link_context(link)
+            if not manufacturer_id:
+                manufacturer_id = context['manufacturer_id']
+            
+            # Check for existing video by URL
+            existing = self._get_supabase().table('videos').select('id').eq('video_url', url).limit(1).execute()
+            
+            if existing.data:
+                video_id_to_link = existing.data[0]['id']
+                logger.info(f"🔗 Video exists, reusing (dedup)...")
+            else:
+                # Insert new video
+                video_record = self._get_supabase().table('videos').insert({
+                    'link_id': link['id'],
+                    'youtube_id': None,
+                    'platform': 'direct',
+                    'video_url': url,
+                    'title': cleaned_title,
+                    'description': cleaned_title,
+                    'thumbnail_url': metadata_result.get('thumbnail_url'),
+                    'duration': metadata_result.get('duration'),
+                    'manufacturer_id': manufacturer_id,
+                    'document_id': link.get('document_id'),
+                    'metadata': {
+                        'filename': filename,
+                        'original_title': raw_title,
+                        'resolution': metadata_result.get('resolution'),
+                        'file_size': metadata_result.get('file_size'),
+                        'models': models,
+                        'enriched_at': datetime.now(timezone.utc).isoformat(),
+                        'source': 'opencv_extraction'
+                    }
+                }).execute()
+                
+                if not video_record.data:
+                    logger.error("Failed to insert video")
+                    return False
+                
+                video_id_to_link = video_record.data[0]['id']
+            
+            # Update link with video_id
+            self._get_supabase().table('links').update({
+                'video_id': video_id_to_link
+            }).eq('id', link['id']).execute()
+            
+            logger.info(f"✅ Enriched direct video: {cleaned_title[:50]}...")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enriching direct video: {e}")
+            return False
+    
     async def enrich_link(self, link: Dict[str, Any]) -> bool:
         """Enrich a video link based on its type"""
         url = link['url']
         
-        if 'youtube.com' in url or 'youtu.be' in url:
+        # Check for direct video files FIRST
+        if url.lower().endswith(('.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.flv', '.wmv', '.mpeg', '.mpg', '.3gp')):
+            return await self.enrich_direct_video_link(link)
+        elif 'youtube.com' in url or 'youtu.be' in url:
             return await self.enrich_youtube_link(link)
         elif 'vimeo.com' in url:
             return await self.enrich_vimeo_link(link)
@@ -922,7 +1002,8 @@ class VideoEnricher:
             
             # Determine platform and enrich
             # Check for direct video files FIRST (before other platforms)
-            if url.endswith(('.mp4', '.webm', '.mov', '.avi', '.mkv')):
+            # Supported: MP4, WebM, MOV, AVI, MKV, M4V, FLV, WMV, MPEG, MPG, 3GP
+            if url.lower().endswith(('.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.flv', '.wmv', '.mpeg', '.mpg', '.3gp')):
                 # Extract filename as title
                 from urllib.parse import urlparse
                 parsed = urlparse(url)
