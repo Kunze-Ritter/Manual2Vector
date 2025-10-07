@@ -1,10 +1,11 @@
 """
 Manufacturer Utilities
 ======================
-Centralized manufacturer management functions
+Centralized manufacturer, product, and series management functions
+Auto-creates entities when detected but not in database
 """
 
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 import logging
 
@@ -134,3 +135,180 @@ def detect_manufacturer_from_domain(domain: str, supabase) -> Optional[UUID]:
     
     logger.debug(f"ℹ️ No manufacturer detected from domain: {domain}")
     return None
+
+
+def ensure_series_exists(
+    series_name: str, 
+    manufacturer_id: UUID, 
+    supabase
+) -> Optional[UUID]:
+    """
+    Ensure product series exists in database, create if needed
+    
+    Args:
+        series_name: Name of series (e.g., "LaserJet Pro", "CS900")
+        manufacturer_id: UUID of manufacturer
+        supabase: Supabase client instance
+        
+    Returns:
+        series_id (UUID) or None
+    """
+    if not series_name or not manufacturer_id:
+        return None
+    
+    try:
+        # 1. Try to find existing series
+        result = supabase.table('product_series') \
+            .select('id,name') \
+            .eq('manufacturer_id', str(manufacturer_id)) \
+            .ilike('name', series_name) \
+            .limit(1) \
+            .execute()
+        
+        if result.data:
+            series_id = result.data[0]['id']
+            logger.debug(f"✅ Found series: {series_name} (ID: {series_id})")
+            return series_id
+        
+        # 2. Series not found - create new entry
+        logger.info(f"🔨 Creating new series: {series_name}")
+        
+        create_result = supabase.table('product_series') \
+            .insert({
+                'name': series_name,
+                'manufacturer_id': str(manufacturer_id),
+                'is_active': True
+            }) \
+            .execute()
+        
+        if create_result.data:
+            series_id = create_result.data[0]['id']
+            logger.info(f"✅ Created series: {series_name} (ID: {series_id})")
+            return series_id
+        else:
+            logger.error(f"❌ Failed to create series: {series_name}")
+            return None
+    
+    except Exception as e:
+        logger.error(f"❌ Error ensuring series exists: {e}")
+        return None
+
+
+def ensure_product_exists(
+    model_name: str,
+    manufacturer_id: UUID,
+    series_id: Optional[UUID] = None,
+    supabase = None
+) -> Optional[UUID]:
+    """
+    Ensure product exists in database, create if needed
+    
+    Args:
+        model_name: Model name (e.g., "CS943", "CX94X")
+        manufacturer_id: UUID of manufacturer
+        series_id: Optional UUID of series
+        supabase: Supabase client instance
+        
+    Returns:
+        product_id (UUID) or None
+    """
+    if not model_name or not manufacturer_id:
+        return None
+    
+    try:
+        # 1. Try to find existing product
+        result = supabase.table('products') \
+            .select('id,model_name') \
+            .eq('manufacturer_id', str(manufacturer_id)) \
+            .ilike('model_name', model_name) \
+            .limit(1) \
+            .execute()
+        
+        if result.data:
+            product_id = result.data[0]['id']
+            logger.debug(f"✅ Found product: {model_name} (ID: {product_id})")
+            return product_id
+        
+        # 2. Product not found - create new entry
+        logger.info(f"🔨 Creating new product: {model_name}")
+        
+        product_data = {
+            'model_name': model_name,
+            'manufacturer_id': str(manufacturer_id),
+            'is_active': True
+        }
+        
+        if series_id:
+            product_data['series_id'] = str(series_id)
+        
+        create_result = supabase.table('products') \
+            .insert(product_data) \
+            .execute()
+        
+        if create_result.data:
+            product_id = create_result.data[0]['id']
+            logger.info(f"✅ Created product: {model_name} (ID: {product_id})")
+            return product_id
+        else:
+            logger.error(f"❌ Failed to create product: {model_name}")
+            return None
+    
+    except Exception as e:
+        logger.error(f"❌ Error ensuring product exists: {e}")
+        return None
+
+
+def link_video_to_products(
+    video_id: UUID,
+    model_names: List[str],
+    manufacturer_id: UUID,
+    supabase
+) -> List[UUID]:
+    """
+    Link video to products, auto-creating products if needed
+    
+    Args:
+        video_id: UUID of video
+        model_names: List of model names (e.g., ['CS943', 'CX94X'])
+        manufacturer_id: UUID of manufacturer
+        supabase: Supabase client instance
+        
+    Returns:
+        List of product IDs that were linked
+    """
+    if not video_id or not model_names or not manufacturer_id:
+        return []
+    
+    linked_products = []
+    
+    for model_name in model_names:
+        try:
+            # Ensure product exists
+            product_id = ensure_product_exists(model_name, manufacturer_id, None, supabase)
+            
+            if product_id:
+                # Check if link already exists
+                existing = supabase.table('video_products') \
+                    .select('id') \
+                    .eq('video_id', str(video_id)) \
+                    .eq('product_id', str(product_id)) \
+                    .limit(1) \
+                    .execute()
+                
+                if not existing.data:
+                    # Create link
+                    supabase.table('video_products') \
+                        .insert({
+                            'video_id': str(video_id),
+                            'product_id': str(product_id)
+                        }) \
+                        .execute()
+                    
+                    logger.info(f"🔗 Linked video to product: {model_name}")
+                
+                linked_products.append(product_id)
+        
+        except Exception as e:
+            logger.error(f"❌ Error linking video to product {model_name}: {e}")
+    
+    return linked_products

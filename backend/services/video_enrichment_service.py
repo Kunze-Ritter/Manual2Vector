@@ -171,6 +171,23 @@ class VideoEnrichmentService:
                 video_db_id = insert_result.data[0]['id']
                 logger.info(f"✅ Video saved to database (ID: {video_db_id})")
             
+            # Link video to products if models were detected
+            if metadata.get('models') and final_manufacturer_id:
+                try:
+                    from utils.manufacturer_utils import link_video_to_products
+                    
+                    linked_products = link_video_to_products(
+                        video_id=video_db_id,
+                        model_names=metadata.get('models'),
+                        manufacturer_id=final_manufacturer_id,
+                        supabase=supabase
+                    )
+                    
+                    if linked_products:
+                        logger.info(f"🔗 Linked video to {len(linked_products)} products")
+                except Exception as e:
+                    logger.error(f"❌ Error linking video to products: {e}")
+            
             # Close enricher
             await enricher.close()
             
@@ -178,7 +195,8 @@ class VideoEnrichmentService:
             return {
                 **metadata,
                 'database_id': video_db_id,
-                'saved': True
+                'saved': True,
+                'linked_products': len(metadata.get('models', [])) if final_manufacturer_id else 0
             }
             
         except Exception as e:
