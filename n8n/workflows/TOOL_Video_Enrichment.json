@@ -11,7 +11,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const inputData = $input.first().json;\nconst url = inputData.url || (inputData.query && inputData.query.url) || '';\nconst document_id = inputData.document_id || (inputData.query && inputData.query.document_id) || null;\nconst manufacturer_id = inputData.manufacturer_id || (inputData.query && inputData.query.manufacturer_id) || null;\nconsole.log('Video Enrichment Input:', {url, document_id, manufacturer_id});\nreturn {url, document_id, manufacturer_id};"
+        "jsCode": "const inputData = $input.first().json;\nlet url = inputData.url || (inputData.query && inputData.query.url) || '';\nif (!url) {\n  const text = JSON.stringify(inputData);\n  const urlMatch = text.match(/https?:\\/\\/[^\\s\"']+/);\n  if (urlMatch) url = urlMatch[0];\n}\nconst document_id = inputData.document_id || (inputData.query && inputData.query.document_id) || null;\nconst manufacturer_id = inputData.manufacturer_id || (inputData.query && inputData.query.manufacturer_id) || null;\nconsole.log('Video Enrichment Input:', {url, document_id, manufacturer_id});\nreturn {url, document_id, manufacturer_id};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
