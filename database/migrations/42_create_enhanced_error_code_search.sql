@@ -65,7 +65,7 @@ BEGIN
       'confidence', ec.confidence,
       'chunk_id', ec.chunk_id
     ) as metadata
-  FROM krai_core.error_codes ec
+  FROM krai_intelligence.error_codes ec
   JOIN krai_core.documents d ON d.id = ec.document_id
   WHERE ec.error_code = p_error_code
     AND (v_manufacturer_id IS NULL OR ec.manufacturer_id = v_manufacturer_id)
@@ -94,7 +94,7 @@ BEGIN
       'view_count', v.view_count,
       'confidence', ec.confidence
     )
-  FROM krai_core.error_codes ec
+  FROM krai_intelligence.error_codes ec
   JOIN krai_content.videos v ON v.id = ec.video_id
   WHERE ec.error_code = p_error_code
     AND (v_manufacturer_id IS NULL OR ec.manufacturer_id = v_manufacturer_id)
@@ -130,13 +130,12 @@ BEGIN
       WHERE vp.product_id = v_product_id
     ))
     AND (
-      v.title ILIKE '%' || p_error_code || '%' OR
       v.description ILIKE '%' || p_error_code || '%' OR
       v.metadata::TEXT ILIKE '%' || p_error_code || '%'
     )
     AND v.id NOT IN (
       -- Exclude videos already in error_codes
-      SELECT video_id FROM krai_core.error_codes 
+      SELECT video_id FROM krai_intelligence.error_codes 
       WHERE error_code = p_error_code 
         AND video_id IS NOT NULL
     )
@@ -144,7 +143,6 @@ BEGIN
   ORDER BY relevance_score DESC, source_type;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION search_error_code_multi_source TO authenticated;
 GRANT EXECUTE ON FUNCTION search_error_code_multi_source TO anon;
