@@ -21,7 +21,10 @@ Deduplication Flow:
 
 import os
 from pathlib import Path as FilePath
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = lambda: None  # Fallback
 
 # Load .env
 env_path = FilePath(__file__).parent.parent.parent / '.env'
