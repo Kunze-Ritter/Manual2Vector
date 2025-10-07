@@ -74,8 +74,7 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
         
         create_result = supabase.table('manufacturers') \
             .insert({
-                'name': manufacturer_name,
-                'is_active': True
+                'name': manufacturer_name
             }) \
             .execute()
         
@@ -175,9 +174,8 @@ def ensure_series_exists(
         
         create_result = supabase.table('product_series') \
             .insert({
-                'name': series_name,
-                'manufacturer_id': str(manufacturer_id),
-                'is_active': True
+                'series_name': series_name,
+                'manufacturer_id': str(manufacturer_id)
             }) \
             .execute()
         
@@ -233,9 +231,9 @@ def ensure_product_exists(
         logger.info(f"🔨 Creating new product: {model_name}")
         
         product_data = {
+            'model_number': model_name,
             'model_name': model_name,
-            'manufacturer_id': str(manufacturer_id),
-            'is_active': True
+            'manufacturer_id': str(manufacturer_id)
         }
         
         if series_id:
