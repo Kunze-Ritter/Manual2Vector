@@ -53,7 +53,7 @@ BEGIN
     ec.error_code,
     ec.error_description,
     ec.solution_text,
-    array_to_string(ec.parts_referenced, ', ')::TEXT as parts_list,
+    NULL::TEXT as parts_list,  -- Parts not stored in error_codes table
     ec.page_number,
     NULL::TEXT as video_url,
     NULL::INT as video_duration,
@@ -61,7 +61,7 @@ BEGIN
     1.0::FLOAT as relevance_score,
     jsonb_build_object(
       'document_type', d.document_type,
-      'confidence', ec.confidence,
+      'confidence', ec.confidence_score,
       'chunk_id', ec.chunk_id
     ) as metadata
   FROM krai_intelligence.error_codes ec
@@ -81,7 +81,7 @@ BEGIN
     ec.error_code,
     ec.error_description,
     ec.solution_text,
-    array_to_string(ec.parts_referenced, ', ')::TEXT,
+    NULL::TEXT as parts_list,  -- Parts not stored in error_codes table
     NULL::INT,
     v.video_url,
     v.duration,
@@ -91,7 +91,7 @@ BEGIN
       'platform', v.platform,
       'channel_title', v.channel_title,
       'view_count', v.view_count,
-      'confidence', ec.confidence
+      'confidence', ec.confidence_score
     )
   FROM krai_intelligence.error_codes ec
   JOIN krai_content.videos v ON v.id = ec.video_id
