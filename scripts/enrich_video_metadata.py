@@ -635,7 +635,7 @@ class VideoEnricher:
             if 'youtube.com' in url or 'youtu.be' in url:
                 video_id = self.extract_youtube_id(url)
                 if not video_id:
-                    return {'error': 'Could not extract YouTube video ID'}
+                    return {'error': 'Could not extract YouTube video ID', 'platform': 'youtube'}
                 
                 metadata = await self.get_youtube_metadata(video_id)
                 if metadata:
@@ -651,11 +651,13 @@ class VideoEnricher:
                         'thumbnail_url': metadata.get('thumbnail_url'),
                         'video_url': url
                     }
+                else:
+                    return {'error': 'Could not fetch YouTube metadata', 'platform': 'youtube'}
                     
             elif 'vimeo.com' in url:
                 video_id = self.extract_vimeo_id(url)
                 if not video_id:
-                    return {'error': 'Could not extract Vimeo video ID'}
+                    return {'error': 'Could not extract Vimeo video ID', 'platform': 'vimeo'}
                 
                 metadata = await self.get_vimeo_metadata(video_id)
                 if metadata:
@@ -670,11 +672,13 @@ class VideoEnricher:
                         'thumbnail_url': metadata.get('thumbnail_url'),
                         'video_url': url
                     }
+                else:
+                    return {'error': 'Could not fetch Vimeo metadata', 'platform': 'vimeo'}
                     
             elif 'brightcove' in url:
                 ids = self.extract_brightcove_ids(url)
                 if not ids:
-                    return {'error': 'Could not extract Brightcove IDs'}
+                    return {'error': 'Could not extract Brightcove IDs', 'platform': 'brightcove'}
                 
                 account_id, player_id, video_id = ids
                 metadata = await self.get_brightcove_metadata(account_id, player_id, video_id)
@@ -688,8 +692,10 @@ class VideoEnricher:
                         'thumbnail_url': metadata.get('thumbnail_url'),
                         'video_url': url
                     }
+                else:
+                    return {'error': 'Could not fetch Brightcove metadata', 'platform': 'brightcove'}
             
-            return {'error': 'Unsupported video platform'}
+            return {'error': 'Unsupported video platform', 'platform': None}
             
         except Exception as e:
             logger.error(f"Error enriching single URL: {e}")
