@@ -14,6 +14,24 @@ KR-AI-Engine is a comprehensive document processing system that automatically ex
 - **Image Recognition** and OCR with vision models (with SVG support!)
 - **Vector Embeddings** for semantic search
 - **Manufacturer & Model Detection** with normalization
+- **Error Code Extraction** with 17 manufacturer patterns
+- **Multi-Source Search** (documents, videos, keywords)
+
+### 🎬 **Video Enrichment System**
+- **11 Video Formats** (MP4, WebM, MOV, AVI, MKV, M4V, FLV, WMV, MPEG, MPG, 3GP)
+- **4 Platforms** (YouTube, Vimeo, Brightcove, Direct)
+- **Thumbnail Generation** with OpenCV
+- **Auto-Create** manufacturers & products
+- **Video ↔ Product Linking** (many-to-many)
+- **Video ↔ Error Code Linking**
+
+### 🔧 **Error Code System**
+- **17 Manufacturers** supported (HP, Canon, Lexmark, etc.)
+- **Product-Specific** error codes
+- **Manufacturer Filters** (HP technician-only solutions)
+- **Multi-Source Search** (documents + videos + related)
+- **Confidence Scoring** (0.60 threshold)
+- **Smart Deduplication**
 
 ### 📊 **8-Stage Processing Pipeline**
 1. **Upload Processor** - Document ingestion and deduplication
