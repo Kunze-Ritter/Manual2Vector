@@ -5,17 +5,23 @@
       "parameters": {},
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [300, 300],
+      "position": [
+        300,
+        300
+      ],
       "id": "trigger",
       "name": "Execute Workflow Trigger"
     },
     {
       "parameters": {
-        "jsCode": "const inputData = $input.first().json;\nconsole.log('🔍 Raw Input:', JSON.stringify(inputData, null, 2));\n\n// Try multiple extraction methods\nlet url = inputData.url || \n          (inputData.query && inputData.query.url) || \n          (inputData.query && typeof inputData.query === 'string' ? inputData.query : null) || \n          '';\n\n// If still no URL, search in entire input\nif (!url) {\n  const text = JSON.stringify(inputData);\n  const urlMatch = text.match(/https?:\\/\\/[^\\s\"']+/);\n  if (urlMatch) {\n    url = urlMatch[0];\n    console.log('📌 Extracted URL from text:', url);\n  }\n}\n\nconst document_id = inputData.document_id || (inputData.query && inputData.query.document_id) || null;\nconst manufacturer_id = inputData.manufacturer_id || (inputData.query && inputData.query.manufacturer_id) || null;\n\nconsole.log('✅ Final params:', {url, document_id, manufacturer_id});\n\nif (!url) {\n  throw new Error('No URL found in input! Input was: ' + JSON.stringify(inputData));\n}\n\nreturn {url, document_id, manufacturer_id};"
+        "jsCode": "const inputData = $input.first().json;\nconsole.log('\ud83d\udd0d Raw Input:', JSON.stringify(inputData, null, 2));\n\n// Try multiple extraction methods\nlet url = inputData.url || \n          (inputData.query && inputData.query.url) || \n          (inputData.query && typeof inputData.query === 'string' ? inputData.query : null) || \n          '';\n\n// If still no URL, search in entire input\nif (!url) {\n  const text = JSON.stringify(inputData);\n  const urlMatch = text.match(/https?:\\/\\/[^\\s\"']+/);\n  if (urlMatch) {\n    url = urlMatch[0];\n    console.log('\ud83d\udccc Extracted URL from text:', url);\n  }\n}\n\nconst document_id = inputData.document_id || (inputData.query && inputData.query.document_id) || null;\nconst manufacturer_id = inputData.manufacturer_id || (inputData.query && inputData.query.manufacturer_id) || null;\n\nconsole.log('\u2705 Final params:', {url, document_id, manufacturer_id});\n\nif (!url) {\n  throw new Error('No URL found in input! Input was: ' + JSON.stringify(inputData));\n}\n\nreturn {url, document_id, manufacturer_id};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300],
+      "position": [
+        450,
+        300
+      ],
       "id": "extract-params",
       "name": "Extract Parameters"
     },
@@ -30,30 +36,60 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [500, 300],
+      "position": [
+        500,
+        300
+      ],
       "id": "http-enrich",
       "name": "Call Video API"
     },
     {
       "parameters": {
-        "jsCode": "// Format Video Enrichment Response\nconst response = $input.first().json;\n\nif (response.error) {\n  return {\n    success: false,\n    message: `❌ Video konnte nicht analysiert werden:\\n${response.error}\\n\\n💡 Unterstützte Plattformen:\\n- YouTube (youtube.com, youtu.be)\\n- Vimeo (vimeo.com)\\n- Brightcove (players.brightcove.net)`\n  };\n}\n\n// Format duration\nconst formatDuration = (seconds) => {\n  if (!seconds) return 'N/A';\n  const hours = Math.floor(seconds / 3600);\n  const minutes = Math.floor((seconds % 3600) / 60);\n  const secs = seconds % 60;\n  \n  if (hours > 0) {\n    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;\n  }\n  return `${minutes}:${String(secs).padStart(2, '0')}`;\n};\n\n// Format numbers\nconst formatNumber = (num) => {\n  if (!num) return 'N/A';\n  return num.toLocaleString('de-DE');\n};\n\n// Build formatted response\nlet message = `🎬 VIDEO ERFOLGREICH ANALYSIERT!\\n\\n`;\n\nif (response.title) message += `📌 Titel: ${response.title}\\n`;\nif (response.platform) message += `🌐 Platform: ${response.platform}\\n`;\nif (response.duration) message += `⏱️ Dauer: ${formatDuration(response.duration)}\\n`;\nif (response.channel_title) message += `👤 Kanal: ${response.channel_title}\\n`;\nif (response.view_count) message += `👁️ Aufrufe: ${formatNumber(response.view_count)}\\n`;\nif (response.like_count) message += `👍 Likes: ${formatNumber(response.like_count)}\\n`;\n\nif (response.description) {\n  const descPreview = response.description.substring(0, 200);\n  message += `\\n📝 Beschreibung:\\n${descPreview}${response.description.length > 200 ? '...' : ''}\\n`;\n}\n\nif (response.thumbnail_url) {\n  message += `\\n🖼️ Thumbnail: ${response.thumbnail_url}\\n`;\n}\n\nif (response.video_url) {\n  message += `\\n🔗 Video-URL: ${response.video_url}\\n`;\n}\n\nif (response.video_id) {\n  message += `\\n✅ Video wurde in der Datenbank gespeichert!\\n`;\n  message += `   ID: ${response.video_id}\\n`;\n  \n  if (response.duplicate_detected) {\n    message += `   ℹ️ Hinweis: Dieses Video war bereits vorhanden (Deduplizierung)\\n`;\n  }\n}\n\nif (response.manufacturer_id) {\n  message += `   🏭 Verknüpft mit Hersteller\\n`;\n}\n\nreturn {\n  success: true,\n  message: message,\n  raw_data: response\n};"
+        "jsCode": "// Format Video Enrichment Response\nconst response = $input.first().json;\n\nif (response.error) {\n  return {\n    success: false,\n    message: `\u274c Video konnte nicht analysiert werden: ${response.error}\\n\\n\ud83d\udca1 Unterst\u00fctzte Plattformen:\\n- YouTube (youtube.com, youtu.be)\\n- Vimeo (vimeo.com)\\n- Brightcove (players.brightcove.net)\\n- Direct MP4/WebM/MOV`\n  };\n}\n\n// Format duration\nconst formatDuration = (seconds) => {\n  if (!seconds) return null;\n  const hours = Math.floor(seconds / 3600);\n  const minutes = Math.floor((seconds % 3600) / 60);\n  const secs = seconds % 60;\n  if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;\n  return `${minutes}:${String(secs).padStart(2, '0')}`;\n};\n\n// Format file size\nconst formatFileSize = (bytes) => {\n  if (!bytes) return null;\n  const mb = bytes / 1024 / 1024;\n  return `${mb.toFixed(1)} MB`;\n};\n\n// Build formatted response\nlet message = `\ud83c\udfac VIDEO ERFOLGREICH ANALYSIERT!\\n\\n`;\n\nif (response.title) {\n  message += `\ud83d\udccc Titel: ${response.title}\\n`;\n}\n\nif (response.platform) {\n  const platformName = response.platform.charAt(0).toUpperCase() + response.platform.slice(1);\n  message += `\ud83c\udf10 Platform: ${platformName}\\n`;\n}\n\nconst duration = formatDuration(response.duration);\nif (duration) {\n  message += `\u23f1\ufe0f Dauer: ${duration}\\n`;\n}\n\nconst metadata = response.metadata || {};\n\nif (metadata.resolution) {\n  message += `\ud83d\udcd0 Aufl\u00f6sung: ${metadata.resolution}\\n`;\n}\n\nconst fileSize = formatFileSize(metadata.file_size);\nif (fileSize) {\n  message += `\ud83d\udcbe Dateigr\u00f6\u00dfe: ${fileSize}\\n`;\n}\n\nif (response.channel_title) {\n  message += `\ud83d\udc64 Kanal: ${response.channel_title}\\n`;\n}\n\nif (response.view_count) {\n  message += `\ud83d\udc41\ufe0f Aufrufe: ${response.view_count.toLocaleString('de-DE')}\\n`;\n}\n\nif (response.like_count) {\n  message += `\ud83d\udc4d Likes: ${response.like_count.toLocaleString('de-DE')}\\n`;\n}\n\nif (metadata.models && metadata.models.length > 0) {\n  message += `\ud83d\udccb Modelle: ${metadata.models.join(', ')}\\n`;\n}\n\n// Only show description if different from title\nif (response.description && response.description !== response.title) {\n  const desc = response.description.substring(0, 150);\n  message += `\\n\ud83d\udcdd ${desc}${response.description.length > 150 ? '...' : ''}\\n`;\n}\n\nif (response.thumbnail_url) {\n  message += `\\n\ud83d\uddbc\ufe0f Thumbnail verf\u00fcgbar\\n`;\n}\n\nif (response.database_id) {\n  message += `\\n\u2705 Video gespeichert`;\n  if (response.linked_products > 0) {\n    message += ` (${response.linked_products} Produkte verkn\u00fcpft)`;\n  }\n  message += '\\n';\n}\n\nreturn {\n  success: true,\n  message: message,\n  raw_data: response\n};\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 300],
+      "position": [
+        700,
+        300
+      ],
       "id": "format-video",
       "name": "Format Video Response"
     }
   ],
   "connections": {
     "Execute Workflow Trigger": {
-      "main": [[{"node": "Extract Parameters", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract Parameters": {
-      "main": [[{"node": "Call Video API", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Call Video API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call Video API": {
-      "main": [[{"node": "Format Video Response", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Format Video Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {}
