@@ -11,11 +11,21 @@
     },
     {
       "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst url = inputData.url || (inputData.query && inputData.query.url) || '';\nconst document_id = inputData.document_id || (inputData.query && inputData.query.document_id) || null;\nconst manufacturer_id = inputData.manufacturer_id || (inputData.query && inputData.query.manufacturer_id) || null;\nconsole.log('Video Enrichment Input:', {url, document_id, manufacturer_id});\nreturn {url, document_id, manufacturer_id};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "extract-params",
+      "name": "Extract Parameters"
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "http://host.docker.internal:8000/content/videos/enrich/single",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ url: $json.url, document_id: $json.document_id || null, manufacturer_id: $json.manufacturer_id || null }) }}",
+        "jsonBody": "={{ JSON.stringify({ url: $json.url, document_id: $json.document_id, manufacturer_id: $json.manufacturer_id }) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -37,6 +47,9 @@
   ],
   "connections": {
     "Execute Workflow Trigger": {
+      "main": [[{"node": "Extract Parameters", "type": "main", "index": 0}]]
+    },
+    "Extract Parameters": {
       "main": [[{"node": "Call Video API", "type": "main", "index": 0}]]
     },
     "Call Video API": {
