@@ -11,7 +11,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n\n// Extract error code and context\nconst errorCode = input.error_code || input.code || '';\nconst manufacturer = input.manufacturer || null;\nconst product = input.product || input.model || null;\n\nif (!errorCode) {\n  throw new Error('No error code provided!');\n}\n\nreturn {\n  error_code: errorCode,\n  manufacturer: manufacturer,\n  product: product\n};"
+        "jsCode": "const input = $input.first().json;\n\n// Debug: Log input\nconsole.log('Input received:', JSON.stringify(input));\n\n// Extract error code from multiple possible fields\nconst errorCode = input.error_code || input.code || input.errorCode || '';\nconst manufacturer = input.manufacturer || input.mfr || input.brand || null;\nconst product = input.product || input.model || input.product_name || null;\n\n// If still no error code, try to extract from text\nif (!errorCode && input.text) {\n  // Try to extract error code pattern from text\n  const match = input.text.match(/\\b(\\d{2}\\.\\d{2,3}\\.\\d{2})\\b/);\n  if (match) {\n    return {\n      error_code: match[1],\n      manufacturer: manufacturer,\n      product: product\n    };\n  }\n}\n\nif (!errorCode) {\n  throw new Error('No error code provided! Expected: {\"error_code\": \"30.03.30\", \"manufacturer\": \"HP\", \"product\": \"X580\"}');\n}\n\nreturn {\n  error_code: errorCode,\n  manufacturer: manufacturer,\n  product: product\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
