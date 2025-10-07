@@ -6,7 +6,8 @@ import re
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-from loguru import logger
+from .logger import get_logger
+logger = get_logger()
 
 from .models import ExtractedPart
 
