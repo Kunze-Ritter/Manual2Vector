@@ -1,0 +1,63 @@
+{
+  "name": "TOOL: Error Code Search v5 (Fixed Input)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nlet input = inputData.error_code || inputData.query || inputData.text || inputData.message || inputData.input;\nif (!input) { input = JSON.stringify(inputData); }\nif (typeof input !== 'string') { input = String(input); }\nconst patterns = [/\\b(\\d{2}\\.\\d{2}\\.\\d{2})\\b/, /\\b(\\d{2}\\.\\d{2})\\b/, /\\b([CJ]\\d{4,5})\\b/i, /\\b([CJ]\\d{2}-\\d{2})\\b/i, /\\b(E\\d{3,4})\\b/i, /\\b(#\\d{3})\\b/, /\\b(SC\\d{3,4})\\b/i, /\\b(E\\d{2})\\b/i, /\\b(\\d{2,4})\\b/];\nlet extractedCode = null;\nfor (const pattern of patterns) { const match = input.match(pattern); if (match) { extractedCode = match[1]; break; } }\nif (!extractedCode) { extractedCode = input.trim(); }\nconsole.log('Input:', input, 'Extracted:', extractedCode);\nreturn { error_code: extractedCode, original_input: input };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "id": "extract-code",
+      "name": "Extract Error Code"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  ec.error_code,\n  ec.error_description,\n  ec.solution_text,\n  ec.severity_level,\n  ec.requires_technician,\n  ec.confidence_score,\n  ec.page_number,\n  COALESCE(c.text_chunk, '') as context_text,\n  COALESCE(d.filename, '') as document_name,\n  COALESCE(d.manufacturer, m.name, '') as manufacturer,\n  COALESCE(d.series, '') as series,\n  ec.created_at,\n  COALESCE(\n    json_agg(\n      json_build_object(\n        'url', i.storage_url,\n        'description', COALESCE(i.ai_description, ''),\n        'ocr_text', COALESCE(i.ocr_text, ''),\n        'match_method', eci.match_method,\n        'confidence', eci.match_confidence,\n        'page_number', i.page_number\n      ) ORDER BY eci.display_order\n    ) FILTER (WHERE i.id IS NOT NULL),\n    '[]'::json\n  ) as images\nFROM krai_intelligence.error_codes ec\nLEFT JOIN krai_intelligence.chunks c ON ec.chunk_id = c.id\nLEFT JOIN krai_intelligence.error_code_images eci ON ec.id = eci.error_code_id\nLEFT JOIN krai_content.images i ON eci.image_id = i.id\nLEFT JOIN krai_core.documents d ON ec.document_id = d.id\nLEFT JOIN krai_core.manufacturers m ON ec.manufacturer_id = m.id\nWHERE UPPER(TRIM(ec.error_code)) = UPPER(TRIM('{{ $json.error_code }}'))\nGROUP BY ec.id, ec.error_code, ec.error_description, ec.solution_text, ec.severity_level, ec.requires_technician, ec.confidence_score, ec.page_number, c.text_chunk, d.filename, d.manufacturer, m.name, d.series, ec.created_at\nORDER BY \n  CASE \n    WHEN UPPER(ec.error_code) = UPPER('{{ $json.error_code }}') THEN 1\n    ELSE 2\n  END\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [700, 300],
+      "id": "query-error",
+      "name": "Query Error Code",
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst extractedCode = $('Extract Error Code').first().json.error_code;\nconst originalInput = $('Extract Error Code').first().json.original_input;\nif (!item || !item.error_code) { return { found: false, message: `🔴 Error Code nicht gefunden: ${extractedCode}\\n\\n❌ Dieser Error Code ist nicht in der Datenbank.\\n\\n💡 Original: \"${originalInput}\"\\n💡 Extrahiert: \"${extractedCode}\"\\n\\n🔍 Versuche:\\n- Prüfe Schreibweise\\n- Nutze Vector Search` }; }\nconst formatSolution = (text) => { if (!text) return 'Keine Lösung'; const lines = text.split('\\n').filter(l => l.trim()); if (lines[0] && lines[0].match(/^\\d+[\\.\\)]\\s/)) return lines.join('\\n'); return lines.map((l, i) => `${i + 1}. ${l.trim()}`).join('\\n'); };\nlet images = []; try { images = typeof item.images === 'string' ? JSON.parse(item.images) : (Array.isArray(item.images) ? item.images : []); } catch (e) {}\nlet response = `🔴 ERROR CODE: ${item.error_code}\\n\\n`;\nif (item.error_description) response += `📝 BESCHREIBUNG:\\n${item.error_description}\\n\\n`;\nif (item.solution_text) response += `🔧 LÖSUNG:\\n${formatSolution(item.solution_text)}\\n\\n`; else response += `🔧 LÖSUNG:\\n⚠️ Keine Lösung - siehe Context\\n\\n`;\nif (item.context_text && item.context_text.trim()) { const ctx = item.context_text.substring(0, 400).trim(); response += `📄 CONTEXT:\\n${ctx}${item.context_text.length > 400 ? '...' : ''}\\n\\n`; }\nif (images && images.length > 0) { response += `🖼️ BILDER (${images.length}):\\n`; images.forEach((img, i) => { response += `\\n${i + 1}. ${img.url}\\n`; if (img.description) response += `   📝 ${img.description}\\n`; if (img.match_method === 'smart_vision_ai') response += `   ✨ Smart Match\\n`; else if (img.match_method === 'page_match') response += `   📍 Seite ${img.page_number}\\n`; else if (img.match_method === 'context_match') response += `   📄 Context (S. ${img.page_number})\\n`; if (img.confidence) response += `   📊 ${(img.confidence * 100).toFixed(0)}%\\n`; }); response += `\\n`; }\nresponse += `ℹ️ DETAILS:\\n`;\nif (item.document_name) response += `  📄 ${item.document_name}\\n`;\nif (item.manufacturer) response += `  🏭 ${item.manufacturer}\\n`;\nif (item.series) response += `  📦 ${item.series}\\n`;\nif (item.page_number) response += `  📄 Seite ${item.page_number}\\n`;\nif (item.confidence_score) response += `  📊 ${(item.confidence_score * 100).toFixed(0)}%\\n`;\nif (item.severity_level) response += `  ⚠️ ${item.severity_level}\\n`;\nif (item.requires_technician) response += `  👨‍🔧 Techniker: Ja\\n`;\nreturn { found: true, error_code: item.error_code, message: response, images: images, image_count: images.length };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "id": "format-error",
+      "name": "Format Error Code"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Extract Error Code", "type": "main", "index": 0}]]
+    },
+    "Extract Error Code": {
+      "main": [[{"node": "Query Error Code", "type": "main", "index": 0}]]
+    },
+    "Query Error Code": {
+      "main": [[{"node": "Format Error Code", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}
