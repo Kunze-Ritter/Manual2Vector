@@ -83,7 +83,7 @@ class ExtractedPart(BaseModel):
 
 
 class ExtractedErrorCode(BaseModel):
-    """Error code extracted from document"""
+    """Error code extracted from document or video"""
     # Flexible pattern for various error code formats:
     # - 10.20 or 10.20.30 (Konica Minolta, Xerox)
     # - E826 (HP alphanumeric)
@@ -99,6 +99,10 @@ class ExtractedErrorCode(BaseModel):
     requires_technician: bool = False
     requires_parts: bool = False
     severity_level: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
+    
+    # NEW: Product and video linking
+    product_id: Optional[str] = None
+    video_id: Optional[str] = None
     
     @validator('error_description')
     def validate_description(cls, v):

@@ -28,10 +28,17 @@ print("=" * 100)
 # Get all error codes
 result = sb.table('error_codes').select('*').execute()
 
-# Group by (error_code, manufacturer_id)
+# Group by (error_code, manufacturer_id, product_id, document_id, video_id)
+# This allows same code for different products/documents/videos
 groups = defaultdict(list)
 for ec in result.data:
-    key = (ec['error_code'], ec.get('manufacturer_id'))
+    key = (
+        ec['error_code'], 
+        ec.get('manufacturer_id'),
+        ec.get('product_id'),  # NEW
+        ec.get('document_id'), # NEW
+        ec.get('video_id')     # NEW
+    )
     groups[key].append(ec)
 
 # Find duplicates
@@ -45,8 +52,18 @@ print(f"\n❌ FOUND {len(duplicates)} DUPLICATE GROUPS:\n")
 
 total_to_delete = 0
 
-for (error_code, manufacturer_id), instances in sorted(duplicates.items(), key=lambda x: len(x[1]), reverse=True):
-    print(f"\n📌 {error_code} ({len(instances)} instances):")
+for (error_code, manufacturer_id, product_id, document_id, video_id), instances in sorted(duplicates.items(), key=lambda x: len(x[1]), reverse=True):
+    # Build description
+    desc_parts = [error_code]
+    if product_id:
+        desc_parts.append(f"Product: {product_id[:8]}...")
+    if document_id:
+        desc_parts.append(f"Doc: {document_id[:8]}...")
+    if video_id:
+        desc_parts.append(f"Video: {video_id[:8]}...")
+    
+    desc = " | ".join(desc_parts)
+    print(f"\n📌 {desc} ({len(instances)} instances):")
     
     # Keep first, delete rest
     keep = instances[0]
@@ -70,7 +87,7 @@ response = input("\n⚠️  DELETE duplicates? (yes/no): ")
 if response.lower() == 'yes':
     deleted_count = 0
     
-    for (error_code, manufacturer_id), instances in duplicates.items():
+    for (error_code, manufacturer_id, product_id, document_id, video_id), instances in duplicates.items():
         to_delete = instances[1:]  # Keep first
         
         for dup in to_delete:
