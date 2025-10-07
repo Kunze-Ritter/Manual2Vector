@@ -49,23 +49,34 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
-YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+# Configuration (lazy loaded)
+def get_youtube_api_key():
+    return os.getenv('YOUTUBE_API_KEY')
 
-# Initialize Supabase
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+def get_supabase_client():
+    """Lazy initialization of Supabase client"""
+    url = os.getenv('SUPABASE_URL')
+    key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+    if not url or not key:
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+    return create_client(url, key)
 
 
 class VideoEnricher:
     """Enriches video links with metadata from various sources"""
     
     def __init__(self):
-        self.youtube_api_key = YOUTUBE_API_KEY
+        self.youtube_api_key = get_youtube_api_key()
+        self.supabase = None  # Lazy loaded
         self.http_client = httpx.AsyncClient(timeout=30.0)
         self.processed_count = 0
         self.error_count = 0
+    
+    def _get_supabase(self):
+        """Get or create Supabase client"""
+        if self.supabase is None:
+            self.supabase = get_supabase_client()
+        return self.supabase
         
     async def close(self):
         """Close HTTP client"""
@@ -349,7 +360,7 @@ class VideoEnricher:
         
         try:
             # DEDUPLICATION: Check if video already exists by youtube_id (from ANY link)
-            existing = supabase.table('videos').select('id').eq('youtube_id', metadata['youtube_id']).limit(1).execute()
+            existing = self._get_supabase().table('videos').select('id').eq('youtube_id', metadata['youtube_id']).limit(1).execute()
             
             # Get contextual information from link
             context = self.get_link_context(link)
@@ -360,7 +371,7 @@ class VideoEnricher:
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = supabase.table('videos').insert({
+                video_record = self._get_supabase().table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': metadata['youtube_id'],
                     'title': metadata['title'],
@@ -389,7 +400,7 @@ class VideoEnricher:
                 video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
-            supabase.table('links').update({
+            self._get_supabase().table('links').update({
                 'video_id': video_id_to_link
             }).eq('id', link['id']).execute()
             
@@ -416,7 +427,7 @@ class VideoEnricher:
         try:
             # DEDUPLICATION: Check if video already exists by vimeo_id (from ANY link)
             # Vimeo ID is stored in metadata JSON
-            existing = supabase.table('videos').select('id').filter('metadata->>vimeo_id', 'eq', video_id).limit(1).execute()
+            existing = self._get_supabase().table('videos').select('id').filter('metadata->>vimeo_id', 'eq', video_id).limit(1).execute()
             
             # Get contextual information from link
             context = self.get_link_context(link)
@@ -427,7 +438,7 @@ class VideoEnricher:
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = supabase.table('videos').insert({
+                video_record = self._get_supabase().table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': None,  # Vimeo doesn't use youtube_id
                     'title': metadata['title'],
@@ -453,7 +464,7 @@ class VideoEnricher:
                 video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
-            supabase.table('links').update({
+            self._get_supabase().table('links').update({
                 'video_id': video_id_to_link
             }).eq('id', link['id']).execute()
             
@@ -482,7 +493,7 @@ class VideoEnricher:
         try:
             # DEDUPLICATION: Check if video already exists by brightcove_id (from ANY link)
             # Brightcove ID is stored in metadata JSON
-            existing = supabase.table('videos').select('id').filter('metadata->>brightcove_id', 'eq', metadata['brightcove_id']).limit(1).execute()
+            existing = self._get_supabase().table('videos').select('id').filter('metadata->>brightcove_id', 'eq', metadata['brightcove_id']).limit(1).execute()
             
             # Get contextual information from link
             context = self.get_link_context(link)
@@ -493,7 +504,7 @@ class VideoEnricher:
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = supabase.table('videos').insert({
+                video_record = self._get_supabase().table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': None,  # Brightcove doesn't use youtube_id
                     'title': metadata['title'],
@@ -520,7 +531,7 @@ class VideoEnricher:
                 video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
-            supabase.table('links').update({
+            self._get_supabase().table('links').update({
                 'video_id': video_id_to_link
             }).eq('id', link['id']).execute()
             
@@ -553,7 +564,7 @@ class VideoEnricher:
         
         try:
             # Query for video links without video_id
-            query = supabase.table('links').select('*')
+            query = self._get_supabase().table('links').select('*')
             
             if not force:
                 query = query.is_('video_id', 'null')
