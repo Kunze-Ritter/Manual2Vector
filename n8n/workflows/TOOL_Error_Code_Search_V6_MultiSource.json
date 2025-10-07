@@ -1,0 +1,69 @@
+{
+  "name": "TOOL: Error Code Search V6 (Multi-Source)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [300, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Extract error code and context\nconst errorCode = input.error_code || input.code || '';\nconst manufacturer = input.manufacturer || null;\nconst product = input.product || input.model || null;\n\nif (!errorCode) {\n  throw new Error('No error code provided!');\n}\n\nreturn {\n  error_code: errorCode,\n  manufacturer: manufacturer,\n  product: product\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "extract-params",
+      "name": "Extract Parameters"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/search_error_code_multi_source",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  p_error_code: $json.error_code,\n  p_manufacturer_name: $json.manufacturer,\n  p_product_name: $json.product\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 300],
+      "id": "supabase-search",
+      "name": "Search Multi-Source"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.first().json;\n\nif (!results || results.length === 0) {\n  return {\n    success: false,\n    message: `❌ Error Code nicht gefunden!\\n\\nBitte prüfe:\\n- Ist der Code korrekt? (z.B. 30.03.30)\\n- Ist der Hersteller korrekt?\\n- Ist das Modell korrekt?`\n  };\n}\n\n// Group by source type\nconst documents = results.filter(r => r.source_type === 'document');\nconst videos = results.filter(r => r.source_type === 'video');\nconst relatedVideos = results.filter(r => r.source_type === 'related_video');\n\nlet message = `🔧 ERROR CODE: ${results[0].error_code}\\n`;\nif (results[0].error_description) {\n  message += `📝 ${results[0].error_description}\\n`;\n}\nmessage += '\\n';\n\n// Documents\nif (documents.length > 0) {\n  message += `📖 DOKUMENTATION (${documents.length}):`;\\n\\n`;\n  \n  documents.forEach((doc, i) => {\n    message += `\\n${i+1}. ${doc.source_title}`;\n    if (doc.page_number) message += ` (Seite ${doc.page_number})`;\n    message += '\\n';\n    \n    if (doc.solution_text) {\n      const solution = doc.solution_text.substring(0, 150);\n      message += `   💡 ${solution}${doc.solution_text.length > 150 ? '...' : ''}\\n`;\n    }\n    \n    if (doc.parts_list) {\n      message += `   🔧 Parts: ${doc.parts_list}\\n`;\n    }\n  });\n}\n\n// Direct video matches\nif (videos.length > 0) {\n  message += `\\n\\n🎬 VIDEOS (${videos.length}):`;\\n\\n`;\n  \n  videos.forEach((vid, i) => {\n    message += `\\n${i+1}. ${vid.source_title}`;\n    if (vid.video_duration) {\n      const mins = Math.floor(vid.video_duration / 60);\n      const secs = vid.video_duration % 60;\n      message += ` (${mins}:${String(secs).padStart(2, '0')})`;\n    }\n    message += '\\n';\n    \n    if (vid.solution_text) {\n      const solution = vid.solution_text.substring(0, 100);\n      message += `   ${solution}${vid.solution_text.length > 100 ? '...' : ''}\\n`;\n    }\n    \n    if (vid.video_url) {\n      message += `   🔗 ${vid.video_url}\\n`;\n    }\n  });\n}\n\n// Related videos\nif (relatedVideos.length > 0) {\n  message += `\\n\\n📺 VERWANDTE VIDEOS (${relatedVideos.length}):`;\\n\\n`;\n  \n  relatedVideos.slice(0, 3).forEach((vid, i) => {\n    message += `\\n${i+1}. ${vid.source_title}`;\n    if (vid.video_duration) {\n      const mins = Math.floor(vid.video_duration / 60);\n      const secs = vid.video_duration % 60;\n      message += ` (${mins}:${String(secs).padStart(2, '0')})`;\n    }\n    message += '\\n';\n    \n    if (vid.video_url) {\n      message += `   🔗 ${vid.video_url}\\n`;\n    }\n  });\n  \n  if (relatedVideos.length > 3) {\n    message += `\\n   ... und ${relatedVideos.length - 3} weitere Videos\\n`;\n  }\n}\n\nmessage += '\\n\\n💡 Möchtest du mehr Details zu einem der Quellen?';\n\nreturn {\n  success: true,\n  message: message,\n  raw_data: {\n    documents: documents,\n    videos: videos,\n    related_videos: relatedVideos,\n    total_sources: results.length\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300],
+      "id": "format-response",
+      "name": "Format Response"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{"node": "Extract Parameters", "type": "main", "index": 0}]]
+    },
+    "Extract Parameters": {
+      "main": [[{"node": "Search Multi-Source", "type": "main", "index": 0}]]
+    },
+    "Search Multi-Source": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}
