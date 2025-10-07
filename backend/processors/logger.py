@@ -59,8 +59,13 @@ class ProcessorLogger:
         else:
             # Fallback to basic handler with UTF-8 encoding
             # Force UTF-8 encoding for Windows compatibility with Unicode characters
-            utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-            console_handler = logging.StreamHandler(utf8_stdout)
+            try:
+                # Try to wrap stdout.buffer if available
+                utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+                console_handler = logging.StreamHandler(utf8_stdout)
+            except AttributeError:
+                # stdout.buffer not available (already wrapped), use stdout directly
+                console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(logging.INFO)
             formatter = logging.Formatter(
                 '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
