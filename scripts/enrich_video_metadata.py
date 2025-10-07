@@ -642,6 +642,10 @@ class VideoEnricher:
             # Get contextual information from link
             context = self.get_link_context(link)
             
+            # Detect manufacturer from URL if not in context
+            if not context['manufacturer_id']:
+                context['manufacturer_id'] = await self.detect_manufacturer_from_url(link['url'])
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
@@ -651,22 +655,22 @@ class VideoEnricher:
                 video_record = self._get_supabase().table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': metadata['youtube_id'],
+                    'platform': 'youtube',
+                    'video_url': link['url'],
                     'title': metadata['title'],
                     'description': metadata['description'],
                     'thumbnail_url': metadata['thumbnail_url'],
                     'duration': metadata['duration'],
                     'view_count': metadata['view_count'],
                     'like_count': metadata['like_count'],
-                    'comment_count': metadata['comment_count'],
-                    'channel_id': metadata['channel_id'],
                     'channel_title': metadata['channel_title'],
-                    'published_at': metadata['published_at'],
                     'manufacturer_id': context['manufacturer_id'],
-                    'series_id': context['series_id'],
-                    'related_error_codes': context['related_error_codes'],
+                    'document_id': link.get('document_id'),
                     'metadata': {
                         'enriched_at': datetime.now(timezone.utc).isoformat(),
-                        'source': 'youtube_api'
+                        'source': 'youtube_api',
+                        'channel_id': metadata['channel_id'],
+                        'published_at': metadata['published_at']
                     }
                 }).execute()
                 
@@ -709,6 +713,10 @@ class VideoEnricher:
             # Get contextual information from link
             context = self.get_link_context(link)
             
+            # Detect manufacturer from URL if not in context
+            if not context['manufacturer_id']:
+                context['manufacturer_id'] = await self.detect_manufacturer_from_url(link['url'])
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
@@ -718,6 +726,8 @@ class VideoEnricher:
                 video_record = self._get_supabase().table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': None,  # Vimeo doesn't use youtube_id
+                    'platform': 'vimeo',
+                    'video_url': link['url'],
                     'title': metadata['title'],
                     'description': metadata['description'],
                     'thumbnail_url': metadata['thumbnail_url'],
@@ -725,8 +735,7 @@ class VideoEnricher:
                     'view_count': metadata['view_count'],
                     'channel_title': metadata['channel_title'],
                     'manufacturer_id': context['manufacturer_id'],
-                    'series_id': context['series_id'],
-                    'related_error_codes': context['related_error_codes'],
+                    'document_id': link.get('document_id'),
                     'metadata': {
                         'enriched_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'vimeo_api',
@@ -775,6 +784,10 @@ class VideoEnricher:
             # Get contextual information from link
             context = self.get_link_context(link)
             
+            # Detect manufacturer from URL if not in context
+            if not context['manufacturer_id']:
+                context['manufacturer_id'] = await self.detect_manufacturer_from_url(link['url'])
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
@@ -784,15 +797,14 @@ class VideoEnricher:
                 video_record = self._get_supabase().table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': None,  # Brightcove doesn't use youtube_id
+                    'platform': 'brightcove',
+                    'video_url': link['url'],
                     'title': metadata['title'],
                     'description': metadata['description'],
                     'thumbnail_url': metadata['thumbnail_url'],
                     'duration': metadata['duration'],
-                    'view_count': metadata['view_count'],
-                    'channel_title': metadata['channel_title'],
                     'manufacturer_id': context['manufacturer_id'],
-                    'series_id': context['series_id'],
-                    'related_error_codes': context['related_error_codes'],
+                    'document_id': link.get('document_id'),
                     'metadata': {
                         'enriched_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'brightcove_api',
