@@ -358,7 +358,7 @@ class VideoEnricher:
                                 config=Config(signature_version='s3v4')
                             )
                             
-                            bucket_name = os.getenv('R2_BUCKET_NAME', 'krai-content')
+                            bucket_name = os.getenv('R2_BUCKET_NAME_DOCUMENTS') or os.getenv('R2_BUCKET_NAME', 'krai-documents-images')
                             logger.info(f"📦 Bucket: {bucket_name}, File: {thumbnail_filename}")
                             
                             r2_client.put_object(
@@ -981,11 +981,14 @@ class VideoEnricher:
                 # Try to extract video metadata
                 metadata_result = await self.extract_direct_video_metadata(url)
                 
+                # Generate better description from cleaned title
+                description = cleaned_title if cleaned_title else f'Video: {filename}'
+                
                 return {
                     'platform': 'direct',
                     'video_id': None,
                     'title': cleaned_title,
-                    'description': f'Direct video file: {filename}',
+                    'description': description,
                     'duration': metadata_result.get('duration'),
                     'thumbnail_url': metadata_result.get('thumbnail_url'),
                     'video_url': url,
