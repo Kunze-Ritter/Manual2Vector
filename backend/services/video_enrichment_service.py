@@ -75,7 +75,7 @@ class VideoEnrichmentService:
         manufacturer_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Enrich a single video URL
+        Enrich a single video URL and save to database
         
         Args:
             url: Video URL to enrich
@@ -83,7 +83,7 @@ class VideoEnrichmentService:
             manufacturer_id: Optional manufacturer ID to link to
             
         Returns:
-            Dictionary with video metadata
+            Dictionary with video metadata including database ID
         """
         try:
             if VideoEnricher is None:
@@ -94,18 +94,85 @@ class VideoEnrichmentService:
             # Create enricher instance
             enricher = VideoEnricher()
             
-            # Enrich the video
-            result = await enricher.enrich_single_url(
+            # Enrich the video (get metadata)
+            metadata = await enricher.enrich_single_url(
                 url=url,
                 document_id=document_id,
                 manufacturer_id=manufacturer_id
             )
             
+            # Check for errors
+            if 'error' in metadata:
+                await enricher.close()
+                return metadata
+            
+            # Save to database with deduplication
+            supabase = enricher._get_supabase()
+            
+            # Check for existing video (deduplication)
+            platform = metadata.get('platform')
+            existing = None
+            
+            if platform == 'youtube':
+                # Deduplicate by youtube_id
+                youtube_id = metadata.get('video_id')
+                if youtube_id:
+                    result = supabase.table('videos').select('*').eq('youtube_id', youtube_id).limit(1).execute()
+                    if result.data:
+                        existing = result.data[0]
+            else:
+                # Deduplicate by video_url
+                result = supabase.table('videos').select('*').eq('video_url', url).limit(1).execute()
+                if result.data:
+                    existing = result.data[0]
+            
+            if existing:
+                logger.info(f"🔗 Video already exists in database (ID: {existing['id']})")
+                video_db_id = existing['id']
+            else:
+                # Insert new video
+                video_data = {
+                    'link_id': None,  # No link for direct API enrichment
+                    'youtube_id': metadata.get('video_id') if platform == 'youtube' else None,
+                    'platform': platform,
+                    'video_url': url,
+                    'title': metadata.get('title'),
+                    'description': metadata.get('description'),
+                    'thumbnail_url': metadata.get('thumbnail_url'),
+                    'duration': metadata.get('duration'),
+                    'view_count': metadata.get('view_count'),
+                    'like_count': metadata.get('like_count'),
+                    'channel_title': metadata.get('channel_title'),
+                    'manufacturer_id': manufacturer_id,
+                    'document_id': document_id,
+                    'metadata': {}
+                }
+                
+                # Add platform-specific metadata
+                if platform == 'vimeo':
+                    video_data['metadata']['vimeo_id'] = metadata.get('video_id')
+                elif platform == 'brightcove':
+                    video_data['metadata']['brightcove_id'] = metadata.get('video_id')
+                
+                insert_result = supabase.table('videos').insert(video_data).execute()
+                
+                if not insert_result.data:
+                    logger.error("Failed to insert video into database")
+                    await enricher.close()
+                    return {**metadata, 'error': 'Failed to save to database'}
+                
+                video_db_id = insert_result.data[0]['id']
+                logger.info(f"✅ Video saved to database (ID: {video_db_id})")
+            
             # Close enricher
             await enricher.close()
             
-            logger.info(f"✅ Video enriched: {result.get('title', 'N/A')}")
-            return result
+            # Return metadata with database ID
+            return {
+                **metadata,
+                'database_id': video_db_id,
+                'saved': True
+            }
             
         except Exception as e:
             logger.error(f"❌ Error enriching video: {e}")
