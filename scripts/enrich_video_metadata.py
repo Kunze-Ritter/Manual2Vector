@@ -775,7 +775,34 @@ class VideoEnricher:
             }
             
             # Determine platform and enrich
-            if 'youtube.com' in url or 'youtu.be' in url:
+            # Check for direct video files FIRST (before other platforms)
+            if url.endswith(('.mp4', '.webm', '.mov', '.avi', '.mkv')):
+                # Extract filename as title
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                filename = parsed.path.split('/')[-1]
+                title = filename.replace('-', ' ').replace('_', ' ').rsplit('.', 1)[0]
+                
+                # Try to extract video metadata
+                metadata_result = await self.extract_direct_video_metadata(url)
+                
+                return {
+                    'platform': 'direct',
+                    'video_id': None,
+                    'title': title,
+                    'description': f'Direct video file: {filename}',
+                    'duration': metadata_result.get('duration'),
+                    'thumbnail_url': metadata_result.get('thumbnail_url'),
+                    'video_url': url,
+                    'metadata': {
+                        'filename': filename,
+                        'resolution': metadata_result.get('resolution'),
+                        'codec': metadata_result.get('codec'),
+                        'file_size': metadata_result.get('file_size')
+                    }
+                }
+            
+            elif 'youtube.com' in url or 'youtu.be' in url:
                 video_id = self.extract_youtube_id(url)
                 if not video_id:
                     return {'error': 'Could not extract YouTube video ID', 'platform': 'youtube'}
@@ -838,33 +865,7 @@ class VideoEnricher:
                 else:
                     return {'error': 'Could not fetch Brightcove metadata', 'platform': 'brightcove'}
             
-            # Direct video files (MP4, etc.)
-            elif url.endswith(('.mp4', '.webm', '.mov', '.avi', '.mkv')):
-                # Extract filename as title
-                from urllib.parse import urlparse
-                parsed = urlparse(url)
-                filename = parsed.path.split('/')[-1]
-                title = filename.replace('-', ' ').replace('_', ' ').rsplit('.', 1)[0]
-                
-                # Try to extract video metadata
-                metadata_result = await self.extract_direct_video_metadata(url)
-                
-                return {
-                    'platform': 'direct',
-                    'video_id': None,
-                    'title': title,
-                    'description': f'Direct video file: {filename}',
-                    'duration': metadata_result.get('duration'),
-                    'thumbnail_url': metadata_result.get('thumbnail_url'),
-                    'video_url': url,
-                    'metadata': {
-                        'filename': filename,
-                        'resolution': metadata_result.get('resolution'),
-                        'codec': metadata_result.get('codec'),
-                        'file_size': metadata_result.get('file_size')
-                    }
-                }
-            
+            # If no platform matched
             return {'error': 'Unsupported video platform', 'platform': None}
             
         except Exception as e:
