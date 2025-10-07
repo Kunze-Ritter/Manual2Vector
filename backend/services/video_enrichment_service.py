@@ -11,7 +11,11 @@ from typing import Optional, Dict, Any
 # Add scripts directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 
-from enrich_video_metadata import VideoEnricher
+try:
+    from enrich_video_metadata import VideoEnricher
+except ImportError as e:
+    logger.warning(f"⚠️ VideoEnricher not available: {e}")
+    VideoEnricher = None
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +40,9 @@ class VideoEnrichmentService:
             Dictionary with enrichment results
         """
         try:
+            if VideoEnricher is None:
+                raise RuntimeError("VideoEnricher not available - check dependencies")
+            
             logger.info(f"🎬 Starting video enrichment (limit={limit}, force={force})")
             
             # Create enricher instance
@@ -79,6 +86,9 @@ class VideoEnrichmentService:
             Dictionary with video metadata
         """
         try:
+            if VideoEnricher is None:
+                raise RuntimeError("VideoEnricher not available - check dependencies")
+            
             logger.info(f"🎬 Enriching single video: {url}")
             
             # Create enricher instance
