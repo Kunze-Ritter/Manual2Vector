@@ -49,12 +49,12 @@ BEGIN
   SELECT 
     'document'::TEXT as source_type,
     ec.document_id as source_id,
-    d.filename as source_title,
-    ec.error_code,
-    ec.error_description,
-    ec.solution_text,
-    NULL::TEXT as parts_list,  -- Parts not stored in error_codes table
-    ec.page_number,
+    d.filename::TEXT as source_title,
+    ec.error_code::TEXT as code,
+    ec.error_description::TEXT,
+    ec.solution_text::TEXT,
+    NULL::TEXT as parts_list,
+    ec.page_number::INT,
     NULL::TEXT as video_url,
     NULL::INT as video_duration,
     NULL::TEXT as thumbnail_url,
@@ -75,24 +75,24 @@ BEGIN
   
   -- 2. Error codes from videos (direct match)
   SELECT 
-    'video'::TEXT,
-    ec.video_id,
-    v.title,
-    ec.error_code,
-    ec.error_description,
-    ec.solution_text,
-    NULL::TEXT as parts_list,  -- Parts not stored in error_codes table
-    NULL::INT,
-    v.video_url,
-    v.duration,
-    v.thumbnail_url,
-    1.0::FLOAT,
+    'video'::TEXT as source_type,
+    ec.video_id as source_id,
+    v.title::TEXT as source_title,
+    ec.error_code::TEXT as code,
+    ec.error_description::TEXT,
+    ec.solution_text::TEXT,
+    NULL::TEXT as parts_list,
+    NULL::INT as page_number,
+    v.video_url::TEXT,
+    v.duration::INT as video_duration,
+    v.thumbnail_url::TEXT,
+    1.0::FLOAT as relevance_score,
     jsonb_build_object(
       'platform', v.platform,
       'channel_title', v.channel_title,
       'view_count', v.view_count,
       'confidence', ec.confidence_score
-    )
+    ) as metadata
   FROM krai_intelligence.error_codes ec
   JOIN krai_content.videos v ON v.id = ec.video_id
   WHERE ec.error_code = p_error_code
@@ -104,24 +104,24 @@ BEGIN
   
   -- 3. Related videos (keyword match - no direct error code link)
   SELECT 
-    'related_video'::TEXT,
-    v.id,
-    v.title,
-    p_error_code::TEXT,
-    NULL::TEXT,
-    v.description,
-    NULL::TEXT,
-    NULL::INT,
-    v.video_url,
-    v.duration,
-    v.thumbnail_url,
-    0.7::FLOAT,  -- Lower relevance
+    'related_video'::TEXT as source_type,
+    v.id as source_id,
+    v.title::TEXT as source_title,
+    p_error_code::TEXT as code,
+    NULL::TEXT as error_description,
+    v.description::TEXT as solution_text,
+    NULL::TEXT as parts_list,
+    NULL::INT as page_number,
+    v.video_url::TEXT,
+    v.duration::INT as video_duration,
+    v.thumbnail_url::TEXT,
+    0.7::FLOAT as relevance_score,
     jsonb_build_object(
       'platform', v.platform,
       'channel_title', v.channel_title,
       'view_count', v.view_count,
       'match_type', 'keyword'
-    )
+    ) as metadata
   FROM krai_content.videos v
   WHERE (v_manufacturer_id IS NULL OR v.manufacturer_id = v_manufacturer_id)
     AND (v_product_id IS NULL OR v.id IN (
