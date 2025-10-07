@@ -55,8 +55,14 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
 
-# Initialize Supabase
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+# Initialize Supabase (lazy - only when needed)
+supabase: Client = None
+
+def get_supabase():
+    global supabase
+    if supabase is None:
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    return supabase
 
 
 class LinkChecker:
@@ -361,7 +367,7 @@ class LinkChecker:
     async def update_link(self, link_id: str, new_url: str, old_url: str):
         """Update link in database"""
         try:
-            supabase.table('links').update({
+            get_supabase().table('links').update({
                 'url': new_url,
                 'metadata': {
                     'fixed_at': datetime.utcnow().isoformat(),
@@ -378,7 +384,7 @@ class LinkChecker:
     async def deactivate_link(self, link_id: str):
         """Mark link as inactive"""
         try:
-            supabase.table('links').update({
+            get_supabase().table('links').update({
                 'is_active': False,
                 'metadata': {
                     'deactivated_at': datetime.utcnow().isoformat(),
@@ -397,7 +403,7 @@ class LinkChecker:
         
         try:
             # Query links
-            query = supabase.table('links').select('id,url,link_type,is_active')
+            query = get_supabase().table('links').select('id,url,link_type,is_active')
             
             # Note: is_active might be NULL (default), so we include NULL and TRUE
             # PostgREST doesn't have OR directly, so we use 'or' filter syntax
