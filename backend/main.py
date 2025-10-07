@@ -46,13 +46,6 @@ from api.defect_detection_api import DefectDetectionAPI
 from api.features_api import FeaturesAPI
 from api.content_management_api import ContentManagementAPI
 
-# Create FastAPI application FIRST
-app = FastAPI(
-    title="KR-AI-Engine",
-    description="AI-powered document processing system for technical documentation",
-    version="1.0.0"
-)
-
 # Global services
 database_service = None
 storage_service = None
@@ -62,15 +55,15 @@ features_service = None
 video_enrichment_service = None
 link_checker_service = None
 
-# Global APIs (initialized in startup)
+# Global APIs (initialized in lifespan)
 document_api = None
 search_api = None
 defect_detection_api = None
 features_api = None
 content_management_api = None
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """Startup event handler"""
     global database_service, storage_service, ai_service, config_service, features_service
     global video_enrichment_service, link_checker_service
@@ -147,10 +140,11 @@ async def startup_event():
     except Exception as e:
         print(f"❌ Startup failed: {e}")
         raise
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Shutdown event handler"""
+    
+    # Yield control to the application
+    yield
+    
+    # Shutdown
     print("🛑 Shutting down KR-AI-Engine...")
     if database_service:
         print("✅ Database service disconnected")
@@ -159,6 +153,14 @@ async def shutdown_event():
     if ai_service:
         print("✅ AI service disconnected")
     print("👋 KR-AI-Engine stopped")
+
+# Create FastAPI application with lifespan
+app = FastAPI(
+    title="KR-AI-Engine",
+    description="AI-powered document processing system for technical documentation",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # Add CORS middleware
 app.add_middleware(
