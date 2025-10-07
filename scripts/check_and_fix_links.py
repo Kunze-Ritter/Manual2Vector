@@ -35,7 +35,10 @@ from urllib.parse import urlparse, quote, unquote
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = lambda: None  # Fallback
 from supabase import create_client, Client
 
 # Load environment variables

@@ -18,7 +18,10 @@ Usage:
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = lambda: None  # Fallback
 import argparse
 
 # Load environment

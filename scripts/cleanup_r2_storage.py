@@ -22,7 +22,10 @@ from datetime import datetime
 
 # Load .env file from parent directory
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = lambda: None  # Fallback
 
 # Load .env from project root
 env_path = Path(__file__).parent.parent / '.env'
