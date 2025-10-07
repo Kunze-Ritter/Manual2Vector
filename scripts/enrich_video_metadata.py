@@ -96,6 +96,12 @@ class VideoEnricher:
         try:
             import tempfile
             import os
+            import cv2
+            from PIL import Image
+            import io
+            import boto3
+            from botocore.client import Config
+            import hashlib
             
             # Try to get file size from headers
             file_size = None
@@ -103,29 +109,120 @@ class VideoEnricher:
                 head_response = await self.http_client.head(url, follow_redirects=True)
                 if 'content-length' in head_response.headers:
                     file_size = int(head_response.headers['content-length'])
+                    logger.info(f"📹 Direct video detected (size: {file_size / 1024 / 1024:.2f} MB)")
             except:
                 pass
             
-            # For now, return basic info without downloading
-            # TODO: Implement video download and processing with opencv-python
-            logger.info(f"📹 Direct video detected (size: {file_size} bytes)")
+            # Download video to temp file
+            logger.info(f"⬇️ Downloading video for analysis...")
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+                temp_path = tmp_file.name
+                
+                # Download video
+                response = await self.http_client.get(url, follow_redirects=True)
+                tmp_file.write(response.content)
             
-            return {
-                'duration': None,  # Would need opencv to extract
-                'resolution': None,  # Would need opencv to extract
-                'codec': None,  # Would need opencv to extract
-                'thumbnail_url': None,  # Would need to generate and upload
-                'file_size': file_size
-            }
+            try:
+                # Open video with OpenCV
+                video = cv2.VideoCapture(temp_path)
+                
+                if not video.isOpened():
+                    logger.error("Could not open video file")
+                    return {'duration': None, 'resolution': None, 'codec': None, 'thumbnail_url': None, 'file_size': file_size}
+                
+                # Extract metadata
+                fps = video.get(cv2.CAP_PROP_FPS)
+                frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+                width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                duration = int(frame_count / fps) if fps > 0 else None
+                resolution = f"{width}x{height}"
+                
+                logger.info(f"📊 Video: {resolution}, {duration}s, {fps:.1f} fps")
+                
+                # Generate thumbnail at 5 seconds
+                thumbnail_url = None
+                if duration and duration >= 5:
+                    # Seek to 5 seconds
+                    target_frame = int(5 * fps)
+                    video.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+                    
+                    ret, frame = video.read()
+                    if ret:
+                        # Convert BGR to RGB
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        
+                        # Convert to PIL Image
+                        pil_image = Image.fromarray(frame_rgb)
+                        
+                        # Resize to reasonable size (max 1280px width)
+                        if pil_image.width > 1280:
+                            ratio = 1280 / pil_image.width
+                            new_size = (1280, int(pil_image.height * ratio))
+                            pil_image = pil_image.resize(new_size, Image.Resampling.LANCZOS)
+                        
+                        # Save to bytes
+                        img_bytes = io.BytesIO()
+                        pil_image.save(img_bytes, format='JPEG', quality=85)
+                        img_bytes.seek(0)
+                        
+                        # Generate hash for filename
+                        url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+                        thumbnail_filename = f"video_thumbnails/{url_hash}_5s.jpg"
+                        
+                        # Upload to R2
+                        try:
+                            r2_client = boto3.client(
+                                's3',
+                                endpoint_url=os.getenv('R2_ENDPOINT_URL'),
+                                aws_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
+                                aws_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
+                                config=Config(signature_version='s3v4')
+                            )
+                            
+                            bucket_name = os.getenv('R2_BUCKET_NAME', 'krai-content')
+                            
+                            r2_client.put_object(
+                                Bucket=bucket_name,
+                                Key=thumbnail_filename,
+                                Body=img_bytes.getvalue(),
+                                ContentType='image/jpeg'
+                            )
+                            
+                            # Construct public URL
+                            public_url_base = os.getenv('R2_PUBLIC_URL_DOCUMENTS', '')
+                            thumbnail_url = f"{public_url_base}/{thumbnail_filename}"
+                            
+                            logger.info(f"🖼️ Thumbnail uploaded: {thumbnail_url}")
+                            
+                        except Exception as e:
+                            logger.error(f"Failed to upload thumbnail: {e}")
+                
+                video.release()
+                
+                return {
+                    'duration': duration,
+                    'resolution': resolution,
+                    'codec': None,  # OpenCV doesn't easily expose codec info
+                    'thumbnail_url': thumbnail_url,
+                    'file_size': file_size
+                }
+                
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
             
         except Exception as e:
-            logger.warning(f"Could not extract video metadata: {e}")
+            logger.error(f"Error extracting video metadata: {e}")
             return {
                 'duration': None,
                 'resolution': None,
                 'codec': None,
                 'thumbnail_url': None,
-                'file_size': None
+                'file_size': file_size if 'file_size' in locals() else None
             }
     
     def extract_youtube_id(self, url: str) -> Optional[str]:
