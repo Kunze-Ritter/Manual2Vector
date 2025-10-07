@@ -92,10 +92,24 @@ class VideoEnricher:
         Returns:
             List of model numbers found
         """
-        # Common printer model patterns
+        # Enhanced printer model patterns
         patterns = [
-            r'\b([A-Z]{2,4}\s*\d{3,4}[A-Z]*)\b',  # CS943, CX94X, etc.
-            r'\b([A-Z]\d{4,5})\b',  # C9876, etc.
+            # HP patterns
+            r'\b([A-Z]\d{3,4}[A-Z]{0,2})\b',  # E778, M479, etc.
+            r'\b(LaserJet\s+[A-Z0-9]+)\b',
+            r'\b(OfficeJet\s+[A-Z0-9]+)\b',
+            
+            # Lexmark patterns  
+            r'\b([A-Z]{2}\s*\d{3,4}[A-Z]{0,2})\b',  # CS943, CX94X, etc.
+            r'\b([A-Z]{2}\d{3,4}[A-Z]{0,2})\b',  # CS943, CX94X (no space)
+            r'\b([A-Z]{3}\d{3,4}[A-Z]{0,2})\b',  # XC944X5, etc.
+            
+            # Kyocera patterns
+            r'\b(ECOSYS\s+[A-Z0-9]+)\b',
+            r'\b(TASKalfa\s+[A-Z0-9]+)\b',
+            r'\b([A-Z]{2}\s*\d{4}[A-Z]{0,2})\b',  # KM4750i, etc.
+            
+            # Generic patterns
             r'\b(\d{4,5}[A-Z]{1,3})\b',  # 4750i, etc.
         ]
         
@@ -107,7 +121,13 @@ class VideoEnricher:
             for match in matches:
                 # Normalize (remove spaces, uppercase)
                 normalized = match.replace(' ', '').upper()
-                if normalized not in seen and len(normalized) >= 4:
+                
+                # Filter out common false positives
+                if normalized in ['SVC', 'SC', 'KIT', 'MODULE', 'TRANSFER']:
+                    continue
+                
+                # Must be at least 4 chars and contain at least one digit
+                if len(normalized) >= 4 and any(c.isdigit() for c in normalized) and normalized not in seen:
                     models.append(normalized)
                     seen.add(normalized)
         
@@ -126,29 +146,39 @@ class VideoEnricher:
         """
         cleaned = title
         
-        # Remove model numbers
+        # Remove model numbers (with word boundaries and spaces)
         for model in models:
-            # Remove with and without spaces
-            cleaned = re.sub(rf'\b{model}\b', '', cleaned, flags=re.IGNORECASE)
-            cleaned = re.sub(rf'\b{model.replace("", " ")}\b', '', cleaned, flags=re.IGNORECASE)
+            # Remove exact match
+            cleaned = re.sub(rf'\b{re.escape(model)}\b', '', cleaned, flags=re.IGNORECASE)
+            # Remove with spaces between chars (e.g., "C X 9 4 X" → "CX94X")
+            spaced_model = ' '.join(model)
+            cleaned = re.sub(rf'\b{re.escape(spaced_model)}\b', '', cleaned, flags=re.IGNORECASE)
         
         # Remove service codes (SVC, SC, etc.)
         cleaned = re.sub(r'\bSVC\b', '', cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r'\bSC\b', '', cleaned, flags=re.IGNORECASE)
         
-        # Clean up multiple spaces
-        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        # Remove common prefixes/suffixes
+        cleaned = re.sub(r'\b(video|tutorial|guide|manual|instructions?)\b', '', cleaned, flags=re.IGNORECASE)
+        
+        # Clean up multiple spaces and dashes
+        cleaned = re.sub(r'[\s\-]+', ' ', cleaned).strip()
         
         # Remove leading/trailing dashes and spaces
         cleaned = re.sub(r'^[\s\-]+|[\s\-]+$', '', cleaned)
         
-        # Capitalize first letter of each word
-        cleaned = ' '.join(word.capitalize() if word.lower() not in ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in'] else word.lower() 
-                          for word in cleaned.split())
+        # Capitalize properly
+        words = cleaned.split()
+        lowercase_words = {'and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in', 'on', 'at', 'by', 'with'}
         
-        # Capitalize first word
-        if cleaned:
-            cleaned = cleaned[0].upper() + cleaned[1:]
+        cleaned_words = []
+        for i, word in enumerate(words):
+            if i == 0 or word.lower() not in lowercase_words:
+                cleaned_words.append(word.capitalize())
+            else:
+                cleaned_words.append(word.lower())
+        
+        cleaned = ' '.join(cleaned_words)
         
         return cleaned
     
@@ -192,16 +222,32 @@ class VideoEnricher:
             # Check exact domain match
             for domain_key, manufacturer_name in domain_mapping.items():
                 if domain_key in domain:
+                    logger.info(f"🔍 Domain matched: {domain_key} → {manufacturer_name}")
+                    
                     # Look up manufacturer ID in database
                     supabase = self._get_supabase()
-                    result = supabase.table('manufacturers').select('id').ilike('name', manufacturer_name).limit(1).execute()
+                    
+                    # Try exact match first
+                    result = supabase.table('manufacturers').select('id,name').eq('name', manufacturer_name).limit(1).execute()
+                    
+                    if not result.data:
+                        # Try case-insensitive match
+                        result = supabase.table('manufacturers').select('id,name').ilike('name', manufacturer_name).limit(1).execute()
+                    
+                    if not result.data:
+                        # Try partial match
+                        result = supabase.table('manufacturers').select('id,name').ilike('name', f'%{manufacturer_name}%').limit(1).execute()
                     
                     if result.data:
                         manufacturer_id = result.data[0]['id']
-                        logger.info(f"🏢 Detected manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
+                        actual_name = result.data[0]['name']
+                        logger.info(f"🏢 Detected manufacturer: {actual_name} (ID: {manufacturer_id})")
                         return manufacturer_id
                     else:
                         logger.warning(f"⚠️ Manufacturer '{manufacturer_name}' not found in database")
+                        # List available manufacturers for debugging
+                        all_manufacturers = supabase.table('manufacturers').select('name').limit(10).execute()
+                        logger.info(f"📋 Available manufacturers: {[m['name'] for m in all_manufacturers.data]}")
                         return None
             
             logger.info(f"ℹ️ No manufacturer detected from domain: {domain}")
@@ -272,12 +318,14 @@ class VideoEnricher:
                 # Generate thumbnail at 5 seconds
                 thumbnail_url = None
                 if duration and duration >= 5:
+                    logger.info(f"🖼️ Generating thumbnail at 5 seconds...")
                     # Seek to 5 seconds
                     target_frame = int(5 * fps)
                     video.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
                     
                     ret, frame = video.read()
                     if ret:
+                        logger.info(f"✅ Frame extracted successfully")
                         # Convert BGR to RGB
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         
@@ -301,6 +349,7 @@ class VideoEnricher:
                         
                         # Upload to R2
                         try:
+                            logger.info(f"☁️ Uploading thumbnail to R2...")
                             r2_client = boto3.client(
                                 's3',
                                 endpoint_url=os.getenv('R2_ENDPOINT_URL'),
@@ -310,6 +359,7 @@ class VideoEnricher:
                             )
                             
                             bucket_name = os.getenv('R2_BUCKET_NAME', 'krai-content')
+                            logger.info(f"📦 Bucket: {bucket_name}, File: {thumbnail_filename}")
                             
                             r2_client.put_object(
                                 Bucket=bucket_name,
@@ -322,10 +372,14 @@ class VideoEnricher:
                             public_url_base = os.getenv('R2_PUBLIC_URL_DOCUMENTS', '')
                             thumbnail_url = f"{public_url_base}/{thumbnail_filename}"
                             
-                            logger.info(f"🖼️ Thumbnail uploaded: {thumbnail_url}")
+                            logger.info(f"✅ Thumbnail uploaded: {thumbnail_url}")
                             
                         except Exception as e:
-                            logger.error(f"Failed to upload thumbnail: {e}")
+                            logger.error(f"❌ Failed to upload thumbnail: {e}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                    else:
+                        logger.warning(f"⚠️ Could not extract frame at 5 seconds")
                 
                 video.release()
                 
