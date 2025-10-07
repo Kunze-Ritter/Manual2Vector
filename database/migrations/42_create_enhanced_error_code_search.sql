@@ -39,8 +39,7 @@ BEGIN
   IF p_product_name IS NOT NULL THEN
     SELECT id INTO v_product_id 
     FROM krai_core.products 
-    WHERE model_name ILIKE p_product_name 
-       OR model_number ILIKE p_product_name
+    WHERE model_number ILIKE p_product_name
     LIMIT 1;
   END IF;
   
