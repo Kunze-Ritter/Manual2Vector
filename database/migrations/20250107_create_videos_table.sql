@@ -12,7 +12,8 @@ CREATE TABLE krai_content.videos (
     
     -- Platform & IDs
     youtube_id VARCHAR(20),  -- YouTube video ID (11 chars but allow extra)
-    platform VARCHAR(20),    -- youtube, vimeo, brightcove
+    platform VARCHAR(20),    -- youtube, vimeo, brightcove, direct
+    video_url TEXT,          -- Full video URL (for deduplication)
     
     -- Basic Info
     title VARCHAR(500) NOT NULL,
@@ -48,15 +49,27 @@ CREATE TABLE krai_content.videos (
 CREATE INDEX idx_videos_link_id ON krai_content.videos(link_id);
 CREATE INDEX idx_videos_youtube_id ON krai_content.videos(youtube_id);
 CREATE INDEX idx_videos_platform ON krai_content.videos(platform);
+CREATE INDEX idx_videos_video_url ON krai_content.videos(video_url);
 CREATE INDEX idx_videos_manufacturer_id ON krai_content.videos(manufacturer_id);
 CREATE INDEX idx_videos_document_id ON krai_content.videos(document_id);
 
+-- Unique constraint for deduplication
+-- YouTube: Deduplicate by youtube_id
+CREATE UNIQUE INDEX idx_videos_youtube_id_unique ON krai_content.videos(youtube_id) 
+WHERE youtube_id IS NOT NULL;
+
+-- Direct/Other: Deduplicate by video_url
+CREATE UNIQUE INDEX idx_videos_url_unique ON krai_content.videos(video_url) 
+WHERE video_url IS NOT NULL AND youtube_id IS NULL;
+
 -- Comments
-COMMENT ON TABLE krai_content.videos IS 'Enriched video metadata for links (YouTube, Vimeo, Brightcove)';
+COMMENT ON TABLE krai_content.videos IS 'Enriched video metadata for links (YouTube, Vimeo, Brightcove, Direct MP4)';
 COMMENT ON COLUMN krai_content.videos.link_id IS 'Reference to link in links table (can be NULL for direct API enrichment)';
-COMMENT ON COLUMN krai_content.videos.youtube_id IS 'YouTube video ID for deduplication';
+COMMENT ON COLUMN krai_content.videos.youtube_id IS 'YouTube video ID for deduplication (YouTube only)';
+COMMENT ON COLUMN krai_content.videos.video_url IS 'Full video URL for deduplication (all platforms)';
+COMMENT ON COLUMN krai_content.videos.platform IS 'Video platform: youtube, vimeo, brightcove, direct';
 COMMENT ON COLUMN krai_content.videos.duration IS 'Video duration in seconds';
-COMMENT ON COLUMN krai_content.videos.metadata IS 'Platform-specific extra data (vimeo_id, brightcove_id, etc.)';
+COMMENT ON COLUMN krai_content.videos.metadata IS 'Platform-specific extra data (vimeo_id, brightcove_id, file_size, etc.)';
 
 -- Add video_id column to links table if not exists
 DO $$ 
