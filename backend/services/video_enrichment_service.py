@@ -113,6 +113,9 @@ class VideoEnrichmentService:
             platform = metadata.get('platform')
             existing = None
             
+            # Use detected manufacturer_id from metadata if not provided
+            final_manufacturer_id = manufacturer_id or metadata.get('manufacturer_id')
+            
             if platform == 'youtube':
                 # Deduplicate by youtube_id
                 youtube_id = metadata.get('video_id')
@@ -131,8 +134,6 @@ class VideoEnrichmentService:
                 video_db_id = existing['id']
             else:
                 # Insert new video
-                # Use detected manufacturer_id from metadata if not provided
-                final_manufacturer_id = manufacturer_id or metadata.get('manufacturer_id')
                 
                 video_data = {
                     'link_id': None,  # No link for direct API enrichment
