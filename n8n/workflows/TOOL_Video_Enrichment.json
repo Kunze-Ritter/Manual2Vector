@@ -12,7 +12,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://127.0.0.1:8000/content/videos/enrich/single",
+        "url": "http://host.docker.internal:8000/content/videos/enrich/single",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ url: $json.url, document_id: $json.document_id || null, manufacturer_id: $json.manufacturer_id || null }) }}",
