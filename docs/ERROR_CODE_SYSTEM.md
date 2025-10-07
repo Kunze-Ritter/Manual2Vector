@@ -24,7 +24,7 @@ The KRAI Error Code System provides intelligent extraction, storage, and retriev
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌──────────────┐     ┌──────────────┐    ┌──────────────┐  │
-│  │  Extraction  │───▶│   Storage    │───▶│    Search    │  │ 
+│  │  Extraction  │ ──> │   Storage    │ ─> │    Search    │  │ 
 │  │              │     │              │    │              │  │
 │  │ • Patterns   │     │ • Products   │    │ • Documents  │  │
 │  │ • Filters    │     │ • Videos     │    │ • Videos     │  │
@@ -476,5 +476,5 @@ For questions or issues:
 
 ---
 
-**Last Updated**: 2025-01-07
+**Last Updated**: 2025-10-07
 **Version**: 2.0
