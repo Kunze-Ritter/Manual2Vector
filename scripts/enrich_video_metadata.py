@@ -25,7 +25,7 @@ import sys
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 
 # Add parent directory to path
