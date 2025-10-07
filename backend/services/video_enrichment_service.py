@@ -131,6 +131,9 @@ class VideoEnrichmentService:
                 video_db_id = existing['id']
             else:
                 # Insert new video
+                # Use detected manufacturer_id from metadata if not provided
+                final_manufacturer_id = manufacturer_id or metadata.get('manufacturer_id')
+                
                 video_data = {
                     'link_id': None,  # No link for direct API enrichment
                     'youtube_id': metadata.get('video_id') if platform == 'youtube' else None,
@@ -143,9 +146,9 @@ class VideoEnrichmentService:
                     'view_count': metadata.get('view_count'),
                     'like_count': metadata.get('like_count'),
                     'channel_title': metadata.get('channel_title'),
-                    'manufacturer_id': manufacturer_id,
+                    'manufacturer_id': final_manufacturer_id,
                     'document_id': document_id,
-                    'metadata': {}
+                    'metadata': metadata.get('metadata', {})
                 }
                 
                 # Add platform-specific metadata
@@ -153,6 +156,10 @@ class VideoEnrichmentService:
                     video_data['metadata']['vimeo_id'] = metadata.get('video_id')
                 elif platform == 'brightcove':
                     video_data['metadata']['brightcove_id'] = metadata.get('video_id')
+                elif platform == 'direct':
+                    # Add models to metadata
+                    if metadata.get('models'):
+                        video_data['metadata']['models'] = metadata.get('models')
                 
                 insert_result = supabase.table('videos').insert(video_data).execute()
                 

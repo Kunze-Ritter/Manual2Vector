@@ -82,6 +82,135 @@ class VideoEnricher:
         """Close HTTP client"""
         await self.http_client.aclose()
     
+    def extract_models_from_text(self, text: str) -> List[str]:
+        """
+        Extract printer model numbers from text
+        
+        Args:
+            text: Text to search for models
+            
+        Returns:
+            List of model numbers found
+        """
+        # Common printer model patterns
+        patterns = [
+            r'\b([A-Z]{2,4}\s*\d{3,4}[A-Z]*)\b',  # CS943, CX94X, etc.
+            r'\b([A-Z]\d{4,5})\b',  # C9876, etc.
+            r'\b(\d{4,5}[A-Z]{1,3})\b',  # 4750i, etc.
+        ]
+        
+        models = []
+        seen = set()
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                # Normalize (remove spaces, uppercase)
+                normalized = match.replace(' ', '').upper()
+                if normalized not in seen and len(normalized) >= 4:
+                    models.append(normalized)
+                    seen.add(normalized)
+        
+        return models
+    
+    def cleanup_title(self, title: str, models: List[str]) -> str:
+        """
+        Clean up video title by removing model numbers and fixing capitalization
+        
+        Args:
+            title: Original title
+            models: List of model numbers to remove
+            
+        Returns:
+            Cleaned title
+        """
+        cleaned = title
+        
+        # Remove model numbers
+        for model in models:
+            # Remove with and without spaces
+            cleaned = re.sub(rf'\b{model}\b', '', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(rf'\b{model.replace("", " ")}\b', '', cleaned, flags=re.IGNORECASE)
+        
+        # Remove service codes (SVC, SC, etc.)
+        cleaned = re.sub(r'\bSVC\b', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'\bSC\b', '', cleaned, flags=re.IGNORECASE)
+        
+        # Clean up multiple spaces
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        # Remove leading/trailing dashes and spaces
+        cleaned = re.sub(r'^[\s\-]+|[\s\-]+$', '', cleaned)
+        
+        # Capitalize first letter of each word
+        cleaned = ' '.join(word.capitalize() if word.lower() not in ['and', 'or', 'the', 'a', 'an', 'of', 'for', 'to', 'in'] else word.lower() 
+                          for word in cleaned.split())
+        
+        # Capitalize first word
+        if cleaned:
+            cleaned = cleaned[0].upper() + cleaned[1:]
+        
+        return cleaned
+    
+    async def detect_manufacturer_from_url(self, url: str) -> Optional[str]:
+        """
+        Detect manufacturer from URL domain
+        
+        Args:
+            url: Video URL
+            
+        Returns:
+            Manufacturer ID (UUID) or None
+        """
+        try:
+            from urllib.parse import urlparse
+            
+            domain = urlparse(url).netloc.lower()
+            
+            # Domain to manufacturer mapping
+            domain_mapping = {
+                'lexmark.com': 'Lexmark',
+                'publications.lexmark.com': 'Lexmark',
+                'hp.com': 'HP',
+                'support.hp.com': 'HP',
+                'kyoceradocumentsolutions.com': 'Kyocera',
+                'kyocera.com': 'Kyocera',
+                'ricoh.com': 'Ricoh',
+                'brother.com': 'Brother',
+                'canon.com': 'Canon',
+                'epson.com': 'Epson',
+                'xerox.com': 'Xerox',
+                'konica-minolta.com': 'Konica Minolta',
+                'konicaminolta.com': 'Konica Minolta',
+                'sharp.com': 'Sharp',
+                'toshiba.com': 'Toshiba',
+                'oki.com': 'OKI',
+                'samsung.com': 'Samsung',
+                'dell.com': 'Dell'
+            }
+            
+            # Check exact domain match
+            for domain_key, manufacturer_name in domain_mapping.items():
+                if domain_key in domain:
+                    # Look up manufacturer ID in database
+                    supabase = self._get_supabase()
+                    result = supabase.table('manufacturers').select('id').ilike('name', manufacturer_name).limit(1).execute()
+                    
+                    if result.data:
+                        manufacturer_id = result.data[0]['id']
+                        logger.info(f"🏢 Detected manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
+                        return manufacturer_id
+                    else:
+                        logger.warning(f"⚠️ Manufacturer '{manufacturer_name}' not found in database")
+                        return None
+            
+            logger.info(f"ℹ️ No manufacturer detected from domain: {domain}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting manufacturer: {e}")
+            return None
+    
     async def extract_direct_video_metadata(self, url: str) -> Dict[str, Any]:
         """
         Extract metadata from direct video file
@@ -781,7 +910,19 @@ class VideoEnricher:
                 from urllib.parse import urlparse
                 parsed = urlparse(url)
                 filename = parsed.path.split('/')[-1]
-                title = filename.replace('-', ' ').replace('_', ' ').rsplit('.', 1)[0]
+                raw_title = filename.replace('-', ' ').replace('_', ' ').rsplit('.', 1)[0]
+                
+                # Extract models from title
+                models = self.extract_models_from_text(raw_title)
+                logger.info(f"📋 Extracted models: {models}")
+                
+                # Clean up title
+                cleaned_title = self.cleanup_title(raw_title, models)
+                logger.info(f"📝 Cleaned title: {cleaned_title}")
+                
+                # Detect manufacturer from URL
+                detected_manufacturer_id = await self.detect_manufacturer_from_url(url)
+                final_manufacturer_id = manufacturer_id or detected_manufacturer_id
                 
                 # Try to extract video metadata
                 metadata_result = await self.extract_direct_video_metadata(url)
@@ -789,13 +930,16 @@ class VideoEnricher:
                 return {
                     'platform': 'direct',
                     'video_id': None,
-                    'title': title,
+                    'title': cleaned_title,
                     'description': f'Direct video file: {filename}',
                     'duration': metadata_result.get('duration'),
                     'thumbnail_url': metadata_result.get('thumbnail_url'),
                     'video_url': url,
+                    'manufacturer_id': final_manufacturer_id,
+                    'models': models,  # List of detected models
                     'metadata': {
                         'filename': filename,
+                        'original_title': raw_title,
                         'resolution': metadata_result.get('resolution'),
                         'codec': metadata_result.get('codec'),
                         'file_size': metadata_result.get('file_size')
