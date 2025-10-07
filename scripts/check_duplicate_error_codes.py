@@ -48,18 +48,31 @@ print(f"\nTOTAL ERROR CODES: {len(result.data)}")
 print(f"UNIQUE ERROR CODES: {len(code_counts)}")
 print("=" * 100)
 
-# Check specific code
-test_code = "30.03.30"
-test_result = sb.table('error_codes').select('*').eq('error_code', test_code).execute()
+# Check specific codes
+test_codes = ["30.03.30", "30.03", "30.3.30"]
 
-print(f"\n🔍 CHECKING CODE: {test_code}")
-if test_result.data:
-    print(f"✅ Found {len(test_result.data)} instance(s)")
-    for ec in test_result.data:
-        print(f"   - ID: {ec['id']}")
-        print(f"   - Manufacturer: {ec.get('manufacturer_id', 'N/A')}")
-        print(f"   - Description: {ec.get('error_description', 'N/A')[:80]}...")
+for test_code in test_codes:
+    test_result = sb.table('error_codes').select('*').eq('error_code', test_code).execute()
+    
+    print(f"\n🔍 CHECKING CODE: {test_code}")
+    if test_result.data:
+        print(f"✅ Found {len(test_result.data)} instance(s)")
+        for ec in test_result.data:
+            print(f"   - ID: {ec['id']}")
+            print(f"   - Manufacturer: {ec.get('manufacturer_id', 'N/A')}")
+            print(f"   - Description: {ec.get('error_description', 'N/A')[:80]}...")
+    else:
+        print(f"❌ NOT FOUND in database!")
+
+# Check all codes starting with 30
+print(f"\n🔍 ALL CODES STARTING WITH '30.':")
+result_30 = sb.table('error_codes').select('error_code').ilike('error_code', '30.%').execute()
+if result_30.data:
+    for ec in result_30.data[:10]:
+        print(f"   - {ec['error_code']}")
+    if len(result_30.data) > 10:
+        print(f"   ... and {len(result_30.data) - 10} more")
 else:
-    print(f"❌ NOT FOUND in database!")
+    print("   ❌ No codes found")
 
 print("\n" + "=" * 100)

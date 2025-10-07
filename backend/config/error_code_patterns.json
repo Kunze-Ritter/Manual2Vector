@@ -371,7 +371,7 @@
   },
   
   "extraction_rules": {
-    "min_confidence": 0.75,
+    "min_confidence": 0.60,
     "max_codes_per_page": 15,
     "context_window_chars": 200,
     "require_context_keywords": [
