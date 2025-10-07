@@ -61,6 +61,46 @@ class VideoEnrichmentService:
             logger.error(f"❌ Error in video enrichment: {e}")
             raise
     
+    async def enrich_video_url(
+        self, 
+        url: str, 
+        document_id: Optional[str] = None,
+        manufacturer_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Enrich a single video URL
+        
+        Args:
+            url: Video URL to enrich
+            document_id: Optional document ID to link to
+            manufacturer_id: Optional manufacturer ID to link to
+            
+        Returns:
+            Dictionary with video metadata
+        """
+        try:
+            logger.info(f"🎬 Enriching single video: {url}")
+            
+            # Create enricher instance
+            enricher = VideoEnricher()
+            
+            # Enrich the video
+            result = await enricher.enrich_single_url(
+                url=url,
+                document_id=document_id,
+                manufacturer_id=manufacturer_id
+            )
+            
+            # Close enricher
+            await enricher.close()
+            
+            logger.info(f"✅ Video enriched: {result.get('title', 'N/A')}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Error enriching video: {e}")
+            raise
+    
     async def health_check(self) -> Dict[str, Any]:
         """Health check for video enrichment service"""
         try:
