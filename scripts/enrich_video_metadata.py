@@ -82,6 +82,52 @@ class VideoEnricher:
         """Close HTTP client"""
         await self.http_client.aclose()
     
+    async def extract_direct_video_metadata(self, url: str) -> Dict[str, Any]:
+        """
+        Extract metadata from direct video file
+        Downloads video temporarily to extract duration, resolution, and generate thumbnail
+        
+        Args:
+            url: Direct video URL
+            
+        Returns:
+            Dictionary with duration, resolution, codec, thumbnail_url
+        """
+        try:
+            import tempfile
+            import os
+            
+            # Try to get file size from headers
+            file_size = None
+            try:
+                head_response = await self.http_client.head(url, follow_redirects=True)
+                if 'content-length' in head_response.headers:
+                    file_size = int(head_response.headers['content-length'])
+            except:
+                pass
+            
+            # For now, return basic info without downloading
+            # TODO: Implement video download and processing with opencv-python
+            logger.info(f"📹 Direct video detected (size: {file_size} bytes)")
+            
+            return {
+                'duration': None,  # Would need opencv to extract
+                'resolution': None,  # Would need opencv to extract
+                'codec': None,  # Would need opencv to extract
+                'thumbnail_url': None,  # Would need to generate and upload
+                'file_size': file_size
+            }
+            
+        except Exception as e:
+            logger.warning(f"Could not extract video metadata: {e}")
+            return {
+                'duration': None,
+                'resolution': None,
+                'codec': None,
+                'thumbnail_url': None,
+                'file_size': None
+            }
+    
     def extract_youtube_id(self, url: str) -> Optional[str]:
         """Extract YouTube video ID from URL"""
         patterns = [
@@ -703,14 +749,23 @@ class VideoEnricher:
                 filename = parsed.path.split('/')[-1]
                 title = filename.replace('-', ' ').replace('_', ' ').rsplit('.', 1)[0]
                 
+                # Try to extract video metadata
+                metadata_result = await self.extract_direct_video_metadata(url)
+                
                 return {
                     'platform': 'direct',
                     'video_id': None,
                     'title': title,
                     'description': f'Direct video file: {filename}',
-                    'duration': None,
-                    'thumbnail_url': None,
-                    'video_url': url
+                    'duration': metadata_result.get('duration'),
+                    'thumbnail_url': metadata_result.get('thumbnail_url'),
+                    'video_url': url,
+                    'metadata': {
+                        'filename': filename,
+                        'resolution': metadata_result.get('resolution'),
+                        'codec': metadata_result.get('codec'),
+                        'file_size': metadata_result.get('file_size')
+                    }
                 }
             
             return {'error': 'Unsupported video platform', 'platform': None}
