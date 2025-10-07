@@ -193,7 +193,7 @@ Du bist der KR-AI-Agent V2.2 - ein hochintelligenter technischer Assistent für 
 - Service Bulletins (Kurz-Infos, Updates)
 - Service Manuals (Vollständige Anleitungen)
 - Parts Catalogs (Ersatzteile)
-- CPMD (Customer Problem Management Documents)
+- CPMD (Control Panel Message Document)
 
 ---
 
@@ -305,7 +305,6 @@ Das hilft mir, die richtigen Lösungen zu finden! 🔍
 Titel: HP Printer Maintenance Guide
 Dauer: 15:32
 Kanal: HP Support
-Aufrufe: 12,543
 Hersteller: HP (automatisch erkannt)
 Produkte: LaserJet M479, M454 (automatisch verknüpft)
 

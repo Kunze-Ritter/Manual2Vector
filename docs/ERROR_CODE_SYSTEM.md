@@ -111,7 +111,7 @@ Minimum threshold: 0.60
 
 Returns error codes from **3 sources**:
 
-1. **Documents** (Service Manuals, CPMD, Bulletins)
+1. **Documents** (Service Manuals, CPMD - Control Panel Message Documents, Bulletins)
 2. **Videos** (Direct error code match)
 3. **Related Videos** (Keyword matching)
 
