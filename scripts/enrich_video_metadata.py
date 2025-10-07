@@ -184,7 +184,7 @@ class VideoEnricher:
     
     async def detect_manufacturer_from_url(self, url: str) -> Optional[str]:
         """
-        Detect manufacturer from URL domain
+        Detect manufacturer from URL domain and ensure it exists
         
         Args:
             url: Video URL
@@ -195,79 +195,14 @@ class VideoEnricher:
         try:
             from urllib.parse import urlparse
             
-            domain = urlparse(url).netloc.lower()
+            # Import centralized manufacturer utils
+            sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
+            from utils.manufacturer_utils import detect_manufacturer_from_domain
             
-            # Domain to manufacturer mapping
-            domain_mapping = {
-                'lexmark.com': 'Lexmark',
-                'publications.lexmark.com': 'Lexmark',
-                'hp.com': 'HP',
-                'support.hp.com': 'HP',
-                'kyoceradocumentsolutions.com': 'Kyocera',
-                'kyocera.com': 'Kyocera',
-                'ricoh.com': 'Ricoh',
-                'brother.com': 'Brother',
-                'canon.com': 'Canon',
-                'epson.com': 'Epson',
-                'xerox.com': 'Xerox',
-                'konica-minolta.com': 'Konica Minolta',
-                'konicaminolta.com': 'Konica Minolta',
-                'sharp.com': 'Sharp',
-                'toshiba.com': 'Toshiba',
-                'oki.com': 'OKI',
-                'samsung.com': 'Samsung',
-                'dell.com': 'Dell'
-            }
+            domain = urlparse(url).netloc
+            supabase = self._get_supabase()
             
-            # Check exact domain match
-            for domain_key, manufacturer_name in domain_mapping.items():
-                if domain_key in domain:
-                    logger.info(f"🔍 Domain matched: {domain_key} → {manufacturer_name}")
-                    
-                    # Look up manufacturer ID in database
-                    supabase = self._get_supabase()
-                    
-                    # Try exact match first
-                    result = supabase.table('manufacturers').select('id,name').eq('name', manufacturer_name).limit(1).execute()
-                    
-                    if not result.data:
-                        # Try case-insensitive match
-                        result = supabase.table('manufacturers').select('id,name').ilike('name', manufacturer_name).limit(1).execute()
-                    
-                    if not result.data:
-                        # Try partial match
-                        result = supabase.table('manufacturers').select('id,name').ilike('name', f'%{manufacturer_name}%').limit(1).execute()
-                    
-                    if result.data:
-                        manufacturer_id = result.data[0]['id']
-                        actual_name = result.data[0]['name']
-                        logger.info(f"🏢 Detected manufacturer: {actual_name} (ID: {manufacturer_id})")
-                        return manufacturer_id
-                    else:
-                        logger.warning(f"⚠️ Manufacturer '{manufacturer_name}' not found in database")
-                        
-                        # Auto-create manufacturer
-                        try:
-                            logger.info(f"🔨 Creating manufacturer: {manufacturer_name}")
-                            new_manufacturer = supabase.table('manufacturers').insert({
-                                'name': manufacturer_name,
-                                'website': f'https://{domain_key}',
-                                'is_active': True
-                            }).execute()
-                            
-                            if new_manufacturer.data:
-                                manufacturer_id = new_manufacturer.data[0]['id']
-                                logger.info(f"✅ Created manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
-                                return manufacturer_id
-                            else:
-                                logger.error(f"❌ Failed to create manufacturer: {manufacturer_name}")
-                                return None
-                        except Exception as e:
-                            logger.error(f"❌ Error creating manufacturer: {e}")
-                            return None
-            
-            logger.info(f"ℹ️ No manufacturer detected from domain: {domain}")
-            return None
+            return detect_manufacturer_from_domain(domain, supabase)
             
         except Exception as e:
             logger.error(f"Error detecting manufacturer: {e}")
