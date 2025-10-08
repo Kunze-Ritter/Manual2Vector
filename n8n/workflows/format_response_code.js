@@ -159,13 +159,5 @@ if (allVideos.length > 0) {
 
 message += '\n💡 Moechtest du mehr Details zu einem der Quellen?';
 
-return {
-  success: true,
-  message: message,
-  raw_data: {
-    documents: documents,
-    videos: videos,
-    related_videos: relatedVideos,
-    total_sources: results.length
-  }
-};
+// Return as plain text string (not object) so agent can't modify it
+return message;
