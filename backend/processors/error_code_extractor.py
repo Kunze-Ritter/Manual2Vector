@@ -233,12 +233,8 @@ class ErrorCodeExtractor:
             logger.warning(f"Extracted {len(unique_codes)} error codes, limiting to {max_codes}")
             unique_codes = unique_codes[:max_codes]
         
-        if unique_codes:
-            # Only log if more than 3 error codes found (significant)
-            if len(unique_codes) > 3:
-                logger.info(f"Extracted {len(unique_codes)} error codes from page {page_number}")
-            else:
-                logger.debug(f"Extracted {len(unique_codes)} error codes from page {page_number}")
+        # Don't log per-page results - progress bar shows running count
+        pass
         
         return unique_codes
     

@@ -346,8 +346,9 @@ class DocumentProcessor:
             else:
                 self.logger.info(f"📄 Document type '{doc_type}' - attempting parts extraction (may find fewer results)")
             
+            parts_count = 0
             with self.logger.progress_bar(page_texts.items(), "Scanning for parts") as progress:
-                task = progress.add_task("Scanning pages", total=len(page_texts))
+                task = progress.add_task(f"Parts found: {parts_count}", total=len(page_texts))
                 
                 for page_num, text in page_texts.items():
                     page_parts = self.parts_extractor.extract_parts(
@@ -356,7 +357,8 @@ class DocumentProcessor:
                         page_number=page_num
                     )
                     parts.extend(page_parts)
-                    progress.update(task, advance=1)
+                    parts_count = len(parts)
+                    progress.update(task, advance=1, description=f"Parts found: {parts_count}")
             
             if parts:
                 self.logger.success(f"✅ Extracted {len(parts)} spare parts")
@@ -374,8 +376,9 @@ class DocumentProcessor:
             elif self.manufacturer and self.manufacturer != "AUTO":
                 error_manufacturer = self.manufacturer
             
+            error_codes_count = 0
             with self.logger.progress_bar(page_texts.items(), "Scanning for error codes") as progress:
-                task = progress.add_task("Scanning pages", total=len(page_texts))
+                task = progress.add_task(f"Error codes found: {error_codes_count}", total=len(page_texts))
                 
                 for page_num, text in page_texts.items():
                     page_codes = self.error_code_extractor.extract_from_text(
@@ -384,7 +387,8 @@ class DocumentProcessor:
                         manufacturer_name=error_manufacturer
                     )
                     error_codes.extend(page_codes)
-                    progress.update(task, advance=1)
+                    error_codes_count = len(error_codes)
+                    progress.update(task, advance=1, description=f"Error codes found: {error_codes_count}")
             
             # Validate error codes
             for error_code in error_codes:

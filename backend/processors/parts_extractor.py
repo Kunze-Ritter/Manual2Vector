@@ -115,14 +115,8 @@ class PartsExtractor:
             logger.warning(f"Extracted {len(extracted_parts)} parts, limiting to {max_parts}")
             extracted_parts = extracted_parts[:max_parts]
         
-        if extracted_parts:
-            # Only log if more than 3 parts found (significant)
-            if len(extracted_parts) > 3:
-                logger.info(f"✅ Extracted {len(extracted_parts)} parts from page")
-            else:
-                logger.debug(f"✅ Extracted {len(extracted_parts)} parts from page")
-        else:
-            logger.debug(f"⚠️  No parts found on this page")
+        # Don't log per-page results - progress bar shows running count
+        pass
             
         return extracted_parts
     
