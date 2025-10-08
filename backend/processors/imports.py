@@ -18,8 +18,18 @@ if str(backend_dir) not in sys.path:
 # Lazy import functions - import only when called
 def get_supabase_client():
     """Lazy import of get_supabase_client"""
-    from database.supabase_client import get_supabase_client as _get_client
-    return _get_client()
+    import importlib.util
+    import os
+    
+    # Build absolute path to supabase_client
+    db_path = backend_dir / 'database' / 'supabase_client.py'
+    
+    # Load module from file
+    spec = importlib.util.spec_from_file_location("supabase_client", db_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    return module.get_supabase_client()
 
 def get_logger():
     """Lazy import of get_logger"""
