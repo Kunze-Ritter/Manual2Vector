@@ -184,7 +184,17 @@ class DocumentProcessor:
                     votes = best_match[1]['votes']
                     sources = best_match[1]['sources']
                     
+                    # Convert to canonical name using normalizer
+                    from utils.manufacturer_normalizer import normalize_manufacturer
+                    
+                    # First get the display name
                     detected_manufacturer = mfr_key.upper().replace('_', ' ').title()
+                    
+                    # Then normalize it to canonical form
+                    canonical_name = normalize_manufacturer(detected_manufacturer)
+                    if canonical_name:
+                        detected_manufacturer = canonical_name
+                    
                     self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
                     self.logger.info(f"   Confidence: {votes}/3 sources ({', '.join(sources)})")
                     
