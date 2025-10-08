@@ -193,6 +193,9 @@ class DocumentProcessor:
                         self.logger.warning(f"   ⚠️  Low confidence detection (only 1 source)")
                     elif votes == 3:
                         self.logger.success(f"   ✅ High confidence (all 3 sources agree!)")
+                    
+                    # UPDATE self.manufacturer so it's available for error code saving!
+                    self.manufacturer = detected_manufacturer
             
             # Save manufacturer to document IMMEDIATELY
             if detected_manufacturer and detected_manufacturer != "AUTO":
