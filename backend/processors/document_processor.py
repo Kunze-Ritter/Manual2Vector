@@ -142,20 +142,16 @@ class DocumentProcessor:
                     first_pages_text = ' '.join([page_texts[p] for p in first_page_keys])
                     first_pages_text = first_pages_text[:2000].lower()  # Limit to 2000 chars
                 
-                # Common manufacturer patterns
-                mfr_patterns = {
-                    'hp': ['hp', 'hewlett', 'packard'],
-                    'konica_minolta': ['konica', 'minolta', 'bizhub'],
-                    'canon': ['canon', 'imagerunner'],
-                    'ricoh': ['ricoh', 'aficio'],
-                    'xerox': ['xerox'],
-                    'brother': ['brother'],
-                    'lexmark': ['lexmark'],
-                    'kyocera': ['kyocera', 'taskalfa'],
-                    'sharp': ['sharp', 'mx-'],
-                    'epson': ['epson'],
-                    'utax': ['utax'],
-                }
+                # Use manufacturer normalizer for comprehensive patterns
+                from utils.manufacturer_normalizer import MANUFACTURER_MAP
+                
+                # Build detection patterns from normalizer (lowercase for matching)
+                mfr_patterns = {}
+                for canonical, aliases in MANUFACTURER_MAP.items():
+                    # Use canonical name as key, all aliases as patterns
+                    key = canonical.lower().replace(' ', '_')
+                    patterns = [alias.lower() for alias in aliases]
+                    mfr_patterns[key] = patterns
                 
                 # 3-way validation: Check all sources and count matches
                 detection_votes = {}
