@@ -44,6 +44,7 @@ class PartsProcessor:
             'parts_found': 0,
             'parts_created': 0,
             'parts_updated': 0,
+            'parts_linked_to_error_codes': 0,
             'errors': 0
         }
         
@@ -94,6 +95,11 @@ class PartsProcessor:
                 except Exception as e:
                     self.logger.error(f"Error processing chunk {chunk['id']}: {e}")
                     stats['errors'] += 1
+            
+            # Link parts to error codes
+            self.logger.info("Linking parts to error codes...")
+            linked_count = self._link_parts_to_error_codes(document_id)
+            stats['parts_linked_to_error_codes'] = linked_count
             
             self.logger.info(f"Parts extraction complete: {stats}")
             return stats
@@ -262,6 +268,120 @@ class PartsProcessor:
         except Exception as e:
             self.logger.error(f"Error storing part {part_data['part_number']}: {e}")
             return 'error'
+    
+    def _link_parts_to_error_codes(self, document_id: str) -> int:
+        """
+        Link parts to error codes based on chunk proximity and solution text
+        
+        Args:
+            document_id: Document UUID
+            
+        Returns:
+            Number of links created
+        """
+        linked_count = 0
+        
+        try:
+            # Get all error codes for this document
+            error_codes_result = self.supabase.table('error_codes').select(
+                'id, error_code, solution_text, chunk_id'
+            ).eq('document_id', document_id).execute()
+            
+            error_codes = error_codes_result.data
+            
+            for error_code in error_codes:
+                ec_id = error_code['id']
+                solution_text = error_code.get('solution_text', '')
+                chunk_id = error_code.get('chunk_id')
+                
+                # Extract parts from solution text
+                if solution_text:
+                    parts_in_solution = self._extract_and_link_parts_from_text(
+                        text=solution_text,
+                        error_code_id=ec_id,
+                        source='solution_text'
+                    )
+                    linked_count += parts_in_solution
+                
+                # Also check the chunk where error code was found
+                if chunk_id:
+                    chunk_result = self.supabase.table('chunks').select('text').eq('id', chunk_id).execute()
+                    if chunk_result.data:
+                        chunk_text = chunk_result.data[0].get('text', '')
+                        parts_in_chunk = self._extract_and_link_parts_from_text(
+                            text=chunk_text,
+                            error_code_id=ec_id,
+                            source='chunk'
+                        )
+                        linked_count += parts_in_chunk
+            
+            self.logger.info(f"Linked {linked_count} parts to error codes")
+            return linked_count
+            
+        except Exception as e:
+            self.logger.error(f"Error linking parts to error codes: {e}")
+            return linked_count
+    
+    def _extract_and_link_parts_from_text(
+        self, 
+        text: str, 
+        error_code_id: str, 
+        source: str
+    ) -> int:
+        """
+        Extract parts from text and link to error code
+        
+        Args:
+            text: Text to extract from
+            error_code_id: Error code UUID
+            source: Where the text came from
+            
+        Returns:
+            Number of parts linked
+        """
+        from utils.parts_extractor import extract_parts_with_context
+        
+        linked_count = 0
+        
+        try:
+            # Extract parts
+            parts_found = extract_parts_with_context(text, max_parts=10)
+            
+            for part_item in parts_found:
+                part_number = part_item['part']
+                confidence = part_item.get('confidence', 0.8)
+                
+                # Find part in database
+                part_result = self.supabase.table('parts_catalog').select('id').eq(
+                    'part_number', part_number
+                ).execute()
+                
+                if not part_result.data:
+                    continue
+                
+                part_id = part_result.data[0]['id']
+                
+                # Create link (ignore if already exists)
+                try:
+                    self.supabase.table('error_code_parts').insert({
+                        'error_code_id': error_code_id,
+                        'part_id': part_id,
+                        'relevance_score': confidence,
+                        'extraction_source': source
+                    }).execute()
+                    
+                    linked_count += 1
+                    self.logger.debug(f"Linked part {part_number} to error code {error_code_id}")
+                    
+                except Exception:
+                    # Link probably already exists, ignore
+                    pass
+            
+            return linked_count
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting and linking parts: {e}")
+            return linked_count
 
 
 def main():

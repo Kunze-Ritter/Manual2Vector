@@ -76,7 +76,7 @@ if (serviceManuals.length > 0) {
     }
     
     if (doc.parts_list) {
-      message += '   🔧 Parts: ' + doc.parts_list + '\n';
+      message += '   🔧 Ersatzteile: ' + doc.parts_list + '\n';
     }
     message += '\n';
   });
