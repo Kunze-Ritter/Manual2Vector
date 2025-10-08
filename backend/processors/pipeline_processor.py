@@ -70,7 +70,7 @@ class PipelineProcessor:
         try:
             # Get document info
             doc_result = self.supabase.table('documents').select(
-                '*, manufacturer:manufacturer_id(name)'
+                '*'
             ).eq('id', document_id).execute()
             
             if not doc_result.data:
@@ -78,7 +78,7 @@ class PipelineProcessor:
             
             document = doc_result.data[0]
             doc_title = document.get('title', 'Unknown')
-            manufacturer = document.get('manufacturer', {}).get('name', 'Unknown')
+            manufacturer = document.get('manufacturer', 'Unknown')
             
             self.logger.info(f"Document: {doc_title}")
             self.logger.info(f"Manufacturer: {manufacturer}")
