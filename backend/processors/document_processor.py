@@ -954,7 +954,6 @@ class DocumentProcessor:
                     # Update existing product
                     product_id = existing.data[0]['id']
                     update_data = {
-                        'product_name': product_data.get('product_name'),
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                     }
                     supabase.table('products').update(update_data).eq('id', product_id).execute()
@@ -964,7 +963,6 @@ class DocumentProcessor:
                     # Create new product
                     insert_data = {
                         'model_number': product_data['model_number'],
-                        'product_name': product_data.get('product_name'),
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                     }
                     result = supabase.table('products').insert(insert_data).execute()
