@@ -87,18 +87,46 @@ SERIES_PRODUCT_TYPE_MAP = {
     'MFC-J': 'Inkjet Multifunktionsdrucker',
     'DCP-J': 'Inkjet Multifunktionsdrucker',
     
-    # Lexmark
+    # Lexmark - MFP
     'MX': 'Multifunktionsdrucker',
     'CX': 'Multifunktionsdrucker',
     'XC': 'Multifunktionsdrucker',
+    'MB': 'Multifunktionsdrucker',
+    'MC': 'Multifunktionsdrucker',
+    
+    # Lexmark - Printer
     'MS': 'Laser Printer',
     'CS': 'Laser Printer',
+    'B': 'Laser Printer',
     'C': 'Laser Printer',
     
-    # Kyocera
+    # Lexmark - Production
+    'CX9': 'Production Printing',
+    'XC9': 'Production Printing',
+    
+    # Kyocera - MFP
     'TASKalfa': 'Multifunktionsdrucker',
-    'ECOSYS': 'Laser Printer',
+    'TASKalfa Pro': 'Multifunktionsdrucker',
     'ECOSYS M': 'Multifunktionsdrucker',
+    
+    # Kyocera - Printer
+    'ECOSYS': 'Laser Printer',
+    'ECOSYS P': 'Laser Printer',
+    'FS': 'Laser Printer',
+    
+    # Utax (TA Triumph-Adler) - MFP
+    'Utax': 'Multifunktionsdrucker',
+    '2506ci': 'Multifunktionsdrucker',
+    '3206ci': 'Multifunktionsdrucker',
+    '4006ci': 'Multifunktionsdrucker',
+    '5006ci': 'Multifunktionsdrucker',
+    '6006ci': 'Multifunktionsdrucker',
+    '7006ci': 'Multifunktionsdrucker',
+    '8006ci': 'Multifunktionsdrucker',
+    
+    # Utax - Printer
+    'P-C': 'Laser Printer',
+    'P-': 'Laser Printer',
     
     # Epson
     'WorkForce': 'Inkjet Multifunktionsdrucker',
