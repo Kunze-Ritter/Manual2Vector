@@ -157,6 +157,11 @@ class LinkExtractor:
                         for annot in page.annots:
                             if 'uri' in annot or 'URI' in annot:
                                 url = annot.get('uri') or annot.get('URI')
+                                
+                                # Clean URL
+                                from utils.link_cleaner import clean_url
+                                url = clean_url(url) if url else None
+                                
                                 if url:
                                     # Safely decode description (may be UTF-16-LE encoded)
                                     description = annot.get('contents', '')
@@ -194,6 +199,15 @@ class LinkExtractor:
         
         for match in matches:
             url = match.group(0)
+            
+            # Clean URL (remove trailing punctuation, etc.)
+            from utils.link_cleaner import clean_url
+            cleaned_url = clean_url(url)
+            
+            if not cleaned_url:
+                continue  # Skip invalid URLs
+            
+            url = cleaned_url
             
             # Get context around URL
             start = max(0, match.start() - 50)
