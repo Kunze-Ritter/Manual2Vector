@@ -6,15 +6,16 @@ Master processor that runs all processing stages in sequence.
 from typing import Dict, Optional
 from pathlib import Path
 import sys
-import time
+import os
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
 
-from database.supabase_client import get_supabase_client
-from processors.logger import get_logger
-from processors.parts_processor import PartsProcessor
-from processors.series_processor import SeriesProcessor
+# Import with relative paths from processors directory
+from .logger import get_logger
+from .parts_processor import PartsProcessor
+from .series_processor import SeriesProcessor
 
 logger = get_logger()
 
@@ -24,6 +25,7 @@ class PipelineProcessor:
     
     def __init__(self):
         """Initialize pipeline processor"""
+        from database.supabase_client import get_supabase_client
         self.supabase = get_supabase_client()
         self.logger = get_logger()
         self.parts_processor = PartsProcessor()
