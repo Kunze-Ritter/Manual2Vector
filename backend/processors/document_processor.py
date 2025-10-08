@@ -961,9 +961,16 @@ class DocumentProcessor:
                     product_ids.append(product_id)
                 else:
                     # Create new product
+                    # Determine product_type from series_name if available
+                    product_type = None
+                    if product_data.get('series_name'):
+                        from utils.product_type_mapper import get_product_type
+                        product_type = get_product_type(product_data['series_name'])
+                    
                     insert_data = {
                         'model_number': product_data['model_number'],
-                        'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
+                        'manufacturer_id': str(manufacturer_id) if manufacturer_id else None,
+                        'product_type': product_type
                     }
                     result = supabase.table('products').insert(insert_data).execute()
                     if result.data:
