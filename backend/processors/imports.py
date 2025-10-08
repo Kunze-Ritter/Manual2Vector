@@ -17,19 +17,22 @@ if str(backend_dir) not in sys.path:
 
 # Lazy import functions - import only when called
 def get_supabase_client():
-    """Lazy import of get_supabase_client"""
-    import importlib.util
+    """Create and return Supabase client"""
+    from supabase import create_client
     import os
+    from dotenv import load_dotenv
     
-    # Build absolute path to supabase_client
-    db_path = backend_dir / 'database' / 'supabase_client.py'
+    # Load environment
+    env_path = backend_dir.parent / '.env'
+    load_dotenv(env_path)
     
-    # Load module from file
-    spec = importlib.util.spec_from_file_location("supabase_client", db_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    supabase_url = os.getenv('SUPABASE_URL')
+    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
     
-    return module.get_supabase_client()
+    if not supabase_url or not supabase_key:
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env")
+    
+    return create_client(supabase_url, supabase_key)
 
 def get_logger():
     """Lazy import of get_logger"""
