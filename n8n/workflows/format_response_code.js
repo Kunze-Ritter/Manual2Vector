@@ -49,15 +49,15 @@ const partsCatalogs = documents.filter(d => {
 // Combine all videos (direct + related)
 const allVideos = [...videos, ...relatedVideos];
 
-let message = 'ERROR CODE: ' + results[0].code + '\n';
+let message = '🔴 ERROR CODE: ' + results[0].code + '\n';
 if (results[0].error_description) {
-  message += results[0].error_description + '\n';
+  message += '📝 ' + results[0].error_description + '\n';
 }
 message += '\n';
 
 // Service Manuals & CPMD
 if (serviceManuals.length > 0) {
-  message += 'DOKUMENTATION (' + serviceManuals.length + '):\n\n';
+  message += '📖 DOKUMENTATION (' + serviceManuals.length + '):\n\n';
   
   serviceManuals.forEach((doc, i) => {
     message += (i+1) + '. ' + doc.source_title;
@@ -68,7 +68,7 @@ if (serviceManuals.length > 0) {
     
     if (doc.solution_text) {
       const solution = doc.solution_text.substring(0, 150);
-      message += '   Loesung: ' + solution;
+      message += '   💡 Loesung: ' + solution;
       if (doc.solution_text.length > 150) {
         message += '...';
       }
@@ -76,7 +76,7 @@ if (serviceManuals.length > 0) {
     }
     
     if (doc.parts_list) {
-      message += '   Parts: ' + doc.parts_list + '\n';
+      message += '   🔧 Parts: ' + doc.parts_list + '\n';
     }
     message += '\n';
   });
@@ -84,7 +84,7 @@ if (serviceManuals.length > 0) {
 
 // Service Bulletins
 if (bulletins.length > 0) {
-  message += 'SERVICE BULLETINS (' + bulletins.length + '):\n\n';
+  message += '📋 SERVICE BULLETINS (' + bulletins.length + '):\n\n';
   
   bulletins.forEach((doc, i) => {
     message += (i+1) + '. ' + doc.source_title;
@@ -95,7 +95,7 @@ if (bulletins.length > 0) {
     
     if (doc.solution_text) {
       const solution = doc.solution_text.substring(0, 150);
-      message += '   Info: ' + solution;
+      message += '   📄 Info: ' + solution;
       if (doc.solution_text.length > 150) {
         message += '...';
       }
@@ -107,7 +107,7 @@ if (bulletins.length > 0) {
 
 // Parts Catalogs
 if (partsCatalogs.length > 0) {
-  message += 'ERSATZTEILE (' + partsCatalogs.length + '):\n\n';
+  message += '🔧 ERSATZTEILE (' + partsCatalogs.length + '):\n\n';
   
   partsCatalogs.forEach((doc, i) => {
     message += (i+1) + '. ' + doc.source_title;
@@ -117,7 +117,7 @@ if (partsCatalogs.length > 0) {
     message += '\n';
     
     if (doc.parts_list) {
-      message += '   Parts: ' + doc.parts_list + '\n';
+      message += '   🔩 Parts: ' + doc.parts_list + '\n';
     }
     message += '\n';
   });
@@ -125,7 +125,7 @@ if (partsCatalogs.length > 0) {
 
 // All Videos (combined, no duplicates)
 if (allVideos.length > 0) {
-  message += '\nVIDEOS (' + allVideos.length + '):\n\n';
+  message += '\n🎬 VIDEOS (' + allVideos.length + '):\n\n';
   
   allVideos.forEach((vid, i) => {
     message += (i+1) + '. ' + vid.source_title;
@@ -151,13 +151,13 @@ if (allVideos.length > 0) {
     }
     
     if (vid.video_url) {
-      message += '   Link: ' + vid.video_url + '\n';
+      message += '   🔗 Link: ' + vid.video_url + '\n';
     }
     message += '\n';
   });
 }
 
-message += '\nMoechtest du mehr Details zu einem der Quellen?';
+message += '\n💡 Moechtest du mehr Details zu einem der Quellen?';
 
 return {
   success: true,
