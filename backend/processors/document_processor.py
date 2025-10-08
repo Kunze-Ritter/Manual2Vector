@@ -982,50 +982,53 @@ class DocumentProcessor:
                 .execute()
             
             manufacturer_id = None
+            
+            # Debug: Log what we got from document
             if doc_result.data:
                 manufacturer_name = doc_result.data[0].get('manufacturer')
-                
-                # Debug: Log what we got
                 self.logger.debug(f"Document manufacturer field: '{manufacturer_name}'")
-                
-                # Get manufacturer name and ensure it exists
-                if manufacturer_name:
-                    # Use unified helper to ensure manufacturer exists
-                    try:
-                        manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
-                        
-                        # Update document with manufacturer_id (use schema-qualified table name)
-                        try:
-                            # Try to update via RPC or direct SQL since view might not support updates
-                            supabase.rpc('exec_sql', {
-                                'query': f"""
-                                    UPDATE krai_core.documents 
-                                    SET manufacturer_id = '{manufacturer_id}' 
-                                    WHERE id = '{document_id}'
-                                """
-                            }).execute()
-                            self.logger.info(f"✅ Updated document with manufacturer_id: {manufacturer_id}")
-                        except Exception as update_error:
-                            self.logger.warning(f"Could not update manufacturer_id: {update_error}")
-                            # Continue anyway - we have the manufacturer_id for this session
-                        
-                    except ManufacturerNotFoundError as e:
-                        self.logger.error(f"Failed to ensure manufacturer exists: {e}")
-                        return
-                else:
-                    self.logger.warning(f"⚠️ Document has no manufacturer name set!")
-                    self.logger.info(f"   Using detected manufacturer from processing: {self.manufacturer}")
+            else:
+                manufacturer_name = None
+                self.logger.warning(f"⚠️ No document data returned from database!")
+            
+            # Get manufacturer name and ensure it exists
+            if manufacturer_name:
+                # Use unified helper to ensure manufacturer exists
+                try:
+                    manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
                     
-                    # Try to use the detected manufacturer from document processing
-                    if self.manufacturer and self.manufacturer != "AUTO":
-                        try:
-                            self.logger.info(f"🔍 Attempting to ensure manufacturer exists: '{self.manufacturer}'")
-                            manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
-                            self.logger.info(f"✅ Using detected manufacturer: {self.manufacturer} (ID: {manufacturer_id})")
-                        except Exception as e:
-                            self.logger.error(f"Failed to use detected manufacturer '{self.manufacturer}': {e}")
-                            import traceback
-                            self.logger.error(traceback.format_exc())
+                    # Update document with manufacturer_id (use schema-qualified table name)
+                    try:
+                        # Try to update via RPC or direct SQL since view might not support updates
+                        supabase.rpc('exec_sql', {
+                            'query': f"""
+                                UPDATE krai_core.documents 
+                                SET manufacturer_id = '{manufacturer_id}' 
+                                WHERE id = '{document_id}'
+                            """
+                        }).execute()
+                        self.logger.info(f"✅ Updated document with manufacturer_id: {manufacturer_id}")
+                    except Exception as update_error:
+                        self.logger.warning(f"Could not update manufacturer_id: {update_error}")
+                        # Continue anyway - we have the manufacturer_id for this session
+                    
+                except ManufacturerNotFoundError as e:
+                    self.logger.error(f"Failed to ensure manufacturer exists: {e}")
+                    return
+            else:
+                self.logger.warning(f"⚠️ Document has no manufacturer name set!")
+                self.logger.info(f"   Using detected manufacturer from processing: {self.manufacturer}")
+                
+                # Try to use the detected manufacturer from document processing
+                if self.manufacturer and self.manufacturer != "AUTO":
+                    try:
+                        self.logger.info(f"🔍 Attempting to ensure manufacturer exists: '{self.manufacturer}'")
+                        manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
+                        self.logger.info(f"✅ Using detected manufacturer: {self.manufacturer} (ID: {manufacturer_id})")
+                    except Exception as e:
+                        self.logger.error(f"Failed to use detected manufacturer '{self.manufacturer}': {e}")
+                        import traceback
+                        self.logger.error(traceback.format_exc())
             
             # CRITICAL: Skip if no manufacturer_id found
             if not manufacturer_id:
