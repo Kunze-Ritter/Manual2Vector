@@ -194,6 +194,9 @@ class AutoProcessor:
             self.logger.info("STAGE 6-7: Parts & Series Processing")
             self.logger.info("-" * 80)
             
+            # Small delay to ensure document is committed to DB
+            time.sleep(1)
+            
             pipeline_result = self.pipeline_processor.process_document_full_pipeline(document_id)
             
             if pipeline_result.get('success'):
