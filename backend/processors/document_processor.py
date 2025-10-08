@@ -1019,10 +1019,13 @@ class DocumentProcessor:
                     # Try to use the detected manufacturer from document processing
                     if self.manufacturer and self.manufacturer != "AUTO":
                         try:
+                            self.logger.info(f"🔍 Attempting to ensure manufacturer exists: '{self.manufacturer}'")
                             manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
-                            self.logger.info(f"✅ Using detected manufacturer: {self.manufacturer}")
+                            self.logger.info(f"✅ Using detected manufacturer: {self.manufacturer} (ID: {manufacturer_id})")
                         except Exception as e:
-                            self.logger.error(f"Failed to use detected manufacturer: {e}")
+                            self.logger.error(f"Failed to use detected manufacturer '{self.manufacturer}': {e}")
+                            import traceback
+                            self.logger.error(traceback.format_exc())
             
             # CRITICAL: Skip if no manufacturer_id found
             if not manufacturer_id:
