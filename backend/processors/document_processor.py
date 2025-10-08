@@ -502,14 +502,14 @@ class DocumentProcessor:
                 if linked_count > 0:
                     self.logger.success(f"✅ Linked {linked_count} error codes to chunks")
             
-            # Step 5: Save videos and links to database (videos FIRST!)
-            self.logger.info("Step 5/8: Saving videos and links...")
-            # Save videos FIRST because links reference video_id
-            if videos:
-                self._save_videos_to_db(videos)
-            # Then save links (which may have video_id foreign key)
+            # Step 5: Save links and videos to database (links FIRST!)
+            self.logger.info("Step 5/8: Saving links and videos...")
+            # Save links FIRST because videos reference link_id
             if links:
                 self._save_links_to_db(links)
+            # Then save videos (which have link_id foreign key)
+            if videos:
+                self._save_videos_to_db(videos)
             
             # Step 6: Statistics
             self.logger.info("Step 6/8: Calculating statistics...")
