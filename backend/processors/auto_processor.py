@@ -194,8 +194,10 @@ class AutoProcessor:
             self.logger.info("STAGE 6-7: Parts & Series Processing")
             self.logger.info("-" * 80)
             
-            # Small delay to ensure document is committed to DB
-            time.sleep(1)
+            # Delay to ensure document is committed to DB
+            # Supabase can take a moment to make data visible
+            self.logger.debug("Waiting for document to be committed to DB...")
+            time.sleep(3)
             
             pipeline_result = self.pipeline_processor.process_document_full_pipeline(document_id)
             
@@ -226,8 +228,8 @@ class AutoProcessor:
         import sys
         
         try:
-            # Get path to video enrichment script
-            script_path = Path(__file__).parent.parent / 'scripts' / 'enrich_video_metadata.py'
+            # Get path to video enrichment script (in project root/scripts)
+            script_path = Path(__file__).parent.parent.parent / 'scripts' / 'enrich_video_metadata.py'
             
             if not script_path.exists():
                 self.logger.warning("Video enrichment script not found")
