@@ -48,17 +48,20 @@ class PartsProcessor:
         }
         
         try:
-            # Get document info
-            doc_result = self.supabase.table('documents').select('*').eq('id', document_id).execute()
+            # Get document info with manufacturer
+            doc_result = self.supabase.table('documents').select('*, manufacturer:manufacturer_id(name)').eq('id', document_id).execute()
             if not doc_result.data:
                 raise ValueError(f"Document {document_id} not found")
             
             document = doc_result.data[0]
             manufacturer_id = document.get('manufacturer_id')
+            manufacturer_name = document.get('manufacturer', {}).get('name', '').lower().replace(' ', '_')
             
             if not manufacturer_id:
                 self.logger.warning(f"Document {document_id} has no manufacturer_id, skipping parts extraction")
                 return stats
+            
+            self.logger.info(f"Extracting parts for manufacturer: {manufacturer_name}")
             
             # Get all chunks for this document
             chunks_result = self.supabase.table('chunks').select('*').eq('document_id', document_id).execute()
@@ -74,6 +77,7 @@ class PartsProcessor:
                     parts_found = self._extract_parts_from_chunk(
                         chunk=chunk,
                         manufacturer_id=manufacturer_id,
+                        manufacturer_key=manufacturer_name,
                         document_id=document_id
                     )
                     
@@ -103,6 +107,7 @@ class PartsProcessor:
         self, 
         chunk: Dict, 
         manufacturer_id: str,
+        manufacturer_key: str,
         document_id: str
     ) -> List[Dict]:
         """
@@ -111,6 +116,7 @@ class PartsProcessor:
         Args:
             chunk: Chunk data
             manufacturer_id: Manufacturer UUID
+            manufacturer_key: Manufacturer key for patterns (e.g., 'hp', 'konica_minolta')
             document_id: Document UUID
             
         Returns:
@@ -120,8 +126,8 @@ class PartsProcessor:
         if not text:
             return []
         
-        # Extract parts with context
-        parts_with_ctx = extract_parts_with_context(text, max_parts=20)
+        # Extract parts with context using manufacturer-specific patterns
+        parts_with_ctx = extract_parts_with_context(text, manufacturer_key=manufacturer_key, max_parts=20)
         
         parts_data = []
         for item in parts_with_ctx:
