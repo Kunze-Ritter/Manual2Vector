@@ -1458,13 +1458,9 @@ class DocumentProcessor:
             detected_manufacturer: Detected manufacturer name
         """
         try:
-            from supabase import create_client
-            import os
+            from config.supabase_config import get_supabase_client
             
-            supabase = create_client(
-                os.getenv('SUPABASE_URL'),
-                os.getenv('SUPABASE_KEY')
-            )
+            supabase = get_supabase_client()
             
             # Get manufacturer_id
             manufacturer_id = None
