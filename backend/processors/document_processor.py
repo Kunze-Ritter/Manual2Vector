@@ -516,11 +516,12 @@ class DocumentProcessor:
             # Step 5: Save links and videos to database (links FIRST!)
             self.logger.info("Step 5/8: Saving links and videos...")
             # Save links FIRST because videos reference link_id
+            link_id_map = {}
             if links:
-                self._save_links_to_db(links)
+                link_id_map = self._save_links_to_db(links)
             # Then save videos (which have link_id foreign key)
             if videos:
-                self._save_videos_to_db(videos)
+                self._save_videos_to_db(videos, link_id_map)
             
             # Step 6: Statistics
             self.logger.info("Step 6/8: Calculating statistics...")
@@ -806,8 +807,15 @@ class DocumentProcessor:
                 reason=str(e)
             )
     
-    def _save_links_to_db(self, links: List[Dict]):
-        """Save extracted links to database with auto-linked manufacturer/series"""
+    def _save_links_to_db(self, links: List[Dict]) -> Dict[str, str]:
+        """
+        Save extracted links to database with auto-linked manufacturer/series
+        
+        Returns:
+            Dict mapping original link URLs to their database IDs (for video linking)
+        """
+        link_id_map = {}  # url -> link_id mapping
+        
         try:
             from supabase import create_client
             import os
@@ -819,7 +827,7 @@ class DocumentProcessor:
             
             if not supabase_url or not supabase_key:
                 self.logger.warning("Supabase not configured - skipping link storage")
-                return
+                return link_id_map
             
             supabase = create_client(supabase_url, supabase_key)
             
@@ -832,13 +840,19 @@ class DocumentProcessor:
                     .limit(1) \
                     .execute()
                 
-                if not existing.data:
-                    # Insert link
+                if existing.data:
+                    # Link already exists - use existing ID
+                    link_id = existing.data[0]['id']
+                    link_id_map[link['url']] = link_id
+                else:
+                    # Insert new link
                     result = supabase.table('links').insert(link).execute()
                     
-                    # Auto-link manufacturer/series from document (Migration 28 helper function)
                     if result.data and len(result.data) > 0:
                         link_id = result.data[0]['id']
+                        link_id_map[link['url']] = link_id
+                        
+                        # Auto-link manufacturer/series from document
                         try:
                             supabase.rpc('auto_link_resource_to_document', {
                                 'p_resource_table': 'krai_content.links',
@@ -849,11 +863,20 @@ class DocumentProcessor:
                             self.logger.debug(f"Could not auto-link manufacturer/series: {link_error}")
             
             self.logger.success(f"Saved {len(links)} links to database")
+            return link_id_map
+            
         except Exception as e:
             self.logger.error(f"Failed to save links: {e}")
+            return link_id_map
     
-    def _save_videos_to_db(self, videos: List[Dict]):
-        """Save video metadata to database with auto-linked manufacturer/series"""
+    def _save_videos_to_db(self, videos: List[Dict], link_id_map: Dict[str, str] = None):
+        """
+        Save video metadata to database with auto-linked manufacturer/series
+        
+        Args:
+            videos: List of video metadata dicts
+            link_id_map: Dict mapping URLs to link IDs (from _save_links_to_db)
+        """
         try:
             from supabase import create_client
             import os
@@ -883,6 +906,12 @@ class DocumentProcessor:
                     should_insert = True
                 
                 if should_insert:
+                    # Update link_id from link_id_map if available
+                    if link_id_map and video.get('url'):
+                        correct_link_id = link_id_map.get(video['url'])
+                        if correct_link_id:
+                            video['link_id'] = correct_link_id
+                    
                     # Verify link_id exists before inserting
                     if video.get('link_id'):
                         link_check = supabase.table('links').select('id').eq('id', video['link_id']).execute()
