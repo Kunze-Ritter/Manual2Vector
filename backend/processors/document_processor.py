@@ -325,6 +325,10 @@ class DocumentProcessor:
             
             self.logger.success(f"Extracted {len(products)} products")
             
+            # Save products to database
+            if products:
+                self._save_products_to_db(document_id, products)
+            
             # Step 2c: Extract parts (always attempt extraction)
             self.logger.info("Step 2c/5: Extracting spare parts...")
             parts = []
@@ -887,6 +891,76 @@ class DocumentProcessor:
             self.logger.success(f"Saved {len(videos)} videos to database")
         except Exception as e:
             self.logger.error(f"Failed to save videos: {e}")
+    
+    def _save_products_to_db(self, document_id: UUID, products: List):
+        """Save extracted products to database"""
+        try:
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping product storage")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            saved_count = 0
+            updated_count = 0
+            
+            for product in products:
+                # Convert ExtractedProduct to dict if needed
+                product_data = product if isinstance(product, dict) else {
+                    'model_number': getattr(product, 'model_number', ''),
+                    'manufacturer_name': getattr(product, 'manufacturer_name', ''),
+                    'product_name': getattr(product, 'product_name', None),
+                    'series_name': getattr(product, 'series_name', None),
+                    'confidence': getattr(product, 'confidence', 0.0)
+                }
+                
+                # Get manufacturer_id
+                manufacturer_name = product_data.get('manufacturer_name')
+                manufacturer_id = None
+                
+                if manufacturer_name:
+                    try:
+                        manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
+                    except Exception as e:
+                        self.logger.debug(f"Could not get manufacturer_id: {e}")
+                
+                # Check if product already exists
+                existing = supabase.table('products').select('id').eq(
+                    'model_number', product_data['model_number']
+                ).limit(1).execute()
+                
+                if existing.data:
+                    # Update existing product
+                    product_id = existing.data[0]['id']
+                    update_data = {
+                        'product_name': product_data.get('product_name'),
+                        'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
+                    }
+                    supabase.table('products').update(update_data).eq('id', product_id).execute()
+                    updated_count += 1
+                else:
+                    # Create new product
+                    insert_data = {
+                        'model_number': product_data['model_number'],
+                        'product_name': product_data.get('product_name'),
+                        'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
+                    }
+                    supabase.table('products').insert(insert_data).execute()
+                    saved_count += 1
+            
+            self.logger.success(f"💾 Saved {saved_count} new products, updated {updated_count} existing")
+        except Exception as e:
+            self.logger.error(f"Failed to save products: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
     
     def _link_error_codes_to_chunks(self, document_id: UUID) -> int:
         """
