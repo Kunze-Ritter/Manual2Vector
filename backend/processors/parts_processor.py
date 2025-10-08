@@ -9,10 +9,8 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import sys
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from .logger import get_logger
+# Use centralized imports
+from .imports import get_supabase_client, get_logger, extract_parts_with_context
 
 logger = get_logger()
 
@@ -22,7 +20,6 @@ class PartsProcessor:
     
     def __init__(self):
         """Initialize parts processor"""
-        from database.supabase_client import get_supabase_client
         self.supabase = get_supabase_client()
         self.logger = get_logger()
         
@@ -338,8 +335,6 @@ class PartsProcessor:
         Returns:
             Number of parts linked
         """
-        from utils.parts_extractor import extract_parts_with_context
-        
         linked_count = 0
         
         try:

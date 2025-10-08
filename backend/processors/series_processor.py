@@ -18,7 +18,6 @@ logger = get_logger()
 
 
 class SeriesProcessor:
-    """Detect and manage product series"""
     
     def __init__(self):
         """Initialize series processor"""

@@ -14,16 +14,22 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# Load environment
+# Load environment first
 env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
-from processors.master_pipeline import MasterPipeline
-from processors.__version__ import __version__, __commit__, __date__
-from supabase import create_client
+# Use centralized imports
+from .imports import get_supabase_client, get_logger
+
+try:
+    from processors.master_pipeline import MasterPipeline
+    from processors.__version__ import __version__, __commit__, __date__
+except ImportError:
+    # Fallback if these don't exist
+    MasterPipeline = None
+    __version__ = "2.0"
+    __commit__ = "unknown"
+    __date__ = "2025-10-08"
 
 
 def main():
