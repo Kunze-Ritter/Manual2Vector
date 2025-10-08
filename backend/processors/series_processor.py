@@ -167,12 +167,12 @@ class SeriesProcessor:
         series_name = series_data['series_name']
         
         try:
-            # Check if series exists (by name + model_pattern)
+            # Check if series exists (by series_name + model_pattern)
             model_pattern = series_data.get('model_pattern')
             existing = self.supabase.table('product_series').select('id').eq(
                 'manufacturer_id', manufacturer_id
             ).eq(
-                'name', series_name
+                'series_name', series_name
             ).eq(
                 'model_pattern', model_pattern
             ).execute()
@@ -184,9 +184,9 @@ class SeriesProcessor:
             # Create new series
             new_series = {
                 'manufacturer_id': manufacturer_id,
-                'name': series_name,  # Marketing name (e.g., "LaserJet")
+                'series_name': series_name,  # Marketing name (e.g., "LaserJet")
                 'model_pattern': series_data.get('model_pattern'),  # Technical pattern (e.g., "M4xx")
-                'description': series_data.get('series_description')
+                'series_description': series_data.get('series_description')
             }
             
             result = self.supabase.table('product_series').insert(new_series).execute()
