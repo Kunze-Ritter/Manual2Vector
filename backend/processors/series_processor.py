@@ -21,7 +21,7 @@ class SeriesProcessor:
     
     def __init__(self):
         """Initialize series processor"""
-        from database.supabase_client import get_supabase_client
+        from .imports import get_supabase_client
         self.supabase = get_supabase_client()
         self.logger = get_logger()
         

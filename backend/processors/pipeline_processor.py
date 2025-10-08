@@ -25,7 +25,7 @@ class PipelineProcessor:
     
     def __init__(self):
         """Initialize pipeline processor"""
-        from database.supabase_client import get_supabase_client
+        from .imports import get_supabase_client
         self.supabase = get_supabase_client()
         self.logger = get_logger()
         self.parts_processor = PartsProcessor()
