@@ -8,12 +8,14 @@ import sys
 import shutil
 from typing import Dict
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add backend directory to path
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
 
-from processors.document_processor import DocumentProcessor
-from processors.pipeline_processor import PipelineProcessor
-from processors.logger import get_logger
+# Now import
+from document_processor import DocumentProcessor
+from pipeline_processor import PipelineProcessor
+from logger import get_logger
 
 logger = get_logger()
 
