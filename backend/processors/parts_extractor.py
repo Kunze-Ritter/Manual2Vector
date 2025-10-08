@@ -72,7 +72,7 @@ class PartsExtractor:
             # Use manufacturer-specific patterns first
             patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
             pattern_count = len(self.patterns_config[manufacturer_key].get("patterns", []))
-            logger.info(f"🔍 Using {pattern_count} patterns for manufacturer: {manufacturer_key}")
+            logger.debug(f"🔍 Using {pattern_count} patterns for manufacturer: {manufacturer_key}")
         else:
             if manufacturer_name:
                 logger.warning(f"⚠️  No specific patterns found for manufacturer: '{manufacturer_name}' (key: '{manufacturer_key}')")
@@ -116,15 +116,13 @@ class PartsExtractor:
             extracted_parts = extracted_parts[:max_parts]
         
         if extracted_parts:
-            logger.success(f"✅ Extracted {len(extracted_parts)} unique parts from page")
-            # Show top 3 parts as sample
-            if len(extracted_parts) <= 3:
-                for part in extracted_parts:
-                    logger.info(f"   • {part.part_number} ({part.confidence:.2f})")
+            # Only log if more than 3 parts found (significant)
+            if len(extracted_parts) > 3:
+                logger.info(f"✅ Extracted {len(extracted_parts)} parts from page")
             else:
-                logger.info(f"   Top parts: {', '.join([p.part_number for p in extracted_parts[:3]])}...")
+                logger.debug(f"✅ Extracted {len(extracted_parts)} parts from page")
         else:
-            logger.warning(f"⚠️  No parts found on this page")
+            logger.debug(f"⚠️  No parts found on this page")
             
         return extracted_parts
     
