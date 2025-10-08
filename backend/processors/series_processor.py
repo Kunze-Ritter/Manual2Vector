@@ -45,7 +45,7 @@ class SeriesProcessor:
         try:
             # Get all products without series_id
             products_result = self.supabase.table('products').select(
-                '*, manufacturer:manufacturer_id(id, name)'
+                '*'
             ).is_('series_id', 'null').execute()
             
             products = products_result.data
@@ -85,9 +85,9 @@ class SeriesProcessor:
             Dict with result or None
         """
         try:
-            # Get product with manufacturer
+            # Get product
             product_result = self.supabase.table('products').select(
-                '*, manufacturer:manufacturer_id(id, name)'
+                '*'
             ).eq('id', product_id).execute()
             
             if not product_result.data:
@@ -112,12 +112,17 @@ class SeriesProcessor:
             Dict with series_id, series_created, product_linked
         """
         model_number = product.get('model_number')
-        manufacturer = product.get('manufacturer', {})
-        manufacturer_id = manufacturer.get('id')
-        manufacturer_name = manufacturer.get('name', '')
+        manufacturer_id = product.get('manufacturer_id')
         
         if not model_number or not manufacturer_id:
             return None
+        
+        # Get manufacturer name from manufacturers table
+        try:
+            mfr_result = self.supabase.table('manufacturers').select('name').eq('id', manufacturer_id).single().execute()
+            manufacturer_name = mfr_result.data.get('name', '') if mfr_result.data else ''
+        except:
+            manufacturer_name = ''
         
         # Detect series
         series_data = detect_series(model_number, manufacturer_name)
