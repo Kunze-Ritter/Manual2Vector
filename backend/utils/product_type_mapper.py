@@ -61,12 +61,14 @@ SERIES_PRODUCT_TYPE_MAP = {
 }
 
 
-def get_product_type(series_name: str) -> Optional[str]:
+def get_product_type(series_name: str, model_pattern: Optional[str] = None, model_number: Optional[str] = None) -> Optional[str]:
     """
-    Get product type based on series name
+    Get product type based on series name and model pattern
     
     Args:
         series_name: Series name (e.g., "LaserJet", "bizhub")
+        model_pattern: Technical pattern (e.g., "C5xx", "M4xx")
+        model_number: Full model number (e.g., "C558", "M479fdw")
         
     Returns:
         Product type or None
@@ -74,12 +76,29 @@ def get_product_type(series_name: str) -> Optional[str]:
     if not series_name:
         return None
     
+    series_lower = series_name.lower()
+    
+    # Special handling for bizhub (depends on model)
+    if 'bizhub' in series_lower:
+        # Check model number or pattern for specific types
+        check_str = (model_number or model_pattern or '').upper()
+        
+        # bizhub PRESS/PRO = Production Printing
+        if 'PRESS' in series_name or 'PRO' in series_name:
+            return 'Production Printing'
+        
+        # Printer-only models (4020, 4050, 4750, C3300i, C4000i)
+        if any(x in check_str for x in ['4020', '4050', '4750', 'C3300', 'C4000']):
+            return 'Printer'
+        
+        # Everything else is MFP
+        return 'Multifunktionsdrucker'
+    
     # Direct match
     if series_name in SERIES_PRODUCT_TYPE_MAP:
         return SERIES_PRODUCT_TYPE_MAP[series_name]
     
     # Partial match (for variations)
-    series_lower = series_name.lower()
     for key, value in SERIES_PRODUCT_TYPE_MAP.items():
         if key.lower() in series_lower or series_lower in key.lower():
             return value

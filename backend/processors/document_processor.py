@@ -961,11 +961,14 @@ class DocumentProcessor:
                     product_ids.append(product_id)
                 else:
                     # Create new product
-                    # Determine product_type from series_name if available
+                    # Determine product_type from series_name + model_number
                     product_type = None
                     if product_data.get('series_name'):
                         from utils.product_type_mapper import get_product_type
-                        product_type = get_product_type(product_data['series_name'])
+                        product_type = get_product_type(
+                            series_name=product_data['series_name'],
+                            model_number=product_data['model_number']
+                        )
                     
                     insert_data = {
                         'model_number': product_data['model_number'],
