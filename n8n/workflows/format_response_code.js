@@ -160,6 +160,10 @@ if (allVideos.length > 0) {
 message += '\n💡 Moechtest du mehr Details zu einem der Quellen?';
 
 // Return as array with single object (N8N requirement)
+// Keep message as-is with real line breaks for proper formatting
 return [{
-  output: message
+  output: message,
+  json: {
+    response: message
+  }
 }];
