@@ -5,17 +5,25 @@ Automatically processes PDFs from input_pdfs/ folder and runs complete pipeline.
 
 from pathlib import Path
 import sys
+import os
 import shutil
 from typing import Dict
 
-# Add backend directory to path
+# Add backend directory to path FIRST
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-# Now import
-from document_processor import DocumentProcessor
-from pipeline_processor import PipelineProcessor
-from logger import get_logger
+# Change to backend directory for imports to work
+original_dir = os.getcwd()
+os.chdir(backend_dir)
+
+# Now import with full paths
+from processors.document_processor import DocumentProcessor
+from processors.pipeline_processor import PipelineProcessor
+from processors.logger import get_logger
+
+# Change back
+os.chdir(original_dir)
 
 logger = get_logger()
 
