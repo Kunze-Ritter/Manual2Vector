@@ -193,6 +193,7 @@ class LinkExtractor:
     def _extract_text_links(self, text: str, page_num: int) -> List[Dict]:
         """Extract URLs from text using regex"""
         links = []
+        potential_incomplete_urls = []
         
         # Find all URLs
         matches = self.url_pattern.finditer(text)
@@ -205,7 +206,12 @@ class LinkExtractor:
             cleaned_url = clean_url(url)
             
             if not cleaned_url:
-                continue  # Skip invalid URLs
+                # Store as potentially incomplete (might continue on next line)
+                potential_incomplete_urls.append({
+                    'original': url,
+                    'position': match.end()
+                })
+                continue
             
             url = cleaned_url
             
@@ -225,6 +231,35 @@ class LinkExtractor:
                 },
                 'confidence_score': 0.9  # Text extraction is pretty reliable
             })
+        
+        # Try to merge incomplete URLs with next line content
+        if potential_incomplete_urls:
+            from utils.link_cleaner import merge_multiline_url
+            
+            # Split text into lines
+            lines = text.split('\n')
+            
+            for incomplete in potential_incomplete_urls:
+                original_url = incomplete['original']
+                
+                # Find which line this URL is on
+                for i, line in enumerate(lines):
+                    if original_url in line:
+                        # Try to merge with next line
+                        if i + 1 < len(lines):
+                            merged_url = merge_multiline_url(line, lines[i + 1])
+                            if merged_url:
+                                self.logger.debug(f"Merged multiline URL: {merged_url}")
+                                links.append({
+                                    'url': merged_url,
+                                    'page_number': page_num,
+                                    'description': f"{line} {lines[i + 1]}",
+                                    'position_data': {
+                                        'type': 'text_multiline'
+                                    },
+                                    'confidence_score': 0.7  # Lower confidence for merged URLs
+                                })
+                        break
         
         return links
     
