@@ -159,5 +159,7 @@ if (allVideos.length > 0) {
 
 message += '\n💡 Moechtest du mehr Details zu einem der Quellen?';
 
-// Return as plain text string (not object) so agent can't modify it
-return message;
+// Return as array with single object (N8N requirement)
+return [{
+  output: message
+}];
