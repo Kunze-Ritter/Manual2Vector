@@ -14,50 +14,103 @@ SERIES_PRODUCT_TYPE_MAP = {
     'bizhub': 'Multifunktionsdrucker',
     'bizhub PRESS': 'Production Printing',
     
-    # HP
-    'LaserJet': 'Printer',
-    'LaserJet Pro': 'Printer',
-    'Color LaserJet': 'Printer',
-    'OfficeJet': 'Multifunktionsdrucker',
-    'OfficeJet Pro': 'Multifunktionsdrucker',
-    'PageWide': 'Multifunktionsdrucker',
-    'DesignJet': 'Plotter',
-    'Latex': 'Plotter',
+    # HP - Laser (Toner)
+    'LaserJet': 'Laser Printer',
+    'LaserJet Pro': 'Laser Printer',
+    'LaserJet Enterprise': 'Laser Printer',
+    'LaserJet Managed': 'Laser Printer',
+    'Color LaserJet': 'Laser Printer',
+    'Color LaserJet Pro': 'Laser Printer',
+    'Color LaserJet Enterprise': 'Laser Printer',
     
-    # Canon
+    # HP - Inkjet (Tinte)
+    'OfficeJet': 'Inkjet Multifunktionsdrucker',
+    'OfficeJet Pro': 'Inkjet Multifunktionsdrucker',
+    'PageWide': 'Inkjet Multifunktionsdrucker',
+    'PageWide Pro': 'Inkjet Multifunktionsdrucker',
+    'PageWide Enterprise': 'Inkjet Multifunktionsdrucker',
+    
+    # HP - Plotter
+    'DesignJet': 'Plotter (Inkjet)',
+    'Latex': 'Plotter (Latex)',
+    'Scitex': 'Production Printing (Inkjet)',
+    
+    # Canon - MFP/Printer
     'imageRUNNER': 'Multifunktionsdrucker',
     'imageRUNNER ADVANCE': 'Multifunktionsdrucker',
-    'imagePRESS': 'Production Printing',
-    'imagePROGRAF': 'Plotter',
+    'imageRUNNER ADVANCE DX': 'Multifunktionsdrucker',
+    'i-SENSYS': 'Laser Printer',
+    'i-SENSYS MF': 'Multifunktionsdrucker',
     
-    # Xerox
+    # Canon - Production
+    'imagePRESS': 'Production Printing',
+    'imagePRESS C': 'Production Printing',
+    'varioPRINT': 'Production Printing',
+    
+    # Canon - Plotter
+    'imagePROGRAF': 'Plotter (Inkjet)',
+    'imagePROGRAF PRO': 'Plotter (Inkjet)',
+    'imagePROGRAF TX': 'Plotter (Inkjet)',
+    'imagePROGRAF TM': 'Plotter (Inkjet)',
+    'imagePROGRAF TA': 'Plotter (Inkjet)',
+    'imagePROGRAF iPF': 'Plotter (Inkjet)',
+    
+    # Xerox - MFP/Printer
     'VersaLink': 'Multifunktionsdrucker',
     'AltaLink': 'Multifunktionsdrucker',
     'WorkCentre': 'Multifunktionsdrucker',
-    'Phaser': 'Printer',
-    'ColorQube': 'Printer',
+    'Phaser': 'Laser Printer',
+    'ColorQube': 'Solid Ink Printer',
+    
+    # Xerox - Production
     'Versant': 'Production Printing',
     'iGen': 'Production Printing',
+    'PrimeLink': 'Production Printing',
+    'Color C': 'Production Printing',
     
-    # Ricoh
+    # Ricoh - MFP/Printer
     'Aficio': 'Multifunktionsdrucker',
     'MP': 'Multifunktionsdrucker',
-    'Pro C': 'Production Printing',
+    'IM': 'Multifunktionsdrucker',
+    'SP': 'Laser Printer',
     
-    # Brother
+    # Ricoh - Production
+    'Pro C': 'Production Printing',
+    'Pro 8': 'Production Printing',
+    
+    # Brother - Laser
     'MFC': 'Multifunktionsdrucker',
     'DCP': 'Multifunktionsdrucker',
-    'HL': 'Printer',
+    'HL': 'Laser Printer',
+    
+    # Brother - Inkjet
+    'MFC-J': 'Inkjet Multifunktionsdrucker',
+    'DCP-J': 'Inkjet Multifunktionsdrucker',
     
     # Lexmark
     'MX': 'Multifunktionsdrucker',
     'CX': 'Multifunktionsdrucker',
-    'MS': 'Printer',
-    'CS': 'Printer',
+    'XC': 'Multifunktionsdrucker',
+    'MS': 'Laser Printer',
+    'CS': 'Laser Printer',
+    'C': 'Laser Printer',
     
     # Kyocera
     'TASKalfa': 'Multifunktionsdrucker',
-    'ECOSYS': 'Printer',
+    'ECOSYS': 'Laser Printer',
+    'ECOSYS M': 'Multifunktionsdrucker',
+    
+    # Epson
+    'WorkForce': 'Inkjet Multifunktionsdrucker',
+    'WorkForce Pro': 'Inkjet Multifunktionsdrucker',
+    'EcoTank': 'Inkjet Multifunktionsdrucker',
+    'SureColor': 'Plotter (Inkjet)',
+    
+    # OKI
+    'MC': 'Multifunktionsdrucker',
+    'MPS': 'Multifunktionsdrucker',
+    'C': 'Laser Printer',
+    'B': 'Laser Printer',
 }
 
 
