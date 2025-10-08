@@ -12,9 +12,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database.supabase_client import get_supabase_client
-from processors.logger import get_logger
-from utils.parts_extractor import extract_parts, extract_parts_with_context
+from .logger import get_logger
 
 logger = get_logger()
 
@@ -24,6 +22,7 @@ class PartsProcessor:
     
     def __init__(self):
         """Initialize parts processor"""
+        from database.supabase_client import get_supabase_client
         self.supabase = get_supabase_client()
         self.logger = get_logger()
         

@@ -11,8 +11,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database.supabase_client import get_supabase_client
-from processors.logger import get_logger
+from .logger import get_logger
 from utils.series_detector import detect_series
 
 logger = get_logger()
@@ -23,6 +22,7 @@ class SeriesProcessor:
     
     def __init__(self):
         """Initialize series processor"""
+        from database.supabase_client import get_supabase_client
         self.supabase = get_supabase_client()
         self.logger = get_logger()
         
