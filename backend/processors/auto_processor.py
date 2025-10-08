@@ -34,8 +34,15 @@ class AutoProcessor:
     def __init__(self, input_dir: str = "input_pdfs", processed_dir: str = "processed_pdfs"):
         """Initialize auto processor"""
         self.logger = get_logger()
-        self.input_dir = Path(input_dir)
-        self.processed_dir = Path(processed_dir)
+        
+        # Convert to absolute paths relative to project root
+        project_root = Path(__file__).parent.parent.parent
+        self.input_dir = project_root / input_dir if not Path(input_dir).is_absolute() else Path(input_dir)
+        self.processed_dir = project_root / processed_dir if not Path(processed_dir).is_absolute() else Path(processed_dir)
+        
+        self.logger.info(f"Input directory: {self.input_dir}")
+        self.logger.info(f"Processed directory: {self.processed_dir}")
+        
         self.document_processor = DocumentProcessor(manufacturer="AUTO")
         self.pipeline_processor = PipelineProcessor()
         
