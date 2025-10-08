@@ -327,7 +327,14 @@ class DocumentProcessor:
             
             # Save products to database
             if products:
-                self._save_products_to_db(document_id, products)
+                saved_products = self._save_products_to_db(document_id, products)
+                
+                # Step 2b: Series Detection (immediately after products!)
+                if saved_products:
+                    self.logger.info("Step 2b/5: Detecting and linking series...")
+                    series_stats = self._detect_and_link_series(saved_products)
+                    if series_stats['series_created'] > 0 or series_stats['products_linked'] > 0:
+                        self.logger.success(f"✅ Series: {series_stats['series_created']} created, {series_stats['products_linked']} products linked")
             
             # Step 2c: Extract parts (always attempt extraction)
             self.logger.info("Step 2c/5: Extracting spare parts...")
@@ -892,8 +899,14 @@ class DocumentProcessor:
         except Exception as e:
             self.logger.error(f"Failed to save videos: {e}")
     
-    def _save_products_to_db(self, document_id: UUID, products: List):
-        """Save extracted products to database"""
+    def _save_products_to_db(self, document_id: UUID, products: List) -> List[str]:
+        """
+        Save extracted products to database
+        
+        Returns:
+            List of product IDs (UUIDs as strings)
+        """
+        product_ids = []
         try:
             from supabase import create_client
             import os
@@ -946,6 +959,7 @@ class DocumentProcessor:
                     }
                     supabase.table('products').update(update_data).eq('id', product_id).execute()
                     updated_count += 1
+                    product_ids.append(product_id)
                 else:
                     # Create new product
                     insert_data = {
@@ -953,14 +967,56 @@ class DocumentProcessor:
                         'product_name': product_data.get('product_name'),
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                     }
-                    supabase.table('products').insert(insert_data).execute()
+                    result = supabase.table('products').insert(insert_data).execute()
+                    if result.data:
+                        product_ids.append(result.data[0]['id'])
                     saved_count += 1
             
             self.logger.success(f"💾 Saved {saved_count} new products, updated {updated_count} existing")
+            return product_ids
         except Exception as e:
             self.logger.error(f"Failed to save products: {e}")
             import traceback
             self.logger.debug(traceback.format_exc())
+            return []
+    
+    def _detect_and_link_series(self, product_ids: List[str]) -> Dict:
+        """
+        Detect and link series for products
+        
+        Args:
+            product_ids: List of product IDs
+            
+        Returns:
+            Dict with statistics
+        """
+        from processors.series_processor import SeriesProcessor
+        
+        stats = {
+            'products_processed': 0,
+            'series_detected': 0,
+            'series_created': 0,
+            'products_linked': 0
+        }
+        
+        series_processor = SeriesProcessor()
+        
+        for product_id in product_ids:
+            try:
+                result = series_processor.process_product(product_id)
+                stats['products_processed'] += 1
+                
+                if result:
+                    if result.get('series_detected'):
+                        stats['series_detected'] += 1
+                    if result.get('series_created'):
+                        stats['series_created'] += 1
+                    if result.get('product_linked'):
+                        stats['products_linked'] += 1
+            except Exception as e:
+                self.logger.debug(f"Series detection failed for product {product_id}: {e}")
+        
+        return stats
     
     def _link_error_codes_to_chunks(self, document_id: UUID) -> int:
         """
