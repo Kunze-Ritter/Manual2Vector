@@ -155,36 +155,46 @@ class LinkExtractor:
                     # Get annotations
                     if hasattr(page, 'annots') and page.annots:
                         for annot in page.annots:
-                            if 'uri' in annot or 'URI' in annot:
-                                url = annot.get('uri') or annot.get('URI')
-                                
-                                # Clean URL
-                                from utils.link_cleaner import clean_url
-                                url = clean_url(url) if url else None
-                                
-                                if url:
-                                    # Safely decode description (may be UTF-16-LE encoded)
-                                    description = annot.get('contents', '')
-                                    if isinstance(description, bytes):
-                                        try:
-                                            # Try UTF-16-LE first (common in PDF annotations)
-                                            description = description.decode('utf-16-le', errors='ignore')
-                                        except:
-                                            try:
-                                                description = description.decode('utf-8', errors='ignore')
-                                            except:
-                                                description = str(description, errors='ignore')
+                            try:
+                                if 'uri' in annot or 'URI' in annot:
+                                    url = annot.get('uri') or annot.get('URI')
                                     
-                                    links.append({
-                                        'url': url,
-                                        'page_number': page_num,
-                                        'description': description if description else '',
-                                        'position_data': {
-                                            'rect': annot.get('rect'),
-                                            'type': 'pdf_annotation'
-                                        },
-                                        'confidence_score': 1.0  # PDF annotations are reliable
-                                    })
+                                    # Clean URL
+                                    from utils.link_cleaner import clean_url
+                                    url = clean_url(url) if url else None
+                                    
+                                    if url:
+                                        # Safely decode description (may be UTF-16-LE encoded)
+                                        description = ''
+                                        try:
+                                            desc_raw = annot.get('contents', '')
+                                            if isinstance(desc_raw, bytes):
+                                                # Try UTF-16-LE first (common in PDF annotations)
+                                                try:
+                                                    description = desc_raw.decode('utf-16-le', errors='ignore')
+                                                except:
+                                                    try:
+                                                        description = desc_raw.decode('utf-8', errors='ignore')
+                                                    except:
+                                                        description = ''
+                                            else:
+                                                description = str(desc_raw) if desc_raw else ''
+                                        except:
+                                            description = ''
+                                        
+                                        links.append({
+                                            'url': url,
+                                            'page_number': page_num,
+                                            'description': description,
+                                            'position_data': {
+                                                'rect': annot.get('rect'),
+                                                'type': 'pdf_annotation'
+                                            },
+                                            'confidence_score': 1.0  # PDF annotations are reliable
+                                        })
+                            except Exception as annot_error:
+                                # Skip problematic annotations silently
+                                self.logger.debug(f"Skipped annotation on page {page_num}: {annot_error}")
         except Exception as e:
             self.logger.warning(f"Failed to extract PDF links: {e}")
         
