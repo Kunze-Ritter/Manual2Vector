@@ -975,21 +975,26 @@ class DocumentProcessor:
             
             # Get manufacturer from document
             # Note: Use only 'manufacturer' since view might not have manufacturer_id
-            doc_result = supabase.table('documents') \
-                .select('manufacturer') \
-                .eq('id', str(document_id)) \
-                .limit(1) \
-                .execute()
+            # The document might not be in DB yet if we're saving error codes during processing
+            try:
+                doc_result = supabase.table('documents') \
+                    .select('manufacturer') \
+                    .eq('id', str(document_id)) \
+                    .limit(1) \
+                    .execute()
+            except Exception as db_error:
+                self.logger.debug(f"Could not query document from DB: {db_error}")
+                doc_result = None
             
             manufacturer_id = None
+            manufacturer_name = None
             
             # Debug: Log what we got from document
-            if doc_result.data:
+            if doc_result and doc_result.data:
                 manufacturer_name = doc_result.data[0].get('manufacturer')
                 self.logger.debug(f"Document manufacturer field: '{manufacturer_name}'")
             else:
-                manufacturer_name = None
-                self.logger.warning(f"⚠️ No document data returned from database!")
+                self.logger.debug(f"Document not yet in DB or no manufacturer field - will use detected manufacturer")
             
             # Get manufacturer name and ensure it exists
             if manufacturer_name:
@@ -1016,8 +1021,8 @@ class DocumentProcessor:
                     self.logger.error(f"Failed to ensure manufacturer exists: {e}")
                     return
             else:
-                self.logger.warning(f"⚠️ Document has no manufacturer name set!")
-                self.logger.info(f"   Using detected manufacturer from processing: {self.manufacturer}")
+                self.logger.debug(f"Document has no manufacturer field - using detected manufacturer")
+                self.logger.info(f"Using detected manufacturer: {self.manufacturer}")
                 
                 # Try to use the detected manufacturer from document processing
                 if self.manufacturer and self.manufacturer != "AUTO":
@@ -1055,19 +1060,20 @@ class DocumentProcessor:
                     'requires_parts': getattr(error_code, 'requires_parts', False)
                 }
                 
-                # DEDUPLICATION: Check if this exact error code already exists on this page
+                # DEDUPLICATION: Check if this exact error code already exists
+                # Must match the unique constraint: error_code + manufacturer_id + document_id
                 try:
                     existing = supabase.table('error_codes') \
                         .select('id') \
-                        .eq('document_id', str(document_id)) \
                         .eq('error_code', ec_data['error_code']) \
-                        .eq('page_number', ec_data['page_number']) \
+                        .eq('manufacturer_id', str(manufacturer_id)) \
+                        .eq('document_id', str(document_id)) \
                         .limit(1) \
                         .execute()
                     
                     if existing.data:
                         skipped_duplicates += 1
-                        self.logger.debug(f"Skipping duplicate: {ec_data['error_code']} on page {ec_data['page_number']}")
+                        self.logger.debug(f"Skipping duplicate: {ec_data['error_code']} (already in DB)")
                         continue
                 except Exception as dup_check_error:
                     self.logger.debug(f"Duplicate check failed: {dup_check_error}")
