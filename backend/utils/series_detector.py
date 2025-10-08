@@ -60,7 +60,7 @@ def detect_series(model_number: str, manufacturer_name: str) -> Optional[Dict]:
 
 
 def _detect_hp_series(model_number: str) -> Optional[Dict]:
-    """Detect HP series"""
+    """Detect HP series - Returns marketing name + technical pattern"""
     model = model_number.upper()
     
     # LaserJet M series (M479, M454, M428, etc.)
@@ -68,8 +68,8 @@ def _detect_hp_series(model_number: str) -> Optional[Dict]:
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': f'LaserJet M{series_digit}00 Series',
-            'series_code': f'M{series_digit}XX',
+            'series_name': 'LaserJet',  # Marketing name
+            'model_pattern': f'M{series_digit}xx',  # Technical pattern
             'series_description': f'HP LaserJet M{series_digit}00 series multifunction printers'
         }
     
@@ -77,9 +77,19 @@ def _detect_hp_series(model_number: str) -> Optional[Dict]:
     match = re.match(r'M(\d{2})', model)
     if match:
         return {
-            'series_name': f'LaserJet Pro M{match.group(1)} Series',
-            'series_code': f'M{match.group(1)}',
+            'series_name': 'LaserJet Pro',  # Marketing name
+            'model_pattern': f'M{match.group(1)}',  # Technical pattern
             'series_description': f'HP LaserJet Pro M{match.group(1)} series'
+        }
+    
+    # LaserJet E series (E50045, E50145, E52545, etc.)
+    match = re.match(r'E(\d)(\d{2})', model)
+    if match:
+        series_digit = match.group(1)
+        return {
+            'series_name': 'LaserJet',  # Marketing name
+            'model_pattern': f'E{series_digit}xxxx',  # Technical pattern
+            'series_description': f'HP LaserJet E{series_digit}0000 series'
         }
     
     # OfficeJet Pro X series (X580, X585, etc.)
@@ -87,8 +97,8 @@ def _detect_hp_series(model_number: str) -> Optional[Dict]:
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': f'OfficeJet Pro X{series_digit}00 Series',
-            'series_code': f'X{series_digit}XX',
+            'series_name': 'OfficeJet Pro',  # Marketing name
+            'model_pattern': f'X{series_digit}xx',  # Technical pattern
             'series_description': f'HP OfficeJet Pro X{series_digit}00 series'
         }
     
@@ -97,7 +107,8 @@ def _detect_hp_series(model_number: str) -> Optional[Dict]:
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': f'PageWide P{series_digit}xxxx Series',
+            'series_name': 'PageWide',  # Marketing name
+            'model_pattern': f'P{series_digit}xxxx',  # Technical pattern
             'series_code': f'P{series_digit}XXXX',
             'series_description': f'HP PageWide P{series_digit} series'
         }
@@ -106,8 +117,8 @@ def _detect_hp_series(model_number: str) -> Optional[Dict]:
     match = re.match(r'CP(\d{2})', model)
     if match:
         return {
-            'series_name': f'Color LaserJet CP{match.group(1)}xx Series',
-            'series_code': f'CP{match.group(1)}XX',
+            'series_name': 'Color LaserJet',  # Marketing name
+            'model_pattern': f'CP{match.group(1)}xx',  # Technical pattern
             'series_description': f'HP Color LaserJet CP{match.group(1)} series'
         }
     
@@ -115,7 +126,7 @@ def _detect_hp_series(model_number: str) -> Optional[Dict]:
 
 
 def _detect_canon_series(model_number: str) -> Optional[Dict]:
-    """Detect Canon series"""
+    """Detect Canon series - Returns marketing name + technical pattern"""
     model = model_number.upper()
     
     # imageRUNNER ADVANCE C series (C5560i, C5550i, etc.)
@@ -123,8 +134,8 @@ def _detect_canon_series(model_number: str) -> Optional[Dict]:
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': f'imageRUNNER ADVANCE C{series_digit}xx Series',
-            'series_code': f'C{series_digit}XX',
+            'series_name': 'imageRUNNER ADVANCE',  # Marketing name
+            'model_pattern': f'C{series_digit}xx',  # Technical pattern
             'series_description': f'Canon imageRUNNER ADVANCE C{series_digit} series'
         }
     
@@ -133,8 +144,8 @@ def _detect_canon_series(model_number: str) -> Optional[Dict]:
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': f'imageRUNNER {series_digit}xx Series',
-            'series_code': f'{series_digit}XX',
+            'series_name': 'imageRUNNER',  # Marketing name
+            'model_pattern': f'{series_digit}xx',  # Technical pattern
             'series_description': f'Canon imageRUNNER {series_digit} series'
         }
     
@@ -142,7 +153,7 @@ def _detect_canon_series(model_number: str) -> Optional[Dict]:
 
 
 def _detect_konica_series(model_number: str) -> Optional[Dict]:
-    """Detect Konica Minolta series"""
+    """Detect Konica Minolta series - Returns marketing name + technical pattern"""
     model = model_number.upper()
     
     # bizhub C series (C454e, C554e, C654e, etc.)
@@ -150,8 +161,8 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': f'bizhub C{series_digit}xx Series',
-            'series_code': f'C{series_digit}XX',
+            'series_name': 'bizhub',  # Marketing name
+            'model_pattern': f'C{series_digit}xx',  # Technical pattern
             'series_description': f'Konica Minolta bizhub C{series_digit} series color MFPs'
         }
     
@@ -160,8 +171,8 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': f'bizhub {series_digit}xx Series',
-            'series_code': f'{series_digit}XX',
+            'series_name': 'bizhub',  # Marketing name
+            'model_pattern': f'{series_digit}xx',  # Technical pattern
             'series_description': f'Konica Minolta bizhub {series_digit} series monochrome MFPs'
         }
     
