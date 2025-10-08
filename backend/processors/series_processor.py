@@ -204,6 +204,22 @@ class SeriesProcessor:
             return None, False
             
         except Exception as e:
+            error_str = str(e)
+            # If duplicate key error, try to get existing series
+            if '23505' in error_str or 'duplicate key' in error_str.lower():
+                self.logger.debug(f"Series '{series_name}' already exists (duplicate key), fetching existing...")
+                try:
+                    existing = self.supabase.table('product_series').select('id').eq(
+                        'manufacturer_id', manufacturer_id
+                    ).eq(
+                        'series_name', series_name
+                    ).limit(1).execute()
+                    
+                    if existing.data:
+                        return existing.data[0]['id'], False
+                except:
+                    pass
+            
             self.logger.error(f"Error creating series '{series_name}': {e}")
             return None, False
     
