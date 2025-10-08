@@ -961,19 +961,17 @@ class DocumentProcessor:
             supabase = create_client(supabase_url, supabase_key)
             
             # Get manufacturer from document
+            # Note: Use only 'manufacturer' since view might not have manufacturer_id
             doc_result = supabase.table('documents') \
-                .select('manufacturer_id, manufacturer') \
+                .select('manufacturer') \
                 .eq('id', str(document_id)) \
                 .limit(1) \
                 .execute()
             
             manufacturer_id = None
             if doc_result.data:
-                # Try to get manufacturer_id directly
-                manufacturer_id = doc_result.data[0].get('manufacturer_id')
-                
-                # If no manufacturer_id but has manufacturer name, ensure it exists
-                if not manufacturer_id and doc_result.data[0].get('manufacturer'):
+                # Get manufacturer name and ensure it exists
+                if doc_result.data[0].get('manufacturer'):
                     manufacturer_name = doc_result.data[0]['manufacturer']
                     
                     # Use unified helper to ensure manufacturer exists
