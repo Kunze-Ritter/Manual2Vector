@@ -1472,20 +1472,7 @@ class DocumentProcessor:
             
             supabase = create_client(supabase_url, supabase_key)
             
-            # Get manufacturer_id
-            manufacturer_id = None
-            if detected_manufacturer and detected_manufacturer != "AUTO":
-                try:
-                    mfr_result = supabase.table('manufacturers').select('id').eq(
-                        'name', detected_manufacturer
-                    ).limit(1).execute()
-                    
-                    if mfr_result.data:
-                        manufacturer_id = mfr_result.data[0]['id']
-                except:
-                    pass
-            
-            # Prepare document data
+            # Prepare document data (use manufacturer string, not manufacturer_id due to PostgREST cache issues)
             document_data = {
                 'id': str(document_id),
                 'filename': pdf_path.name,
@@ -1499,7 +1486,6 @@ class DocumentProcessor:
                 'character_count': statistics.get('character_count', 0),
                 'processing_status': 'completed',
                 'processing_results': statistics,
-                'manufacturer_id': manufacturer_id,
                 'manufacturer': detected_manufacturer if detected_manufacturer != "AUTO" else None
             }
             
