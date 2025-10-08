@@ -35,6 +35,9 @@ class AutoProcessor:
         """Initialize auto processor"""
         self.logger = get_logger()
         
+        # Check Ollama before starting
+        self._check_ollama()
+        
         # Convert to absolute paths relative to project root
         project_root = Path(__file__).parent.parent.parent
         self.input_dir = project_root / input_dir if not Path(input_dir).is_absolute() else Path(input_dir)
@@ -49,6 +52,38 @@ class AutoProcessor:
         # Create directories if they don't exist
         self.input_dir.mkdir(exist_ok=True)
         self.processed_dir.mkdir(exist_ok=True)
+    
+    def _check_ollama(self):
+        """Check if Ollama is running and try to start if not"""
+        from utils.ollama_checker import ensure_ollama_running, get_ollama_models
+        
+        self.logger.info("=" * 80)
+        self.logger.info("CHECKING OLLAMA...")
+        self.logger.info("=" * 80)
+        
+        is_running, message = ensure_ollama_running(auto_start=True)
+        
+        if is_running:
+            self.logger.info(message)
+            
+            # Show available models
+            models = get_ollama_models()
+            if models:
+                self.logger.info(f"Available models: {', '.join(models[:5])}")
+                if len(models) > 5:
+                    self.logger.info(f"   ... and {len(models) - 5} more")
+            else:
+                self.logger.warning("No models found. Install with: ollama pull llama3.2")
+        else:
+            self.logger.error(message)
+            self.logger.warning("⚠️ Processing will continue but LLM features will be disabled!")
+            self.logger.warning("   Install Ollama: https://ollama.ai")
+            
+            # Wait for user to see the message
+            import time
+            time.sleep(2)
+        
+        self.logger.info("")
     
     def process_all_pdfs(self) -> Dict:
         """
