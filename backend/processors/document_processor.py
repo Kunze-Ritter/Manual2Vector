@@ -962,13 +962,15 @@ class DocumentProcessor:
                 else:
                     # Create new product
                     # Determine product_type from series_name + model_number
-                    product_type = None
+                    product_type = 'Multifunktionsdrucker'  # Default fallback
                     if product_data.get('series_name'):
                         from utils.product_type_mapper import get_product_type
-                        product_type = get_product_type(
+                        detected_type = get_product_type(
                             series_name=product_data['series_name'],
                             model_number=product_data['model_number']
                         )
+                        if detected_type:
+                            product_type = detected_type
                     
                     insert_data = {
                         'model_number': product_data['model_number'],
