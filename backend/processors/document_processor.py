@@ -958,21 +958,34 @@ class DocumentProcessor:
             
             # Get manufacturer from document
             doc_result = supabase.table('documents') \
-                .select('manufacturer') \
+                .select('manufacturer_id, manufacturer') \
                 .eq('id', str(document_id)) \
                 .limit(1) \
                 .execute()
             
             manufacturer_id = None
-            if doc_result.data and doc_result.data[0].get('manufacturer'):
-                manufacturer_name = doc_result.data[0]['manufacturer']
+            if doc_result.data:
+                # Try to get manufacturer_id directly
+                manufacturer_id = doc_result.data[0].get('manufacturer_id')
                 
-                # Use unified helper to ensure manufacturer exists
-                try:
-                    manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
-                except ManufacturerNotFoundError as e:
-                    self.logger.error(f"Failed to ensure manufacturer exists: {e}")
-                    return
+                # If no manufacturer_id but has manufacturer name, ensure it exists
+                if not manufacturer_id and doc_result.data[0].get('manufacturer'):
+                    manufacturer_name = doc_result.data[0]['manufacturer']
+                    
+                    # Use unified helper to ensure manufacturer exists
+                    try:
+                        manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
+                        
+                        # Update document with manufacturer_id
+                        supabase.table('documents').update({
+                            'manufacturer_id': str(manufacturer_id)
+                        }).eq('id', str(document_id)).execute()
+                        
+                        self.logger.info(f"✅ Updated document with manufacturer_id: {manufacturer_id}")
+                        
+                    except ManufacturerNotFoundError as e:
+                        self.logger.error(f"Failed to ensure manufacturer exists: {e}")
+                        return
             
             # CRITICAL: Skip if no manufacturer_id found
             if not manufacturer_id:
