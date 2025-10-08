@@ -953,9 +953,28 @@ class DocumentProcessor:
                 if existing.data:
                     # Update existing product
                     product_id = existing.data[0]['id']
+                    
+                    # Get current product_type to check if we should update
+                    current_result = supabase.table('products').select('product_type').eq('id', product_id).single().execute()
+                    current_type = current_result.data.get('product_type') if current_result.data else None
+                    
                     update_data = {
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                     }
+                    
+                    # Only update product_type if NULL or default value
+                    if not current_type or current_type == 'Multifunktionsdrucker':
+                        # Detect product_type from series
+                        if product_data.get('series_name'):
+                            from utils.product_type_mapper import get_product_type
+                            detected_type = get_product_type(
+                                series_name=product_data['series_name'],
+                                model_number=product_data['model_number']
+                            )
+                            if detected_type and detected_type != 'Multifunktionsdrucker':
+                                update_data['product_type'] = detected_type
+                                self.logger.debug(f"Updated product_type: {detected_type}")
+                    
                     supabase.table('products').update(update_data).eq('id', product_id).execute()
                     updated_count += 1
                     product_ids.append(product_id)
