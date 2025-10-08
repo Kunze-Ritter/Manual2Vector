@@ -25,7 +25,11 @@ KRAI digitalisiert und strukturiert technisches Wissen automatisch. Ein Technike
 
 **Messbarer Nutzen:**
 - ⏱️ **Zeitersparnis:** Fehlerdiagnose in 9 statt 30 Minuten (70% schneller)
-- 💰 **Kostenreduktion:** Weniger Rückfragen beim Hersteller, weniger Fehlbestellungen, weniger unnötige Voror
+- 🚗 **Weniger Vor-Ort-Einsätze:** Viele Probleme können remote gelöst werden, da das Problem schneller und präziser identifiziert wird
+- 💰 **Kostenreduktion:** 
+  - Weniger Rückfragen beim Hersteller
+  - Weniger falsch bestellte Ersatzteile durch bessere Informationen
+  - Geringere Fahrtkosten durch weniger unnötige Einsätze
 - 📚 **Wissenserhalt:** Expertenwissen bleibt im Unternehmen, auch wenn Mitarbeiter ausscheiden
 - 🎯 **Qualität:** Einheitliche, geprüfte Lösungen für alle Techniker
 
@@ -43,7 +47,14 @@ KRAI digitalisiert und strukturiert technisches Wissen automatisch. Ein Technike
 ### Zukünftige Erweiterungen
 - 🔄 **Kundenportale:** Jeder Kunde kann seine eigenen Daten und Notizen hinzufügen
 - 🔄 **Mobile App:** Techniker können vor Ort beim Kunden direkt auf ihr Smartphone zugreifen
-- 🔄 **Vorausschauende Wartung:** System erkennt Muster und warnt vor möglichen Problemen
+- 🔄 **Printer Monitoring Integration:** Anbindung an Drucker-Überwachungssysteme
+  - Live-Abfrage von Gerätedaten (z.B. "Trommel K hat noch 4% Restlaufzeit")
+  - Automatische Warnungen bei kritischen Werten
+  - Vorausschauende Wartung basierend auf Nutzungsdaten
+- 🔄 **CRM/ERP Integration:** Automatischer Datenaustausch mit bestehenden Systemen
+  - Kundeninformationen abrufen
+  - Servicehistorie einsehen
+  - Ersatzteilbestellungen direkt auslösen
 
 ---
 
