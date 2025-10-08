@@ -970,10 +970,13 @@ class DocumentProcessor:
             
             manufacturer_id = None
             if doc_result.data:
+                manufacturer_name = doc_result.data[0].get('manufacturer')
+                
+                # Debug: Log what we got
+                self.logger.debug(f"Document manufacturer field: '{manufacturer_name}'")
+                
                 # Get manufacturer name and ensure it exists
-                if doc_result.data[0].get('manufacturer'):
-                    manufacturer_name = doc_result.data[0]['manufacturer']
-                    
+                if manufacturer_name:
                     # Use unified helper to ensure manufacturer exists
                     try:
                         manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
@@ -996,10 +999,24 @@ class DocumentProcessor:
                     except ManufacturerNotFoundError as e:
                         self.logger.error(f"Failed to ensure manufacturer exists: {e}")
                         return
+                else:
+                    self.logger.warning(f"⚠️ Document has no manufacturer name set!")
+                    self.logger.info(f"   Using detected manufacturer from processing: {self.manufacturer}")
+                    
+                    # Try to use the detected manufacturer from document processing
+                    if self.manufacturer and self.manufacturer != "AUTO":
+                        try:
+                            manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
+                            self.logger.info(f"✅ Using detected manufacturer: {self.manufacturer}")
+                        except Exception as e:
+                            self.logger.error(f"Failed to use detected manufacturer: {e}")
             
             # CRITICAL: Skip if no manufacturer_id found
             if not manufacturer_id:
-                self.logger.warning(f"⚠️ No manufacturer_id for document {document_id} - skipping error codes")
+                self.logger.error(f"❌ No manufacturer_id for document {document_id}")
+                self.logger.error(f"   Document manufacturer field: {doc_result.data[0].get('manufacturer') if doc_result.data else 'N/A'}")
+                self.logger.error(f"   Detected manufacturer: {self.manufacturer}")
+                self.logger.error(f"   CANNOT SAVE ERROR CODES WITHOUT MANUFACTURER!")
                 return
             
             saved_count = 0
