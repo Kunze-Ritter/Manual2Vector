@@ -963,7 +963,7 @@ class DocumentProcessor:
                     }
                     
                     # Only update product_type if NULL or default value
-                    if not current_type or current_type == 'Multifunktionsdrucker':
+                    if not current_type or current_type == 'multifunction':
                         # Detect product_type from series
                         if product_data.get('series_name'):
                             from utils.product_type_mapper import get_product_type
@@ -971,7 +971,7 @@ class DocumentProcessor:
                                 series_name=product_data['series_name'],
                                 model_number=product_data['model_number']
                             )
-                            if detected_type and detected_type != 'Multifunktionsdrucker':
+                            if detected_type and detected_type != 'multifunction':
                                 update_data['product_type'] = detected_type
                                 self.logger.debug(f"Updated product_type: {detected_type}")
                     
@@ -981,7 +981,7 @@ class DocumentProcessor:
                 else:
                     # Create new product
                     # Determine product_type from series_name + model_number
-                    product_type = 'Multifunktionsdrucker'  # Default fallback
+                    product_type = 'multifunction'  # Default fallback
                     if product_data.get('series_name'):
                         from utils.product_type_mapper import get_product_type
                         detected_type = get_product_type(
@@ -1004,9 +1004,38 @@ class DocumentProcessor:
             self.logger.success(f"💾 Saved {saved_count} new products, updated {updated_count} existing")
             return product_ids
         except Exception as e:
-            self.logger.error(f"Failed to save products: {e}")
-            import traceback
-            self.logger.debug(traceback.format_exc())
+            error_msg = str(e)
+            
+            # Check for common constraint violations and provide helpful messages
+            if 'product_type_check' in error_msg:
+                self.logger.error(f"❌ Failed to save products: Invalid product_type value!")
+                self.logger.error(f"")
+                self.logger.error(f"📋 ALLOWED VALUES:")
+                self.logger.error(f"   Printer: laser_printer, inkjet_printer, production_printer, solid_ink_printer")
+                self.logger.error(f"   MFP: laser_multifunction, inkjet_multifunction")
+                self.logger.error(f"   Plotter: inkjet_plotter, latex_plotter")
+                self.logger.error(f"   Generic: printer, scanner, multifunction, copier, plotter")
+                self.logger.error(f"   Other: accessory, option, consumable, finisher, feeder")
+                self.logger.error(f"")
+                self.logger.error(f"💡 TO FIX:")
+                self.logger.error(f"   1. Check backend/utils/product_type_mapper.py")
+                self.logger.error(f"   2. Make sure all values match allowed list above")
+                self.logger.error(f"   3. OR add new value to database/migrations/48_expand_product_type_values.sql")
+                self.logger.error(f"")
+                self.logger.error(f"🔍 Error details: {error_msg}")
+            elif 'not-null constraint' in error_msg:
+                self.logger.error(f"❌ Failed to save products: Required field is NULL!")
+                self.logger.error(f"")
+                self.logger.error(f"💡 TO FIX:")
+                self.logger.error(f"   Check which field is NULL in the error message")
+                self.logger.error(f"   Make sure all required fields have values")
+                self.logger.error(f"")
+                self.logger.error(f"🔍 Error details: {error_msg}")
+            else:
+                self.logger.error(f"❌ Failed to save products: {e}")
+                import traceback
+                self.logger.debug(traceback.format_exc())
+            
             return []
     
     def _detect_and_link_series(self, product_ids: List[str]) -> Dict:
