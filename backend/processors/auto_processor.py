@@ -203,12 +203,48 @@ class AutoProcessor:
             else:
                 result['error'] = pipeline_result.get('error', 'Pipeline failed')
             
+            # STAGE 8: Video Enrichment (Background)
+            if doc_result.get('statistics', {}).get('videos_count', 0) > 0:
+                self.logger.info("")
+                self.logger.info("STAGE 8: Video Enrichment (Background)")
+                self.logger.info("-" * 80)
+                self._enrich_videos_background()
+            
             return result
             
         except Exception as e:
             result['error'] = str(e)
             self.logger.error(f"Error in process_single_pdf: {e}")
             return result
+    
+    def _enrich_videos_background(self):
+        """Enrich videos in background (non-blocking)"""
+        import subprocess
+        import sys
+        
+        try:
+            # Get path to video enrichment script
+            script_path = Path(__file__).parent.parent / 'scripts' / 'enrich_video_metadata.py'
+            
+            if not script_path.exists():
+                self.logger.warning("Video enrichment script not found")
+                return
+            
+            # Start enrichment in background
+            self.logger.info("🎬 Starting video enrichment in background...")
+            
+            # Run in background (non-blocking)
+            subprocess.Popen(
+                [sys.executable, str(script_path), '--limit', '10'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            )
+            
+            self.logger.info("✅ Video enrichment started in background")
+            
+        except Exception as e:
+            self.logger.warning(f"Could not start video enrichment: {e}")
     
     def _move_to_processed(self, pdf_path: Path):
         """Move PDF to processed folder"""
