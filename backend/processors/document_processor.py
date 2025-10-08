@@ -1458,9 +1458,19 @@ class DocumentProcessor:
             detected_manufacturer: Detected manufacturer name
         """
         try:
-            from config.supabase_config import get_supabase_client
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
             
-            supabase = get_supabase_client()
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping document storage")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
             
             # Get manufacturer_id
             manufacturer_id = None
