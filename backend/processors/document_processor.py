@@ -883,6 +883,13 @@ class DocumentProcessor:
                     should_insert = True
                 
                 if should_insert:
+                    # Verify link_id exists before inserting
+                    if video.get('link_id'):
+                        link_check = supabase.table('links').select('id').eq('id', video['link_id']).execute()
+                        if not link_check.data:
+                            self.logger.debug(f"Skipping video {video.get('youtube_id')} - link_id not found")
+                            continue
+                    
                     # Only insert fields that exist in videos table
                     # Remove thumbnail analysis fields if they don't exist in schema
                     video_data = {k: v for k, v in video.items() 
