@@ -980,12 +980,20 @@ class DocumentProcessor:
                     try:
                         manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
                         
-                        # Update document with manufacturer_id
-                        supabase.table('documents').update({
-                            'manufacturer_id': str(manufacturer_id)
-                        }).eq('id', str(document_id)).execute()
-                        
-                        self.logger.info(f"✅ Updated document with manufacturer_id: {manufacturer_id}")
+                        # Update document with manufacturer_id (use schema-qualified table name)
+                        try:
+                            # Try to update via RPC or direct SQL since view might not support updates
+                            supabase.rpc('exec_sql', {
+                                'query': f"""
+                                    UPDATE krai_core.documents 
+                                    SET manufacturer_id = '{manufacturer_id}' 
+                                    WHERE id = '{document_id}'
+                                """
+                            }).execute()
+                            self.logger.info(f"✅ Updated document with manufacturer_id: {manufacturer_id}")
+                        except Exception as update_error:
+                            self.logger.warning(f"Could not update manufacturer_id: {update_error}")
+                            # Continue anyway - we have the manufacturer_id for this session
                         
                     except ManufacturerNotFoundError as e:
                         self.logger.error(f"Failed to ensure manufacturer exists: {e}")
