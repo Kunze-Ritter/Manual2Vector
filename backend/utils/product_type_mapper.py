@@ -87,22 +87,21 @@ SERIES_PRODUCT_TYPE_MAP = {
     'MFC-J': 'Inkjet Multifunktionsdrucker',
     'DCP-J': 'Inkjet Multifunktionsdrucker',
     
-    # Lexmark - MFP
+    # Lexmark - MFP (Multifunktionsdrucker)
     'MX': 'Multifunktionsdrucker',
     'CX': 'Multifunktionsdrucker',
     'XC': 'Multifunktionsdrucker',
+    'XM': 'Multifunktionsdrucker',
     'MB': 'Multifunktionsdrucker',
     'MC': 'Multifunktionsdrucker',
+    'M': 'Multifunktionsdrucker',
+    'X': 'Multifunktionsdrucker',
     
     # Lexmark - Printer
     'MS': 'Laser Printer',
     'CS': 'Laser Printer',
     'B': 'Laser Printer',
     'C': 'Laser Printer',
-    
-    # Lexmark - Production
-    'CX9': 'Production Printing',
-    'XC9': 'Production Printing',
     
     # Kyocera - MFP
     'TASKalfa': 'Multifunktionsdrucker',
