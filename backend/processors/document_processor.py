@@ -550,6 +550,16 @@ class DocumentProcessor:
                 statistics=statistics
             )
             
+            # Step 7: Save document to database
+            self.logger.info("Step 7/8: Saving document to database...")
+            self._save_document_to_db(
+                document_id=document_id,
+                pdf_path=pdf_path,
+                metadata=metadata,
+                statistics=statistics,
+                detected_manufacturer=detected_manufacturer
+            )
+            
             # Log summary
             log_processing_summary(
                 self.logger,
@@ -1428,6 +1438,83 @@ class DocumentProcessor:
             'statistics': {'error': error_message},
             'processing_time': processing_time
         }
+    
+    def _save_document_to_db(
+        self,
+        document_id: UUID,
+        pdf_path: Path,
+        metadata: Any,
+        statistics: Dict,
+        detected_manufacturer: str
+    ):
+        """
+        Save document metadata to database
+        
+        Args:
+            document_id: Document UUID
+            pdf_path: Path to PDF file
+            metadata: PDF metadata
+            statistics: Processing statistics
+            detected_manufacturer: Detected manufacturer name
+        """
+        try:
+            from supabase import create_client
+            import os
+            
+            supabase = create_client(
+                os.getenv('SUPABASE_URL'),
+                os.getenv('SUPABASE_KEY')
+            )
+            
+            # Get manufacturer_id
+            manufacturer_id = None
+            if detected_manufacturer and detected_manufacturer != "AUTO":
+                try:
+                    mfr_result = supabase.table('manufacturers').select('id').eq(
+                        'name', detected_manufacturer
+                    ).limit(1).execute()
+                    
+                    if mfr_result.data:
+                        manufacturer_id = mfr_result.data[0]['id']
+                except:
+                    pass
+            
+            # Prepare document data
+            document_data = {
+                'id': str(document_id),
+                'filename': pdf_path.name,
+                'original_filename': pdf_path.name,
+                'file_size': pdf_path.stat().st_size if pdf_path.exists() else 0,
+                'storage_path': str(pdf_path),
+                'document_type': 'service_manual',  # Default
+                'language': metadata.language if metadata and hasattr(metadata, 'language') else 'en',
+                'page_count': statistics.get('page_count', 0),
+                'word_count': statistics.get('word_count', 0),
+                'character_count': statistics.get('character_count', 0),
+                'processing_status': 'completed',
+                'processing_results': statistics,
+                'manufacturer_id': manufacturer_id,
+                'manufacturer': detected_manufacturer if detected_manufacturer != "AUTO" else None
+            }
+            
+            # Check if document already exists
+            existing = supabase.table('documents').select('id').eq(
+                'id', str(document_id)
+            ).execute()
+            
+            if existing.data:
+                # Update existing
+                supabase.table('documents').update(document_data).eq(
+                    'id', str(document_id)
+                ).execute()
+                self.logger.success(f"✅ Updated document in database")
+            else:
+                # Insert new
+                supabase.table('documents').insert(document_data).execute()
+                self.logger.success(f"✅ Saved document to database")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to save document to database: {e}")
 
 
 # Convenience function
