@@ -1107,9 +1107,15 @@ class DocumentProcessor:
             self.logger.success(f"💾 Saved {saved_count} error codes to DB")
             
         except Exception as e:
-            self.logger.error(f"Failed to save error codes: {e}")
-            import traceback
-            self.logger.debug(traceback.format_exc())
+            # Check if it's a duplicate key error (which is expected on re-processing)
+            error_str = str(e)
+            if 'duplicate key' in error_str.lower() or '23505' in error_str:
+                self.logger.info(f"ℹ️  Error codes already exist in database (duplicate key)")
+                self.logger.debug(f"   This is expected when re-processing a document")
+            else:
+                self.logger.error(f"Failed to save error codes: {e}")
+                import traceback
+                self.logger.debug(traceback.format_exc())
     
     def _calculate_statistics(
         self,
