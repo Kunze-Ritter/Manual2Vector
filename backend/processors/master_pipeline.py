@@ -685,41 +685,29 @@ class MasterPipeline:
                     'part_name': getattr(part, 'part_name', None),
                     'part_description': getattr(part, 'part_description', None),
                     'part_category': getattr(part, 'part_category', None),
-                    'manufacturer_name': getattr(part, 'manufacturer_name', None),
                     'unit_price_usd': getattr(part, 'unit_price_usd', None),
                     'confidence': getattr(part, 'confidence', 0.0),
                     'pattern_name': getattr(part, 'pattern_name', None),
                     'page_number': getattr(part, 'page_number', None)
                 }
                 
-                # Find or create manufacturer
+                # Get manufacturer_id from document (all parts inherit from document)
                 manufacturer_id = None
-                manufacturer_name = part_data.get('manufacturer_name') or document_manufacturer
-                
-                if manufacturer_name:
+                if document_manufacturer:
                     try:
                         # Try to find existing manufacturer
                         mfr_result = self.supabase.table('manufacturers') \
                             .select('id') \
-                            .ilike('name', f"%{manufacturer_name}%") \
+                            .ilike('name', f"%{document_manufacturer}%") \
                             .limit(1) \
                             .execute()
                         
                         if mfr_result.data:
                             manufacturer_id = mfr_result.data[0]['id']
-                        else:
-                            # Create new manufacturer
-                            new_mfr = self.supabase.table('manufacturers').insert({
-                                'name': manufacturer_name
-                            }).execute()
-                            
-                            if new_mfr.data:
-                                manufacturer_id = new_mfr.data[0]['id']
-                                self.logger.info(f"✅ Created manufacturer: {manufacturer_name}")
                     except Exception as e:
-                        self.logger.warning(f"Failed to find/create manufacturer '{manufacturer_name}': {e}")
+                        self.logger.warning(f"Failed to find manufacturer '{document_manufacturer}': {e}")
                 
-                # Skip if no manufacturer_id (required field)
+                # Skip if no manufacturer_id (shouldn't happen if document has manufacturer)
                 if not manufacturer_id:
                     self.logger.debug(f"⏭️  Skipping part {part_data.get('part_number')} - no manufacturer_id")
                     skipped_count += 1

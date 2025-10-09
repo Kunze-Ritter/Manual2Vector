@@ -62,12 +62,12 @@ class ExtractedProduct(BaseModel):
 
 
 class ExtractedPart(BaseModel):
-    """Part/spare part extracted from parts catalog"""
+    """Part/spare part extracted from parts catalog - Manufacturer inherited from document"""
     part_number: str = Field(..., min_length=3, max_length=100)
     part_name: Optional[str] = Field(None, max_length=255)
     part_description: Optional[str] = None
     part_category: Optional[str] = Field(None, max_length=100)
-    manufacturer_name: Optional[str] = None
+    # manufacturer_name removed - always inherited from document
     unit_price_usd: Optional[float] = Field(None, ge=0.0)
     confidence: float = Field(..., ge=0.0, le=1.0)
     pattern_name: Optional[str] = Field(None, description="Which pattern matched this part")

@@ -1054,11 +1054,11 @@ class DocumentProcessor:
                     'confidence': getattr(product, 'confidence', 0.0)
                 }
                 
-                # Get manufacturer_id
-                manufacturer_name = product_data.get('manufacturer_name')
+                # Get manufacturer_id (inherit from document if not specified)
+                manufacturer_name = product_data.get('manufacturer_name') or self.manufacturer
                 manufacturer_id = None
                 
-                if manufacturer_name:
+                if manufacturer_name and manufacturer_name != "AUTO":
                     try:
                         manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
                     except Exception as e:
