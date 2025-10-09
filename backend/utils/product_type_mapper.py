@@ -274,6 +274,21 @@ SERIES_PRODUCT_TYPE_MAP = {
     'MX-B Printer': 'laser_printer',
     'MX-C Printer': 'laser_printer',
     'AL Series': 'laser_printer',
+    
+    # Toshiba - Production
+    'e-STUDIO Production': 'production_printer',
+    
+    # Toshiba - MFP
+    'e-STUDIO': 'laser_multifunction',
+    'e-STUDIO Hybrid': 'laser_multifunction',
+    
+    # Toshiba - Legacy
+    'Pagelaser': 'laser_printer',
+    'PAL Series': 'laser_printer',
+    'Spot Series': 'laser_printer',
+    'T Series': 'laser_printer',
+    'TF Series': 'laser_printer',
+    'TF-P Series': 'laser_printer',
 }
 
 

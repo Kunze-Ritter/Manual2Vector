@@ -186,6 +186,13 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
             result['confidence'] = _calculate_confidence(result, context)
         return result
     
+    # Toshiba Series Detection
+    elif 'toshiba' in manufacturer_lower:
+        result = _detect_toshiba_series(model_number)
+        if result and context:
+            result['confidence'] = _calculate_confidence(result, context)
+        return result
+    
     # Generic fallback
     result = _detect_generic_series(model_number)
     if result and context:
@@ -2123,6 +2130,124 @@ def _detect_sharp_series(model_number: str) -> Optional[Dict]:
             'model_pattern': f'AL-{series_digit}xxx',
             'series_description': f'Sharp AL-{series_digit}xxx series legacy printers'
         }
+    
+    return None
+
+
+def _detect_toshiba_series(model_number: str) -> Optional[Dict]:
+    """Detect Toshiba series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
+    
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:TOSHIBA\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: e-STUDIO Series =====
+    
+    # e-STUDIO Production (High-end: 65+ ppm models like 7527AC, 6525AC)
+    match = re.match(r'^E-STUDIO\s+([6-9]\d{3})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        suffix = match.group(2)
+        if int(series_num) >= 6500:
+            return {
+                'series_name': 'e-STUDIO Production',
+                'model_pattern': 'e-STUDIO Production',
+                'series_description': 'Toshiba e-STUDIO high-end production systems (65+ ppm)'
+            }
+    
+    # e-STUDIO AC/AM/AS/CP (Office MFP with suffixes)
+    match = re.match(r'^E-STUDIO\s+(\d{4})(AC|AM|AS|CP)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        suffix = match.group(2)
+        series_digit = series_num[0]
+        
+        suffix_desc = {
+            'AC': 'color',
+            'AM': 'monochrome',
+            'AS': 'standard',
+            'CP': 'compact'
+        }.get(suffix, '')
+        
+        return {
+            'series_name': 'e-STUDIO',
+            'model_pattern': f'e-STUDIO {series_digit}xxx{suffix}',
+            'series_description': f'Toshiba e-STUDIO {series_digit}xxx{suffix} series {suffix_desc} MFPs'
+        }
+    
+    # e-STUDIO with A suffix (e-STUDIO 306, 2303A, 5008A)
+    match = re.match(r'^E-STUDIO\s+(\d{3,4})A?$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'e-STUDIO',
+            'model_pattern': f'e-STUDIO {series_digit}xxx',
+            'series_description': f'Toshiba e-STUDIO {series_digit}xxx series MFPs/printers'
+        }
+    
+    # e-STUDIO Hybrid (Paper recycling)
+    if re.match(r'^E-STUDIO\s+HYBRID', model_clean):
+        return {
+            'series_name': 'e-STUDIO Hybrid',
+            'model_pattern': 'e-STUDIO Hybrid',
+            'series_description': 'Toshiba e-STUDIO Hybrid series with paper recycling technology'
+        }
+    
+    # ===== PRIORITY 2: Legacy Series =====
+    
+    # Pagelaser series
+    match = re.match(r'^PAGELASER\s+([A-Z]{0,2}\s?\d{3})$', model_clean)
+    if match:
+        return {
+            'series_name': 'Pagelaser',
+            'model_pattern': 'Pagelaser',
+            'series_description': 'Toshiba Pagelaser series printers (legacy)'
+        }
+    
+    # PAL series
+    match = re.match(r'^PAL\s+(\d{3})$', model_clean)
+    if match:
+        return {
+            'series_name': 'PAL Series',
+            'model_pattern': 'PAL',
+            'series_description': 'Toshiba PAL series printers (legacy)'
+        }
+    
+    # Spot series
+    match = re.match(r'^SPOT\s+(\d{1})$', model_clean)
+    if match:
+        return {
+            'series_name': 'Spot Series',
+            'model_pattern': 'Spot',
+            'series_description': 'Toshiba Spot series printers (legacy)'
+        }
+    
+    # T series
+    match = re.match(r'^T-(\d{3})$', model_clean)
+    if match:
+        return {
+            'series_name': 'T Series',
+            'model_pattern': 'T',
+            'series_description': 'Toshiba T series printers (legacy)'
+        }
+    
+    # TF/TF-P series
+    match = re.match(r'^TF(-P)?\s?(\d{3})$', model_clean)
+    if match:
+        series_type = match.group(1)
+        if series_type:
+            return {
+                'series_name': 'TF-P Series',
+                'model_pattern': 'TF-P',
+                'series_description': 'Toshiba TF-P series printers (legacy)'
+            }
+        else:
+            return {
+                'series_name': 'TF Series',
+                'model_pattern': 'TF',
+                'series_description': 'Toshiba TF series printers (legacy)'
+            }
     
     return None
 
