@@ -68,13 +68,25 @@ class PipelineProcessor:
         }
         
         try:
-            # Get document info
-            doc_result = self.supabase.table('documents').select(
-                '*'
-            ).eq('id', document_id).execute()
+            # Get document info with retry logic (Supabase replication delay)
+            max_retries = 3
+            retry_delay = 2
+            doc_result = None
             
-            if not doc_result.data:
-                raise ValueError(f"Document {document_id} not found")
+            for attempt in range(max_retries):
+                doc_result = self.supabase.table('documents').select(
+                    '*'
+                ).eq('id', document_id).execute()
+                
+                if doc_result.data:
+                    break
+                
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Document not found, retrying in {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+            
+            if not doc_result or not doc_result.data:
+                raise ValueError(f"Document {document_id} not found after {max_retries} attempts")
             
             document = doc_result.data[0]
             doc_title = document.get('title', 'Unknown')
