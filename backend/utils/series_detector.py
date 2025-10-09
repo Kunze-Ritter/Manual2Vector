@@ -551,27 +551,196 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
 
 
 def _detect_ricoh_series(model_number: str) -> Optional[Dict]:
-    """Detect Ricoh series"""
-    model = model_number.upper()
+    """Detect Ricoh series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
     
-    # MP C series (MP C2004, MP C2504, etc.)
-    match = re.match(r'MP\s*C(\d{2})\d{2}', model)
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:RICOH\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production Printing =====
+    
+    # Pro C series (Pro C5300s, Pro C5310s, Pro C7500, Pro C9500, Pro C901, Pro C7200sx)
+    match = re.match(r'^PRO\s+C(\d{3,4})([A-Z]{0,2})$', model_clean)
     if match:
-        series_digit = match.group(1)
+        series_num = match.group(1)
+        series_digit = series_num[0]
         return {
-            'series_name': f'MP C{series_digit}xx Series',
-            'series_code': f'MPC{series_digit}XX',
-            'series_description': f'Ricoh MP C{series_digit} series color MFPs'
+            'series_name': 'Pro C',
+            'model_pattern': f'Pro C{series_digit}xxx',
+            'series_description': f'Ricoh Pro C{series_digit}xxx series production color systems'
         }
     
-    # MP series (MP 2555, MP 3055, etc.)
-    match = re.match(r'MP\s*(\d{2})\d{2}', model)
+    # Pro VC series - Inkjet High-speed (Pro VC80000, Pro VC70000)
+    match = re.match(r'^PRO\s+VC(\d{5})$', model_clean)
     if match:
-        series_digit = match.group(1)
         return {
-            'series_name': f'MP {series_digit}xx Series',
-            'series_code': f'MP{series_digit}XX',
-            'series_description': f'Ricoh MP {series_digit} series monochrome MFPs'
+            'series_name': 'Pro VC',
+            'model_pattern': 'Pro VC',
+            'series_description': 'Ricoh Pro VC series high-speed inkjet production printers'
+        }
+    
+    # Pro 8400 series - High-volume B&W (Pro 8420)
+    match = re.match(r'^PRO\s+(8\d{3})$', model_clean)
+    if match:
+        return {
+            'series_name': 'Pro 8',
+            'model_pattern': 'Pro 8xxx',
+            'series_description': 'Ricoh Pro 8xxx series high-volume monochrome production printers'
+        }
+    
+    # ===== PRIORITY 2: Large Format/CAD =====
+    
+    # MP W series - Wide Format (MP W6700, MP W3601)
+    match = re.match(r'^(?:AFICIO\s+)?MP\s+W(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MP W',
+            'model_pattern': f'MP W{series_digit}xxx',
+            'series_description': f'Ricoh MP W{series_digit}xxx series wide format MFPs'
+        }
+    
+    # IM CW series - Wide Format (IM CW2200)
+    match = re.match(r'^IM\s+CW(\d{4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'IM CW',
+            'model_pattern': 'IM CW',
+            'series_description': 'Ricoh IM CW series wide format MFPs'
+        }
+    
+    # ===== PRIORITY 3: IM Series (Smart MFP) =====
+    
+    # IM C series with suffix (IM C400F, IM C401F, IM C4510(A))
+    match = re.match(r'^IM\s+C(\d{3,4})([A-Z]?)\(?[A-Z]?\)?$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'IM C',
+            'model_pattern': f'IM C{series_digit}xxx',
+            'series_description': f'Ricoh IM C{series_digit}xxx series smart color MFPs'
+        }
+    
+    # IM series monochrome (IM 2500A, IM 3000A, IM 3500A, IM 2702)
+    match = re.match(r'^IM\s+(\d{4})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'IM',
+            'model_pattern': f'IM {series_digit}xxx',
+            'series_description': f'Ricoh IM {series_digit}xxx series smart monochrome MFPs'
+        }
+    
+    # ===== PRIORITY 4: MP Series (Office MFP) =====
+    
+    # MP C series with suffix (MP C2503SP, MP C501SP)
+    match = re.match(r'^MP\s+C(\d{3,4})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MP C',
+            'model_pattern': f'MP C{series_digit}xxx',
+            'series_description': f'Ricoh MP C{series_digit}xxx series color office MFPs'
+        }
+    
+    # MP series monochrome (MP 2014AD, MP 2555SP, MP 3055SP, MP 6055SP)
+    match = re.match(r'^MP\s+(\d{4})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MP',
+            'model_pattern': f'MP {series_digit}xxx',
+            'series_description': f'Ricoh MP {series_digit}xxx series monochrome office MFPs'
+        }
+    
+    # ===== PRIORITY 5: Aficio MP Series (Legacy) =====
+    
+    # Aficio MP C series (Aficio MP C2030, MP C2800, MP C3500)
+    match = re.match(r'^AFICIO\s+MP\s+C(\d{3,4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'Aficio MP C',
+            'model_pattern': f'Aficio MP C{series_digit}xxx',
+            'series_description': f'Ricoh Aficio MP C{series_digit}xxx series color MFPs (legacy)'
+        }
+    
+    # Aficio MP series monochrome (Aficio MP 171, MP 161)
+    match = re.match(r'^AFICIO\s+MP\s+(\d{3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'Aficio MP',
+            'model_pattern': f'Aficio MP {series_digit}xx',
+            'series_description': f'Ricoh Aficio MP {series_digit}xx series monochrome MFPs (legacy)'
+        }
+    
+    # ===== PRIORITY 6: SP Series (Printer) =====
+    
+    # SP C series - Color (SP C261DNw)
+    match = re.match(r'^SP\s+C(\d{3})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'SP C',
+            'model_pattern': f'SP C{series_digit}xx',
+            'series_description': f'Ricoh SP C{series_digit}xx series color printers'
+        }
+    
+    # SP series - Monochrome (SP 230DNw, SP 230SFNw, SP 311)
+    match = re.match(r'^SP\s+(\d{3})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'SP',
+            'model_pattern': f'SP {series_digit}xx',
+            'series_description': f'Ricoh SP {series_digit}xx series monochrome printers'
+        }
+    
+    # ===== PRIORITY 7: P Series (Modern Printer) =====
+    
+    # P C series - Color (P C200W)
+    match = re.match(r'^P\s+C(\d{3})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'P C',
+            'model_pattern': f'P C{series_digit}xx',
+            'series_description': f'Ricoh P C{series_digit}xx series modern color printers'
+        }
+    
+    # P series - Monochrome (P 502)
+    match = re.match(r'^P\s+(\d{3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'P',
+            'model_pattern': f'P {series_digit}xx',
+            'series_description': f'Ricoh P {series_digit}xx series modern monochrome printers'
+        }
+    
+    # ===== PRIORITY 8: Aficio SG Series (GelJet) =====
+    
+    # Aficio SG series (SG 2100N, SG 3110DN, SG 3100SNw)
+    match = re.match(r'^(?:AFICIO\s+)?SG\s+(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'Aficio SG',
+            'model_pattern': f'Aficio SG {series_digit}xxx',
+            'series_description': f'Ricoh Aficio SG {series_digit}xxx series GelJet printers'
         }
     
     return None

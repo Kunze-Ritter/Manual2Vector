@@ -81,15 +81,27 @@ SERIES_PRODUCT_TYPE_MAP = {
     'PrimeLink': 'production_printer',
     'Color C': 'production_printer',
     
-    # Ricoh - MFP/Printer
-    'Aficio': 'laser_multifunction',
-    'MP': 'laser_multifunction',
-    'IM': 'laser_multifunction',
-    'SP': 'laser_printer',
-    
     # Ricoh - Production
     'Pro C': 'production_printer',
+    'Pro VC': 'production_printer',
     'Pro 8': 'production_printer',
+    
+    # Ricoh - MFP
+    'IM C': 'laser_multifunction',
+    'IM': 'laser_multifunction',
+    'IM CW': 'inkjet_plotter',
+    'MP C': 'laser_multifunction',
+    'MP': 'laser_multifunction',
+    'MP W': 'inkjet_plotter',
+    'Aficio MP C': 'laser_multifunction',
+    'Aficio MP': 'laser_multifunction',
+    
+    # Ricoh - Printer
+    'SP C': 'laser_printer',
+    'SP': 'laser_printer',
+    'P C': 'laser_printer',
+    'P': 'laser_printer',
+    'Aficio SG': 'inkjet_printer',
     
     # Brother - Laser
     'MFC': 'laser_multifunction',
