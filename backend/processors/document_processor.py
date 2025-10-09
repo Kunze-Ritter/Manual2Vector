@@ -1706,27 +1706,45 @@ class DocumentProcessor:
                 'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
             }
             
-            # Check if document already exists
-            existing = supabase.table('documents').select('id').eq(
-                'id', str(document_id)
-            ).execute()
-            
-            if existing.data:
-                # Update existing
-                supabase.table('documents').update(document_data).eq(
+            # Use RPC function to bypass PostgREST schema cache issues
+            try:
+                result = supabase.rpc('upsert_document', {
+                    'p_document_id': str(document_id),
+                    'p_filename': document_data['filename'],
+                    'p_original_filename': document_data['original_filename'],
+                    'p_file_size': document_data['file_size'],
+                    'p_storage_path': document_data['storage_path'],
+                    'p_document_type': document_data['document_type'],
+                    'p_language': document_data['language'],
+                    'p_page_count': document_data['page_count'],
+                    'p_word_count': document_data['word_count'],
+                    'p_character_count': document_data['character_count'],
+                    'p_processing_status': document_data['processing_status'],
+                    'p_processing_results': document_data['processing_results'],
+                    'p_manufacturer': document_data['manufacturer'],
+                    'p_manufacturer_id': document_data['manufacturer_id']
+                }).execute()
+                self.logger.success(f"✅ Saved document to database via RPC")
+            except Exception as rpc_error:
+                # Fallback to direct table access (without manufacturer_id)
+                self.logger.warning(f"RPC upsert failed, using fallback: {rpc_error}")
+                document_data_fallback = {k: v for k, v in document_data.items() if k != 'manufacturer_id'}
+                
+                existing = supabase.table('documents').select('id').eq(
                     'id', str(document_id)
                 ).execute()
-                self.logger.success(f"✅ Updated document in database")
-            else:
-                # Insert new
-                supabase.table('documents').insert(document_data).execute()
-                self.logger.success(f"✅ Saved document to database")
+                
+                if existing.data:
+                    supabase.table('documents').update(document_data_fallback).eq(
+                        'id', str(document_id)
+                    ).execute()
+                else:
+                    supabase.table('documents').insert(document_data_fallback).execute()
+                
+                self.logger.success(f"✅ Saved document to database (fallback, without manufacturer_id)")
                 
         except Exception as e:
             self.logger.error(f"Failed to save document to database: {e}")
-
-
-# Convenience function
 def process_pdf(
     pdf_path: Path,
     manufacturer: str = "HP",
