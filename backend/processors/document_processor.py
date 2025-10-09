@@ -1411,24 +1411,48 @@ class DocumentProcessor:
                 
                 # USE RPC FUNCTION to bypass PostgREST schema cache!
                 # Direct INSERT via PostgREST fails due to cache issues
-                result = supabase.rpc('insert_error_code', {
-                    'p_document_id': str(document_id),
-                    'p_manufacturer_id': manufacturer_id,
-                    'p_error_code': ec_data.get('error_code'),
-                    'p_error_description': ec_data.get('error_description'),
-                    'p_solution_text': ec_data.get('solution_text'),
-                    'p_confidence_score': ec_data.get('confidence', 0.8),
-                    'p_page_number': ec_data.get('page_number'),
-                    'p_severity_level': ec_data.get('severity_level', 'medium'),
-                    'p_extraction_method': ec_data.get('extraction_method', 'regex_pattern'),
-                    'p_requires_technician': ec_data.get('requires_technician', False),
-                    'p_requires_parts': ec_data.get('requires_parts', False),
-                    'p_context_text': ec_data.get('context_text'),
-                    'p_metadata': metadata
-                }).execute()
+                # Retry on network errors (gateway errors, timeouts)
+                max_retries = 3
+                retry_delay = 2
                 
-                if result.data:
-                    saved_count += 1
+                for attempt in range(max_retries):
+                    try:
+                        result = supabase.rpc('insert_error_code', {
+                            'p_document_id': str(document_id),
+                            'p_manufacturer_id': manufacturer_id,
+                            'p_error_code': ec_data.get('error_code'),
+                            'p_error_description': ec_data.get('error_description'),
+                            'p_solution_text': ec_data.get('solution_text'),
+                            'p_confidence_score': ec_data.get('confidence', 0.8),
+                            'p_page_number': ec_data.get('page_number'),
+                            'p_severity_level': ec_data.get('severity_level', 'medium'),
+                            'p_extraction_method': ec_data.get('extraction_method', 'regex_pattern'),
+                            'p_requires_technician': ec_data.get('requires_technician', False),
+                            'p_requires_parts': ec_data.get('requires_parts', False),
+                            'p_context_text': ec_data.get('context_text'),
+                            'p_metadata': metadata
+                        }).execute()
+                        
+                        if result.data:
+                            saved_count += 1
+                        break  # Success, exit retry loop
+                        
+                    except Exception as retry_error:
+                        error_msg = str(retry_error)
+                        # Check if it's a network/gateway error
+                        if ('gateway error' in error_msg.lower() or 
+                            'network connection' in error_msg.lower() or
+                            'timeout' in error_msg.lower()):
+                            if attempt < max_retries - 1:
+                                self.logger.warning(f"⚠️  Network error, retrying in {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+                                time.sleep(retry_delay)
+                                continue
+                            else:
+                                self.logger.error(f"❌ Failed after {max_retries} attempts: {error_msg}")
+                                raise
+                        else:
+                            # Not a network error, don't retry
+                            raise
             
             if skipped_duplicates > 0:
                 self.logger.info(f"⏭️  Skipped {skipped_duplicates} duplicate error codes")
