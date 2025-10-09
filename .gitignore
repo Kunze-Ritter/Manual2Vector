@@ -32,7 +32,8 @@ venv.bak/
 .venv/
 
 # Environment Variables
-.env  # CRITICAL: Never commit secrets!
+# .env is tracked with placeholder values (safe)
+# .env.local overrides .env with real secrets (not tracked)
 .env.local
 .env.development.local
 .env.test.local
