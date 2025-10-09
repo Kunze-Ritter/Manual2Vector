@@ -537,10 +537,15 @@ class DocumentProcessor:
             
             # Analyze video thumbnails with OCR and Vision AI
             if videos:
-                self.logger.info(f"Analyzing {len(videos)} video thumbnails...")
+                self.logger.info(f"   → Analyzing {len(videos)} video thumbnails...")
                 analyzed_count = 0
-                for video in videos:
+                failed_count = 0
+                
+                for idx, video in enumerate(videos, 1):
+                    video_title = video.get('title', video.get('youtube_id', 'Unknown'))[:50]
                     try:
+                        self.logger.info(f"      [{idx}/{len(videos)}] {video_title}...")
+                        
                         analyzed_video = self.link_extractor.analyze_video_thumbnail(
                             video_metadata=video,
                             enable_ocr=True,
@@ -551,11 +556,16 @@ class DocumentProcessor:
                         
                         if 'thumbnail_ai_description' in analyzed_video or 'thumbnail_ocr_text' in analyzed_video:
                             analyzed_count += 1
+                            self.logger.success(f"      ✅ [{idx}/{len(videos)}] Analysis complete")
+                        else:
+                            self.logger.info(f"      ⚠️  [{idx}/{len(videos)}] No text/description found")
                     except Exception as e:
-                        self.logger.debug(f"Thumbnail analysis failed for video {video.get('youtube_id')}: {e}")
+                        failed_count += 1
+                        self.logger.warning(f"      ❌ [{idx}/{len(videos)}] Analysis failed: {e}")
                 
+                # Summary
                 if analyzed_count > 0:
-                    self.logger.success(f"✅ Analyzed {analyzed_count}/{len(videos)} video thumbnails")
+                    self.logger.success(f"   ✅ Video thumbnail analysis: {analyzed_count} successful, {failed_count} failed, {len(videos) - analyzed_count - failed_count} skipped")
             
             if links:
                 self.logger.success(f"Extracted {len(links)} links ({len(videos)} videos)")
