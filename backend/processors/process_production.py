@@ -167,13 +167,18 @@ def main():
     print("  🚀 STARTING PRODUCTION PROCESSING")
     print("="*80)
     
+    # Read R2 upload settings from .env
+    upload_images = os.getenv('UPLOAD_IMAGES_TO_R2', 'false').lower() == 'true'
+    upload_documents = os.getenv('UPLOAD_DOCUMENTS_TO_R2', 'false').lower() == 'true'
+    
     pipeline = MasterPipeline(
         supabase_client=supabase,
         manufacturer="AUTO",  # Auto-detect manufacturer
         enable_images=True,          # Extract images
         enable_ocr=True,              # OCR on images
         enable_vision=True,           # Vision AI analysis
-        enable_r2_storage=enable_r2,  # Upload to R2 (if configured)
+        upload_images_to_r2=upload_images,      # Upload images to R2 (from .env)
+        upload_documents_to_r2=upload_documents,  # Upload PDFs to R2 (from .env)
         enable_embeddings=True,       # Generate embeddings
         max_retries=2
     )

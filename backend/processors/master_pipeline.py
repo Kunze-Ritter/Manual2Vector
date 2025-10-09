@@ -50,7 +50,8 @@ class MasterPipeline:
         enable_images: bool = True,
         enable_ocr: bool = True,
         enable_vision: bool = True,
-        enable_r2_storage: bool = False,  # Images to R2
+        upload_images_to_r2: bool = False,  # Images to R2
+        upload_documents_to_r2: bool = False,  # PDFs to R2
         enable_embeddings: bool = True,
         max_retries: int = 2
     ):
@@ -63,7 +64,8 @@ class MasterPipeline:
             enable_images: Enable image extraction
             enable_ocr: Enable OCR on images
             enable_vision: Enable Vision AI
-            enable_r2_storage: Enable R2 storage for images
+            upload_images_to_r2: Upload extracted images to R2 storage
+            upload_documents_to_r2: Upload original PDFs to R2 storage
             enable_embeddings: Enable embedding generation
             max_retries: Maximum retries per stage on failure
         """
@@ -76,7 +78,8 @@ class MasterPipeline:
         self.enable_images = enable_images
         self.enable_ocr = enable_ocr
         self.enable_vision = enable_vision
-        self.enable_r2_storage = enable_r2_storage
+        self.upload_images_to_r2 = upload_images_to_r2
+        self.upload_documents_to_r2 = upload_documents_to_r2
         self.enable_embeddings = enable_embeddings
         
         # Initialize processors
@@ -111,7 +114,8 @@ class MasterPipeline:
         self.logger.info(f"  Image Processing: {'[ON]' if self.enable_images else '[OFF]'}")
         self.logger.info(f"  OCR: {'[ON]' if self.enable_ocr else '[OFF]'}")
         self.logger.info(f"  Vision AI: {'[ON]' if self.enable_vision else '[OFF]'}")
-        self.logger.info(f"  R2 Storage: {'[ON]' if self.enable_r2_storage else '[OFF]'}")
+        self.logger.info(f"  Upload Images to R2: {'[ON]' if self.upload_images_to_r2 else '[OFF]'}")
+        self.logger.info(f"  Upload Documents to R2: {'[ON]' if self.upload_documents_to_r2 else '[OFF]'}")
         self.logger.info(f"  Embeddings: {'[ON]' if self.enable_embeddings else '[OFF]'}")
     
     def process_document(
@@ -191,7 +195,7 @@ class MasterPipeline:
             # ==========================================
             # STAGE 8: Image Storage (Optional)
             # ==========================================
-            if self.enable_r2_storage and images:
+            if self.upload_images_to_r2 and images:
                 stage_result = self._run_stage(
                     stage_name="image_storage",
                     stage_func=lambda: self.document_processor.upload_images_to_storage(
