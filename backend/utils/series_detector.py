@@ -503,8 +503,9 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
     
     # ===== PRIORITY 3: AccurioPress (High-end production) =====
     # C + 4-5 digits (C1060, C3070, C3080, C4070, C4080, C6085, C6100, C7090, C7100, C12000, C14000, C16000)
+    # Also includes C74hc, C84hc (high capacity models)
     # Excludes C2060, C2070, C4065 which are AccurioPrint
-    if re.match(r'^C(1[0246][0-9]{2,3}|3[0-9]{3}|4[0-9]{3}|6[01][0-9]{2}|70[79]0|71[0]0)[LNPX]?$', model_clean):
+    if re.match(r'^C(1[0246][0-9]{2,3}|3[0-9]{3}|4[0-9]{3}|6[01][0-9]{2}|70[79]0|71[0]0|[78]4hc)[LNPX]?$', model_clean, re.IGNORECASE):
         # Double-check it's not an AccurioPrint model
         if not re.match(r'^C(2060|2070|4065)[LP]?$', model_clean):
             return {
