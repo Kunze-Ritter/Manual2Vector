@@ -517,7 +517,7 @@ class DocumentProcessor:
             
             if image_result['success']:
                 images = image_result['images']
-                self.logger.success(f"Extracted {len(images)} images")
+                self.logger.success(f"✅ Image processing complete: {len(images)} images ready")
                 
                 # Save images to database (without R2 upload)
                 if images:

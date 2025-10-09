@@ -176,24 +176,24 @@ class ImageProcessor:
             # Extract images
             extracted_images = self._extract_images(pdf_path, output_dir)
             
-            self.logger.info(f"Extracted {len(extracted_images)} images")
+            self.logger.info(f"   → Extracted {len(extracted_images)} raw images from PDF")
             
             # Filter images (skip logos, headers, etc.)
             filtered_images = self._filter_images(extracted_images)
             
-            self.logger.info(f"Filtered to {len(filtered_images)} relevant images")
+            self.logger.info(f"   → Filtered to {len(filtered_images)} relevant images (removed {len(extracted_images) - len(filtered_images)} logos/headers)")
             
             # Classify images
             classified_images = self._classify_images(filtered_images)
             
             # OCR if enabled
             if self.ocr_available and self.enable_ocr:
-                self.logger.info("Running OCR on images...")
+                self.logger.info("   → Running OCR on images...")
                 classified_images = self._run_ocr(classified_images)
             
             # Vision AI if enabled
             if self.vision_available and self.enable_vision:
-                self.logger.info("Running Vision AI analysis...")
+                self.logger.info("   → Running Vision AI analysis...")
                 classified_images = self._run_vision_ai(classified_images)
             
             # Complete stage tracking
