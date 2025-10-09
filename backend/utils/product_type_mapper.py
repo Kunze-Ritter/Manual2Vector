@@ -334,8 +334,8 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
         if key.lower() in series_lower or series_lower in key.lower():
             return value
     
-    # Default fallback
-    return 'multifunction'
+    # Default fallback (assume laser MFP for unknown models)
+    return 'laser_multifunction'
 
 
 if __name__ == '__main__':
