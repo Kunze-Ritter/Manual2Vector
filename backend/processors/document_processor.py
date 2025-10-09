@@ -218,7 +218,7 @@ class DocumentProcessor:
                         detected_manufacturer = canonical_name
                     
                     self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
-                    self.logger.info(f"   Confidence score: {score} ({', '.join(sources)})")
+                    self.logger.info(f"   Confidence score: {score} from {', '.join(sources)}")
                     
                     # Confidence levels based on score
                     if score >= 18:  # Filename + Author + Title
