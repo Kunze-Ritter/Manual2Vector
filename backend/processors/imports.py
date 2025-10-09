@@ -20,40 +20,19 @@ def get_supabase_client():
     """Create and return Supabase client"""
     from supabase import create_client
     import os
-    from dotenv import load_dotenv
+    from .env_loader import load_all_env_files
     
-    # Find project root (where .env is located)
-    # Try multiple locations to be robust
-    project_root = backend_dir.parent  # Default: backend/../
-    env_path = project_root / '.env'
-    
-    # If .env not found, search upwards
-    if not env_path.exists():
-        current = Path.cwd()
-        for _ in range(5):  # Search up to 5 levels
-            test_path = current / '.env'
-            if test_path.exists():
-                env_path = test_path
-                project_root = current
-                break
-            current = current.parent
-    
-    # Load environment
-    if env_path.exists():
-        load_dotenv(env_path, override=True)
-    else:
-        # Try loading from current directory as fallback
-        load_dotenv(override=True)
+    # Load all .env.* files (automatically finds project root)
+    load_all_env_files()
     
     supabase_url = os.getenv('SUPABASE_URL')
     supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
     
     if not supabase_url or not supabase_key:
         raise ValueError(
-            f"SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env\n"
-            f"Searched for .env in: {env_path}\n"
+            f"SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env files\n"
             f"Current directory: {Path.cwd()}\n"
-            f"Project root: {project_root}"
+            f"Make sure .env.database exists in project root"
         )
     
     return create_client(supabase_url, supabase_key)

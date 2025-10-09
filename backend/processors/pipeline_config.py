@@ -7,10 +7,10 @@ consistent skip/enable logging across all processors.
 
 import os
 from typing import Dict, Any
-from dotenv import load_dotenv
+from .env_loader import load_all_env_files
 
-# Load environment
-load_dotenv()
+# Load all .env.* files
+load_all_env_files()
 
 
 class PipelineConfig:
