@@ -18,22 +18,34 @@ SERIES_PRODUCT_TYPE_MAP = {
     # HP - Laser (Toner)
     'LaserJet': 'laser_printer',
     'LaserJet Pro': 'laser_printer',
+    'LaserJet Pro MFP': 'laser_multifunction',
     'LaserJet Enterprise': 'laser_printer',
+    'LaserJet Enterprise MFP': 'laser_multifunction',
     'LaserJet Managed': 'laser_printer',
     'Color LaserJet': 'laser_printer',
     'Color LaserJet Pro': 'laser_printer',
+    'Color LaserJet Pro MFP': 'laser_multifunction',
     'Color LaserJet Enterprise': 'laser_printer',
+    'Laser MFP': 'laser_multifunction',
     
     # HP - Inkjet (Tinte)
+    'DeskJet': 'inkjet_printer',
+    'DeskJet Plus': 'inkjet_multifunction',
+    'ENVY': 'inkjet_multifunction',
+    'ENVY Inspire': 'inkjet_multifunction',
+    'ENVY Photo': 'inkjet_multifunction',
+    'Smart Tank': 'inkjet_printer',
+    'Smart Tank Plus': 'inkjet_multifunction',
     'OfficeJet': 'inkjet_multifunction',
     'OfficeJet Pro': 'inkjet_multifunction',
     'PageWide': 'inkjet_multifunction',
     'PageWide Pro': 'inkjet_multifunction',
     'PageWide Enterprise': 'inkjet_multifunction',
     
-    # HP - Plotter
+    # HP - Production & Plotter
     'DesignJet': 'inkjet_plotter',
     'Latex': 'latex_plotter',
+    'Indigo Digital Press': 'production_printer',
     'Scitex': 'production_printer',
     
     # Canon - MFP/Printer
@@ -89,33 +101,50 @@ SERIES_PRODUCT_TYPE_MAP = {
     'DCP-J': 'inkjet_multifunction',
     
     # Lexmark - MFP (multifunction)
-    'MX': 'laser_multifunction',
-    'CX': 'laser_multifunction',
-    'XC': 'laser_multifunction',
-    'XM': 'laser_multifunction',
-    'MB': 'laser_multifunction',
-    'MC': 'laser_multifunction',
-    'M': 'laser_multifunction',
-    'X': 'laser_multifunction',
+    'MX Series': 'laser_multifunction',
+    'CX Series': 'laser_multifunction',
+    'XC Series': 'laser_multifunction',
+    'XM Series': 'laser_multifunction',
+    'MB Series': 'laser_multifunction',
+    'MC Series': 'laser_multifunction',
     
     # Lexmark - Printer
-    'MS': 'laser_printer',
-    'CS': 'laser_printer',
-    'B': 'laser_printer',
-    'C': 'laser_printer',
+    'MS Series': 'laser_printer',
+    'CS Series': 'laser_printer',
+    'B Series': 'laser_printer',
+    'C Series': 'laser_printer',
+    
+    # Lexmark - Production
+    'Enterprise Production': 'production_printer',
+    'Enterprise Color': 'laser_multifunction',
+    
+    # Lexmark - Legacy
+    'Interpret S400 Series': 'inkjet_printer',
+    'Plus Matrix Series': 'dot_matrix_printer',
+    
+    # Kyocera - Production
+    'TASKalfa Pro': 'production_printer',
     
     # Kyocera - MFP
     'TASKalfa': 'laser_multifunction',
-    'TASKalfa Pro': 'laser_multifunction',
     'ECOSYS M': 'laser_multifunction',
+    'ECOSYS MA': 'laser_multifunction',
+    'FS-Series MFP': 'laser_multifunction',
+    'KM-Series': 'laser_multifunction',
     
     # Kyocera - Printer
     'ECOSYS': 'laser_printer',
     'ECOSYS P': 'laser_printer',
-    'FS': 'laser_printer',
+    'ECOSYS PA': 'laser_printer',
+    'FS-Series': 'laser_printer',
+    'TC-Series': 'laser_printer',
+    'F-Series': 'laser_printer',
+    'DC-Series': 'laser_printer',
+    'DP-Series': 'laser_printer',
     
-    # Utax (TA Triumph-Adler) - MFP
-    'Utax': 'laser_multifunction',
+    # UTAX (TA Triumph-Adler) - MFP
+    'P-Series MFP': 'laser_multifunction',
+    'CDC Series': 'laser_multifunction',
     '2506ci': 'laser_multifunction',
     '3206ci': 'laser_multifunction',
     '4006ci': 'laser_multifunction',
@@ -124,9 +153,11 @@ SERIES_PRODUCT_TYPE_MAP = {
     '7006ci': 'laser_multifunction',
     '8006ci': 'laser_multifunction',
     
-    # Utax - Printer
-    'P-C': 'laser_printer',
-    'P-': 'laser_printer',
+    # UTAX - Printer
+    'P-Series': 'laser_printer',
+    'LP-Series': 'laser_printer',
+    'CDP Series': 'laser_printer',
+    'CD Series': 'laser_printer',
     
     # Epson
     'WorkForce': 'inkjet_multifunction',
