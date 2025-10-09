@@ -170,6 +170,27 @@ SERIES_PRODUCT_TYPE_MAP = {
     'MPS': 'laser_multifunction',
     'C': 'laser_printer',
     'B': 'laser_printer',
+    
+    # Fujifilm - Production
+    'Revoria Press': 'production_printer',
+    'JetPress': 'production_printer',
+    'ApeosPro': 'production_printer',
+    
+    # Fujifilm - MFP
+    'ApeosPort-VII': 'laser_multifunction',
+    'ApeosPort': 'laser_multifunction',
+    'Apeos': 'laser_multifunction',
+    'DocuCentre': 'laser_multifunction',
+    
+    # Fujifilm - Printer
+    'ApeosPrint': 'laser_printer',
+    'DocuPrint': 'laser_printer',
+    
+    # Fujifilm - Photo
+    'INSTAX mini Link': 'dye_sublimation_printer',
+    'INSTAX SQUARE Link': 'dye_sublimation_printer',
+    'INSTAX Link Wide': 'dye_sublimation_printer',
+    'INSTAX': 'dye_sublimation_printer',
 }
 
 

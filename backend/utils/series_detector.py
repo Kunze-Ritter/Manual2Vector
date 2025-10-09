@@ -151,6 +151,13 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
             result['confidence'] = _calculate_confidence(result, context)
         return result
     
+    # Fujifilm Series Detection (Xerox successor in Asia/Japan)
+    elif 'fujifilm' in manufacturer_lower or 'fuji' in manufacturer_lower or 'xerox' in manufacturer_lower:
+        result = _detect_fujifilm_series(model_number)
+        if result and context:
+            result['confidence'] = _calculate_confidence(result, context)
+        return result
+    
     # Generic fallback
     result = _detect_generic_series(model_number)
     if result and context:
@@ -1033,6 +1040,157 @@ def _detect_utax_series(model_number: str) -> Optional[Dict]:
             'series_name': f'{series_digit}xxxci Series',
             'model_pattern': f'{series_digit}xxxci',
             'series_description': f'UTAX {series_digit}xxxci series color MFPs (Kyocera-based)'
+        }
+    
+    return None
+
+
+def _detect_fujifilm_series(model_number: str) -> Optional[Dict]:
+    """Detect Fujifilm series - Returns marketing name + technical pattern
+    
+    Fujifilm is the Xerox successor in Asia/Japan (formerly Fuji Xerox)
+    """
+    model = model_number.upper().strip()
+    
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:FUJIFILM\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production Systems =====
+    
+    # Revoria Press (SC285(S), EC2100(S), PC1120(S))
+    match = re.match(r'^REVORIA\s+PRESS\s+([SEMP]C)(\d{3,4})\(?S?\)?$', model_clean)
+    if match:
+        series_prefix = match.group(1)  # SC, EC, MC, PC
+        return {
+            'series_name': 'Revoria Press',
+            'model_pattern': f'Revoria Press {series_prefix}',
+            'series_description': f'Fujifilm Revoria Press {series_prefix} series high-end production systems'
+        }
+    
+    # JetPress (750S)
+    match = re.match(r'^JETPRESS\s+(\d{3,4})S?$', model_clean)
+    if match:
+        return {
+            'series_name': 'JetPress',
+            'model_pattern': 'JetPress',
+            'series_description': 'Fujifilm JetPress inkjet SRA3 production printer'
+        }
+    
+    # ===== PRIORITY 2: ApeosPro (Light Production) =====
+    
+    # ApeosPro C Series (C810, C750, C650)
+    match = re.match(r'^APEOSPRO\s+C(\d{3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ApeosPro',
+            'model_pattern': f'ApeosPro C{series_digit}xx',
+            'series_description': f'Fujifilm ApeosPro C{series_digit}xx series light production color systems'
+        }
+    
+    # ===== PRIORITY 3: Apeos/ApeosPort (MFP) =====
+    
+    # ApeosPort-VII (ApeosPort-VII C4473)
+    match = re.match(r'^APEOSPORT-VII\s+C(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ApeosPort-VII',
+            'model_pattern': f'ApeosPort-VII C{series_digit}xxx',
+            'series_description': f'Fujifilm ApeosPort-VII C{series_digit}xxx series color MFPs'
+        }
+    
+    # ApeosPort (general)
+    match = re.match(r'^APEOSPORT\s+C(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ApeosPort',
+            'model_pattern': f'ApeosPort C{series_digit}xxx',
+            'series_description': f'Fujifilm ApeosPort C{series_digit}xxx series color MFPs'
+        }
+    
+    # Apeos MFP (C3060, C3070)
+    match = re.match(r'^APEOS\s+C(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'Apeos',
+            'model_pattern': f'Apeos C{series_digit}xxx',
+            'series_description': f'Fujifilm Apeos C{series_digit}xxx series color MFPs'
+        }
+    
+    # ===== PRIORITY 4: ApeosPrint (Printer) =====
+    
+    # ApeosPrint (C325, C4030)
+    match = re.match(r'^APEOSPRINT\s+C(\d{3,4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ApeosPrint',
+            'model_pattern': f'ApeosPrint C{series_digit}xx',
+            'series_description': f'Fujifilm ApeosPrint C{series_digit}xx series color printers'
+        }
+    
+    # ===== PRIORITY 5: INSTAX (Photo Printers) =====
+    
+    # INSTAX mini Link
+    if re.match(r'^INSTAX\s+MINI\s+LINK', model_clean):
+        return {
+            'series_name': 'INSTAX mini Link',
+            'model_pattern': 'INSTAX mini Link',
+            'series_description': 'Fujifilm INSTAX mini Link compact photo printer'
+        }
+    
+    # INSTAX SQUARE Link
+    if re.match(r'^INSTAX\s+SQUARE\s+LINK', model_clean):
+        return {
+            'series_name': 'INSTAX SQUARE Link',
+            'model_pattern': 'INSTAX SQUARE Link',
+            'series_description': 'Fujifilm INSTAX SQUARE Link compact photo printer'
+        }
+    
+    # INSTAX Link Wide
+    if re.match(r'^INSTAX\s+LINK\s+WIDE', model_clean):
+        return {
+            'series_name': 'INSTAX Link Wide',
+            'model_pattern': 'INSTAX Link Wide',
+            'series_description': 'Fujifilm INSTAX Link Wide compact photo printer'
+        }
+    
+    # INSTAX (generic)
+    if re.match(r'^INSTAX', model_clean):
+        return {
+            'series_name': 'INSTAX',
+            'model_pattern': 'INSTAX',
+            'series_description': 'Fujifilm INSTAX compact photo printer'
+        }
+    
+    # ===== PRIORITY 6: Legacy DocuPrint/DocuCentre (Xerox-based) =====
+    
+    # DocuPrint (CP505)
+    match = re.match(r'^DOCUPRINT\s+([A-Z]{2})(\d{3})$', model_clean)
+    if match:
+        series_prefix = match.group(1)
+        return {
+            'series_name': 'DocuPrint',
+            'model_pattern': f'DocuPrint {series_prefix}',
+            'series_description': f'Fujifilm DocuPrint {series_prefix} series (Xerox-based legacy)'
+        }
+    
+    # DocuCentre
+    match = re.match(r'^DOCUCENTRE\s+([A-Z]{1,2})(\d{3,4})$', model_clean)
+    if match:
+        series_prefix = match.group(1)
+        return {
+            'series_name': 'DocuCentre',
+            'model_pattern': f'DocuCentre {series_prefix}',
+            'series_description': f'Fujifilm DocuCentre {series_prefix} series MFPs (Xerox-based legacy)'
         }
     
     return None
