@@ -1100,7 +1100,7 @@ class DocumentProcessor:
                 else:
                     # Create new product
                     # Determine product_type from series_name + model_number
-                    product_type = 'multifunction'  # Default fallback
+                    product_type = 'laser_multifunction'  # Default fallback (changed from 'multifunction')
                     if product_data.get('series_name'):
                         from utils.product_type_mapper import get_product_type
                         detected_type = get_product_type(
