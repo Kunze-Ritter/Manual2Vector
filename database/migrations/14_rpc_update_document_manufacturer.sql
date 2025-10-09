@@ -3,8 +3,9 @@
 -- =====================================================
 -- Bypasses PostgREST schema cache issues
 -- Similar to insert_error_code RPC function
+-- IMPORTANT: Must be in 'public' schema for PostgREST to find it!
 
-CREATE OR REPLACE FUNCTION krai_core.update_document_manufacturer(
+CREATE OR REPLACE FUNCTION public.update_document_manufacturer(
     p_document_id UUID,
     p_manufacturer TEXT,
     p_manufacturer_id UUID
@@ -30,9 +31,10 @@ END;
 $$;
 
 -- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION krai_core.update_document_manufacturer TO authenticated;
-GRANT EXECUTE ON FUNCTION krai_core.update_document_manufacturer TO service_role;
+GRANT EXECUTE ON FUNCTION public.update_document_manufacturer TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_document_manufacturer TO service_role;
+GRANT EXECUTE ON FUNCTION public.update_document_manufacturer TO anon;
 
 -- Add comment
-COMMENT ON FUNCTION krai_core.update_document_manufacturer IS 
+COMMENT ON FUNCTION public.update_document_manufacturer IS 
 'Updates document manufacturer information. Bypasses PostgREST schema cache issues.';
