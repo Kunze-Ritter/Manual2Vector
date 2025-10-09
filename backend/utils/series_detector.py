@@ -156,6 +156,22 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
     """Detect Konica Minolta series - Returns marketing name + technical pattern"""
     model = model_number.upper()
     
+    # AccurioPress C4080, C4070, C84hc, C74hc (high-end production printers)
+    if re.match(r'C(40[78]0|[78]4HC)', model):
+        return {
+            'series_name': 'AccurioPress',  # Marketing name
+            'model_pattern': 'C40xx/C8xhc',  # Technical pattern
+            'series_description': 'Konica Minolta AccurioPress high-end production color printers'
+        }
+    
+    # AccurioPrint C4065, C4065P (production printers)
+    if re.match(r'C4065P?', model):
+        return {
+            'series_name': 'AccurioPrint',  # Marketing name
+            'model_pattern': 'C4065',  # Technical pattern
+            'series_description': 'Konica Minolta AccurioPrint production color printers'
+        }
+    
     # bizhub C series (C454e, C554e, C654e, etc.)
     match = re.match(r'C(\d)(\d{2})', model)
     if match:
