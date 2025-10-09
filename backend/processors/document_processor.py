@@ -507,6 +507,10 @@ class DocumentProcessor:
             if image_result['success']:
                 images = image_result['images']
                 self.logger.success(f"Extracted {len(images)} images")
+                
+                # Save images to database (without R2 upload)
+                if images:
+                    self._save_images_to_db(document_id, images)
             else:
                 self.logger.warning(f"Image extraction failed: {image_result.get('error')}")
             
@@ -1419,6 +1423,103 @@ class DocumentProcessor:
                 self.logger.error(f"Failed to save error codes: {e}")
                 import traceback
                 self.logger.debug(traceback.format_exc())
+    
+    def _save_images_to_db(self, document_id: UUID, images: List[Dict]):
+        """
+        Save extracted images to database (without R2 upload)
+        
+        Args:
+            document_id: Document UUID
+            images: List of image dicts with metadata
+        """
+        try:
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
+            import hashlib
+            from datetime import datetime
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping image storage")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            saved_count = 0
+            skipped_count = 0
+            
+            for img in images:
+                try:
+                    # Calculate file hash for deduplication
+                    file_path = img.get('path')
+                    if not file_path or not Path(file_path).exists():
+                        continue
+                    
+                    with open(file_path, 'rb') as f:
+                        file_hash = hashlib.sha256(f.read()).hexdigest()
+                    
+                    # Check if image already exists
+                    existing = supabase.table('images') \
+                        .select('id') \
+                        .eq('file_hash', file_hash) \
+                        .limit(1) \
+                        .execute()
+                    
+                    if existing.data:
+                        skipped_count += 1
+                        continue
+                    
+                    # Prepare image record
+                    image_record = {
+                        'document_id': str(document_id),
+                        'page_number': img.get('page_num'),
+                        'image_index': img.get('image_index', 0),
+                        'filename': Path(file_path).name,
+                        'file_hash': file_hash,
+                        'image_type': img.get('type', 'diagram'),
+                        'width_px': img.get('width'),
+                        'height_px': img.get('height'),
+                        'file_size_bytes': Path(file_path).stat().st_size if Path(file_path).exists() else 0,
+                        'storage_url': None,  # No R2 upload yet
+                        'storage_path': None,
+                        'extracted_at': datetime.utcnow().isoformat()
+                    }
+                    
+                    # Add optional fields
+                    if img.get('ai_description'):
+                        image_record['ai_description'] = img['ai_description']
+                    if img.get('ai_confidence'):
+                        image_record['ai_confidence'] = img['ai_confidence']
+                    if img.get('ocr_text'):
+                        image_record['ocr_text'] = img['ocr_text']
+                    if img.get('ocr_confidence'):
+                        image_record['ocr_confidence'] = img['ocr_confidence']
+                    if img.get('contains_text') is not None:
+                        image_record['contains_text'] = img['contains_text']
+                    
+                    # Insert into database
+                    result = supabase.table('images').insert(image_record).execute()
+                    
+                    if result.data:
+                        saved_count += 1
+                        
+                except Exception as img_error:
+                    self.logger.debug(f"Failed to save image {img.get('path')}: {img_error}")
+                    continue
+            
+            if saved_count > 0:
+                self.logger.success(f"💾 Saved {saved_count} images to database")
+            if skipped_count > 0:
+                self.logger.info(f"⏭️  Skipped {skipped_count} duplicate images")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to save images to database: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
     
     def _calculate_statistics(
         self,
