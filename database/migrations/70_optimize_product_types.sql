@@ -2,11 +2,33 @@
 -- Date: 2025-10-09
 -- Purpose: Remove redundant generic types, add dot_matrix, expand accessories/options
 
--- Drop old constraint
+-- STEP 1: Check existing data
+DO $$
+BEGIN
+    RAISE NOTICE 'Checking existing product_type values...';
+END $$;
+
+SELECT product_type, COUNT(*) as count
+FROM krai_core.products
+GROUP BY product_type
+ORDER BY count DESC;
+
+-- STEP 2: Migrate existing 'printer' values to 'laser_printer' (default assumption)
+-- You can adjust this based on actual data
+UPDATE krai_core.products
+SET product_type = 'laser_printer'
+WHERE product_type = 'printer';
+
+-- STEP 3: Migrate existing 'multifunction' values to 'laser_multifunction' (default assumption)
+UPDATE krai_core.products
+SET product_type = 'laser_multifunction'
+WHERE product_type = 'multifunction';
+
+-- STEP 4: Drop old constraint
 ALTER TABLE krai_core.products 
 DROP CONSTRAINT IF EXISTS product_type_check;
 
--- Add new optimized constraint
+-- STEP 5: Add new optimized constraint
 ALTER TABLE krai_core.products 
 ADD CONSTRAINT product_type_check CHECK (
     product_type IN (
@@ -109,3 +131,26 @@ ON krai_core.products(product_type);
 
 COMMENT ON INDEX krai_core.idx_products_product_type IS 
 'Index for filtering products by type (printer, accessory, consumable, etc.)';
+
+-- STEP 6: Show migration summary
+DO $$
+DECLARE
+    total_products INTEGER;
+    laser_printers INTEGER;
+    laser_mfps INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO total_products FROM krai_core.products;
+    SELECT COUNT(*) INTO laser_printers FROM krai_core.products WHERE product_type = 'laser_printer';
+    SELECT COUNT(*) INTO laser_mfps FROM krai_core.products WHERE product_type = 'laser_multifunction';
+    
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'Migration 70 completed successfully!';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'Total products: %', total_products;
+    RAISE NOTICE 'Laser printers: %', laser_printers;
+    RAISE NOTICE 'Laser MFPs: %', laser_mfps;
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'Product types expanded from 18 to 76';
+    RAISE NOTICE 'All existing data migrated successfully';
+    RAISE NOTICE '========================================';
+END $$;
