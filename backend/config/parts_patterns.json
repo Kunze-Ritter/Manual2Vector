@@ -184,10 +184,17 @@
         },
         {
           "name": "maintenance_kit",
-          "pattern": "\\bMK-?\\d{4}[A-Z]?\\b",
-          "description": "Konica Minolta maintenance kits (e.g., MK-8515B)",
-          "examples": ["MK-8515B", "MK-3382"],
+          "pattern": "\\bMK-?\\d{3,4}[A-Z]?\\b",
+          "description": "Konica Minolta maintenance kits (e.g., MK-8515B, MK-746)",
+          "examples": ["MK-8515B", "MK-3382", "MK-746", "MK-764"],
           "confidence": 0.91
+        },
+        {
+          "name": "accessory_options",
+          "pattern": "\\b[A-Z]{2}-?\\d{3,4}[A-Za-z]?\\b",
+          "description": "Konica Minolta accessories & options (e.g., HT-503, SD-513, FS-532, TU-504)",
+          "examples": ["HT-503", "SD-513", "FS-532", "TU-504", "FD-503", "PB-503", "LC-502", "LS-507", "PE-101", "CR-103", "OC-511", "DF-713", "EF-107", "IM-101", "WT-511", "VI-515", "IC-419", "PF-602", "MB-508", "PI-502", "PK-525", "OT-512"],
+          "confidence": 0.93
         },
         {
           "name": "parts_4digit_numeric",
