@@ -144,6 +144,13 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
             result['confidence'] = _calculate_confidence(result, context)
         return result
     
+    # UTAX Series Detection (Kyocera rebrand)
+    elif 'utax' in manufacturer_lower or 'triumph' in manufacturer_lower or 'ta ' in manufacturer_lower:
+        result = _detect_utax_series(model_number)
+        if result and context:
+            result['confidence'] = _calculate_confidence(result, context)
+        return result
+    
     # Generic fallback
     result = _detect_generic_series(model_number)
     if result and context:
@@ -785,6 +792,111 @@ def _detect_kyocera_series(model_number: str) -> Optional[Dict]:
             'series_name': f'TASKalfa {series_digit}xx Series',
             'series_code': f'TA{series_digit}XX',
             'series_description': f'Kyocera TASKalfa {series_digit} series'
+        }
+    
+    return None
+
+
+def _detect_utax_series(model_number: str) -> Optional[Dict]:
+    """Detect UTAX series - Returns marketing name + technical pattern
+    
+    UTAX is a Kyocera rebrand (TA Triumph-Adler)
+    """
+    model = model_number.upper().strip()
+    
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:UTAX\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: P-Serie (Monochrom & Farb MFP/Drucker) =====
+    
+    # P-Serie MFP with i suffix (P-4532i MFP, P-4539i MFP, P-5539i MFP, P-6039i MFP)
+    match = re.match(r'^P-(\d)(\d{3})I\s*MFP$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        return {
+            'series_name': 'P-Series MFP',
+            'model_pattern': f'P-{series_digit}xxxI MFP',
+            'series_description': f'UTAX P-{series_digit}xxx series multifunction printers (i-model)'
+        }
+    
+    # P-Serie MFP without i (P-4532 MFP, P-4539 MFP)
+    match = re.match(r'^P-(\d)(\d{3})\s*MFP$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        return {
+            'series_name': 'P-Series MFP',
+            'model_pattern': f'P-{series_digit}xxx MFP',
+            'series_description': f'UTAX P-{series_digit}xxx series multifunction printers'
+        }
+    
+    # P-Serie Drucker (P-4534DN, P-5034DN, P-5534DN, P-6034DN)
+    match = re.match(r'^P-(\d)(\d{3})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        return {
+            'series_name': 'P-Series',
+            'model_pattern': f'P-{series_digit}xxx',
+            'series_description': f'UTAX P-{series_digit}xxx series printers'
+        }
+    
+    # ===== PRIORITY 2: LP-Serie (A3-Monochrom) =====
+    
+    # LP-Serie (LP 3130DN, LP 4155DN, LP 3245, LP 4345)
+    match = re.match(r'^LP\s*(\d)(\d{3})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        return {
+            'series_name': 'LP-Series',
+            'model_pattern': f'LP {series_digit}xxx',
+            'series_description': f'UTAX LP {series_digit}xxx series A3 monochrome printers'
+        }
+    
+    # ===== PRIORITY 3: CDC/CDP/CD-Serie (Farb-MFP/Drucker) =====
+    
+    # CDC Serie (CDC 1720, CDC 2240)
+    match = re.match(r'^CDC\s*(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'CDC Series',
+            'model_pattern': f'CDC {series_digit}xxx',
+            'series_description': f'UTAX CDC {series_digit}xxx series color MFPs'
+        }
+    
+    # CDP Serie
+    match = re.match(r'^CDP\s*(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'CDP Series',
+            'model_pattern': f'CDP {series_digit}xxx',
+            'series_description': f'UTAX CDP {series_digit}xxx series color printers'
+        }
+    
+    # CD Serie (CD 1630)
+    match = re.match(r'^CD\s*(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'CD Series',
+            'model_pattern': f'CD {series_digit}xxx',
+            'series_description': f'UTAX CD {series_digit}xxx series color devices'
+        }
+    
+    # ===== PRIORITY 4: Numeric Models (Kyocera-based) =====
+    
+    # 4-digit models with "ci" suffix (5006ci, 4006ci, 3206ci, etc.)
+    # These are Kyocera TASKalfa rebrands
+    match = re.match(r'^(\d)(\d{3})CI$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        return {
+            'series_name': f'{series_digit}xxxci Series',
+            'model_pattern': f'{series_digit}xxxci',
+            'series_description': f'UTAX {series_digit}xxxci series color MFPs (Kyocera-based)'
         }
     
     return None
