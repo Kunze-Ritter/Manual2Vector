@@ -25,6 +25,7 @@ os.chdir(backend_dir)
 from processors.imports import get_supabase_client, get_logger
 from processors.master_pipeline import MasterPipeline
 from processors.__version__ import __version__, __commit__, __date__
+from supabase import create_client
 
 # Change back
 os.chdir(original_dir)
