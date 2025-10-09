@@ -254,17 +254,24 @@ class DocumentProcessor:
                         # Ensure manufacturer exists and get ID
                         try:
                             manufacturer_id = self._ensure_manufacturer_exists(detected_manufacturer, supabase)
-                            supabase.table('documents').update({
-                                'manufacturer': detected_manufacturer,
-                                'manufacturer_id': str(manufacturer_id)
-                            }).eq('id', str(document_id)).execute()
+                            
+                            # Use RPC function to bypass PostgREST schema cache issues
+                            supabase.rpc('update_document_manufacturer', {
+                                'p_document_id': str(document_id),
+                                'p_manufacturer': detected_manufacturer,
+                                'p_manufacturer_id': str(manufacturer_id)
+                            }).execute()
+                            
                             self.logger.info(f"✅ Set document manufacturer: {detected_manufacturer} (ID: {manufacturer_id})")
                         except Exception as mfr_error:
-                            # Fallback: Just set manufacturer string
-                            supabase.table('documents').update({
-                                'manufacturer': detected_manufacturer
-                            }).eq('id', str(document_id)).execute()
-                            self.logger.warning(f"Set manufacturer string only (ID resolution failed): {mfr_error}")
+                            # Fallback: Just set manufacturer string via table update
+                            try:
+                                supabase.table('documents').update({
+                                    'manufacturer': detected_manufacturer
+                                }).eq('id', str(document_id)).execute()
+                                self.logger.warning(f"Set manufacturer string only (RPC failed): {mfr_error}")
+                            except Exception as fallback_error:
+                                self.logger.error(f"Failed to set manufacturer: {fallback_error}")
                 except Exception as e:
                     self.logger.warning(f"Failed to set manufacturer early: {e}")
             
@@ -1281,15 +1288,16 @@ class DocumentProcessor:
                 try:
                     manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
                     
-                    # Update document with manufacturer_id
+                    # Update document with manufacturer_id using RPC
                     try:
-                        # Use direct table update (not view)
-                        supabase.table('documents').update({
-                            'manufacturer_id': manufacturer_id
-                        }).eq('id', document_id).execute()
+                        supabase.rpc('update_document_manufacturer', {
+                            'p_document_id': str(document_id),
+                            'p_manufacturer': manufacturer_name,
+                            'p_manufacturer_id': str(manufacturer_id)
+                        }).execute()
                         self.logger.info(f"✅ Updated document with manufacturer_id: {manufacturer_id}")
                     except Exception as update_error:
-                        self.logger.error(f"❌ Could not update manufacturer_id: {update_error}")
+                        self.logger.error(f"❌ Could not update manufacturer_id via RPC: {update_error}")
                         # Try to continue anyway - we have the manufacturer_id for this session
                         self.logger.warning(f"   Continuing with manufacturer_id in memory only")
                     
@@ -1307,14 +1315,16 @@ class DocumentProcessor:
                         manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
                         self.logger.info(f"✅ Using detected manufacturer: {self.manufacturer} (ID: {manufacturer_id})")
                         
-                        # Update document with manufacturer_id
+                        # Update document with manufacturer_id using RPC
                         try:
-                            supabase.table('documents').update({
-                                'manufacturer_id': manufacturer_id
-                            }).eq('id', document_id).execute()
+                            supabase.rpc('update_document_manufacturer', {
+                                'p_document_id': str(document_id),
+                                'p_manufacturer': self.manufacturer,
+                                'p_manufacturer_id': str(manufacturer_id)
+                            }).execute()
                             self.logger.info(f"✅ Updated document with detected manufacturer_id: {manufacturer_id}")
                         except Exception as update_error:
-                            self.logger.error(f"❌ Could not update manufacturer_id: {update_error}")
+                            self.logger.error(f"❌ Could not update manufacturer_id via RPC: {update_error}")
                             self.logger.warning(f"   Continuing with manufacturer_id in memory only")
                         
                     except Exception as e:
