@@ -172,6 +172,13 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
             result['confidence'] = _calculate_confidence(result, context)
         return result
     
+    # Epson Series Detection
+    elif 'epson' in manufacturer_lower:
+        result = _detect_epson_series(model_number)
+        if result and context:
+            result['confidence'] = _calculate_confidence(result, context)
+        return result
+    
     # Generic fallback
     result = _detect_generic_series(model_number)
     if result and context:
@@ -1689,6 +1696,201 @@ def _detect_xerox_series(model_number: str) -> Optional[Dict]:
             'series_name': 'DocuCentre',
             'model_pattern': f'DocuCentre {series_prefix}',
             'series_description': f'Xerox DocuCentre {series_prefix} series MFPs (legacy)'
+        }
+    
+    return None
+
+
+def _detect_epson_series(model_number: str) -> Optional[Dict]:
+    """Detect Epson series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
+    
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:EPSON\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production Printing =====
+    
+    # SureColor F series - Textile (SC-F Series - all F models)
+    if re.match(r'^(?:SURECOLOR\s+)?SC-F', model_clean):
+        return {
+            'series_name': 'SureColor F',
+            'model_pattern': 'SureColor SC-F',
+            'series_description': 'Epson SureColor SC-F series textile/sublimation printers'
+        }
+    
+    # SureColor P series - Production (SC-P9500 and higher)
+    match = re.match(r'^(?:SURECOLOR\s+)?SC-P(\d{4})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        if int(series_num) >= 9000:
+            return {
+                'series_name': 'SureColor Production',
+                'model_pattern': 'SureColor SC-P',
+                'series_description': 'Epson SureColor SC-P series production large format printers'
+            }
+    
+    # Monna Lisa series (Industrial textile)
+    if re.match(r'^MONNA\s+LISA', model_clean):
+        return {
+            'series_name': 'Monna Lisa',
+            'model_pattern': 'Monna Lisa',
+            'series_description': 'Epson Monna Lisa series industrial textile printers'
+        }
+    
+    # SureLab series (MiniLab photo production)
+    if re.match(r'^SURELAB', model_clean):
+        return {
+            'series_name': 'SureLab',
+            'model_pattern': 'SureLab',
+            'series_description': 'Epson SureLab series professional photo production systems'
+        }
+    
+    # ===== PRIORITY 2: SureColor (Professional/Photo/Large Format) =====
+    
+    # SureColor SC-P series (SC-P600, SC-P800, SC-P7300)
+    match = re.match(r'^(?:SURECOLOR\s+)?SC-P(\d{3,4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'SureColor P',
+            'model_pattern': f'SureColor SC-P{series_digit}xxx',
+            'series_description': f'Epson SureColor SC-P{series_digit}xxx series professional large format printers'
+        }
+    
+    # ===== PRIORITY 3: WorkForce Enterprise/Pro (MFP & Printer) =====
+    
+    # WorkForce Enterprise (WF-C17590)
+    match = re.match(r'^WORKFORCE\s+ENTERPRISE\s+WF-C(\d{5})$', model_clean)
+    if match:
+        return {
+            'series_name': 'WorkForce Enterprise',
+            'model_pattern': 'WorkForce Enterprise',
+            'series_description': 'Epson WorkForce Enterprise series high-volume inkjet MFPs'
+        }
+    
+    # WorkForce Pro MFP (Pro WF-4745, Pro WF-5620, WF-4745DWF, WF-8510DWF)
+    match = re.match(r'^(?:WORKFORCE\s+)?PRO\s+WF-(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'WorkForce Pro',
+            'model_pattern': f'WorkForce Pro WF-{series_digit}xxx',
+            'series_description': f'Epson WorkForce Pro WF-{series_digit}xxx series professional inkjet MFPs'
+        }
+    
+    # WorkForce standard (WF-2830, WF-2850, WF-7840)
+    match = re.match(r'^(?:WORKFORCE\s+)?WF-(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'WorkForce',
+            'model_pattern': f'WorkForce WF-{series_digit}xxx',
+            'series_description': f'Epson WorkForce WF-{series_digit}xxx series inkjet MFPs'
+        }
+    
+    # ===== PRIORITY 4: EcoTank (Refillable Ink) =====
+    
+    # EcoTank (ET-2750, ET-7700, ET-2850, ET-3850, ET-5880)
+    match = re.match(r'^(?:ECOTANK\s+)?ET-(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'EcoTank',
+            'model_pattern': f'EcoTank ET-{series_digit}xxx',
+            'series_description': f'Epson EcoTank ET-{series_digit}xxx series refillable ink printers/MFPs'
+        }
+    
+    # ===== PRIORITY 5: Expression Home/Photo =====
+    
+    # Expression Photo (XP-8700)
+    match = re.match(r'^(?:EXPRESSION\s+)?PHOTO\s+XP-(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'Expression Photo',
+            'model_pattern': f'Expression Photo XP-{series_digit}xxx',
+            'series_description': f'Epson Expression Photo XP-{series_digit}xxx series photo printers'
+        }
+    
+    # Expression Home (XP-2200, XP-332, XP-5200)
+    match = re.match(r'^(?:EXPRESSION\s+)?HOME\s+XP-(\d{3,4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'Expression Home',
+            'model_pattern': f'Expression Home XP-{series_digit}xxx',
+            'series_description': f'Epson Expression Home XP-{series_digit}xxx series home inkjet printers/MFPs'
+        }
+    
+    # ===== PRIORITY 6: Stylus Series (Legacy) =====
+    
+    # Stylus Photo (PX700W, PX710W)
+    match = re.match(r'^(?:STYLUS\s+)?PHOTO\s+PX(\d{3})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'Stylus Photo',
+            'model_pattern': f'Stylus Photo PX{series_num[0]}xx',
+            'series_description': f'Epson Stylus Photo PX{series_num[0]}xx series photo printers (legacy)'
+        }
+    
+    # Stylus Pro (legacy large format)
+    if re.match(r'^(?:STYLUS\s+)?PRO', model_clean):
+        return {
+            'series_name': 'Stylus Pro',
+            'model_pattern': 'Stylus Pro',
+            'series_description': 'Epson Stylus Pro series large format printers (legacy, replaced by SureColor)'
+        }
+    
+    # Stylus (general)
+    if re.match(r'^STYLUS', model_clean):
+        return {
+            'series_name': 'Stylus',
+            'model_pattern': 'Stylus',
+            'series_description': 'Epson Stylus series printers (legacy)'
+        }
+    
+    # ===== PRIORITY 7: Legacy Matrix/Office (MJ, MX, MP, P) =====
+    
+    # MJ series (Matrix)
+    if re.match(r'^MJ-', model_clean):
+        return {
+            'series_name': 'MJ Series',
+            'model_pattern': 'MJ',
+            'series_description': 'Epson MJ series dot matrix printers (legacy)'
+        }
+    
+    # MX series (Office)
+    match = re.match(r'^MX-(\d{3,4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'MX Series',
+            'model_pattern': 'MX',
+            'series_description': 'Epson MX series office printers (legacy)'
+        }
+    
+    # MP series (Office)
+    match = re.match(r'^MP-(\d{3,4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'MP Series',
+            'model_pattern': 'MP',
+            'series_description': 'Epson MP series office printers (legacy)'
+        }
+    
+    # P series (Office)
+    match = re.match(r'^P-(\d{3,4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'P Series',
+            'model_pattern': 'P',
+            'series_description': 'Epson P series office printers (legacy)'
         }
     
     return None

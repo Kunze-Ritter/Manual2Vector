@@ -179,11 +179,33 @@ SERIES_PRODUCT_TYPE_MAP = {
     'CDP Series': 'laser_printer',
     'CD Series': 'laser_printer',
     
-    # Epson
-    'WorkForce': 'inkjet_multifunction',
+    # Epson - Production
+    'SureColor Production': 'production_printer',
+    'SureColor F': 'production_printer',
+    'Monna Lisa': 'production_printer',
+    'SureLab': 'production_printer',
+    'Stylus Pro': 'inkjet_plotter',
+    
+    # Epson - Professional
+    'SureColor P': 'inkjet_plotter',
+    
+    # Epson - MFP
+    'WorkForce Enterprise': 'inkjet_multifunction',
     'WorkForce Pro': 'inkjet_multifunction',
+    'WorkForce': 'inkjet_multifunction',
     'EcoTank': 'inkjet_multifunction',
-    'SureColor': 'inkjet_plotter',
+    'Expression Home': 'inkjet_multifunction',
+    
+    # Epson - Printer
+    'Expression Photo': 'inkjet_printer',
+    'Stylus Photo': 'inkjet_printer',
+    'Stylus': 'inkjet_printer',
+    
+    # Epson - Legacy
+    'MJ Series': 'dot_matrix_printer',
+    'MX Series': 'inkjet_printer',
+    'MP Series': 'inkjet_printer',
+    'P Series': 'inkjet_printer',
     
     # OKI - Production
     'Pro9': 'production_printer',
