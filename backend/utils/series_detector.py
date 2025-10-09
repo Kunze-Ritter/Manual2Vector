@@ -795,27 +795,133 @@ def _detect_xerox_series(model_number: str) -> Optional[Dict]:
 
 
 def _detect_brother_series(model_number: str) -> Optional[Dict]:
-    """Detect Brother series"""
-    model = model_number.upper()
+    """Detect Brother series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
     
-    # MFC-L series (MFC-L2750DW, MFC-L2710DW, etc.)
-    match = re.match(r'MFC-L(\d{2})\d{2}', model)
-    if match:
-        series_digit = match.group(1)
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:BROTHER\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production Printing (DTG/Textile) =====
+    
+    # GTXpro series (GTXpro, GTXpro B, GTX600, GTX R2R)
+    if re.match(r'^GTXPRO\s*B?$', model_clean):
         return {
-            'series_name': f'MFC-L{series_digit}xx Series',
-            'series_code': f'MFCL{series_digit}XX',
-            'series_description': f'Brother MFC-L{series_digit} series laser MFPs'
+            'series_name': 'GTXpro',
+            'model_pattern': 'GTXpro',
+            'series_description': 'Brother GTXpro series direct-to-garment (DTG) printers'
         }
     
-    # HL-L series (HL-L2350DW, HL-L2370DW, etc.)
-    match = re.match(r'HL-L(\d{2})\d{2}', model)
-    if match:
-        series_digit = match.group(1)
+    # GTX series (GTX600, GTX R2R)
+    if re.match(r'^GTX', model_clean):
         return {
-            'series_name': f'HL-L{series_digit}xx Series',
-            'series_code': f'HLL{series_digit}XX',
-            'series_description': f'Brother HL-L{series_digit} series laser printers'
+            'series_name': 'GTX',
+            'model_pattern': 'GTX',
+            'series_description': 'Brother GTX series direct-to-garment/DTF printers'
+        }
+    
+    # ===== PRIORITY 2: Specialty (Plotter/Cutting) =====
+    
+    # PL series (Plotter) - PL5250
+    match = re.match(r'^PL(\d{4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'PL Series',
+            'model_pattern': 'PL',
+            'series_description': 'Brother PL series plotters'
+        }
+    
+    # ScanNCut series
+    if re.match(r'^SCANNCUT', model_clean):
+        return {
+            'series_name': 'ScanNCut',
+            'model_pattern': 'ScanNCut',
+            'series_description': 'Brother ScanNCut series cutting machines'
+        }
+    
+    # ===== PRIORITY 3: MFC Series (4-in-1 MFP) =====
+    
+    # MFC-J series (Inkjet MFP) - MFC-J6540DW, MFC-J5740DW
+    match = re.match(r'^MFC-J(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MFC-J',
+            'model_pattern': f'MFC-J{series_digit}xxx',
+            'series_description': f'Brother MFC-J{series_digit}xxx series inkjet MFPs (4-in-1)'
+        }
+    
+    # MFC-L series (Laser MFP) - MFC-L9570CDW, MFC-L5935DW, MFC-L2750DW
+    match = re.match(r'^MFC-L(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MFC-L',
+            'model_pattern': f'MFC-L{series_digit}xxx',
+            'series_description': f'Brother MFC-L{series_digit}xxx series laser MFPs (4-in-1)'
+        }
+    
+    # ===== PRIORITY 4: DCP Series (3-in-1 MFP) =====
+    
+    # DCP-J series (Inkjet MFP) - DCP-J1200W, DCP-J1310DW
+    match = re.match(r'^DCP-J(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'DCP-J',
+            'model_pattern': f'DCP-J{series_digit}xxx',
+            'series_description': f'Brother DCP-J{series_digit}xxx series inkjet MFPs (3-in-1)'
+        }
+    
+    # DCP-L series (Laser MFP) - DCP-L3550CDW, DCP-L1640W
+    match = re.match(r'^DCP-L(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'DCP-L',
+            'model_pattern': f'DCP-L{series_digit}xxx',
+            'series_description': f'Brother DCP-L{series_digit}xxx series laser MFPs (3-in-1)'
+        }
+    
+    # ===== PRIORITY 5: HL Series (Printer) =====
+    
+    # HL-L series (Laser Printer) - HL-L2350DW, HL-L5100DN, HL-L9470CDN
+    match = re.match(r'^HL-L(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'HL-L',
+            'model_pattern': f'HL-L{series_digit}xxx',
+            'series_description': f'Brother HL-L{series_digit}xxx series laser printers'
+        }
+    
+    # ===== PRIORITY 6: IntelliFax Series (Fax Printers) =====
+    
+    # IntelliFax series - IntelliFax 2840, 4750e
+    match = re.match(r'^INTELLIFAX\s+(\d{4})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'IntelliFax',
+            'model_pattern': f'IntelliFax {series_digit}xxx',
+            'series_description': f'Brother IntelliFax {series_digit}xxx series fax machines'
+        }
+    
+    # ===== PRIORITY 7: PJ Series (Mobile/Portable) =====
+    
+    # PJ series (Mobile Printer) - PJ-763MFi, PJ-863PK
+    match = re.match(r'^PJ-(\d{3})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'PJ Series',
+            'model_pattern': f'PJ-{series_num[0]}xx',
+            'series_description': f'Brother PJ-{series_num[0]}xx series mobile/portable printers'
         }
     
     return None

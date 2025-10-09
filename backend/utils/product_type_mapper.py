@@ -111,14 +111,28 @@ SERIES_PRODUCT_TYPE_MAP = {
     'P': 'laser_printer',
     'Aficio SG': 'inkjet_printer',
     
-    # Brother - Laser
-    'MFC': 'laser_multifunction',
-    'DCP': 'laser_multifunction',
-    'HL': 'laser_printer',
+    # Brother - Production
+    'GTXpro': 'production_printer',
+    'GTX': 'production_printer',
     
-    # Brother - Inkjet
+    # Brother - Specialty
+    'PL Series': 'inkjet_plotter',
+    'ScanNCut': 'accessory',
+    
+    # Brother - Inkjet MFP
     'MFC-J': 'inkjet_multifunction',
     'DCP-J': 'inkjet_multifunction',
+    
+    # Brother - Laser MFP
+    'MFC-L': 'laser_multifunction',
+    'DCP-L': 'laser_multifunction',
+    
+    # Brother - Printer
+    'HL-L': 'laser_printer',
+    
+    # Brother - Fax/Mobile
+    'IntelliFax': 'laser_multifunction',
+    'PJ Series': 'inkjet_printer',
     
     # Lexmark - MFP (multifunction)
     'MX Series': 'laser_multifunction',
