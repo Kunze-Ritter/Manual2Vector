@@ -302,7 +302,7 @@ class MasterPipeline:
             # Save parts (spare parts from parts catalogs)
             parts = processing_result.get('parts', [])
             if parts:
-                self._save_parts(document_id, parts)
+                self._save_parts(document_id, parts, manufacturer)
             
             # ==========================================
             # Update document metadata (manufacturer, models, etc.)
@@ -665,10 +665,19 @@ class MasterPipeline:
         except Exception as e:
             self.logger.error(f"Failed to save document_products: {e}")
     
-    def _save_parts(self, document_id: UUID, parts: list):
-        """Save spare parts to krai_parts.parts_catalog table"""
+    def _save_parts(self, document_id: UUID, parts: list, document_manufacturer: str = None):
+        """
+        Save spare parts to krai_parts.parts_catalog table
+        
+        Args:
+            document_id: Document UUID
+            parts: List of extracted parts
+            document_manufacturer: Manufacturer from document (fallback if part has no manufacturer)
+        """
         try:
             saved_count = 0
+            skipped_count = 0
+            
             for part in parts:
                 # Convert ExtractedPart to dict if needed
                 part_data = part if isinstance(part, dict) else {
@@ -685,7 +694,7 @@ class MasterPipeline:
                 
                 # Find or create manufacturer
                 manufacturer_id = None
-                manufacturer_name = part_data.get('manufacturer_name')
+                manufacturer_name = part_data.get('manufacturer_name') or document_manufacturer
                 
                 if manufacturer_name:
                     try:
@@ -712,7 +721,8 @@ class MasterPipeline:
                 
                 # Skip if no manufacturer_id (required field)
                 if not manufacturer_id:
-                    self.logger.warning(f"❌ Skipping part {part_data.get('part_number')} - no manufacturer_id")
+                    self.logger.debug(f"⏭️  Skipping part {part_data.get('part_number')} - no manufacturer_id")
+                    skipped_count += 1
                     continue
                 
                 # Prepare record for database
@@ -738,7 +748,9 @@ class MasterPipeline:
                     self.supabase.table('parts_catalog').insert(record).execute()
                     saved_count += 1
             
-            self.logger.success(f"Saved {saved_count} parts to database")
+            if skipped_count > 0:
+                self.logger.info(f"⏭️  Skipped {skipped_count} parts (no manufacturer)")
+            self.logger.success(f"💾 Saved {saved_count} parts to database")
             
         except Exception as e:
             self.logger.error(f"Failed to save parts: {e}")
