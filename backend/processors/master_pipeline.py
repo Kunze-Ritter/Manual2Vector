@@ -36,6 +36,7 @@ from .document_processor import DocumentProcessor
 from .image_storage_processor import ImageStorageProcessor
 from .embedding_processor import EmbeddingProcessor
 from .stage_tracker import StageTracker
+from .__version__ import __version__, __commit__, __date__
 
 
 class MasterPipeline:
@@ -104,7 +105,8 @@ class MasterPipeline:
         
         self.stage_tracker = StageTracker(supabase_client)
         
-        self.logger.success("Master Pipeline initialized!")
+        self.logger.success(f"Master Pipeline v{__version__} initialized!")
+        self.logger.info(f"Build: {__commit__} | Date: {__date__}")
         self._log_configuration()
     
     def _log_configuration(self):

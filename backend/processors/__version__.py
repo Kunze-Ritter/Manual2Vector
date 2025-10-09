@@ -3,11 +3,12 @@ Version Information for KRAI Processing Pipeline
 Auto-updated with each significant release
 """
 
-__version__ = "2.0.43"
-__commit__ = "TBD"
-__date__ = "2025-10-05"
+__version__ = "2.1.0"
+__commit__ = "79e8dfe"
+__date__ = "2025-10-09"
 
 # Version History:
+# 2.1.0 (79e8dfe) - MAJOR: Modular .env structure + Pipeline settings + Series detection (12 manufacturers)
 # 2.0.43 (TBD) - Fix: exec_sql parameter name + ensure image_id exists in Migration 23
 # 2.0.42 (7cb6b00) - Fix: Embedding processor dict/object mismatch + scope error
 # 2.0.41 (77b174f) - Fix: ULTIMATE - Use RPC Function to bypass PostgREST cache!
