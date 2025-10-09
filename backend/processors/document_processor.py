@@ -237,7 +237,7 @@ class DocumentProcessor:
                     # UPDATE self.manufacturer so it's available for error code saving!
                     self.manufacturer = detected_manufacturer
             
-            # Save manufacturer to document IMMEDIATELY
+            # Save manufacturer to document IMMEDIATELY (with manufacturer_id!)
             if detected_manufacturer and detected_manufacturer != "AUTO":
                 try:
                     from supabase import create_client
@@ -250,10 +250,21 @@ class DocumentProcessor:
                     
                     if supabase_url and supabase_key:
                         supabase = create_client(supabase_url, supabase_key)
-                        supabase.table('documents').update({
-                            'manufacturer': detected_manufacturer
-                        }).eq('id', str(document_id)).execute()
-                        self.logger.info(f"✅ Set document manufacturer: {detected_manufacturer}")
+                        
+                        # Ensure manufacturer exists and get ID
+                        try:
+                            manufacturer_id = self._ensure_manufacturer_exists(detected_manufacturer, supabase)
+                            supabase.table('documents').update({
+                                'manufacturer': detected_manufacturer,
+                                'manufacturer_id': str(manufacturer_id)
+                            }).eq('id', str(document_id)).execute()
+                            self.logger.info(f"✅ Set document manufacturer: {detected_manufacturer} (ID: {manufacturer_id})")
+                        except Exception as mfr_error:
+                            # Fallback: Just set manufacturer string
+                            supabase.table('documents').update({
+                                'manufacturer': detected_manufacturer
+                            }).eq('id', str(document_id)).execute()
+                            self.logger.warning(f"Set manufacturer string only (ID resolution failed): {mfr_error}")
                 except Exception as e:
                     self.logger.warning(f"Failed to set manufacturer early: {e}")
             
@@ -1546,7 +1557,16 @@ class DocumentProcessor:
             
             supabase = create_client(supabase_url, supabase_key)
             
-            # Prepare document data (use manufacturer string, not manufacturer_id due to PostgREST cache issues)
+            # CRITICAL FIX: Ensure manufacturer_id is set BEFORE saving document
+            manufacturer_id = None
+            if detected_manufacturer and detected_manufacturer != "AUTO":
+                try:
+                    manufacturer_id = self._ensure_manufacturer_exists(detected_manufacturer, supabase)
+                    self.logger.info(f"✅ Resolved manufacturer_id: {manufacturer_id} for '{detected_manufacturer}'")
+                except Exception as mfr_error:
+                    self.logger.warning(f"Could not resolve manufacturer_id: {mfr_error}")
+            
+            # Prepare document data (include BOTH manufacturer string AND manufacturer_id)
             document_data = {
                 'id': str(document_id),
                 'filename': pdf_path.name,
@@ -1560,7 +1580,8 @@ class DocumentProcessor:
                 'character_count': statistics.get('character_count', 0),
                 'processing_status': 'completed',
                 'processing_results': statistics,
-                'manufacturer': detected_manufacturer if detected_manufacturer != "AUTO" else None
+                'manufacturer': detected_manufacturer if detected_manufacturer != "AUTO" else None,
+                'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
             }
             
             # Check if document already exists

@@ -771,27 +771,163 @@ def _detect_lexmark_series(model_number: str) -> Optional[Dict]:
 
 
 def _detect_kyocera_series(model_number: str) -> Optional[Dict]:
-    """Detect Kyocera series"""
-    model = model_number.upper()
+    """Detect Kyocera series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
     
-    # ECOSYS M series (M2040dn, M2540dn, M2640idw, etc.)
-    match = re.match(r'M(\d{2})\d{2}', model)
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:KYOCERA\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: TASKalfa Pro (Production) =====
+    
+    # TASKalfa Pro (Pro 15000c, Pro 55000c)
+    match = re.match(r'^(?:TASKALFA\s+)?PRO\s+(\d{5})C?$', model_clean)
     if match:
-        series_digit = match.group(1)
         return {
-            'series_name': f'ECOSYS M{series_digit}xx Series',
-            'series_code': f'M{series_digit}XX',
-            'series_description': f'Kyocera ECOSYS M{series_digit} series MFPs'
+            'series_name': 'TASKalfa Pro',
+            'model_pattern': 'TASKalfa Pro',
+            'series_description': 'Kyocera TASKalfa Pro production color systems'
         }
     
-    # TASKalfa series (TASKalfa 2552ci, TASKalfa 3252ci, etc.)
-    match = re.match(r'(?:TASKALFA\s*)?(\d{2})\d{2}', model)
+    # ===== PRIORITY 2: TASKalfa (A3/A4 MFP) =====
+    
+    # TASKalfa with ci suffix (2553ci, 5053ci, etc.)
+    match = re.match(r'^(?:TASKALFA\s+)?(\d{4})CI$', model_clean)
     if match:
-        series_digit = match.group(1)
+        series_num = match.group(1)
+        series_digit = series_num[0]
         return {
-            'series_name': f'TASKalfa {series_digit}xx Series',
-            'series_code': f'TA{series_digit}XX',
-            'series_description': f'Kyocera TASKalfa {series_digit} series'
+            'series_name': 'TASKalfa',
+            'model_pattern': f'TASKalfa {series_digit}xxxci',
+            'series_description': f'Kyocera TASKalfa {series_digit}xxxci series color MFPs'
+        }
+    
+    # TASKalfa general (2552, 3252, etc.)
+    match = re.match(r'^(?:TASKALFA\s+)?(\d{4})([A-Z]{0,3})?$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'TASKalfa',
+            'model_pattern': f'TASKalfa {series_digit}xxx',
+            'series_description': f'Kyocera TASKalfa {series_digit}xxx series MFPs'
+        }
+    
+    # ===== PRIORITY 3: ECOSYS PA/MA/M Serie =====
+    
+    # ECOSYS PA (PA3500cx, PA4500x)
+    match = re.match(r'^(?:ECOSYS\s+)?PA(\d{4})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ECOSYS PA',
+            'model_pattern': f'ECOSYS PA{series_digit}xxx',
+            'series_description': f'Kyocera ECOSYS PA{series_digit}xxx series color printers'
+        }
+    
+    # ECOSYS MA (MA2100cfx, MA3500cifx)
+    match = re.match(r'^(?:ECOSYS\s+)?MA(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ECOSYS MA',
+            'model_pattern': f'ECOSYS MA{series_digit}xxx',
+            'series_description': f'Kyocera ECOSYS MA{series_digit}xxx series color MFPs'
+        }
+    
+    # ECOSYS M (M3860idnf, M4132idn, M8130cidn)
+    match = re.match(r'^(?:ECOSYS\s+)?M(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ECOSYS M',
+            'model_pattern': f'ECOSYS M{series_digit}xxx',
+            'series_description': f'Kyocera ECOSYS M{series_digit}xxx series MFPs'
+        }
+    
+    # ===== PRIORITY 4: FS-Serie (Drucker & MFP) =====
+    
+    # FS-Serie MFP (FS-1030MFP, FS-6530MFP)
+    match = re.match(r'^FS-(\d{4})MFP$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'FS-Series MFP',
+            'model_pattern': f'FS-{series_digit}xxxMFP',
+            'series_description': f'Kyocera FS-{series_digit}xxx series multifunction printers'
+        }
+    
+    # FS-Serie Drucker (FS-1000, FS-1120DN, FS-1320D, FS-4020DN, FS-6020DTN)
+    match = re.match(r'^FS-(\d{4})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'FS-Series',
+            'model_pattern': f'FS-{series_digit}xxx',
+            'series_description': f'Kyocera FS-{series_digit}xxx series printers'
+        }
+    
+    # ===== PRIORITY 5: KM-Serie (Ältere MFPs) =====
+    
+    # KM-Serie (KM-2050, KM-5050)
+    match = re.match(r'^KM-(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'KM-Series',
+            'model_pattern': f'KM-{series_digit}xxx',
+            'series_description': f'Kyocera KM-{series_digit}xxx series legacy MFPs'
+        }
+    
+    # ===== PRIORITY 6: Weitere Serien (DC, DP, TC, F) =====
+    
+    # TC-Serie (TC-4026i)
+    match = re.match(r'^TC-(\d{4})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'TC-Series',
+            'model_pattern': f'TC-{series_digit}xxx',
+            'series_description': f'Kyocera TC-{series_digit}xxx series'
+        }
+    
+    # F-Serie (F 2010)
+    match = re.match(r'^F\s*(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'F-Series',
+            'model_pattern': f'F {series_digit}xxx',
+            'series_description': f'Kyocera F {series_digit}xxx series'
+        }
+    
+    # DC-Serie
+    match = re.match(r'^DC-(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'DC-Series',
+            'model_pattern': f'DC-{series_digit}xxx',
+            'series_description': f'Kyocera DC-{series_digit}xxx series'
+        }
+    
+    # DP-Serie
+    match = re.match(r'^DP-(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'DP-Series',
+            'model_pattern': f'DP-{series_digit}xxx',
+            'series_description': f'Kyocera DP-{series_digit}xxx series'
         }
     
     return None
