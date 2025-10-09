@@ -153,64 +153,238 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
 
 def _detect_hp_series(model_number: str) -> Optional[Dict]:
     """Detect HP series - Returns marketing name + technical pattern"""
-    model = model_number.upper()
+    model = model_number.upper().strip()
     
-    # LaserJet M series (M479, M454, M428, etc.)
-    match = re.match(r'M(\d)(\d{2})', model)
-    if match:
-        series_digit = match.group(1)
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:HP\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production & Large Format =====
+    
+    # HP Indigo Digital Press (12000 HD, 7900, 7K, 6K, 100K)
+    if re.match(r'^INDIGO\s+(\d+K?|HD|\d+\s+HD)', model_clean):
         return {
-            'series_name': 'LaserJet',  # Marketing name
-            'model_pattern': f'M{series_digit}xx',  # Technical pattern
-            'series_description': f'HP LaserJet M{series_digit}00 series multifunction printers'
+            'series_name': 'Indigo Digital Press',
+            'model_pattern': 'Indigo',
+            'series_description': 'HP Indigo digital production press'
         }
     
-    # LaserJet Pro M series (M15, M28, M29, etc.)
-    match = re.match(r'M(\d{2})', model)
+    # HP Latex Production (115, 315, 335, 365, 570, 800, 630, 730, 830, R530, FS50, FS60)
+    match = re.match(r'^LATEX\s+([RF]?S?\d{2,3})$', model_clean)
     if match:
         return {
-            'series_name': 'LaserJet Pro',  # Marketing name
-            'model_pattern': f'M{match.group(1)}',  # Technical pattern
-            'series_description': f'HP LaserJet Pro M{match.group(1)} series'
+            'series_name': 'Latex',
+            'model_pattern': 'Latex',
+            'series_description': 'HP Latex production printer'
         }
+    
+    # DesignJet Large Format (T650, T730, Z6, Z9+)
+    match = re.match(r'^DESIGNJET\s+([TZ]\d+\+?)$', model_clean)
+    if match:
+        series = match.group(1)[0]  # T or Z
+        return {
+            'series_name': 'DesignJet',
+            'model_pattern': f'DesignJet {series}',
+            'series_description': f'HP DesignJet {series} series large format printer'
+        }
+    
+    # ===== PRIORITY 2: Inkjet Series =====
+    
+    # Smart Tank / Smart Tank Plus (5105, 570, 615)
+    if re.match(r'^SMART\s+TANK(\s+PLUS)?\s+\d{3,4}$', model_clean):
+        if 'PLUS' in model_clean:
+            return {
+                'series_name': 'Smart Tank Plus',
+                'model_pattern': 'Smart Tank Plus',
+                'series_description': 'HP Smart Tank Plus refillable ink tank printer'
+            }
+        return {
+            'series_name': 'Smart Tank',
+            'model_pattern': 'Smart Tank',
+            'series_description': 'HP Smart Tank refillable ink tank printer'
+        }
+    
+    # ENVY Inspire (7920e)
+    if re.match(r'^ENVY\s+INSPIRE\s+\d{4}E?$', model_clean):
+        return {
+            'series_name': 'ENVY Inspire',
+            'model_pattern': 'ENVY Inspire',
+            'series_description': 'HP ENVY Inspire all-in-one inkjet printer'
+        }
+    
+    # ENVY Photo (6230)
+    if re.match(r'^ENVY\s+PHOTO\s+\d{4}$', model_clean):
+        return {
+            'series_name': 'ENVY Photo',
+            'model_pattern': 'ENVY Photo',
+            'series_description': 'HP ENVY Photo all-in-one inkjet printer'
+        }
+    
+    # ENVY (6020)
+    if re.match(r'^ENVY\s+\d{4}$', model_clean):
+        return {
+            'series_name': 'ENVY',
+            'model_pattern': 'ENVY',
+            'series_description': 'HP ENVY all-in-one inkjet printer'
+        }
+    
+    # DeskJet Plus (4120)
+    if re.match(r'^DESKJET\s+PLUS\s+\d{4}$', model_clean):
+        return {
+            'series_name': 'DeskJet Plus',
+            'model_pattern': 'DeskJet Plus',
+            'series_description': 'HP DeskJet Plus all-in-one inkjet printer'
+        }
+    
+    # DeskJet (3760)
+    if re.match(r'^DESKJET\s+\d{4}$', model_clean):
+        return {
+            'series_name': 'DeskJet',
+            'model_pattern': 'DeskJet',
+            'series_description': 'HP DeskJet inkjet printer'
+        }
+    
+    # OfficeJet Pro (9020, 7740, 7740 Wide Format)
+    match = re.match(r'^(?:OFFICEJET\s+)?PRO\s+(\d{4})(?:\s+WIDE\s+FORMAT)?$', model_clean)
+    if match:
+        return {
+            'series_name': 'OfficeJet Pro',
+            'model_pattern': 'OfficeJet Pro',
+            'series_description': 'HP OfficeJet Pro inkjet all-in-one'
+        }
+    
+    # OfficeJet (6950)
+    if re.match(r'^OFFICEJET\s+\d{4}$', model_clean):
+        return {
+            'series_name': 'OfficeJet',
+            'model_pattern': 'OfficeJet',
+            'series_description': 'HP OfficeJet inkjet all-in-one'
+        }
+    
+    # PageWide Pro (352dw, 477dw, 577dw, 7740)
+    match = re.match(r'^PAGEWIDE\s+PRO\s+(\d{3,4})[A-Z]{0,3}$', model_clean)
+    if match:
+        return {
+            'series_name': 'PageWide Pro',
+            'model_pattern': 'PageWide Pro',
+            'series_description': 'HP PageWide Pro business inkjet printer'
+        }
+    
+    # PageWide (352dw)
+    match = re.match(r'^PAGEWIDE\s+(\d{3})[A-Z]{0,3}$', model_clean)
+    if match:
+        return {
+            'series_name': 'PageWide',
+            'model_pattern': 'PageWide',
+            'series_description': 'HP PageWide inkjet printer'
+        }
+    
+    # ===== PRIORITY 3: LaserJet Enterprise =====
+    
+    # LaserJet Enterprise MFP (M634h, M725)
+    match = re.match(r'^(?:LASERJET\s+)?ENTERPRISE\s+MFP\s+M(\d{3,4})[A-Z]?$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'LaserJet Enterprise MFP',
+            'model_pattern': f'M{series_num[0]}xx',
+            'series_description': f'HP LaserJet Enterprise MFP M{series_num[0]}xx series'
+        }
+    
+    # LaserJet Enterprise (M506, M607, M611, M632, M635)
+    match = re.match(r'^(?:LASERJET\s+)?ENTERPRISE\s+M(\d{3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'LaserJet Enterprise',
+            'model_pattern': f'M{series_num[0]}xx',
+            'series_description': f'HP LaserJet Enterprise M{series_num[0]}xx series'
+        }
+    
+    # ===== PRIORITY 4: Color LaserJet Pro MFP =====
+    
+    # Color LaserJet Pro MFP (M255dw, M283fdw, M452nw, M454dn, M479fdn, M479fdw, M281fdw)
+    match = re.match(r'^(?:COLOR\s+LASERJET\s+PRO\s+)?MFP\s+M(\d{3,4})[A-Z]{0,5}$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'Color LaserJet Pro MFP',
+            'model_pattern': f'M{series_num[0]}xx',
+            'series_description': f'HP Color LaserJet Pro MFP M{series_num[0]}xx series'
+        }
+    
+    # ===== PRIORITY 5: LaserJet Pro MFP =====
+    
+    # LaserJet Pro MFP (M28w, M130fn, M148fdw, M2727nf, M428fdn, M428fdw, M429fdn)
+    match = re.match(r'^(?:LASERJET\s+PRO\s+)?MFP\s+M(\d{2,4})[A-Z]{0,5}$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'LaserJet Pro MFP',
+            'model_pattern': f'M{series_num[0]}xx' if len(series_num) >= 3 else f'M{series_num}',
+            'series_description': f'HP LaserJet Pro MFP M{series_num[0]}xx series'
+        }
+    
+    # ===== PRIORITY 6: Laser MFP (Compact) =====
+    
+    # Laser MFP (131, 133, 135, 137, 135a, 137fnw)
+    match = re.match(r'^LASER\s+MFP\s+1(\d{2})[A-Z]{0,5}$', model_clean)
+    if match:
+        return {
+            'series_name': 'Laser MFP',
+            'model_pattern': '1xx',
+            'series_description': 'HP Laser MFP 1xx series compact multifunction printer'
+        }
+    
+    # ===== PRIORITY 7: LaserJet Pro (Single Function) =====
+    
+    # LaserJet Pro M series (M15w, M28w, M102w, M130fn, M404dn, M428fdw, M521dn)
+    match = re.match(r'^(?:LASERJET\s+PRO\s+)?M(\d{2,3})[A-Z]{0,5}$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'LaserJet Pro',
+            'model_pattern': f'M{series_num[0]}xx' if len(series_num) >= 3 else f'M{series_num}',
+            'series_description': f'HP LaserJet Pro M{series_num[0]}xx series'
+        }
+    
+    # ===== PRIORITY 8: Legacy Patterns =====
     
     # LaserJet E series (E50045, E50145, E52545, etc.)
-    match = re.match(r'E(\d)(\d{2})', model)
+    match = re.match(r'^E(\d)(\d{2})', model_clean)
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': 'LaserJet',  # Marketing name
-            'model_pattern': f'E{series_digit}xxxx',  # Technical pattern
-            'series_description': f'HP LaserJet E{series_digit}0000 series'
+            'series_name': 'LaserJet Enterprise',
+            'model_pattern': f'E{series_digit}xxxx',
+            'series_description': f'HP LaserJet Enterprise E{series_digit}0000 series'
         }
     
     # OfficeJet Pro X series (X580, X585, etc.)
-    match = re.match(r'X(\d)(\d{2})', model)
+    match = re.match(r'^X(\d)(\d{2})', model_clean)
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': 'OfficeJet Pro',  # Marketing name
-            'model_pattern': f'X{series_digit}xx',  # Technical pattern
+            'series_name': 'OfficeJet Pro',
+            'model_pattern': f'X{series_digit}xx',
             'series_description': f'HP OfficeJet Pro X{series_digit}00 series'
         }
     
     # PageWide series (P77960, P55250, etc.)
-    match = re.match(r'P(\d)(\d{4})', model)
+    match = re.match(r'^P(\d)(\d{4})', model_clean)
     if match:
         series_digit = match.group(1)
         return {
-            'series_name': 'PageWide',  # Marketing name
-            'model_pattern': f'P{series_digit}xxxx',  # Technical pattern
-            'series_code': f'P{series_digit}XXXX',
+            'series_name': 'PageWide',
+            'model_pattern': f'P{series_digit}xxxx',
             'series_description': f'HP PageWide P{series_digit} series'
         }
     
     # Color LaserJet series (CP5225, CP4525, etc.)
-    match = re.match(r'CP(\d{2})', model)
+    match = re.match(r'^CP(\d{2})', model_clean)
     if match:
         return {
-            'series_name': 'Color LaserJet',  # Marketing name
-            'model_pattern': f'CP{match.group(1)}xx',  # Technical pattern
+            'series_name': 'Color LaserJet',
+            'model_pattern': f'CP{match.group(1)}xx',
             'series_description': f'HP Color LaserJet CP{match.group(1)} series'
         }
     
