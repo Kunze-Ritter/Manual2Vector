@@ -218,7 +218,18 @@ class DocumentProcessor:
                         detected_manufacturer = canonical_name
                     
                     self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
-                    self.logger.info(f"   Confidence score: {score} from {', '.join(sources)}")
+                    
+                    # Format sources for better readability
+                    formatted_sources = []
+                    for source in sources:
+                        if source.startswith('text(') and source.endswith('x)'):
+                            # Extract count from text(9x) format
+                            count = source[5:-2]  # Remove 'text(' and 'x)'
+                            formatted_sources.append(f"text ({count} mentions)")
+                        else:
+                            formatted_sources.append(source)
+                    
+                    self.logger.info(f"   Confidence score: {score} from {', '.join(formatted_sources)}")
                     
                     # Confidence levels based on score
                     if score >= 18:  # Filename + Author + Title
