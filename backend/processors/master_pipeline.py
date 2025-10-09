@@ -195,7 +195,13 @@ class MasterPipeline:
             # ==========================================
             # STAGE 8: Image Storage (Optional)
             # ==========================================
-            if self.upload_images_to_r2 and images:
+            if not self.upload_images_to_r2:
+                self.logger.info("⏭️  STAGE 8: Image Storage - SKIPPED (UPLOAD_IMAGES_TO_R2=false)")
+                results['image_storage'] = {'success': True, 'skipped': True, 'reason': 'UPLOAD_IMAGES_TO_R2=false'}
+            elif not images:
+                self.logger.info("⏭️  STAGE 8: Image Storage - SKIPPED (no images extracted)")
+                results['image_storage'] = {'success': True, 'skipped': True, 'reason': 'No images'}
+            else:
                 stage_result = self._run_stage(
                     stage_name="image_storage",
                     stage_func=lambda: self.document_processor.upload_images_to_storage(
@@ -210,7 +216,13 @@ class MasterPipeline:
             # ==========================================
             # STAGE 9: Embedding Generation
             # ==========================================
-            if self.enable_embeddings and chunks:
+            if not self.enable_embeddings:
+                self.logger.info("⏭️  STAGE 9: Embedding Generation - SKIPPED (disabled in config)")
+                results['embeddings'] = {'success': True, 'skipped': True, 'reason': 'Disabled'}
+            elif not chunks:
+                self.logger.info("⏭️  STAGE 9: Embedding Generation - SKIPPED (no chunks)")
+                results['embeddings'] = {'success': True, 'skipped': True, 'reason': 'No chunks'}
+            elif self.enable_embeddings and chunks:
                 self.logger.info("=" * 60)
                 self.logger.info("🔍 CHECKING EMBEDDING CONFIGURATION...")
                 
