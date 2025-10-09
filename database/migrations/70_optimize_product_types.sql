@@ -45,6 +45,7 @@ ADD CONSTRAINT product_type_check CHECK (
         'laser_multifunction',     -- Laser/LED MFP
         'inkjet_multifunction',    -- Inkjet MFP
         'production_multifunction',-- Production MFP
+        'solid_ink_multifunction', -- Solid ink MFP (Xerox ColorQube)
         
         -- ===== PLOTTERS =====
         'inkjet_plotter',          -- Large format inkjet

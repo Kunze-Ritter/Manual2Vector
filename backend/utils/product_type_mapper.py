@@ -68,18 +68,26 @@ SERIES_PRODUCT_TYPE_MAP = {
     'imagePROGRAF TA': 'inkjet_plotter',
     'imagePROGRAF iPF': 'inkjet_plotter',
     
-    # Xerox - MFP/Printer
-    'VersaLink': 'laser_multifunction',
-    'AltaLink': 'laser_multifunction',
-    'WorkCentre': 'laser_multifunction',
-    'Phaser': 'laser_printer',
-    'ColorQube': 'solid_ink_printer',
-    
     # Xerox - Production
+    'Iridesse Production Press': 'production_printer',
+    'Color Press': 'production_printer',
     'Versant': 'production_printer',
     'iGen': 'production_printer',
     'PrimeLink': 'production_printer',
-    'Color C': 'production_printer',
+    
+    # Xerox - MFP
+    'AltaLink': 'laser_multifunction',
+    'VersaLink': 'laser_multifunction',
+    'WorkCentre': 'laser_multifunction',
+    'ColorQube': 'solid_ink_multifunction',
+    'DocuCentre': 'laser_multifunction',
+    
+    # Xerox - Printer
+    'Phaser': 'laser_printer',
+    'DocuPrint': 'laser_printer',
+    
+    # Xerox - Wide Format
+    'Wide Format': 'inkjet_plotter',
     
     # Ricoh - Production
     'Pro C': 'production_printer',
@@ -177,11 +185,21 @@ SERIES_PRODUCT_TYPE_MAP = {
     'EcoTank': 'inkjet_multifunction',
     'SureColor': 'inkjet_plotter',
     
-    # OKI
-    'MC': 'laser_multifunction',
-    'MPS': 'laser_multifunction',
-    'C': 'laser_printer',
-    'B': 'laser_printer',
+    # OKI - Production
+    'Pro9': 'production_printer',
+    'Pro10': 'production_printer',
+    
+    # OKI - MFP
+    'MC Series': 'laser_multifunction',
+    'MB Series': 'laser_multifunction',
+    'B Series MFP': 'laser_multifunction',
+    'ES Series MFP': 'laser_multifunction',
+    'CX Series': 'laser_multifunction',
+    
+    # OKI - Printer
+    'C Series': 'laser_printer',
+    'B Series': 'laser_printer',
+    'ES Series': 'laser_printer',
     
     # Fujifilm - Production
     'Revoria Press': 'production_printer',

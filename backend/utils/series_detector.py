@@ -152,8 +152,22 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
         return result
     
     # Fujifilm Series Detection (Xerox successor in Asia/Japan)
-    elif 'fujifilm' in manufacturer_lower or 'fuji' in manufacturer_lower or 'xerox' in manufacturer_lower:
+    elif 'fujifilm' in manufacturer_lower or 'fuji' in manufacturer_lower:
         result = _detect_fujifilm_series(model_number)
+        if result and context:
+            result['confidence'] = _calculate_confidence(result, context)
+        return result
+    
+    # OKI Series Detection
+    elif 'oki' in manufacturer_lower:
+        result = _detect_oki_series(model_number)
+        if result and context:
+            result['confidence'] = _calculate_confidence(result, context)
+        return result
+    
+    # Xerox Series Detection
+    elif 'xerox' in manufacturer_lower:
+        result = _detect_xerox_series(model_number)
         if result and context:
             result['confidence'] = _calculate_confidence(result, context)
         return result
@@ -1360,6 +1374,321 @@ def _detect_fujifilm_series(model_number: str) -> Optional[Dict]:
             'series_name': 'DocuCentre',
             'model_pattern': f'DocuCentre {series_prefix}',
             'series_description': f'Fujifilm DocuCentre {series_prefix} series MFPs (Xerox-based legacy)'
+        }
+    
+    return None
+
+
+def _detect_oki_series(model_number: str) -> Optional[Dict]:
+    """Detect OKI series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
+    
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:OKI\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production Printing =====
+    
+    # Pro9 series (Pro9431dn, Pro9541dn, Pro9542dn)
+    match = re.match(r'^PRO9(\d{3})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'Pro9',
+            'model_pattern': f'Pro9{series_num[0]}xx',
+            'series_description': f'OKI Pro9{series_num[0]}xx series industrial production printers'
+        }
+    
+    # Pro1040/Pro1050 (Label printers)
+    if re.match(r'^PRO10[45]0$', model_clean):
+        return {
+            'series_name': 'Pro10',
+            'model_pattern': 'Pro10xx',
+            'series_description': 'OKI Pro10xx series roll-to-roll label printers'
+        }
+    
+    # ===== PRIORITY 2: MC Series (Color MFP) =====
+    
+    # MC series high-end (MC883dn, MC883dnct, MC883dnv, MC770dn, MC780dn)
+    match = re.match(r'^MC(\d{3})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MC Series',
+            'model_pattern': f'MC{series_digit}xx',
+            'series_description': f'OKI MC{series_digit}xx series color MFPs'
+        }
+    
+    # ===== PRIORITY 3: MB Series (Monochrome MFP) =====
+    
+    # MB series (MB472dnw, MB492dn, MB562dnw)
+    match = re.match(r'^MB(\d{3})([A-Z]{0,5})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MB Series',
+            'model_pattern': f'MB{series_digit}xx',
+            'series_description': f'OKI MB{series_digit}xx series monochrome MFPs'
+        }
+    
+    # ===== PRIORITY 4: C Series (Color Printer) =====
+    
+    # C series (C332dn, C542dn, C612dn, C824dn, C833dn, C843dn)
+    match = re.match(r'^C(\d{3})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'C Series',
+            'model_pattern': f'C{series_digit}xx',
+            'series_description': f'OKI C{series_digit}xx series color printers'
+        }
+    
+    # ===== PRIORITY 5: B Series (Monochrome Printer/MFP) =====
+    
+    # B series MFP (B2520 MFP, B2540 MFP)
+    match = re.match(r'^B(\d{4})\s+MFP$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'B Series MFP',
+            'model_pattern': f'B{series_digit}xxx MFP',
+            'series_description': f'OKI B{series_digit}xxx series monochrome MFPs'
+        }
+    
+    # B series printer (B401d, B431dn, B512dn, B721dn, B731dn)
+    match = re.match(r'^B(\d{3})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'B Series',
+            'model_pattern': f'B{series_digit}xx',
+            'series_description': f'OKI B{series_digit}xx series monochrome printers'
+        }
+    
+    # ===== PRIORITY 6: ES Series (Executive) =====
+    
+    # ES series MFP (ES4191 MFP, ES4192 MFP)
+    match = re.match(r'^ES(\d{4})\s+MFP$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ES Series MFP',
+            'model_pattern': f'ES{series_digit}xxx MFP',
+            'series_description': f'OKI ES{series_digit}xxx series executive MFPs'
+        }
+    
+    # ES series printer (ES4191dn, ES5112dn)
+    match = re.match(r'^ES(\d{4})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'ES Series',
+            'model_pattern': f'ES{series_digit}xxx',
+            'series_description': f'OKI ES{series_digit}xxx series executive printers'
+        }
+    
+    # ===== PRIORITY 7: CX Series (Office Color) =====
+    
+    # CX series MFP (CX 3500 Series)
+    if re.match(r'^CX\s+\d{4}(?:\s+SERIES)?', model_clean):
+        return {
+            'series_name': 'CX Series',
+            'model_pattern': 'CX',
+            'series_description': 'OKI CX series office color MFPs'
+        }
+    
+    # CX series printer (CX 3535)
+    match = re.match(r'^CX\s+(\d{4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'CX Series',
+            'model_pattern': 'CX',
+            'series_description': 'OKI CX series office color devices'
+        }
+    
+    return None
+
+
+def _detect_xerox_series(model_number: str) -> Optional[Dict]:
+    """Detect Xerox series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
+    
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:XEROX\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production Printing =====
+    
+    # Iridesse Production Press
+    if re.match(r'^IRIDESSE\s+PRODUCTION\s+PRESS', model_clean):
+        return {
+            'series_name': 'Iridesse Production Press',
+            'model_pattern': 'Iridesse',
+            'series_description': 'Xerox Iridesse Production Press (CMYK + Gold/Silver/White)'
+        }
+    
+    # Color Press series (Color Press 800/1000, 280, 570, 800/1000i)
+    match = re.match(r'^COLOR\s+PRESS\s+(\d{3,4})I?(?:/(\d{3,4})I?)?$', model_clean)
+    if match:
+        return {
+            'series_name': 'Color Press',
+            'model_pattern': 'Color Press',
+            'series_description': 'Xerox Color Press series production color systems'
+        }
+    
+    # PrimeLink series (C9065, C9070)
+    match = re.match(r'^PRIMELINK\s+C(\d{4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'PrimeLink',
+            'model_pattern': 'PrimeLink C',
+            'series_description': 'Xerox PrimeLink C series production/office systems'
+        }
+    
+    # Versant series
+    match = re.match(r'^VERSANT\s+(\d{3})$', model_clean)
+    if match:
+        return {
+            'series_name': 'Versant',
+            'model_pattern': 'Versant',
+            'series_description': 'Xerox Versant series production color press'
+        }
+    
+    # iGen series
+    if re.match(r'^IGEN', model_clean):
+        return {
+            'series_name': 'iGen',
+            'model_pattern': 'iGen',
+            'series_description': 'Xerox iGen series digital production press'
+        }
+    
+    # ===== PRIORITY 2: AltaLink (High-End MFP) =====
+    
+    # AltaLink (B8045, B8055, C8030, C8045, C8255, C8270)
+    match = re.match(r'^ALTALINK\s+([BC])(\d{4})$', model_clean)
+    if match:
+        color_type = match.group(1)  # B or C
+        series_num = match.group(2)
+        series_digit = series_num[0]
+        color_desc = 'color' if color_type == 'C' else 'monochrome'
+        return {
+            'series_name': 'AltaLink',
+            'model_pattern': f'AltaLink {color_type}{series_digit}xxx',
+            'series_description': f'Xerox AltaLink {color_type}{series_digit}xxx series {color_desc} high-end MFPs'
+        }
+    
+    # ===== PRIORITY 3: VersaLink (Office MFP/Printer) =====
+    
+    # VersaLink MFP (C405, C505, C605, B405, B605, B615, B625)
+    match = re.match(r'^VERSALINK\s+([BC])(\d{3})$', model_clean)
+    if match:
+        color_type = match.group(1)  # B or C
+        series_num = match.group(2)
+        series_digit = series_num[0]
+        color_desc = 'color' if color_type == 'C' else 'monochrome'
+        
+        # Determine if MFP or Printer based on model number
+        # B400, C400, C500, C600, B600 = Printer
+        # C405, C505, C605, B405, B605, B615, B625 = MFP
+        if series_num in ['400', '500', '600']:
+            device_type = 'printer'
+            return {
+                'series_name': 'VersaLink',
+                'model_pattern': f'VersaLink {color_type}{series_digit}xx',
+                'series_description': f'Xerox VersaLink {color_type}{series_digit}xx series {color_desc} printers'
+            }
+        else:
+            device_type = 'MFP'
+            return {
+                'series_name': 'VersaLink',
+                'model_pattern': f'VersaLink {color_type}{series_digit}xx',
+                'series_description': f'Xerox VersaLink {color_type}{series_digit}xx series {color_desc} MFPs'
+            }
+    
+    # ===== PRIORITY 4: WorkCentre (Office MFP) =====
+    
+    # WorkCentre (6515, 7855, 7858, 7970, 7970i, 7835i)
+    match = re.match(r'^WORKCENTRE\s+(\d{4})I?$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'WorkCentre',
+            'model_pattern': f'WorkCentre {series_digit}xxx',
+            'series_description': f'Xerox WorkCentre {series_digit}xxx series MFPs'
+        }
+    
+    # ===== PRIORITY 5: Phaser (Printer) =====
+    
+    # Phaser (6022, 6510, 6600, 7100, 7800)
+    match = re.match(r'^PHASER\s+(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'Phaser',
+            'model_pattern': f'Phaser {series_digit}xxx',
+            'series_description': f'Xerox Phaser {series_digit}xxx series color printers'
+        }
+    
+    # ===== PRIORITY 6: ColorQube (Solid Ink) =====
+    
+    # ColorQube MFP (9303 MFP, 9301 MFP, 9302 MFP)
+    match = re.match(r'^COLORQUBE\s+(\d{4})\s+MFP$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'ColorQube',
+            'model_pattern': f'ColorQube {series_num[0]}xxx MFP',
+            'series_description': f'Xerox ColorQube {series_num[0]}xxx series solid ink MFPs'
+        }
+    
+    # ColorQube printer (8580, 9301, 9302, 9303)
+    match = re.match(r'^COLORQUBE\s+(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        return {
+            'series_name': 'ColorQube',
+            'model_pattern': f'ColorQube {series_num[0]}xxx',
+            'series_description': f'Xerox ColorQube {series_num[0]}xxx series solid ink printers'
+        }
+    
+    # ===== PRIORITY 7: Wide Format =====
+    
+    # Wide Format series (7142, 8000)
+    match = re.match(r'^WIDE\s+FORMAT\s+(\d{4})$', model_clean)
+    if match:
+        return {
+            'series_name': 'Wide Format',
+            'model_pattern': 'Wide Format',
+            'series_description': 'Xerox Wide Format series large format printers'
+        }
+    
+    # ===== PRIORITY 8: Legacy DocuPrint/DocuCentre =====
+    
+    # DocuPrint (CP225)
+    match = re.match(r'^DOCUPRINT\s+([A-Z]{2})(\d{3})$', model_clean)
+    if match:
+        series_prefix = match.group(1)
+        return {
+            'series_name': 'DocuPrint',
+            'model_pattern': f'DocuPrint {series_prefix}',
+            'series_description': f'Xerox DocuPrint {series_prefix} series (legacy)'
+        }
+    
+    # DocuCentre (SC2020)
+    match = re.match(r'^DOCUCENTRE\s+([A-Z]{2})(\d{4})$', model_clean)
+    if match:
+        series_prefix = match.group(1)
+        return {
+            'series_name': 'DocuCentre',
+            'model_pattern': f'DocuCentre {series_prefix}',
+            'series_description': f'Xerox DocuCentre {series_prefix} series MFPs (legacy)'
         }
     
     return None
