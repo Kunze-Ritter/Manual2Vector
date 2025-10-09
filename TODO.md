@@ -529,7 +529,7 @@
 
 ### Environment Setup
 1. ✅ **YouTube API Key** - Configured and working!
-   - Added to .env: `YOUTUBE_API_KEY=AIza...`
+   - Added to .env (not shown for security)
    - Full video metadata extraction working
    - 10,000 quota/day available
 
