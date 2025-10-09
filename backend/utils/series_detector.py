@@ -179,6 +179,13 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
             result['confidence'] = _calculate_confidence(result, context)
         return result
     
+    # Sharp Series Detection
+    elif 'sharp' in manufacturer_lower:
+        result = _detect_sharp_series(model_number)
+        if result and context:
+            result['confidence'] = _calculate_confidence(result, context)
+        return result
+    
     # Generic fallback
     result = _detect_generic_series(model_number)
     if result and context:
@@ -1997,6 +2004,124 @@ def _detect_epson_series(model_number: str) -> Optional[Dict]:
             'series_name': 'P Series',
             'model_pattern': 'P',
             'series_description': 'Epson P series office printers (legacy)'
+        }
+    
+    return None
+
+
+def _detect_sharp_series(model_number: str) -> Optional[Dict]:
+    """Detect Sharp series - Returns marketing name + technical pattern"""
+    model = model_number.upper().strip()
+    
+    # Remove common prefixes for pattern matching
+    model_clean = re.sub(r'^(?:SHARP\s+)?', '', model).strip()
+    
+    # ===== PRIORITY 1: Production Printing =====
+    
+    # BP Pro series - Production (BP-90C70, BP-90C80, BP-1360M)
+    match = re.match(r'^BP-(\d{2,4})([CM])(\d{2,3})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        color_type = match.group(2)  # C or M
+        if int(series_num) >= 90 or int(series_num) >= 1300:
+            return {
+                'series_name': 'BP Pro',
+                'model_pattern': 'BP Pro',
+                'series_description': 'Sharp BP Pro series production/light production systems'
+            }
+    
+    # MX High-end Production (MX-6500, MX-7500, MX-8090)
+    match = re.match(r'^MX-([6-8]\d{3})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'MX Production',
+            'model_pattern': f'MX-{series_digit}xxx',
+            'series_description': f'Sharp MX-{series_digit}xxx series high-performance production MFPs'
+        }
+    
+    # ===== PRIORITY 2: BP Series (Office & Production MFP) =====
+    
+    # BP-C/E/Q series MFP (BP-50C31, BP-50C55, BP-60C45, BP-55C26, BP-22C25)
+    match = re.match(r'^BP-(\d{2})([CEQ])(\d{2,3})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_type = match.group(2)  # C, E, or Q
+        return {
+            'series_name': 'BP Series',
+            'model_pattern': f'BP-{series_num}{series_type}',
+            'series_description': f'Sharp BP-{series_num}{series_type} series office MFPs'
+        }
+    
+    # BP-C/E/Q series Printer (BP-C131PW, BP-10C20)
+    match = re.match(r'^BP-([CEQ])(\d{3})([A-Z]{0,3})$', model_clean)
+    if match:
+        series_type = match.group(1)
+        return {
+            'series_name': 'BP Printer',
+            'model_pattern': f'BP-{series_type}',
+            'series_description': f'Sharp BP-{series_type} series office printers'
+        }
+    
+    # ===== PRIORITY 3: MX Series (A3/A4 MFP) =====
+    
+    # MX-B/C series MFP (MX-3071, MX-4071, MX-3571, MX-2651, MX-3551, MX-4051, MX-B350, MX-C300)
+    match = re.match(r'^MX-([BC]?)(\d{3,4})$', model_clean)
+    if match:
+        color_prefix = match.group(1)  # B or C (optional)
+        series_num = match.group(2)
+        series_digit = series_num[0]
+        
+        if color_prefix:
+            color_desc = 'monochrome' if color_prefix == 'B' else 'color'
+            return {
+                'series_name': f'MX-{color_prefix}',
+                'model_pattern': f'MX-{color_prefix}{series_digit}xx',
+                'series_description': f'Sharp MX-{color_prefix}{series_digit}xx series {color_desc} MFPs'
+            }
+        else:
+            return {
+                'series_name': 'MX Series',
+                'model_pattern': f'MX-{series_digit}xxx',
+                'series_description': f'Sharp MX-{series_digit}xxx series MFPs'
+            }
+    
+    # MX-B/C series Printer (MX-B350P, MX-C300P)
+    match = re.match(r'^MX-([BC])(\d{3})P$', model_clean)
+    if match:
+        color_prefix = match.group(1)
+        series_num = match.group(2)
+        series_digit = series_num[0]
+        color_desc = 'monochrome' if color_prefix == 'B' else 'color'
+        return {
+            'series_name': f'MX-{color_prefix} Printer',
+            'model_pattern': f'MX-{color_prefix}{series_digit}xxP',
+            'series_description': f'Sharp MX-{color_prefix}{series_digit}xx series {color_desc} printers'
+        }
+    
+    # ===== PRIORITY 4: AR/AL Series (Legacy) =====
+    
+    # AR series (Legacy MFP) - AR-6020N
+    match = re.match(r'^AR-(\d{4})([A-Z]?)$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'AR Series',
+            'model_pattern': f'AR-{series_digit}xxx',
+            'series_description': f'Sharp AR-{series_digit}xxx series legacy MFPs'
+        }
+    
+    # AL series (Legacy Printer) - AL-2040
+    match = re.match(r'^AL-(\d{4})$', model_clean)
+    if match:
+        series_num = match.group(1)
+        series_digit = series_num[0]
+        return {
+            'series_name': 'AL Series',
+            'model_pattern': f'AL-{series_digit}xxx',
+            'series_description': f'Sharp AL-{series_digit}xxx series legacy printers'
         }
     
     return None

@@ -257,6 +257,23 @@ SERIES_PRODUCT_TYPE_MAP = {
     'INSTAX SQUARE Link': 'dye_sublimation_printer',
     'INSTAX Link Wide': 'dye_sublimation_printer',
     'INSTAX': 'dye_sublimation_printer',
+    
+    # Sharp - Production
+    'BP Pro': 'production_printer',
+    'MX Production': 'production_printer',
+    
+    # Sharp - MFP
+    'BP Series': 'laser_multifunction',
+    'MX Series': 'laser_multifunction',
+    'MX-B': 'laser_multifunction',
+    'MX-C': 'laser_multifunction',
+    'AR Series': 'laser_multifunction',
+    
+    # Sharp - Printer
+    'BP Printer': 'laser_printer',
+    'MX-B Printer': 'laser_printer',
+    'MX-C Printer': 'laser_printer',
+    'AL Series': 'laser_printer',
 }
 
 
