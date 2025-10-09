@@ -299,10 +299,8 @@ class MasterPipeline:
                 self._save_products(document_id, products)
                 self._save_document_products(document_id, products)
             
-            # Save parts (spare parts from parts catalogs)
-            parts = processing_result.get('parts', [])
-            if parts:
-                self._save_parts(document_id, parts, manufacturer)
+            # Parts are already saved in DocumentProcessor (Step 2c)
+            # No need to save again here
             
             # ==========================================
             # Update document metadata (manufacturer, models, etc.)
@@ -665,83 +663,8 @@ class MasterPipeline:
         except Exception as e:
             self.logger.error(f"Failed to save document_products: {e}")
     
-    def _save_parts(self, document_id: UUID, parts: list, document_manufacturer: str = None):
-        """
-        Save spare parts to krai_parts.parts_catalog table
-        
-        Args:
-            document_id: Document UUID
-            parts: List of extracted parts
-            document_manufacturer: Manufacturer from document (fallback if part has no manufacturer)
-        """
-        try:
-            saved_count = 0
-            skipped_count = 0
-            
-            for part in parts:
-                # Convert ExtractedPart to dict if needed
-                part_data = part if isinstance(part, dict) else {
-                    'part_number': getattr(part, 'part_number', ''),
-                    'part_name': getattr(part, 'part_name', None),
-                    'part_description': getattr(part, 'part_description', None),
-                    'part_category': getattr(part, 'part_category', None),
-                    'unit_price_usd': getattr(part, 'unit_price_usd', None),
-                    'confidence': getattr(part, 'confidence', 0.0),
-                    'pattern_name': getattr(part, 'pattern_name', None),
-                    'page_number': getattr(part, 'page_number', None)
-                }
-                
-                # Get manufacturer_id from document (all parts inherit from document)
-                manufacturer_id = None
-                if document_manufacturer:
-                    try:
-                        # Try to find existing manufacturer
-                        mfr_result = self.supabase.table('manufacturers') \
-                            .select('id') \
-                            .ilike('name', f"%{document_manufacturer}%") \
-                            .limit(1) \
-                            .execute()
-                        
-                        if mfr_result.data:
-                            manufacturer_id = mfr_result.data[0]['id']
-                    except Exception as e:
-                        self.logger.warning(f"Failed to find manufacturer '{document_manufacturer}': {e}")
-                
-                # Skip if no manufacturer_id (shouldn't happen if document has manufacturer)
-                if not manufacturer_id:
-                    self.logger.debug(f"⏭️  Skipping part {part_data.get('part_number')} - no manufacturer_id")
-                    skipped_count += 1
-                    continue
-                
-                # Prepare record for database
-                record = {
-                    'manufacturer_id': manufacturer_id,
-                    'part_number': part_data.get('part_number'),
-                    'part_name': part_data.get('part_name'),
-                    'part_description': part_data.get('part_description'),
-                    'part_category': part_data.get('part_category'),
-                    'unit_price_usd': part_data.get('unit_price_usd')
-                }
-                
-                # Check if part already exists
-                existing = self.supabase.table('parts_catalog') \
-                    .select('id') \
-                    .eq('part_number', record['part_number']) \
-                    .eq('manufacturer_id', manufacturer_id) \
-                    .limit(1) \
-                    .execute()
-                
-                if not existing.data:
-                    # Insert new part via public schema
-                    self.supabase.table('parts_catalog').insert(record).execute()
-                    saved_count += 1
-            
-            if skipped_count > 0:
-                self.logger.info(f"⏭️  Skipped {skipped_count} parts (no manufacturer)")
-            self.logger.success(f"💾 Saved {saved_count} parts to database")
-            
-        except Exception as e:
-            self.logger.error(f"Failed to save parts: {e}")
+    # _save_parts() removed - Parts are now saved immediately in DocumentProcessor (Step 2c)
+    # This eliminates duplicate code and saves RAM
     
     def _link_images_to_chunks(self, document_id: UUID) -> int:
         """

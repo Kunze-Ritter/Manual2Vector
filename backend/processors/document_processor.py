@@ -432,6 +432,8 @@ class DocumentProcessor:
             
             if parts:
                 self.logger.success(f"✅ Extracted {len(parts)} spare parts")
+                # Save parts immediately (like error codes)
+                self._save_parts_to_db(document_id, parts)
             else:
                 self.logger.info(f">> No parts found (document type: {doc_type})")
             
@@ -1679,6 +1681,85 @@ class DocumentProcessor:
             'statistics': {'error': error_message},
             'processing_time': processing_time
         }
+    
+    def _save_parts_to_db(self, document_id: UUID, parts: List):
+        """
+        Save extracted parts to database immediately
+        
+        Args:
+            document_id: Document UUID
+            parts: List of extracted parts
+        """
+        try:
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping parts storage")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            # Get manufacturer_id from document
+            manufacturer_id = None
+            if self.manufacturer and self.manufacturer != "AUTO":
+                try:
+                    manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
+                except Exception as e:
+                    self.logger.warning(f"Could not get manufacturer_id: {e}")
+            
+            if not manufacturer_id:
+                self.logger.warning(f"⏭️  Skipping parts save - no manufacturer_id")
+                return
+            
+            saved_count = 0
+            duplicate_count = 0
+            
+            for part in parts:
+                # Convert ExtractedPart to dict if needed
+                part_data = part if isinstance(part, dict) else {
+                    'part_number': getattr(part, 'part_number', ''),
+                    'part_name': getattr(part, 'part_name', None),
+                    'part_description': getattr(part, 'part_description', None),
+                    'part_category': getattr(part, 'part_category', None),
+                    'unit_price_usd': getattr(part, 'unit_price_usd', None),
+                }
+                
+                # Prepare record
+                record = {
+                    'manufacturer_id': str(manufacturer_id),
+                    'part_number': part_data.get('part_number'),
+                    'part_name': part_data.get('part_name'),
+                    'part_description': part_data.get('part_description'),
+                    'part_category': part_data.get('part_category'),
+                    'unit_price_usd': part_data.get('unit_price_usd')
+                }
+                
+                # Check for duplicates
+                existing = supabase.table('parts_catalog') \
+                    .select('id') \
+                    .eq('part_number', record['part_number']) \
+                    .eq('manufacturer_id', manufacturer_id) \
+                    .limit(1) \
+                    .execute()
+                
+                if not existing.data:
+                    supabase.table('parts_catalog').insert(record).execute()
+                    saved_count += 1
+                else:
+                    duplicate_count += 1
+            
+            if duplicate_count > 0:
+                self.logger.info(f"⏭️  Skipped {duplicate_count} duplicate parts")
+            self.logger.success(f"💾 Saved {saved_count} parts to DB")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save parts: {e}")
     
     def _save_document_to_db(
         self,
