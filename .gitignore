@@ -32,9 +32,10 @@ venv.bak/
 .venv/
 
 # Environment Variables
-# .env is tracked with placeholder values (safe)
-# .env.local overrides .env with real secrets (not tracked)
+# Modular .env files are tracked (contain real config for private repo)
+# .env.local files can override for local development (not tracked)
 .env.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
