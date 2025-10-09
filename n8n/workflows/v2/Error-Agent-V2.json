@@ -1,0 +1,297 @@
+{
+  "name": "Error Agent V2",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract error code info from input\nconst input = $input.item.json;\n\n// From command or AI intent\nconst manufacturer = input.manufacturer || input.args?.[0];\nconst model = input.model || input.args?.[1];\nconst errorCode = input.errorCode || input.args?.[2];\nconst originalText = input.fullText || input.question || input.text;\n\nreturn {\n  manufacturer: manufacturer,\n  model: model,\n  errorCode: errorCode,\n  originalText: originalText,\n  user: input.user || 'Unknown'\n};"
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-manufacturer",
+              "leftValue": "={{ $json.manufacturer }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty",
+                "name": "filter.operator.isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-manufacturer",
+      "name": "Manufacturer Known?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple manufacturer detection from text\nconst text = ($json.originalText || '').toLowerCase();\n\nlet manufacturer = 'UNKNOWN';\n\nif (text.match(/\\bhp\\b|hewlett/i)) manufacturer = 'Hewlett Packard';\nelse if (text.match(/konica|minolta|km\\b/i)) manufacturer = 'Konica Minolta';\nelse if (text.match(/canon/i)) manufacturer = 'Canon';\nelse if (text.match(/xerox/i)) manufacturer = 'Xerox';\nelse if (text.match(/ricoh/i)) manufacturer = 'Ricoh';\nelse if (text.match(/brother/i)) manufacturer = 'Brother';\nelse if (text.match(/lexmark/i)) manufacturer = 'Lexmark';\nelse if (text.match(/kyocera/i)) manufacturer = 'Kyocera';\n\nreturn {\n  ...$json,\n  manufacturer: manufacturer\n};"
+      },
+      "id": "detect-manufacturer",
+      "name": "Detect Manufacturer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, name, support_email, support_phone\nFROM krai_core.manufacturers\nWHERE name ILIKE '%{{ $json.manufacturer }}%'\nLIMIT 1",
+        "options": {}
+      },
+      "id": "get-manufacturer",
+      "name": "Get Manufacturer Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1120, 300],
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Search for error code in KRAI DB\nWITH error_search AS (\n  SELECT \n    ec.id,\n    ec.code,\n    ec.description,\n    ec.solution,\n    ec.severity,\n    ec.category,\n    d.id as document_id,\n    d.filename,\n    d.document_type,\n    m.name as manufacturer_name\n  FROM krai_core.error_codes ec\n  LEFT JOIN krai_core.documents d ON ec.document_id = d.id\n  LEFT JOIN krai_core.manufacturers m ON ec.manufacturer_id = m.id\n  WHERE ec.code ILIKE '%{{ $('Extract Parameters').item.json.errorCode }}%'\n    AND m.id = '{{ $json.id }}'\n  ORDER BY \n    CASE d.document_type\n      WHEN 'service_manual' THEN 1\n      WHEN 'cpmd' THEN 2\n      WHEN 'bulletin' THEN 3\n      ELSE 4\n    END,\n    ec.created_at DESC\n  LIMIT 10\n)\nSELECT * FROM error_search",
+        "options": {}
+      },
+      "id": "search-error-code",
+      "name": "Search Error Code",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-results",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-results",
+      "name": "Results Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format success response with all data\nconst errorData = $('Search Error Code').all();\nconst manufacturer = $('Get Manufacturer Info').item.json;\nconst params = $('Extract Parameters').item.json;\n\n// Group by document type\nconst byType = {\n  service_manual: [],\n  cpmd: [],\n  bulletin: [],\n  other: []\n};\n\nerrorData.forEach(item => {\n  const type = item.json.document_type || 'other';\n  if (byType[type]) {\n    byType[type].push(item.json);\n  } else {\n    byType.other.push(item.json);\n  }\n});\n\n// Build response\nlet response = `# 🔧 Fehlercode: ${errorData[0]?.json.code || params.errorCode}\\n\\n`;\nresponse += `**Hersteller:** ${manufacturer.name}\\n`;\nresponse += `**Modell:** ${params.model || 'Nicht angegeben'}\\n\\n`;\nresponse += `---\\n\\n`;\n\n// Service Manual (PRIORITY 1)\nif (byType.service_manual.length > 0) {\n  const sm = byType.service_manual[0];\n  response += `## 📘 Service Manual Lösung\\n\\n`;\n  response += `**Beschreibung:**\\n${sm.description || 'Keine Beschreibung verfügbar'}\\n\\n`;\n  \n  if (sm.solution) {\n    response += `**Lösung:**\\n${sm.solution}\\n\\n`;\n  }\n  \n  if (sm.severity) {\n    response += `**Schweregrad:** ${sm.severity}\\n`;\n  }\n  if (sm.category) {\n    response += `**Kategorie:** ${sm.category}\\n`;\n  }\n  \n  response += `\\n**Quelle:** ${sm.filename}\\n\\n`;\n  response += `---\\n\\n`;\n}\n\n// CPMD\nif (byType.cpmd.length > 0) {\n  response += `## 📋 CPMD Informationen\\n\\n`;\n  byType.cpmd.forEach(cpmd => {\n    response += `**${cpmd.filename}**\\n`;\n    response += `${cpmd.description || 'Keine Beschreibung'}\\n\\n`;\n  });\n  response += `---\\n\\n`;\n}\n\n// Bulletins\nif (byType.bulletin.length > 0) {\n  response += `## 📢 Bulletins\\n\\n`;\n  byType.bulletin.forEach(bull => {\n    response += `**${bull.filename}**\\n`;\n    response += `${bull.description || 'Keine Beschreibung'}\\n\\n`;\n  });\n  response += `---\\n\\n`;\n}\n\n// Footer with manufacturer contact\nresponse += `## 📞 Hersteller-Support\\n\\n`;\nif (manufacturer.support_email) {\n  response += `**E-Mail:** ${manufacturer.support_email}\\n`;\n}\nif (manufacturer.support_phone) {\n  response += `**Telefon:** ${manufacturer.support_phone}\\n`;\n}\n\nreturn {\n  response: response,\n  errorCode: errorData[0]?.json.code,\n  manufacturer: manufacturer.name,\n  resultsCount: errorData.length\n};"
+      },
+      "id": "format-success",
+      "name": "Format Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No results found - provide manufacturer contact\nconst manufacturer = $('Get Manufacturer Info').item.json;\nconst params = $('Extract Parameters').item.json;\nconst errorCode = params.errorCode;\n\nlet response = `# ❌ Fehlercode nicht gefunden\\n\\n`;\nresponse += `**Fehlercode:** ${errorCode}\\n`;\nresponse += `**Hersteller:** ${manufacturer.name}\\n\\n`;\nresponse += `Leider konnte ich keine Informationen zu diesem Fehlercode in unserer Datenbank finden.\\n\\n`;\nresponse += `---\\n\\n`;\nresponse += `## 📞 Bitte kontaktiere den Hersteller-Support:\\n\\n`;\n\nif (manufacturer.support_email) {\n  response += `**E-Mail:** ${manufacturer.support_email}\\n`;\n}\nif (manufacturer.support_phone) {\n  response += `**Telefon:** ${manufacturer.support_phone}\\n`;\n}\n\nif (!manufacturer.support_email && !manufacturer.support_phone) {\n  response += `_Keine Kontaktdaten verfügbar_\\n`;\n}\n\nreturn {\n  response: response,\n  errorCode: errorCode,\n  manufacturer: manufacturer.name,\n  resultsCount: 0\n};"
+      },
+      "id": "format-no-results",
+      "name": "Format No Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge-responses",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "content": "## 🔧 ERROR AGENT V2\n\n**Updated für n8n:**\n- If 2.2\n- Postgres 2.6\n- Merge 3.2\n- Code 2\n\n**Workflow:**\n1. Extract parameters\n2. Detect/validate manufacturer\n3. Search KRAI DB (prioritized)\n4. Format response\n5. Return to Master Agent\n\n**Priority:**\n1. Service Manual\n2. CPMD\n3. Bulletins\n4. Other sources\n\n**Fallback:**\nManufacturer support contact",
+        "height": 380,
+        "width": 280
+      },
+      "id": "note-workflow",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 80]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Manufacturer Known?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manufacturer Known?": {
+      "main": [
+        [
+          {
+            "node": "Get Manufacturer Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Detect Manufacturer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Manufacturer": {
+      "main": [
+        [
+          {
+            "node": "Get Manufacturer Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Manufacturer Info": {
+      "main": [
+        [
+          {
+            "node": "Search Error Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Error Code": {
+      "main": [
+        [
+          {
+            "node": "Results Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Results Found?": {
+      "main": [
+        [
+          {
+            "node": "Format Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format No Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success Response": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format No Results": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-09T09:59:00.000Z",
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

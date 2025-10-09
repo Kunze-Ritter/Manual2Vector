@@ -1,0 +1,2046 @@
+2025-10-08 12:41:57 - INFO - Document ID: b05f5882-5b2a-4625-ac27-604f3cb19537
+2025-10-08 12:41:57 - INFO - Log file: C:\Users\haast\docker\krai-minimal\input_pdfs\KM_5000i_4000i_SM_Ver1.2_E_20200410.log.txt
+2025-10-08 12:41:57 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-08 12:41:57 - INFO - Extracting text from: KM_5000i_4000i_SM_Ver1.2_E_20200410.pdf
+2025-10-08 12:41:57 - INFO - Using engine: pymupdf
+2025-10-08 12:41:59 - INFO - [green]Extracted 315 pages with PyMuPDF[/green]
+2025-10-08 12:42:01 - INFO - ✅ Set document manufacturer: Konica Minolta
+2025-10-08 12:42:01 - INFO - Step 2/5: Extracting product models...
+2025-10-08 12:42:01 - INFO - No products on first page, scanning additional pages...
+2025-10-08 12:42:01 - INFO - Extracted 2 products from page 4
+2025-10-08 12:42:01 - INFO - Running LLM extraction on all pages...
+2025-10-08 12:43:02 - DEBUG -    Series: bizhub
+2025-10-08 12:43:02 - DEBUG -    Series: bizhub
+2025-10-08 12:43:42 - DEBUG -    Series: None (not extracted)
+2025-10-08 12:43:42 - DEBUG -    Series: None (not extracted)
+2025-10-08 12:43:42 - DEBUG -    Series: bizhub
+2025-10-08 12:43:42 - DEBUG -    Series: bizhub
+2025-10-08 12:43:58 - DEBUG -    Series: bizhub
+2025-10-08 12:43:58 - DEBUG -    Series: bizhub
+2025-10-08 12:44:02 - INFO - [green]Extracted 4 products[/green]
+2025-10-08 12:44:02 - INFO - Step 2c/5: Extracting spare parts...
+2025-10-08 12:44:02 - INFO - 📦 Document type 'service_manual' - extracting parts with high confidence
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - DEBUG - 🔍 Using 8 patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Added generic patterns as fallback
+2025-10-08 12:44:02 - INFO - [green]✅ Extracted 2 spare parts[/green]
+2025-10-08 12:44:02 - INFO - Step 3/5: Extracting error codes...
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-08 12:44:02 - INFO - [green]Extracted 0 error codes[/green]
+2025-10-08 12:44:02 - INFO - Step 3b/7: Extracting document versions...
+2025-10-08 12:44:02 - INFO - [green]Extracted version: 2020/04/10 (confidence: 0.95)[/green]
+2025-10-08 12:44:02 - INFO - Step 3c/8: Extracting images...
+2025-10-08 12:44:02 - INFO - Processing images from: KM_5000i_4000i_SM_Ver1.2_E_20200410.pdf
+2025-10-08 12:44:04 - INFO - Extracted 93 images
+2025-10-08 12:44:04 - INFO - Filtered to 84 relevant images
+2025-10-08 12:44:04 - INFO - Running OCR on images...
+2025-10-08 12:44:16 - DEBUG - OCR extracted 9 chars from page_0142_img_000.png
+2025-10-08 12:44:16 - DEBUG - OCR extracted 9 chars from page_0223_img_000.jpeg
+2025-10-08 12:44:17 - DEBUG - OCR extracted 131 chars from page_0224_img_000.png
+2025-10-08 12:44:17 - DEBUG - OCR extracted 108 chars from page_0224_img_001.png
+2025-10-08 12:44:18 - DEBUG - OCR extracted 329 chars from page_0225_img_000.png
+2025-10-08 12:44:19 - DEBUG - OCR extracted 70 chars from page_0225_img_001.png
+2025-10-08 12:44:19 - DEBUG - OCR extracted 122 chars from page_0225_img_002.png
+2025-10-08 12:44:20 - DEBUG - OCR extracted 178 chars from page_0227_img_000.png
+2025-10-08 12:44:21 - DEBUG - OCR extracted 36 chars from page_0227_img_001.png
+2025-10-08 12:44:21 - DEBUG - OCR extracted 263 chars from page_0228_img_000.jpeg
+2025-10-08 12:44:22 - DEBUG - OCR extracted 339 chars from page_0228_img_001.png
+2025-10-08 12:44:23 - DEBUG - OCR extracted 373 chars from page_0229_img_000.png
+2025-10-08 12:44:24 - DEBUG - OCR extracted 257 chars from page_0230_img_000.jpeg
+2025-10-08 12:44:25 - DEBUG - OCR extracted 89 chars from page_0230_img_001.png
+2025-10-08 12:44:26 - DEBUG - OCR extracted 677 chars from page_0231_img_000.jpeg
+2025-10-08 12:44:27 - DEBUG - OCR extracted 36 chars from page_0234_img_000.png
+2025-10-08 12:44:28 - DEBUG - OCR extracted 373 chars from page_0235_img_000.png
+2025-10-08 12:44:28 - DEBUG - OCR extracted 89 chars from page_0235_img_001.png
+2025-10-08 12:44:29 - DEBUG - OCR extracted 677 chars from page_0236_img_000.jpeg
+2025-10-08 12:44:30 - DEBUG - OCR extracted 131 chars from page_0241_img_000.png
+2025-10-08 12:44:31 - DEBUG - OCR extracted 108 chars from page_0241_img_001.png
+2025-10-08 12:44:31 - DEBUG - OCR extracted 329 chars from page_0242_img_000.png
+2025-10-08 12:44:32 - DEBUG - OCR extracted 70 chars from page_0242_img_001.png
+2025-10-08 12:44:33 - DEBUG - OCR extracted 122 chars from page_0242_img_002.png
+2025-10-08 12:44:34 - DEBUG - OCR extracted 9 chars from page_0244_img_000.jpeg
+2025-10-08 12:44:34 - DEBUG - OCR extracted 67 chars from page_0244_img_001.png
+2025-10-08 12:44:35 - DEBUG - OCR extracted 44 chars from page_0244_img_002.png
+2025-10-08 12:44:36 - DEBUG - OCR extracted 23 chars from page_0244_img_003.png
+2025-10-08 12:44:36 - DEBUG - OCR extracted 9 chars from page_0245_img_000.jpeg
+2025-10-08 12:44:37 - DEBUG - OCR extracted 67 chars from page_0245_img_001.png
+2025-10-08 12:44:38 - DEBUG - OCR extracted 25 chars from page_0245_img_002.png
+2025-10-08 12:44:39 - DEBUG - OCR extracted 51 chars from page_0248_img_000.png
+2025-10-08 12:44:40 - DEBUG - OCR extracted 1046 chars from page_0251_img_000.png
+2025-10-08 12:44:42 - DEBUG - OCR extracted 1334 chars from page_0251_img_001.png
+2025-10-08 12:44:43 - DEBUG - OCR extracted 1263 chars from page_0251_img_002.png
+2025-10-08 12:44:49 - DEBUG - OCR extracted 5 chars from page_0272_img_000.jpeg
+2025-10-08 12:44:49 - DEBUG - OCR extracted 3 chars from page_0272_img_002.png
+2025-10-08 12:44:51 - DEBUG - OCR extracted 11 chars from page_0272_img_004.jpeg
+2025-10-08 12:44:52 - DEBUG - OCR extracted 226 chars from page_0272_img_005.jpeg
+2025-10-08 12:44:52 - DEBUG - OCR extracted 31 chars from page_0273_img_000.jpeg
+2025-10-08 12:44:53 - DEBUG - OCR extracted 46 chars from page_0274_img_000.png
+2025-10-08 12:44:53 - DEBUG - OCR extracted 39 chars from page_0274_img_001.png
+2025-10-08 12:44:58 - DEBUG - OCR extracted 2389 chars from page_0279_img_000.jpeg
+2025-10-08 12:45:00 - DEBUG - OCR extracted 351 chars from page_0310_img_000.png
+2025-10-08 12:45:01 - DEBUG - OCR extracted 213 chars from page_0310_img_001.png
+2025-10-08 12:45:02 - DEBUG - OCR extracted 406 chars from page_0311_img_000.png
+2025-10-08 12:45:02 - DEBUG - OCR extracted 332 chars from page_0311_img_001.png
+2025-10-08 12:45:03 - DEBUG - OCR extracted 151 chars from page_0311_img_002.png
+2025-10-08 12:45:04 - DEBUG - OCR extracted 311 chars from page_0312_img_000.png
+2025-10-08 12:45:05 - DEBUG - OCR extracted 115 chars from page_0312_img_001.png
+2025-10-08 12:45:05 - DEBUG - OCR extracted 189 chars from page_0312_img_002.png
+2025-10-08 12:45:06 - INFO - [green]✅ OCR processed 51/84 images with text[/green]
+2025-10-08 12:45:06 - INFO - Running Vision AI analysis...
+2025-10-08 12:45:06 - INFO - Processing first 50 images (skipping 34 to avoid overload)
+2025-10-08 12:45:06 - DEBUG - Using vision model: llava:13b
+2025-10-08 12:45:31 - DEBUG - Analyzed page_0000_img_000.jpeg: The image shows a 3D model of spherical components...
+2025-10-08 12:45:48 - DEBUG - Analyzed page_0128_img_000.png: This is a line drawing depicting a mechanical syst...
+2025-10-08 12:46:08 - DEBUG - Analyzed page_0129_img_000.png: The image appears to be an exploded view diagram f...
+2025-10-08 12:46:31 - DEBUG - Analyzed page_0129_img_001.png: The image appears to be a simplified, grayscale re...
+2025-10-08 12:46:51 - DEBUG - Analyzed page_0129_img_002.png: The image depicts an exploded view of a mechanical...
+2025-10-08 12:47:13 - DEBUG - Analyzed page_0129_img_003.png: The image is a technical drawing from a service ma...
+2025-10-08 12:47:32 - DEBUG - Analyzed page_0129_img_004.png: The image appears to be a black and white technica...
+2025-10-08 12:47:56 - DEBUG - Analyzed page_0129_img_005.png: This appears to be an exploded-view schematic, sho...
+2025-10-08 12:48:18 - DEBUG - Analyzed page_0129_img_006.png: The image appears to be a technical diagram from a...
+2025-10-08 12:48:37 - DEBUG - Analyzed page_0129_img_007.png: The image shows a technical diagram with various c...
+2025-10-08 12:48:58 - DEBUG - Analyzed page_0129_img_008.png: The image appears to be a schematic from a service...
+2025-10-08 12:49:16 - DEBUG - Analyzed page_0130_img_000.png: The image appears to be a schematic or illustratio...
+2025-10-08 12:49:35 - DEBUG - Analyzed page_0130_img_001.png: This image appears to be an isometric illustration...
+2025-10-08 12:49:53 - DEBUG - Analyzed page_0130_img_003.png: The image is an exploded view diagram from a servi...
+2025-10-08 12:50:09 - DEBUG - Analyzed page_0130_img_005.png: The image is a schematic diagram, likely from a se...
+2025-10-08 12:50:28 - DEBUG - Analyzed page_0130_img_006.png: The image appears to be a schematic or wiring diag...
+2025-10-08 12:50:42 - DEBUG - Analyzed page_0130_img_008.png: The image appears to be an exploded view diagram f...
+2025-10-08 12:50:58 - DEBUG - Analyzed page_0140_img_000.jpeg: The image shows a close-up of a plastic device wit...
+2025-10-08 12:51:21 - DEBUG - Analyzed page_0140_img_001.jpeg: This is an image showing a section of a service ma...
+2025-10-08 12:51:43 - DEBUG - Analyzed page_0142_img_000.png: This image is a stylized graphic, possibly represe...
+2025-10-08 12:52:06 - DEBUG - Analyzed page_0223_img_000.jpeg: The image displays a computer interface showing an...
+2025-10-08 12:52:36 - DEBUG - Vision AI failed for page_0224_img_000.png: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-08 12:52:57 - DEBUG - Analyzed page_0224_img_001.png: The image displays a computer screen with software...
+2025-10-08 12:53:27 - DEBUG - Vision AI failed for page_0225_img_000.png: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-08 12:53:40 - DEBUG - Analyzed page_0225_img_001.png: The image displays a dialog box from a computer sy...
+2025-10-08 12:54:06 - DEBUG - Analyzed page_0225_img_002.png: This is a text-based representation of a printer s...
+2025-10-08 12:54:19 - DEBUG - Analyzed page_0227_img_000.png: The image is a screenshot of a software interface ...
+2025-10-08 12:54:49 - DEBUG - Vision AI failed for page_0227_img_001.png: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-08 12:55:18 - DEBUG - Analyzed page_0228_img_000.jpeg: The image appears to be a screenshot from a softwa...
+2025-10-08 12:55:39 - DEBUG - Analyzed page_0228_img_001.png: The image shows a Windows operating system error d...
+2025-10-08 12:56:03 - DEBUG - Analyzed page_0229_img_000.png: The image displays a user interface with graphical...
+2025-10-08 12:56:27 - DEBUG - Analyzed page_0230_img_000.jpeg: The image appears to be a screenshot from a servic...
+2025-10-08 12:56:46 - DEBUG - Analyzed page_0230_img_001.png: The image shows a window from a computer interface...
+2025-10-08 12:57:16 - DEBUG - Vision AI failed for page_0231_img_000.jpeg: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-08 12:57:46 - DEBUG - Vision AI failed for page_0234_img_000.png: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-08 12:58:07 - DEBUG - Analyzed page_0235_img_000.png: This image appears to be a screenshot from a softw...
+2025-10-08 12:58:28 - DEBUG - Analyzed page_0235_img_001.png: The image shows a computer screen with two windows...
+2025-10-08 12:58:47 - DEBUG - Analyzed page_0236_img_000.jpeg: The image shows a screenshot of a computer interfa...
+2025-10-08 12:59:10 - DEBUG - Analyzed page_0241_img_000.png: The image depicts a computer screen with software ...
+2025-10-08 12:59:30 - DEBUG - Analyzed page_0241_img_001.png: The image shows a software interface with various ...
+2025-10-08 12:59:58 - DEBUG - Analyzed page_0242_img_000.png: The image shows a computer screen displaying a "Fi...
+2025-10-08 13:00:28 - DEBUG - Vision AI failed for page_0242_img_001.png: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)
+2025-10-08 13:00:47 - DEBUG - Analyzed page_0242_img_002.png: The image is a screenshot showing printer settings...
+2025-10-08 13:01:10 - DEBUG - Analyzed page_0244_img_000.jpeg: The image appears to be a screenshot from a comput...
+2025-10-08 13:01:21 - DEBUG - Analyzed page_0244_img_001.png: The image appears to be a screenshot from an elect...
+2025-10-08 13:01:43 - DEBUG - Analyzed page_0244_img_002.png: This image depicts a service manual page with an e...
+2025-10-08 13:01:59 - DEBUG - Analyzed page_0244_img_003.png: This is an image showing a control panel with a se...
+2025-10-08 13:02:19 - DEBUG - Analyzed page_0245_img_000.jpeg: The image shows a computer interface with various ...
+2025-10-08 13:02:36 - DEBUG - Analyzed page_0245_img_001.png: This image is a screenshot from a computer system'...
+2025-10-08 13:02:59 - DEBUG - Analyzed page_0245_img_002.png: This image appears to be a technical diagram from ...
+2025-10-08 13:02:59 - INFO - [green]✅ Vision AI analyzed 44/50 images[/green]
+2025-10-08 13:02:59 - INFO - [green]Extracted 84 images[/green]
+2025-10-08 13:02:59 - INFO - Step 3d/8: Extracting links and videos...
+2025-10-08 13:02:59 - INFO - [green]Extracted 0 unique links (0 videos)[/green]
+2025-10-08 13:02:59 - INFO - Step 4/8: Chunking text...
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'SERVICE MANUAL
+Ver. 1.2...' | Products: []
+2025-10-08 13:02:59 - DEBUG - ⏭️  Skipped chunk (too short after header cleaning): 16 chars (min: 30)
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'Trademarks
+KONICA MINOLTA, KONICA MINOLTA logo and...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'Copyright and License
+©2019 KONICA MINOLTA, Inc Al...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'i
+CONTENTS...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-7
+2.5...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-70
+4.2.7...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'ii
+4.4.1...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-95
+4.9...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-7
+6....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'iii
+8.3...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-42...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-66...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'iv...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-107
+CHAPTER 4...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-16
+5....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'v
+7.1...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-14
+1.3.9...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-46
+2....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'vi
+CHAPTER 6...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'vii
+SAFETY INFORMATION...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'viii
+To use the Machine Safely...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'ix...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'It may cause an electrical shock or a fire....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'x
+HOT SURFACE...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'xi
+Caution for Laser Product (WARNHINWEIS für Las...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '1-1
+CHAPTER 1 SUPPLEMENTAL...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '1-2
+Option...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '1-3
+2....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-1
+CHAPTER 2 ERROR INDICATIONS &...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-2
+1.2 Checks before Commencing Troubleshooting...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-3
+Others...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-4
+2....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-5
+2.2 Paper Feeding...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-6
+2.3 Operation of Each Part...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-7
+2.4 Block Diagram...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-8
+2.5 Main Components...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-9
+3....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-10
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-11
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-12
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-13
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-14
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-15
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-16
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-17
+Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-18
+3.2 Error Messages
+3.2.1 bizhub 4000i...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-19
+Jam Tray 2...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-20
+No Paper Fed T2...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-21
+No Tray T3...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'F Kit3 -
+Printable pages set for PF kit 3...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-22
+Replace Toner...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-23
+When printing from the paper tray...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-24
+3.2.2 bizhub 5000i...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-25
+Jam Tray2...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-26
+Maintenance...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-27
+No Paper...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-28
+No Paper T1...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-29
+No Tray T3...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-30
+Print Unable 03...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-31
+Print Unable E0...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-32
+Size Error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-33
+Unable to...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-34
+4....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-35
+Error code 0300...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-36
+Error code 0501...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-37
+Error code 050A...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-38
+Error code 0900...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-39
+Error code 1801...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-40
+Error code 4500...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-41
+Error code 4F01...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-42
+Error code 6001...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-43
+Error code 6200...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-44
+Error code 6801...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-45
+Error code 6A00...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-46
+Error code 7000...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-47
+Error code 7200...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-48
+Error code 7301...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4
+Registration front/rear sensor...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-49
+Error code 7401...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-50
+Error code 7402...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-51
+Error code 7501...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-52
+Error code 7502...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-53
+Error code 7601...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-54
+Error code 7602...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-55
+Error code 7800...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-56
+Error code 8505...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-57
+Error code 8903...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-58
+Error code 9001...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-59
+Error code 9201...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-60
+Error code 9301...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-61
+Error code 9309...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-62
+Error code 9701...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-63
+Error code C100...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-64
+Error code E000...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-65
+Error code EC00...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-66
+4.2 Troubleshooting for Paper Feeding Problem...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'SY.
+15...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-67
+4.2.2 No paper is fed from PF-P23/PF-P24...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-68
+4.2.3 No paper is fed from MP tray...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-69
+4.2.4 Multiple sheets of paper are fed...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-70
+4.2.6 Paper is fed at an angle...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-71
+4.2.7 Paper is curled...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-72
+4.2.9 Paper jam...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-73
+Paper jams in PF-P23/PF-P24 path...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-74
+Paper jams in MP tray...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-75...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-76
+Paper jams in the ejecting section...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-77
+4.3 Troubleshooting for Image Defects...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-78
+4.3.2 Troubleshooting according to image defe...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-79
+Faulty registration...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-80
+Poor fixing...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-81
+Image distortion...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-82
+Dirt on the paper...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-83
+Black vertical streaks on a light background...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-84
+White horizontal streaks...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-85
+White spots...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-86
+Black band...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-87...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-88
+Downward fogging of solid color...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-89
+Fogging...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-90
+4.4 Troubleshooting for Software Problems...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-91
+4.5 Troubleshooting for Network Problems...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-92
+4.6.2 Nothing is displayed on the LED...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-93
+4.7 Troubleshooting for Toner and Drum Proble...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-94
+4.7.4 Drum error...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-95
+4.8 Troubleshooting for Fuser Unit Problems...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-96
+4.10 Troubleshooting for PCB Problems...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-97
+4.11 Troubleshooting for Other Problems...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '2-98
+4.11.4"Paper Low" message does not disappear...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-1
+CHAPTER 3 DISASSEMBLY/REASSEMBLY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-2
+2....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-3
+3....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-4
+4....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-5
+Under bar ground plate R...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-6
+LT side cover L...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-7
+5....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-8
+<Layout view>...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-9
+6....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-10
+2
+Left side of the machine (bizhub 4000i only...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-11
+3...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-12
+4
+Bottom side of the top cover ASSY (bizhub 5...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-13
+5
+Bottom side of the top cover ASSY (bizhub 4...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-14
+6...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-15
+7...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-16
+8...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-17
+7....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-18
+Disassembly / Reassembly (second)
+*1 bizhub 5...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-19
+7.2 PF-P23/PF-P24...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-20
+8....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-21
+8.2 Paper tray...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-22...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-23
+8.3 Back cover / Outer chute...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-24
+8.4 Fuser cover...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-25
+8.5 Fuser unit...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-26...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-27...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-28
+8.6 MP cover ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-29...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-30
+8.7 Front cover ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-31
+8.8 Side cover L...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-32
+8.9 Side cover R...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-33
+8.10 Top cover ASSY
+8.10.1 Panel PCB ASSY (bi...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-34
+8.10.2 Top cover ASSY (bizhub 5000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-35
+8.10.3 NFC PCB ASSY (bizhub 5000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-36
+8.10.4 Control panel (bizhub 5000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-37...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-38...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-39...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-40
+8.10.5 Stack sensor PCB ASSY (bizhub 5000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-41
+8.10.6 Top cover printed ASSY (bizhub 5000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-42
+8.10.7 Top cover ASSY (bizhub 4000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-43
+8.10.8 Panel PCB ASSY (bizhub 4000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-44
+8.10.9 Top cover printed ASSY (bizhub 4000i)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-45
+8.11 Main PCB ASSY / Wireless LAN PCB...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-46...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-47...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-48
+8.12 External temperature/humidity sensor...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-49
+8.13 Laser unit...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-50
+Fig. 3-46...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-51
+8.14 PF roller holder ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-52
+8.15 Low-voltage power supply PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-53...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-54...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-55
+8.16 Toner amount detection sensor PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-56...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-57
+8.17 Main fan...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-58...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-59
+8.18 Filter...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-60
+8.19 Relay front PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-61
+8.20 Registration clutch / T1 pickup clutch...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-62
+8.21 Main frame L ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-63...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-64
+8.22 Paper feed motor...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-65...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-66
+8.23 Develop joint gear 37 / Develop joint...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-67
+8.24 Toner amount detection sensor PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-68
+8.25 MP solenoid...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-69
+8.26 Develop clutch 51R...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-70
+8.27 Internal temperature sensor...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-71
+8.28 Fuser drive gear 39...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-72
+Fig. 3-70...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-73
+8.29 Eject motor...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-74
+8.30 Back cover/duplex tray sensor...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-75
+8.31 LT connector...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-76
+8.32 High-voltage power supply PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-77
+(2) Remove the HV insulation sheet....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-78...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-79
+8.33 Eject sensor PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-80
+8.34 MP roller holder ASSY / MP separation pa...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-81
+8.35 T1 paper feed sensor PCB ASSY /...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-82...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-83
+8.36 MP paper empty sensor PCB ASSY / MP pape...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-84...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-85...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-86
+8.37 Paper empty sensor PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-87
+8.38 Registration front/rear sensor PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-88...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-89...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-90
+9....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-91...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-92
+9.2 LT roller holder ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-93
+9.3 LT side cover L...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-94
+9.4 LT side cover R...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-95
+9.5 LT front cover ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-96
+9.6 LT control PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-97
+9.7 LT pickup clutch...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-98
+9.8 LT release clutch...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-99
+Common to all models...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-100...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-101
+9.9 LT connector ASSY / LT connector upper...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-102
+9.10 LT paper feed sensor PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-103...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-104...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-105...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-106...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '3-107
+9.11 LT paper empty sensor PCB ASSY...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-1
+CHAPTER 4 ADJUSTING AND UPDATING...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-2
+1.1 Installing Firmware (Sub Firmware and Main...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-3
+1.1.2 Installing firmware...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-4...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-5
+1.2 Adjusting Touch Panel (Function Code: 61)
+...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-6
+1.5...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-7...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-8
+Entering adjusted value of laser unit...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-9...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-10
+Checking each setting...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-11
+2....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-12
+3....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-13
+3.1 Entering Adjusted Value of Laser Unit...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-14...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-15...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-16
+4....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-17
+5....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-18
+6....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-19
+7....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-20
+7.1.2 Installing firmware...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '4-21...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-1
+CHAPTER 5 SERVICE FUNCTIONS...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-2
+bizhub 5000i...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-3...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-4
+1.2 List of Maintenance Mode Functions...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-5
+1.3 Details of Maintenance Mode Functions...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-6
+1.3.2 Print quality test pattern (function cod...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-7
+1.3.3 Set worker switches (function code: 10)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'The...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-8
+Note:...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-9...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-10
+1.3.5 Check LCD operation (function code: 12)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-11
+<bizhub 5000i>...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-12
+1.3.6 Check control panel key operation (func...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-13
+1.3.7 Display software version (function code...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: ': Ver1.00 (A) *1
+Main firmware version information...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-14...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-15
+1.3.9 Check sensor operation (function code: ...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-16
+<Solenoid and clutch check>...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-17
+Change the status of the T3 paper empty senso...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-18
+Location of sensors...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-19
+1.3.10Display LAN connection status (function...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-20...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-21
+Adjust left-end print position...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '"Accepted" is...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-22
+Adjust upper-end print position...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-23...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-24
+1.3.12 Adjust printable range for each speed ...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '.PrtSzAdj Nomal”
+• Half speed for thick paper →...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-25
+Print adjustment test pattern...' | Products: []
+2025-10-08 13:02:59 - DEBUG - ⏭️  Skipped chunk (too short after header cleaning): 8 chars (min: 30)
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-26
+1.3.13 Adjust touch panel (function code: 61)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-27
+1.3.14 Continuous print test (function code: ...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'Print pattern> table,...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-28
+<Print pattern>...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-29
+<Print type>...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-30
+Fig. 5-11...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-31...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-32...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-33
+Fig. 5-13...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '"SELECT: 1PAGE" is displayed...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-34
+<Paper size>...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-35
+<Error display>...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-36...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-37
+1.3.19 Print maintenance information (functio...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-38
+1...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-39
+1.3.20 Check main fan operation (function cod...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-40
+1.3.21 Display machine log information (funct...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-41
+KCVRGACC:3.47%...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-42...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-43...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-44
+1.3.22 Display machine error code (function c...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-45...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-46
+1.3.24 Quit maintenance mode (function code: ...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-47
+2.
+OTHER SERVICE FUNCTIONS...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '5-48
+2.2 Reset the Drum Unit Counter...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-1
+CHAPTER 6 PERIODICAL MAINTENANCE...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-2
+2....' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-3
+2.2 Fuser unit...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-4...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-5...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-6...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-7
+2.3 Laser unit...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-8
+(5)...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-9
+bizhub 5000i only...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-10...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-11
+bizhub 4000i only...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-12
+Common to all models...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-13...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-14
+2.4 PF kit MP...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-15
+2.5 PF kit 1...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-16...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-17
+2.6 PF kit 2/3/4...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '6-18...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'App. 1-1
+APPENDIX 1 DELETING USER SETTING...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'App. 2-1
+APPENDIX 2 INSTALLING THE MAINTENANCE...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'App. 2-2...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'App. 2-3
+Uninstallation procedure...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: 'App. 3-1
+Confidential
+APPENDIX 3 REFERENCE MANUAL ...' | Products: []
+2025-10-08 13:02:59 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-08 13:02:59 - DEBUG - 🎯 Found header: '© 2019 KONICA MINOLTA, INC.
+Use of this manual sho...' | Products: []
+2025-10-08 13:02:59 - DEBUG - ⏭️  Skipped chunk (too short after header cleaning): 25 chars (min: 30)
+2025-10-08 13:02:59 - INFO - [green]✅ Created 348 chunks from 315 pages[/green]
+2025-10-08 13:02:59 - INFO -    Types: general: 192, procedure: 57, specification: 7, troubleshooting: 92
+2025-10-08 13:02:59 - INFO -    Headers preserved: 332/348 chunks
+2025-10-08 13:02:59 - INFO - Removed 2 duplicate chunks
+2025-10-08 13:02:59 - INFO - [green]Created 346 chunks[/green]
+2025-10-08 13:02:59 - INFO - Step 5/8: Saving links and videos...
+2025-10-08 13:02:59 - INFO - Step 6/8: Calculating statistics...
+2025-10-08 13:02:59 - INFO - [green]Processing completed in 1262.10s[/green]

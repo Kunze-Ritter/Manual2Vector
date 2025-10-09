@@ -1,16 +1,16 @@
-# KRAI - KI-gestützte Fehlercode-Datenbank
+# KRAI - KI gestützte Fehlercode-Datenbank
 ## Projektbericht für Management & Förderanträge
 
 **Projektzeitraum:** September 2025 - laufend  
 **Aktueller Stand:** Oktober 2025 (2 Monate Entwicklung)  
-**Projektleitung:** Kunze-Ritter GmbH  
+**Projektleitung:** Kunze & Ritter GmbH  
 **Technologie-Stack:** Python, PostgreSQL, Ollama, Object Storage
 
 ---
 
 ## 📋 EXECUTIVE SUMMARY
 
-KRAI (Kunze-Ritter AI) ist eine intelligente Wissensdatenbank für den technischen Service von Druckern und Multifunktionsgeräten. Das System liest automatisch technische Handbücher und macht das Wissen für Servicetechniker sofort verfügbar.
+KRAI (Kunze & Ritter AI) ist eine intelligente Wissensdatenbank für den technischen Service von Druckern und Multifunktionsgeräten. Das System liest automatisch technische Handbücher und macht das Wissen für Servicetechniker sofort verfügbar.
 
 **Das Problem:**
 Servicetechniker verbringen täglich Stunden damit, in hunderten Seiten technischer Dokumentation nach Lösungen zu suchen. Fehlercodes müssen manuell nachgeschlagen, Ersatzteile identifiziert und Reparaturanleitungen gefunden werden. Dies kostet Zeit und Geld.
@@ -46,7 +46,6 @@ KRAI digitalisiert und strukturiert technisches Wissen automatisch. Ein Technike
 
 ### Zukünftige Erweiterungen
 - 🔄 **Kundenportale:** Jeder Kunde kann seine eigenen Daten und Notizen hinzufügen
-- 🔄 **Mobile App:** Techniker können vor Ort beim Kunden direkt auf ihr Smartphone zugreifen
 - 🔄 **Printer Monitoring Integration:** Anbindung an Drucker-Überwachungssysteme
   - Live-Abfrage von Gerätedaten (z.B. "Trommel K hat noch 4% Restlaufzeit")
   - Automatische Warnungen bei kritischen Werten
@@ -64,7 +63,7 @@ KRAI digitalisiert und strukturiert technisches Wissen automatisch. Ein Technike
 
 **1. Dokumenten-Verarbeitung:**
 Das System liest PDF-Handbücher und wandelt sie in strukturierte Daten um. Dabei erkennt es automatisch:
-- Fehlercodes (z.B. "Error 49.4C02")
+- Fehlercodes (z.B. "Error 12.34.56")
 - Fehlerbeschreibungen
 - Lösungsschritte
 - Ersatzteil-Nummern
@@ -103,7 +102,7 @@ Eine moderne Web-Oberfläche ermöglicht:
 - ✅ Link- und Video-Extraktion
 
 **Technische Details:**
-- Verarbeitet: Service Manuals, Parts Catalogs, User Guides
+- Verarbeitet: Service Manuals, Parts Catalogs, User Guides, Technical Bulletins
 - Unterstützte Formate: PDF (Text + OCR)
 - Genauigkeit: 94% bei Fehlercode-Erkennung
 
@@ -179,16 +178,16 @@ Eine moderne Web-Oberfläche ermöglicht:
 
 ### Investition (bisher)
 - **Entwicklungszeit:** 2 Monate (Sep-Okt 2025)
-- **Infrastruktur:** ~30€/Monat (Supabase, Object Storage)
+- **Infrastruktur:** ~350€/Monat (Supabase, Object Storage, VPS AI Server)
 - **Tools & Lizenzen:** Open Source (kostenlos)
 
 ### ROI-Potenzial
 **Szenario: 10 Techniker**
 - Zeitersparnis pro Techniker: 2 Std./Tag
-- Kosten pro Stunde: 45€
-- Ersparnis: 10 × 2 × 45€ = **900€/Tag**
-- Monatlich: **~19.800€**
-- Jährlich: **~237.600€**
+- Kosten pro Stunde: 90€
+- Ersparnis: 10 × 2 × 90€ = **1800€/Tag**
+- Monatlich: **~37.800€**
+- Jährlich: **~453.600€**
 
 **Break-Even:** Nach 1-2 Monaten Einsatz
 

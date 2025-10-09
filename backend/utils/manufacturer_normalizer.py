@@ -81,47 +81,61 @@ MANUFACTURER_MAP = {
 }
 
 
-def normalize_manufacturer(name: str) -> Optional[str]:
+def normalize_manufacturer(name: str, strict: bool = False) -> Optional[str]:
     """
     Normalize manufacturer name to canonical form
     
     Args:
         name: Manufacturer name (any variation)
+        strict: If True, only use exact matches (no fuzzy matching)
         
     Returns:
         Canonical manufacturer name or None if not found
         
     Examples:
-        normalize_manufacturer("hp inc") -> "HP"
+        normalize_manufacturer("hp inc") -> "Hewlett Packard"
         normalize_manufacturer("KM") -> "Konica Minolta"
-        normalize_manufacturer("hewlett packard") -> "HP"
+        normalize_manufacturer("hewlett packard") -> "Hewlett Packard"
     """
     if not name:
         return None
     
     # Clean input
     name_clean = name.strip()
+    name_lower = name_clean.lower()
     
     # Try exact match first (case-insensitive)
     for canonical, aliases in MANUFACTURER_MAP.items():
         if name_clean.lower() in [alias.lower() for alias in aliases]:
             return canonical
     
-    # Try fuzzy match (contains)
-    name_lower = name_clean.lower()
+    # If strict mode, stop here
+    if strict:
+        return None
     
-    # Special cases for common patterns
-    if 'hewlett' in name_lower or 'packard' in name_lower:
-        return 'HP'
+    # Try fuzzy match (contains) - but be more careful
+    # Only match if the keyword is substantial (>3 chars) and appears as whole word
     
-    if 'konica' in name_lower or 'minolta' in name_lower:
+    # Special cases for common patterns - require word boundaries
+    if re.search(r'\bhewlett\b|\bpackard\b', name_lower):
+        return 'Hewlett Packard'
+    
+    if re.search(r'\blexmark\b', name_lower):
+        return 'Lexmark'
+    
+    # For Konica Minolta, require both words or full match to avoid false positives
+    if re.search(r'\bkonica\s+minolta\b', name_lower):
         return 'Konica Minolta'
     
-    # Try partial match
+    # Try partial match with word boundaries
     for canonical, aliases in MANUFACTURER_MAP.items():
         for alias in aliases:
-            if alias.lower() in name_lower or name_lower in alias.lower():
-                return canonical
+            # Only match if alias is substantial (>3 chars)
+            if len(alias) > 3:
+                # Use word boundary for better matching
+                pattern = r'\b' + re.escape(alias.lower()) + r'\b'
+                if re.search(pattern, name_lower):
+                    return canonical
     
     # No match found
     return None

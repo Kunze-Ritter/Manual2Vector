@@ -1,0 +1,555 @@
+{
+  "name": "KRAI Master Agent V2",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "newChat"
+      },
+      "type": "n8n-nodes-base.microsoftTeamsTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "teams-trigger",
+      "name": "Microsoft Teams Trigger",
+      "webhookId": "krai-agent-teams-trigger",
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "RnAZv18CdMT6IX8C",
+          "name": "Microsoft Teams account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 500],
+      "id": "chat-trigger",
+      "name": "n8n Chat Trigger (Test)",
+      "webhookId": "krai-agent-chat-test"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract user input from Teams\nconst input = $input.item.json;\nconst text = input.body?.content || input.content || input.text || '';\nconst user = input.from?.user?.displayName || input.from?.displayName || 'Unknown';\n\nreturn {\n  text: text,\n  user: user,\n  conversationId: input.conversationId,\n  channelId: input.channelId,\n  source: 'teams',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "extract-input-teams",
+      "name": "Extract Input (Teams)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract user input from n8n Chat\nconst input = $input.item.json;\nconst text = input.chatInput || input.input || '';\n\nreturn {\n  text: text,\n  user: 'Test User',\n  conversationId: 'test-chat',\n  channelId: 'test-channel',\n  source: 'chat',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500],
+      "id": "extract-input-chat",
+      "name": "Extract Input (Chat)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [650, 400],
+      "id": "merge-inputs",
+      "name": "Merge Inputs"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-slash",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "/",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith",
+                "name": "filter.operator.startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [850, 400],
+      "id": "check-command",
+      "name": "Is Command?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse slash command\nconst text = $input.item.json.text;\nconst parts = text.trim().split(/\\s+/);\nconst command = parts[0].substring(1).toLowerCase();\nconst args = parts.slice(1);\n\nreturn {\n  command: command,\n  args: args,\n  text: text,\n  user: $input.item.json.user,\n  conversationId: $input.item.json.conversationId,\n  channelId: $input.item.json.channelId\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "id": "parse-command",
+      "name": "Parse Command"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare prompt for Ollama\nconst text = $input.item.json.text;\n\nconst prompt = `Du bist ein Intent-Detector für einen technischen Support-Bot.\n\nUser Input: ${text}\n\nAnalysiere die Anfrage und gib NUR ein JSON zurück (keine Erklärung!):\n\n{\n  \"intent\": \"ERROR_CODE\" | \"DEVICE_STATUS\" | \"PRODUCT_INFO\" | \"HELP\" | \"UNKNOWN\",\n  \"manufacturer\": \"HP\" | \"Konica Minolta\" | \"Canon\" | etc. (falls erkennbar),\n  \"model\": \"X580\" | \"M455\" | etc. (falls erkennbar),\n  \"errorCode\": \"12.34.56\" | \"C2345\" | etc. (falls erkennbar),\n  \"deviceId\": \"12345\" (falls erkennbar)\n}\n\nBeispiele:\n- \"HP X580 Fehler 12.34.56\" → {\"intent\":\"ERROR_CODE\",\"manufacturer\":\"HP\",\"model\":\"X580\",\"errorCode\":\"12.34.56\"}\n- \"Trommel Restlaufzeit Gerät 12345\" → {\"intent\":\"DEVICE_STATUS\",\"deviceId\":\"12345\"}\n- \"Kann X580 Duplexscan?\" → {\"intent\":\"PRODUCT_INFO\",\"model\":\"X580\"}\n- \"Was kannst du?\" → {\"intent\":\"HELP\"}`;\n\nreturn {\n  prompt: prompt,\n  text: text,\n  user: $input.item.json.user,\n  conversationId: $input.item.json.conversationId,\n  channelId: $input.item.json.channelId\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400],
+      "id": "prepare-ollama-prompt",
+      "name": "Prepare Ollama Prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Call Ollama API directly\nconst prompt = $input.item.json.prompt;\n\nconst response = await fetch('http://host.docker.internal:11434/api/generate', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    model: 'qwen2.5:7b',\n    prompt: prompt,\n    stream: false\n  })\n});\n\nconst data = await response.json();\n\nreturn {\n  response: data.response,\n  model: data.model,\n  done: data.done,\n  ...($input.item.json)\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400],
+      "id": "ollama-intent",
+      "name": "Ollama Intent Detection"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Ollama response\nconst ollamaResponse = $input.item.json.response || $input.item.json.text || '{}';\nconst previousData = $('Prepare Ollama Prompt').item.json;\n\nlet parsed = {};\ntry {\n  // Try to extract JSON from response\n  const jsonMatch = ollamaResponse.match(/\\{[^}]+\\}/);\n  if (jsonMatch) {\n    parsed = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  // Fallback to simple pattern matching\n  const text = previousData.text.toLowerCase();\n  \n  if (text.match(/fehler|error|code/i)) {\n    parsed.intent = 'ERROR_CODE';\n    const codeMatch = text.match(/\\b([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}|[A-Z]?[0-9]{4,6})\\b/);\n    if (codeMatch) parsed.errorCode = codeMatch[0];\n    \n    if (text.match(/\\bhp\\b|hewlett/i)) parsed.manufacturer = 'Hewlett Packard';\n    else if (text.match(/konica|minolta/i)) parsed.manufacturer = 'Konica Minolta';\n    else if (text.match(/canon/i)) parsed.manufacturer = 'Canon';\n  }\n  else if (text.match(/help|hilfe|commands/i)) {\n    parsed.intent = 'HELP';\n  }\n  else {\n    parsed.intent = 'UNKNOWN';\n  }\n}\n\nreturn {\n  intent: parsed.intent || 'UNKNOWN',\n  manufacturer: parsed.manufacturer,\n  model: parsed.model,\n  errorCode: parsed.errorCode,\n  deviceId: parsed.deviceId,\n  text: previousData.text,\n  user: previousData.user,\n  conversationId: previousData.conversationId,\n  channelId: previousData.channelId\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400],
+      "id": "parse-ollama-response",
+      "name": "Parse Ollama Response"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-error-1",
+                    "leftValue": "={{ $json.command || $json.intent }}",
+                    "rightValue": "fehler",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "error"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-error-2",
+                    "leftValue": "={{ $json.command || $json.intent }}",
+                    "rightValue": "ERROR_CODE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "error"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-help-1",
+                    "leftValue": "={{ $json.command || $json.intent }}",
+                    "rightValue": "help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-help-2",
+                    "leftValue": "={{ $json.command || $json.intent }}",
+                    "rightValue": "HELP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-help-3",
+                    "leftValue": "={{ $json.command || $json.intent }}",
+                    "rightValue": "commands",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [1450, 300],
+      "id": "route-agent",
+      "name": "Route to Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Help Agent - Command Liste\nconst commands = [\n  {\n    command: '/fehler [Hersteller] [Modell] [Code]',\n    description: 'Fehlercode nachschlagen',\n    example: '/fehler HP X580 12.34.56'\n  },\n  {\n    command: '/status [Geräte-ID]',\n    description: 'Gerätestatus abfragen (coming soon)',\n    example: '/status 12345'\n  },\n  {\n    command: '/info [Modell] [Frage]',\n    description: 'Produktinformationen',\n    example: '/info X580 duplexscan'\n  },\n  {\n    command: '/commands',\n    description: 'Alle Commands anzeigen',\n    example: '/commands'\n  },\n  {\n    command: '/help',\n    description: 'Ausführliche Hilfe',\n    example: '/help'\n  }\n];\n\nlet response = '# 🤖 KRAI Agent - Verfügbare Commands\\n\\n';\n\nfor (const cmd of commands) {\n  response += `**${cmd.command}**\\n`;\n  response += `${cmd.description}\\n`;\n  response += `_Beispiel: ${cmd.example}_\\n\\n`;\n}\n\nresponse += '\\n---\\n\\n';\nresponse += '💡 **Tipp:** Du kannst auch einfach in natürlicher Sprache fragen!\\n';\nresponse += 'Beispiel: \"HP X580 zeigt Fehler 12.34.56\"';\n\nreturn {\n  response: response,\n  type: 'help',\n  conversationId: $input.item.json.conversationId,\n  channelId: $input.item.json.channelId,\n  source: $input.item.json.source\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 400],
+      "id": "help-agent",
+      "name": "Help Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Error Agent Placeholder\nconst data = $input.item.json;\n\nconst response = `# 🔧 Error Agent\\n\\n` +\n  `**Manufacturer:** ${data.manufacturer || data.args?.[0] || 'Unknown'}\\n` +\n  `**Model:** ${data.model || data.args?.[1] || 'Unknown'}\\n` +\n  `**Error Code:** ${data.errorCode || data.args?.[2] || 'Unknown'}\\n\\n` +\n  `_Error Agent wird im nächsten Schritt verbunden..._\\n\\n` +\n  `Erkannte Daten werden an Error Agent Sub-Workflow weitergeleitet.`;\n\nreturn {\n  response: response,\n  manufacturer: data.manufacturer || data.args?.[0],\n  model: data.model || data.args?.[1],\n  errorCode: data.errorCode || data.args?.[2],\n  conversationId: data.conversationId,\n  channelId: data.channelId,\n  source: data.source\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 200],
+      "id": "error-agent-placeholder",
+      "name": "Error Agent (Placeholder)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-source",
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "teams",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2050, 300],
+      "id": "check-source",
+      "name": "Is Teams?"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "chatId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.conversationId }}"
+        },
+        "messageType": "text",
+        "message": "={{ $json.response }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 2,
+      "position": [2250, 200],
+      "id": "send-teams-message",
+      "name": "Send Teams Message",
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "RnAZv18CdMT6IX8C",
+          "name": "Microsoft Teams account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.response }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2250, 400],
+      "id": "send-chat-response",
+      "name": "Send Chat Response"
+    },
+    {
+      "parameters": {
+        "content": "## 🎯 KRAI MASTER AGENT V2\n\n**Features:**\n- ✅ Microsoft Teams Integration\n- ✅ Slash Commands\n- ✅ Natural Language (Ollama)\n- ✅ Intent Detection\n- ✅ Multi-Agent Routing\n\n**Agents:**\n1. Error Agent (Fehlercodes)\n2. Product Info Agent (Specs)\n3. Device Status Agent (Monitoring)\n4. Help Agent (Commands)\n\n**Updated für n8n:**\n- Teams Trigger 1\n- Teams Message 2\n- Ollama Chat 1\n- If 2.2\n- Switch 3.3\n- Code 2",
+        "height": 400,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 80],
+      "id": "note-master"
+    }
+  ],
+  "connections": {
+    "Microsoft Teams Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Input (Teams)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "n8n Chat Trigger (Test)": {
+      "main": [
+        [
+          {
+            "node": "Extract Input (Chat)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Input (Teams)": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Input (Chat)": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "Is Command?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Command?": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Ollama Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Route to Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Ollama Prompt": {
+      "main": [
+        [
+          {
+            "node": "Ollama Intent Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Intent Detection": {
+      "main": [
+        [
+          {
+            "node": "Parse Ollama Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Ollama Response": {
+      "main": [
+        [
+          {
+            "node": "Route to Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Agent": {
+      "main": [
+        [
+          {
+            "node": "Error Agent (Placeholder)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [],
+        [
+          {
+            "node": "Help Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Help Agent": {
+      "main": [
+        [
+          {
+            "node": "Is Teams?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Agent (Placeholder)": {
+      "main": [
+        [
+          {
+            "node": "Is Teams?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Teams?": {
+      "main": [
+        [
+          {
+            "node": "Send Teams Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Chat Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-09T10:10:00.000Z",
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

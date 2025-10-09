@@ -1,0 +1,383 @@
+{
+  "name": "n8n Nodes",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "23880910-c987-4160-9770-534294f4b95e",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -400,
+        -80
+      ],
+      "id": "1c456d73-2be4-418e-9bc1-a3d949e9e3f5",
+      "name": "Webhook",
+      "webhookId": "23880910-c987-4160-9770-534294f4b95e"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "02cfd5b5-f8b4-452c-9fc6-47f995c445ee",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -128,
+        -96
+      ],
+      "id": "ff34ab88-981c-48f7-b6ce-a36889dd8d16",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        -192
+      ],
+      "id": "c45b3bfe-83fb-4c30-b50d-ebb98ca430b8",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -384,
+        80
+      ],
+      "id": "65d9ea91-177c-4257-8fce-654c9391e692",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "f9e8a02c-adee-491b-a58e-ee882484bcbc"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -48,
+        80
+      ],
+      "id": "cb298f8c-473f-472e-b7de-3474d45ca823",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        176,
+        80
+      ],
+      "id": "69a3714f-47ff-412e-841f-1a79536eddbd",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        336,
+        -128
+      ],
+      "id": "91f3e4c3-a173-40c8-b1d4-443b908b72de",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -384,
+        304
+      ],
+      "id": "f930fb38-57b3-4f2e-b76a-6d8db70f2478",
+      "name": "Delete table or rows",
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -80,
+        320
+      ],
+      "id": "3f4969a6-6ecc-49f5-8c5b-833ea4f716ce",
+      "name": "Merge"
+    },
+    {
+      "parameters": {},
+      "id": "d04f5127-f106-4a78-b373-b5a062d771a6",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        160,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        416,
+        240
+      ],
+      "id": "634783aa-0122-4b9b-a163-5c7d6d1e1637",
+      "name": "Ollama Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        320,
+        416
+      ],
+      "id": "fb314c4f-e0a1-4eaa-b998-bbaf27c6f679",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        448,
+        80
+      ],
+      "id": "598ce048-d71b-4a73-87ca-edf931ec1cb6",
+      "name": "Embeddings Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -320,
+        -256
+      ],
+      "id": "b4a0a614-732d-492c-b224-b23ece11c717",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "event": "newChat"
+      },
+      "type": "n8n-nodes-base.microsoftTeamsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -208
+      ],
+      "id": "e7cb3382-45bb-4fd2-83bf-34572264451a",
+      "name": "Microsoft Teams Trigger",
+      "webhookId": "421bd84a-e54c-4ca8-b7a7-97faecdfe081",
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "RnAZv18CdMT6IX8C",
+          "name": "Microsoft Teams account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chatMessage",
+        "operation": "get",
+        "chatId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.microsoftTeamsTool",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        -16
+      ],
+      "id": "b9c63a2f-5e76-4a74-bba9-cfa6c8bb7d73",
+      "name": "Get chat message in Microsoft Teams",
+      "webhookId": "9bcaab8e-899a-4bf5-bf62-803073ce2aa7",
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "RnAZv18CdMT6IX8C",
+          "name": "Microsoft Teams account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "teamId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.microsoftTeamsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        192
+      ],
+      "id": "c171dc04-a6b8-4bab-a27d-0f3f899fe2d9",
+      "name": "Microsoft Teams Trigger1",
+      "webhookId": "29133160-59e8-4273-b9c1-9c9b6c17c037",
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "RnAZv18CdMT6IX8C",
+          "name": "Microsoft Teams account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chatMessage",
+        "operation": "sendAndWait",
+        "chatId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        -64
+      ],
+      "id": "08202bf5-2026-4b7e-9f0d-c345b5ef28c2",
+      "name": "Send message and wait for response",
+      "webhookId": "b46822db-c22b-4ad7-b4e8-648bb5dabbe8",
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "RnAZv18CdMT6IX8C",
+          "name": "Microsoft Teams account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "44c6a47c-fd93-4c5f-8f72-ee98aab1267b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6c1a437e8b16512082bde84b62b61f6117713bbbdf560b47f5bdf35aa8946c8"
+  },
+  "id": "PsL7Q6Td87thDVRy",
+  "tags": []
+}
