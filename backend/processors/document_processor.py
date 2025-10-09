@@ -135,7 +135,10 @@ class DocumentProcessor:
                 # Source 2: PDF Metadata (Title)
                 title_lower = (metadata.title or "").lower() if metadata else ""
                 
-                # Source 3: First 3 pages of document text
+                # Source 3: PDF Metadata (Author)
+                author_lower = (metadata.author or "").lower() if metadata else ""
+                
+                # Source 4: First 3 pages of document text
                 first_pages_text = ""
                 if page_texts:
                     first_page_keys = sorted(page_texts.keys())[:3]
@@ -153,35 +156,54 @@ class DocumentProcessor:
                     patterns = [alias.lower() for alias in aliases]
                     mfr_patterns[key] = patterns
                 
-                # 3-way validation: Check all sources and count matches
-                detection_votes = {}
+                # Weighted validation: Filename > Author > Title > Text
+                # Use scoring system to prioritize more reliable sources
+                detection_scores = {}
                 for mfr_key, keywords in mfr_patterns.items():
-                    votes = 0
+                    score = 0
                     sources = []
                     
-                    # Check filename
-                    if any(kw in filename_lower for kw in keywords):
-                        votes += 1
+                    # Check filename (highest weight - most reliable)
+                    filename_match = any(kw in filename_lower for kw in keywords)
+                    if filename_match:
+                        score += 10  # Strong signal
                         sources.append("filename")
                     
-                    # Check metadata title
-                    if any(kw in title_lower for kw in keywords):
-                        votes += 1
+                    # Check metadata author (very high weight - very reliable!)
+                    author_match = any(kw in author_lower for kw in keywords)
+                    if author_match:
+                        score += 8  # Very strong signal (e.g., "Lexmark International")
+                        sources.append("author")
+                    
+                    # Check metadata title (medium weight)
+                    title_match = any(kw in title_lower for kw in keywords)
+                    if title_match:
+                        score += 5  # Medium signal
                         sources.append("title")
                     
-                    # Check document text
-                    if any(kw in first_pages_text for kw in keywords):
-                        votes += 1
-                        sources.append("text")
+                    # Check document text - first 3 pages only (lowest weight)
+                    # Count occurrences to distinguish between main manufacturer and mentions
+                    text_matches = sum(1 for kw in keywords if kw in first_pages_text)
+                    if text_matches > 0:
+                        # Only add score if manufacturer appears multiple times (not just mentioned)
+                        if text_matches >= 3:
+                            score += 3  # Multiple mentions
+                            sources.append(f"text({text_matches}x)")
+                        elif text_matches >= 2:
+                            score += 2  # Few mentions
+                            sources.append(f"text({text_matches}x)")
+                        else:
+                            score += 1  # Single mention (weak signal)
+                            sources.append(f"text({text_matches}x)")
                     
-                    if votes > 0:
-                        detection_votes[mfr_key] = {'votes': votes, 'sources': sources}
+                    if score > 0:
+                        detection_scores[mfr_key] = {'score': score, 'sources': sources}
                 
-                # Select manufacturer with most votes (highest confidence)
-                if detection_votes:
-                    best_match = max(detection_votes.items(), key=lambda x: x[1]['votes'])
+                # Select manufacturer with highest score
+                if detection_scores:
+                    best_match = max(detection_scores.items(), key=lambda x: x[1]['score'])
                     mfr_key = best_match[0]
-                    votes = best_match[1]['votes']
+                    score = best_match[1]['score']
                     sources = best_match[1]['sources']
                     
                     # Convert to canonical name using normalizer
@@ -196,13 +218,21 @@ class DocumentProcessor:
                         detected_manufacturer = canonical_name
                     
                     self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
-                    self.logger.info(f"   Confidence: {votes}/3 sources ({', '.join(sources)})")
+                    self.logger.info(f"   Confidence score: {score} ({', '.join(sources)})")
                     
-                    # Warn if low confidence (only 1 source)
-                    if votes == 1:
-                        self.logger.warning(f"   ⚠️  Low confidence detection (only 1 source)")
-                    elif votes == 3:
-                        self.logger.success(f"   ✅ High confidence (all 3 sources agree!)")
+                    # Confidence levels based on score
+                    if score >= 18:  # Filename + Author + Title
+                        self.logger.success(f"   ✅ Excellent confidence (filename + author + title)")
+                    elif score >= 15:  # Filename + Author or Filename + Title + Text
+                        self.logger.success(f"   ✅ Very high confidence (multiple sources)")
+                    elif score >= 10:  # Filename match
+                        self.logger.success(f"   ✅ High confidence (filename match)")
+                    elif score >= 8:  # Author match
+                        self.logger.success(f"   ✅ High confidence (author metadata)")
+                    elif score >= 5:  # Title match
+                        self.logger.info(f"   ℹ️  Medium confidence (title match)")
+                    else:  # Text only
+                        self.logger.warning(f"   ⚠️  Low confidence (text only)")
                     
                     # UPDATE self.manufacturer so it's available for error code saving!
                     self.manufacturer = detected_manufacturer
@@ -1240,20 +1270,17 @@ class DocumentProcessor:
                 try:
                     manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
                     
-                    # Update document with manufacturer_id (use schema-qualified table name)
+                    # Update document with manufacturer_id
                     try:
-                        # Try to update via RPC or direct SQL since view might not support updates
-                        supabase.rpc('exec_sql', {
-                            'query': f"""
-                                UPDATE krai_core.documents 
-                                SET manufacturer_id = '{manufacturer_id}' 
-                                WHERE id = '{document_id}'
-                            """
-                        }).execute()
+                        # Use direct table update (not view)
+                        supabase.table('documents').update({
+                            'manufacturer_id': manufacturer_id
+                        }).eq('id', document_id).execute()
                         self.logger.info(f"✅ Updated document with manufacturer_id: {manufacturer_id}")
                     except Exception as update_error:
-                        self.logger.warning(f"Could not update manufacturer_id: {update_error}")
-                        # Continue anyway - we have the manufacturer_id for this session
+                        self.logger.error(f"❌ Could not update manufacturer_id: {update_error}")
+                        # Try to continue anyway - we have the manufacturer_id for this session
+                        self.logger.warning(f"   Continuing with manufacturer_id in memory only")
                     
                 except ManufacturerNotFoundError as e:
                     self.logger.error(f"Failed to ensure manufacturer exists: {e}")
@@ -1268,6 +1295,17 @@ class DocumentProcessor:
                         self.logger.info(f"🔍 Attempting to ensure manufacturer exists: '{self.manufacturer}'")
                         manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
                         self.logger.info(f"✅ Using detected manufacturer: {self.manufacturer} (ID: {manufacturer_id})")
+                        
+                        # Update document with manufacturer_id
+                        try:
+                            supabase.table('documents').update({
+                                'manufacturer_id': manufacturer_id
+                            }).eq('id', document_id).execute()
+                            self.logger.info(f"✅ Updated document with detected manufacturer_id: {manufacturer_id}")
+                        except Exception as update_error:
+                            self.logger.error(f"❌ Could not update manufacturer_id: {update_error}")
+                            self.logger.warning(f"   Continuing with manufacturer_id in memory only")
+                        
                     except Exception as e:
                         self.logger.error(f"Failed to use detected manufacturer '{self.manufacturer}': {e}")
                         import traceback
