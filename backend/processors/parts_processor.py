@@ -45,14 +45,14 @@ class PartsProcessor:
         }
         
         try:
-            # Get document info with manufacturer
-            doc_result = self.supabase.table('documents').select('*, manufacturer:manufacturer_id(name)').eq('id', document_id).execute()
+            # Get document info
+            doc_result = self.supabase.table('documents').select('*').eq('id', document_id).execute()
             if not doc_result.data:
                 raise ValueError(f"Document {document_id} not found")
             
             document = doc_result.data[0]
             manufacturer_id = document.get('manufacturer_id')
-            manufacturer_name = document.get('manufacturer', {}).get('name', '').lower().replace(' ', '_')
+            manufacturer_name = (document.get('manufacturer') or '').lower().replace(' ', '_')
             
             if not manufacturer_id:
                 self.logger.warning(f"Document {document_id} has no manufacturer_id, skipping parts extraction")
