@@ -22,11 +22,19 @@ os.chdir(backend_dir)
 from processors.document_processor import DocumentProcessor
 from processors.pipeline_processor import PipelineProcessor
 from processors.logger import get_logger
+from processors.__version__ import __version__, __commit__, __date__
 
 # Change back
 os.chdir(original_dir)
 
 logger = get_logger()
+
+# Show version banner
+logger.info("=" * 80)
+logger.info(f"  KRAI AUTO PROCESSOR v{__version__}")
+logger.info(f"  Build: {__commit__} | Date: {__date__}")
+logger.info("=" * 80)
+logger.info("")
 
 
 class AutoProcessor:
