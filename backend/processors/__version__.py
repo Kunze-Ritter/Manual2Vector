@@ -3,11 +3,12 @@ Version Information for KRAI Processing Pipeline
 Auto-updated with each significant release
 """
 
-__version__ = "2.1.1"
-__commit__ = "0ae41d6"
+__version__ = "2.1.2"
+__commit__ = "9400c54"
 __date__ = "2025-10-09"
 
 # Version History:
+# 2.1.2 (9400c54) - Fix: Parts inherit manufacturer from document + Complete manufacturer seed data
 # 2.1.1 (0ae41d6) - Fix: multifunction → laser_multifunction + Import fixes + Retry logic
 # 2.1.0 (79e8dfe) - MAJOR: Modular .env structure + Pipeline settings + Series detection (12 manufacturers)
 # 2.0.43 (TBD) - Fix: exec_sql parameter name + ensure image_id exists in Migration 23
