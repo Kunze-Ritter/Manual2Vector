@@ -273,8 +273,12 @@ class ErrorCodeExtractor:
                 # Get pre-found matches for this code
                 matches = all_matches.get(error_code.error_code, [])
                 
+                # OPTIMIZATION: Limit to first 10 matches (avoid processing 150k+ matches!)
+                # Usually the best solution is in the first few occurrences anyway
+                matches = matches[:10]
+                
                 if processed_count == 0:
-                    self.logger.info(f"   Found {len(matches)} matches for first code")
+                    self.logger.info(f"   Found {len(matches)} matches for first code (limited to 10)")
                 
                 # Try each occurrence to find the detailed section
                 best_description = error_code.error_description
