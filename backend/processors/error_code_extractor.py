@@ -256,7 +256,8 @@ class ErrorCodeExtractor:
                     if re.match(r'^\d{2}-\d{2}$', code):
                         # Check if context contains jam-related keywords
                         context_lower = context.lower()
-                        jam_keywords = ['jam', 'misfeed', 'paper', 'feed', 'transport', 'exit', 'duplex', 'tray', 'bypass', 'section']
+                        # Universal JAM keywords (applicable to all manufacturers)
+                        jam_keywords = ['jam', 'misfeed', 'paper', 'feed', 'transport', 'duplex', 'tray', 'bypass', 'section']
                         if not any(kw in context_lower for kw in jam_keywords):
                             logger.debug(f"Skipping JAM code '{code}' - no jam-related context (use J-{code} format for explicit JAM codes)")
                             continue

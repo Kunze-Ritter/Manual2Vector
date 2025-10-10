@@ -82,8 +82,8 @@
     "context_requirements": {
       "jam_codes": {
         "pattern": "\\d{2}-\\d{2}",
-        "require_keywords": ["jam", "misfeed", "paper", "feed", "transport", "exit", "duplex", "tray", "bypass", "section"],
-        "description": "JAM codes (##-##) require jam-related context to avoid false positives"
+        "require_keywords": ["jam", "misfeed", "paper", "feed", "transport", "duplex", "tray", "bypass", "section"],
+        "description": "JAM codes (##-##) require jam-related context to avoid false positives. Universal keywords applicable to all manufacturers."
       }
     },
     "special_sections": {
