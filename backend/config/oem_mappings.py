@@ -35,21 +35,45 @@ OEM_MAPPINGS = {
         'applies_to': ['error_codes', 'parts']
     },
     
+    # Konica Minolta bizhub 4750/4050/4020 → Lexmark Engine
+    ('Konica Minolta', r'(?:bizhub\s+)?40[257]0i?'): {
+        'oem_manufacturer': 'Lexmark',
+        'series_name': 'bizhub 4000 Series',
+        'notes': 'Lexmark engine with Konica Minolta branding',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # Konica Minolta bizhub 3300P/3320 → Lexmark Engine
+    ('Konica Minolta', r'(?:bizhub\s+)?33[02]0P?'): {
+        'oem_manufacturer': 'Lexmark',
+        'series_name': 'bizhub 3300 Series',
+        'notes': 'Lexmark engine with Konica Minolta branding',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
     # ===== LEXMARK REBRANDS =====
     
     # Lexmark CS/CX 900 series → Konica Minolta Engine
-    ('Lexmark', r'C[SX]9\d{2}'): {
+    ('Lexmark', r'C[SX]9[0-9]{2}[a-z]*'): {
         'oem_manufacturer': 'Konica Minolta',
         'series_name': 'CS/CX 900 Series',
-        'notes': 'Konica Minolta bizhub engine',
+        'notes': 'Konica Minolta bizhub engine (XC9225, XC9235, XC9245, XC9255, XC9265)',
         'applies_to': ['error_codes', 'parts']
     },
     
     # Lexmark CS/CX 800 series → Konica Minolta Engine
-    ('Lexmark', r'C[SX]8\d{2}'): {
+    ('Lexmark', r'C[SX]8[0-9]{2}[a-z]*'): {
         'oem_manufacturer': 'Konica Minolta',
         'series_name': 'CS/CX 800 Series',
         'notes': 'Konica Minolta bizhub engine',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # Lexmark MX622 → Konica Minolta Engine
+    ('Lexmark', r'MX6[0-9]{2}[a-z]*'): {
+        'oem_manufacturer': 'Konica Minolta',
+        'series_name': 'MX600 Series',
+        'notes': 'Konica Minolta engine (same as bizhub 4750)',
         'applies_to': ['error_codes', 'parts']
     },
     
@@ -59,25 +83,33 @@ OEM_MAPPINGS = {
     ('UTAX', r'.*'): {
         'oem_manufacturer': 'Kyocera',
         'series_name': 'All UTAX Products',
-        'notes': 'UTAX is Kyocera rebrand for European market',
+        'notes': 'UTAX is Kyocera rebrand for European market (100% identical hardware)',
         'applies_to': ['error_codes', 'parts', 'accessories']
     },
     
-    # Triumph-Adler → Kyocera (ALL products!)
+    # Triumph-Adler (TA) → Kyocera (ALL products!)
     ('Triumph-Adler', r'.*'): {
         'oem_manufacturer': 'Kyocera',
         'series_name': 'All Triumph-Adler Products',
-        'notes': 'Triumph-Adler is Kyocera rebrand',
+        'notes': 'Triumph-Adler is Kyocera rebrand (owned by Kyocera since 2003)',
+        'applies_to': ['error_codes', 'parts', 'accessories']
+    },
+    
+    # TA Triumph-Adler (alternative name)
+    ('TA Triumph-Adler', r'.*'): {
+        'oem_manufacturer': 'Kyocera',
+        'series_name': 'All TA Triumph-Adler Products',
+        'notes': 'TA Triumph-Adler is Kyocera rebrand',
         'applies_to': ['error_codes', 'parts', 'accessories']
     },
     
     # ===== XEROX REBRANDS =====
     
-    # Xerox VersaLink C400/C405 → Lexmark Engine
-    ('Xerox', r'VersaLink C40[05]'): {
+    # Xerox A4 devices → Lexmark Engine (majority of A4 portfolio)
+    ('Xerox', r'VersaLink [BC]\d{3}'): {
         'oem_manufacturer': 'Lexmark',
-        'series_name': 'VersaLink C400 Series',
-        'notes': 'Lexmark CS/CX engine',
+        'series_name': 'VersaLink Series',
+        'notes': 'Lexmark engine (Xerox ships 1M+ Lexmark-based A4 devices)',
         'applies_to': ['error_codes', 'parts']
     },
     
@@ -89,15 +121,101 @@ OEM_MAPPINGS = {
         'applies_to': ['error_codes', 'parts']
     },
     
-    # ===== RICOH REBRANDS =====
+    # Xerox B-series → Lexmark Engine
+    ('Xerox', r'B[0-9]{3}[a-z]*'): {
+        'oem_manufacturer': 'Lexmark',
+        'series_name': 'B-Series',
+        'notes': 'Lexmark engine for A4 monochrome',
+        'applies_to': ['error_codes', 'parts']
+    },
     
-    # Ricoh → Some models use Konica Minolta engines
-    # (Add specific models as discovered)
+    # Xerox C-series → Lexmark Engine
+    ('Xerox', r'C[0-9]{3}[a-z]*'): {
+        'oem_manufacturer': 'Lexmark',
+        'series_name': 'C-Series',
+        'notes': 'Lexmark engine for A4 color',
+        'applies_to': ['error_codes', 'parts']
+    },
     
-    # ===== SHARP REBRANDS =====
+    # Xerox A3 MFPs → Fujifilm Engine
+    ('Xerox', r'AltaLink [BC]\d{4}'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'AltaLink Series',
+        'notes': 'Fujifilm Business Innovation engine (A3 MFPs)',
+        'applies_to': ['error_codes', 'parts']
+    },
     
-    # Sharp → Some models use Toshiba engines
-    # (Add specific models as discovered)
+    # ===== RICOH FAMILY (Same Company, Different Brands) =====
+    
+    # Savin → Ricoh (100% identical, just different badge)
+    ('Savin', r'.*'): {
+        'oem_manufacturer': 'Ricoh',
+        'series_name': 'All Savin Products',
+        'notes': 'Savin is Ricoh subsidiary - identical hardware, different badge',
+        'applies_to': ['error_codes', 'parts', 'accessories']
+    },
+    
+    # Lanier → Ricoh (100% identical, just different badge)
+    ('Lanier', r'.*'): {
+        'oem_manufacturer': 'Ricoh',
+        'series_name': 'All Lanier Products',
+        'notes': 'Lanier is Ricoh subsidiary - identical hardware, different badge',
+        'applies_to': ['error_codes', 'parts', 'accessories']
+    },
+    
+    # Gestetner → Ricoh (now merged into Lanier)
+    ('Gestetner', r'.*'): {
+        'oem_manufacturer': 'Ricoh',
+        'series_name': 'All Gestetner Products',
+        'notes': 'Gestetner is now Lanier (Ricoh subsidiary)',
+        'applies_to': ['error_codes', 'parts', 'accessories']
+    },
+    
+    # ===== TOSHIBA REBRANDS =====
+    
+    # Toshiba e-STUDIO 389CS/509CS → Lexmark Engine
+    ('Toshiba', r'e-STUDIO [3-5]89CS'): {
+        'oem_manufacturer': 'Lexmark',
+        'series_name': 'e-STUDIO CS Series',
+        'notes': 'Lexmark CX725 engine (same as Lexmark CX725dhe)',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # Toshiba e-STUDIO 478s → Lexmark Engine
+    ('Toshiba', r'e-STUDIO 478s'): {
+        'oem_manufacturer': 'Lexmark',
+        'series_name': 'e-STUDIO 478s',
+        'notes': 'Lexmark MX622 engine',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # ===== DELL REBRANDS =====
+    
+    # Dell Laser Printers → Lexmark Engine (historical partnership)
+    ('Dell', r'[BC]\d{4}[a-z]*'): {
+        'oem_manufacturer': 'Lexmark',
+        'series_name': 'Dell Laser Printers',
+        'notes': 'Lexmark engine (Dell-Lexmark partnership 2002-2017)',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # ===== HP REBRANDS =====
+    
+    # HP Samsung A3 devices → Samsung Engine (acquired 2017)
+    ('HP', r'(?:Samsung\s+)?(?:SL-|SCX-)[A-Z]\d{4}'): {
+        'oem_manufacturer': 'Samsung',
+        'series_name': 'HP Samsung A3 Series',
+        'notes': 'Samsung engine (HP acquired Samsung printer business in 2017)',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # HP A3 MFPs with Samsung heritage
+    ('HP', r'LaserJet MFP E[78]\d{4}'): {
+        'oem_manufacturer': 'Samsung',
+        'series_name': 'LaserJet Enterprise A3 MFP',
+        'notes': 'Samsung-based A3 platform (post-2017 acquisition)',
+        'applies_to': ['error_codes', 'parts']
+    },
 }
 
 
