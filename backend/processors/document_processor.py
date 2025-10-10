@@ -369,8 +369,21 @@ class DocumentProcessor:
             if self.use_llm and self.llm_extractor:
                 self.logger.info("Running LLM extraction on all pages...")
                 
-                # Scan first 20 pages (or all if fewer)
-                pages_to_scan = min(20, len(page_texts))
+                # CONFIGURABLE: Scan first N pages (default: 20)
+                # Why limit? LLM is slow (~8s/page). For 278 pages = 37 minutes!
+                # Product info is usually in first 20 pages (specs, features, models)
+                # Pages 21+ are mostly error codes, maintenance, parts (no new products)
+                # 
+                # To scan ALL pages: Set LLM_MAX_PAGES=0 in environment
+                # To scan more: Set LLM_MAX_PAGES=50 (or any number)
+                import os
+                max_pages = int(os.getenv('LLM_MAX_PAGES', '20'))
+                pages_to_scan = len(page_texts) if max_pages == 0 else min(max_pages, len(page_texts))
+                
+                if pages_to_scan < len(page_texts):
+                    self.logger.info(f"   → Scanning first {pages_to_scan} pages (set LLM_MAX_PAGES=0 to scan all {len(page_texts)} pages)")
+                else:
+                    self.logger.info(f"   → Scanning all {pages_to_scan} pages")
                 
                 for page_num in sorted(page_texts.keys())[:pages_to_scan]:
                     # Skip if too short (likely not product info)
