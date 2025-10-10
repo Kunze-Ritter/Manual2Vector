@@ -6,6 +6,11 @@ PERFORMANCE OPTIMIZATIONS:
 - Batch regex compilation (98x fewer document scans)
 - Multiprocessing support for CPU parallelization
 - Early exit when good solutions found
+
+OEM/REBRAND SUPPORT:
+- Automatically detects OEM engine manufacturer
+- Uses correct patterns for rebranded products
+- Example: Konica Minolta 5000i uses Brother error codes
 """
 
 import re
@@ -17,6 +22,7 @@ from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
 from .exceptions import ManufacturerPatternNotFoundError
 from utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
+from backend.config.oem_mappings import get_effective_manufacturer
 
 
 logger = get_logger()
@@ -147,12 +153,14 @@ class ErrorCodeExtractor:
         self,
         error_codes: List[ExtractedErrorCode],
         full_document_text: str,
-        manufacturer_name: Optional[str] = None
+        manufacturer_name: Optional[str] = None,
+        product_series: Optional[str] = None
     ) -> List[ExtractedErrorCode]:
         """
         Enrich error codes with full details from entire document
         
         OPTIMIZED: Batch processing with compiled regex patterns
+        OEM-AWARE: Uses OEM manufacturer patterns for rebranded products
         
         For codes found in lists (e.g., "List of JAM code"), search the entire
         document for detailed sections with Classification, Cause, Measures.
@@ -160,11 +168,29 @@ class ErrorCodeExtractor:
         Args:
             error_codes: List of error codes to enrich
             full_document_text: Full text of entire document
-            manufacturer_name: Manufacturer name
+            manufacturer_name: Brand manufacturer name (e.g., "Konica Minolta")
+            product_series: Product series for OEM detection (e.g., "5000i")
             
         Returns:
             Enriched error codes with full details
         """
+        # OEM/REBRAND DETECTION
+        # Check if this is a rebranded product and use OEM patterns
+        effective_manufacturer = manufacturer_name
+        if manufacturer_name and product_series:
+            oem_manufacturer = get_effective_manufacturer(
+                manufacturer_name, 
+                product_series, 
+                for_purpose='error_codes'
+            )
+            if oem_manufacturer != manufacturer_name:
+                self.logger.info(
+                    f"🔄 OEM Detected: {manufacturer_name} {product_series} uses {oem_manufacturer} error codes"
+                )
+                effective_manufacturer = oem_manufacturer
+        
+        # Use effective manufacturer for pattern lookup
+        manufacturer_name = effective_manufacturer
         # OPTIMIZATION 1: Skip enrichment if all codes already have good solutions
         codes_needing_enrichment = [
             ec for ec in error_codes 

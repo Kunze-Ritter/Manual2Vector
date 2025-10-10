@@ -551,10 +551,19 @@ class DocumentProcessor:
             if error_codes:
                 self.logger.info(f"Enriching {len(error_codes)} error codes with full document context...")
                 full_text = '\n\n'.join(page_texts.values())
+                
+                # Extract product series for OEM detection
+                product_series = None
+                if products:
+                    # Use first product's series or model for OEM detection
+                    first_product = products[0]
+                    product_series = first_product.series_name or first_product.model_name
+                
                 error_codes = self.error_code_extractor.enrich_error_codes_from_document(
                     error_codes=error_codes,
                     full_document_text=full_text,
-                    manufacturer_name=error_manufacturer
+                    manufacturer_name=error_manufacturer,
+                    product_series=product_series
                 )
                 self.logger.success(f"Enriched error codes with detailed solutions")
             
