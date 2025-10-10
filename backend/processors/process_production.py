@@ -1,5 +1,6 @@
 """
 PRODUCTION MODE - Process Document with ALL Features
+VERSION: 2.1.0 (OEM Sync Fixed - 2025-10-10 23:12)
 
 This script processes a document in FULL PRODUCTION MODE:
 - All stages enabled
@@ -7,6 +8,7 @@ This script processes a document in FULL PRODUCTION MODE:
 - Embeddings generated (semantic search ready)
 - Live Supabase connection
 - No mocks, all real processing
+- OEM sync via standard Supabase API (no psycopg2)
 """
 
 import os
@@ -36,8 +38,14 @@ for env_file in env_files:
     else:
         print(f"⚠️  Not found: {env_file}")
 
-# Debug: Show LLM_MAX_PAGES value
+# Version and Debug Info
 import os
+PROCESSOR_VERSION = "2.1.0"
+PROCESSOR_DATE = "2025-10-10 23:12"
+print(f"\n{'='*80}")
+print(f"  🚀 PRODUCTION PROCESSOR v{PROCESSOR_VERSION} ({PROCESSOR_DATE})")
+print(f"  📋 OEM Sync: Standard Supabase API (no psycopg2)")
+print(f"{'='*80}")
 print(f"\n🔍 DEBUG: LLM_MAX_PAGES = {os.getenv('LLM_MAX_PAGES', 'NOT SET')}\n")
 
 # Add backend directory to path FIRST
