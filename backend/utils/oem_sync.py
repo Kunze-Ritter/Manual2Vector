@@ -108,34 +108,42 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
             # No OEM relationship
             return False
         
-        # Update product using direct SQL via postgrest (bypasses schema cache issues)
-        # Use parameterized query for safety
-        from supabase._sync.client import SyncClient
-        import requests
+        # Use direct SQL UPDATE via psycopg2 (bypasses PostgREST completely)
+        # This is the ONLY reliable way after schema changes
+        import os
+        import psycopg2
         
-        # Get Supabase URL and key from client
-        url = supabase.supabase_url
-        key = supabase.supabase_key
-        
-        # Direct REST API call with proper headers
-        response = requests.patch(
-            f"{url}/rest/v1/products",
-            params={"id": f"eq.{str(product_id)}"},
-            json={
-                "oem_manufacturer": oem_info['oem_manufacturer'],
-                "oem_relationship_type": "engine",
-                "oem_notes": oem_info['notes']
-            },
-            headers={
-                "apikey": key,
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-                "Prefer": "return=minimal"
-            }
-        )
-        
-        if response.status_code not in [200, 204]:
-            raise Exception(f"Update failed: {response.text}")
+        # Get database connection string
+        db_url = os.getenv('DATABASE_CONNECTION_URL')
+        if not db_url:
+            # Fallback: Try to use Supabase table API (will fail if schema cache not updated)
+            logger.warning("No DATABASE_CONNECTION_URL found, using Supabase API (may fail)")
+            supabase.table('products').update({
+                'oem_manufacturer': oem_info['oem_manufacturer'],
+                'oem_relationship_type': 'engine',
+                'oem_notes': oem_info['notes']
+            }).eq('id', str(product_id)).execute()
+        else:
+            # Direct PostgreSQL connection
+            conn = psycopg2.connect(db_url)
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE krai_core.products 
+                        SET 
+                            oem_manufacturer = %s,
+                            oem_relationship_type = %s,
+                            oem_notes = %s
+                        WHERE id = %s::uuid
+                    """, (
+                        oem_info['oem_manufacturer'],
+                        'engine',
+                        oem_info['notes'],
+                        str(product_id)
+                    ))
+                    conn.commit()
+            finally:
+                conn.close()
         
         logger.info(f"Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
         return True
