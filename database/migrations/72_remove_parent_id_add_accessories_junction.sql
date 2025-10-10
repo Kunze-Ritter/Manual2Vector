@@ -70,36 +70,67 @@ CREATE OR REPLACE VIEW public.products AS
 SELECT * FROM krai_core.products;
 
 -- ============================================================================
--- PART 4: Create product_accessories junction table
+-- PART 4: Create or update product_accessories junction table
 -- ============================================================================
 
--- Junction table for M:N relationship between products and accessories
--- Example: Finisher FS-533 can be used with bizhub C558, C658, C758
+-- Create table if it doesn't exist
 CREATE TABLE IF NOT EXISTS krai_core.product_accessories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    
-    -- The main product (e.g., bizhub C558)
     product_id UUID NOT NULL REFERENCES krai_core.products(id) ON DELETE CASCADE,
-    
-    -- The accessory/option (e.g., Finisher FS-533)
     accessory_id UUID NOT NULL REFERENCES krai_core.products(id) ON DELETE CASCADE,
-    
-    -- Optional: Compatibility notes
-    compatibility_notes TEXT,
-    
-    -- Optional: Is this accessory standard or optional?
-    is_standard BOOLEAN DEFAULT false,
-    
-    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Prevent duplicate links
-    UNIQUE(product_id, accessory_id),
-    
-    -- Prevent self-reference (product can't be its own accessory)
-    CHECK (product_id != accessory_id)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add missing columns if they don't exist (idempotent)
+DO $$ 
+BEGIN
+    -- Add compatibility_notes if missing
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'krai_core' 
+        AND table_name = 'product_accessories' 
+        AND column_name = 'compatibility_notes'
+    ) THEN
+        ALTER TABLE krai_core.product_accessories 
+        ADD COLUMN compatibility_notes TEXT;
+    END IF;
+    
+    -- Add is_standard if missing
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'krai_core' 
+        AND table_name = 'product_accessories' 
+        AND column_name = 'is_standard'
+    ) THEN
+        ALTER TABLE krai_core.product_accessories 
+        ADD COLUMN is_standard BOOLEAN DEFAULT false;
+    END IF;
+END $$;
+
+-- Add constraints if they don't exist
+DO $$
+BEGIN
+    -- Add unique constraint if missing
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'product_accessories_product_id_accessory_id_key'
+    ) THEN
+        ALTER TABLE krai_core.product_accessories 
+        ADD CONSTRAINT product_accessories_product_id_accessory_id_key 
+        UNIQUE(product_id, accessory_id);
+    END IF;
+    
+    -- Add check constraint if missing
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'product_accessories_no_self_reference'
+    ) THEN
+        ALTER TABLE krai_core.product_accessories 
+        ADD CONSTRAINT product_accessories_no_self_reference 
+        CHECK (product_id != accessory_id);
+    END IF;
+END $$;
 
 -- Index for fast lookups
 CREATE INDEX IF NOT EXISTS idx_product_accessories_product 
