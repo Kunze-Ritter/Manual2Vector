@@ -489,6 +489,9 @@ class DocumentProcessor:
                 error_manufacturer = self.manufacturer
             
             error_codes_count = 0
+            page_count = 0
+            update_interval = max(1, len(page_texts) // 50)  # Update progress bar max 50 times
+            
             with self.logger.progress_bar(page_texts.items(), "Scanning for error codes") as progress:
                 task = progress.add_task(f"Error codes found: {error_codes_count}", total=len(page_texts))
                 
@@ -500,7 +503,11 @@ class DocumentProcessor:
                     )
                     error_codes.extend(page_codes)
                     error_codes_count = len(error_codes)
-                    progress.update(task, advance=1, description=f"Error codes found: {error_codes_count}")
+                    page_count += 1
+                    
+                    # PERFORMANCE: Only update progress bar every N pages to avoid UI overhead
+                    if page_count % update_interval == 0 or page_count == len(page_texts):
+                        progress.update(task, advance=update_interval, description=f"Error codes found: {error_codes_count}")
             
             # Enrich error codes with full details from entire document
             if error_codes:
