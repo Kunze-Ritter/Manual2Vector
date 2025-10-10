@@ -287,6 +287,9 @@ class ErrorCodeExtractor:
         """
         Extract error description (text after error code)
         
+        For Konica Minolta: Looks for 'Classification' section
+        For others: Extracts text after error code
+        
         Args:
             text: Full text
             code_end_pos: Position where error code ends
@@ -296,7 +299,19 @@ class ErrorCodeExtractor:
             Description or None
         """
         # Extract text after code
-        remaining_text = text[code_end_pos:code_end_pos + max_length]
+        remaining_text = text[code_end_pos:code_end_pos + max_length * 2]
+        
+        # Try to find structured sections (Konica Minolta format)
+        classification_match = re.search(r'Classification\s*\n\s*(.+?)(?:\n\s*Cause|\n\s*Measures|$)', remaining_text, re.IGNORECASE | re.DOTALL)
+        if classification_match:
+            description = classification_match.group(1).strip()
+            # Limit to max_length
+            if len(description) > max_length:
+                description = description[:max_length].rsplit(' ', 1)[0] + '...'
+            return description
+        
+        # Fallback: Extract text after code (original logic)
+        remaining_text = remaining_text[:max_length]
         
         # Find end of sentence or paragraph
         sentence_end = re.search(r'[.!?\n]{1,2}', remaining_text)
@@ -338,12 +353,12 @@ class ErrorCodeExtractor:
         text_after = full_text[code_end_pos:code_end_pos + 5000]
         combined_text = context + "\n" + text_after
         
-        # Pattern 1: HP/Manufacturer style "Recommended action" OR Konica Minolta "Procedure"
+        # Pattern 1: HP/Manufacturer style "Recommended action" OR Konica Minolta "Measures/Correction"
         # Supports: 1., 1), Step 1, • bullets
         recommended_action_pattern = re.compile(
-            r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure|procedure|remedy|repair\s+procedure)'
-            r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?))?'
-            r'\s*[\n:]+((?:(?:\d+[\.\)]|•|-|\*|step\s+\d+)\s+.{15,}[\n\r]?){2,})',
+            r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure|procedure|remedy|repair\s+procedure|measures\s+to\s+take|correction)'
+            r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?|when\s+an\s+alert\s+occurs)?)?'
+            r'\s*[\n:]+((?:(?:\d+[\.\)]|•|-|\*|step\s+\d+)\s+.{15,}[\n\r]?){1,})',
             re.IGNORECASE | re.MULTILINE | re.DOTALL
         )
         
