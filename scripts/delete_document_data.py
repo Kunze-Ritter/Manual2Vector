@@ -98,23 +98,34 @@ def count_related_data(document_id: str) -> dict:
     """Count all related data for a document"""
     counts = {}
     
-    tables = [
-        'products',
-        'error_codes',
-        'parts',
-        'chunks',
-        'document_products',
-        'document_error_codes',
-        'document_parts'
-    ]
+    # Tables with document_id column
+    direct_tables = {
+        'error_codes': 'error_codes',
+        'chunks': 'chunks'
+    }
     
-    for table in tables:
+    # Junction tables (many-to-many)
+    junction_tables = {
+        'document_products': 'document_products'
+    }
+    
+    # Count direct tables
+    for key, table in direct_tables.items():
         try:
             result = supabase.table(table).select('id', count='exact').eq('document_id', document_id).execute()
-            counts[table] = result.count if hasattr(result, 'count') else len(result.data)
+            counts[key] = result.count if hasattr(result, 'count') else len(result.data)
         except Exception as e:
-            counts[table] = 0
-            print(f"⚠️  Warning: Could not count {table}: {e}")
+            counts[key] = 0
+            print(f"⚠️  Warning: Could not count {key}: {e}")
+    
+    # Count junction tables
+    for key, table in junction_tables.items():
+        try:
+            result = supabase.table(table).select('id', count='exact').eq('document_id', document_id).execute()
+            counts[key] = result.count if hasattr(result, 'count') else len(result.data)
+        except Exception as e:
+            counts[key] = 0
+            print(f"⚠️  Warning: Could not count {key}: {e}")
     
     return counts
 
@@ -163,30 +174,22 @@ def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
         return True
     
     # Delete data in correct order (children first, then parent)
+    # Based on actual DB schema with CASCADE deletes
     deletion_order = [
-        # Junction tables first
-        'document_products',
-        'document_error_codes',
-        'document_parts',
-        # Child tables
-        'chunks',
-        'error_codes',
-        'parts',
-        'products',
-        # Parent table last
-        'documents'
+        # Junction tables first (many-to-many)
+        ('document_products', 'document_id'),
+        # Child tables with document_id
+        ('chunks', 'document_id'),
+        ('error_codes', 'document_id'),
+        # Parent table last (CASCADE will handle orphans)
+        ('documents', 'id')
     ]
     
     print("\n🗑️  Deleting data...")
     
-    for table in deletion_order:
+    for table, id_column in deletion_order:
         try:
-            if table == 'documents':
-                # Delete the document itself
-                result = supabase.table(table).delete().eq('id', document_id).execute()
-            else:
-                # Delete related data
-                result = supabase.table(table).delete().eq('document_id', document_id).execute()
+            result = supabase.table(table).delete().eq(id_column, document_id).execute()
             
             deleted_count = len(result.data) if result.data else 0
             if deleted_count > 0:
