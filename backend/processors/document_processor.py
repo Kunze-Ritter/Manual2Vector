@@ -201,6 +201,11 @@ class DocumentProcessor:
                 
                 # Select manufacturer with highest score
                 if detection_scores:
+                    # Log all detection scores for debugging
+                    self.logger.debug("Manufacturer detection scores:")
+                    for mfr, data in sorted(detection_scores.items(), key=lambda x: x[1]['score'], reverse=True):
+                        self.logger.debug(f"  {mfr}: {data['score']} points from {', '.join(data['sources'])}")
+                    
                     best_match = max(detection_scores.items(), key=lambda x: x[1]['score'])
                     mfr_key = best_match[0]
                     score = best_match[1]['score']
