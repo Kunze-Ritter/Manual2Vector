@@ -540,19 +540,43 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
             'series_description': 'Konica Minolta bizhub Press production printers'
         }
     
-    # ===== PRIORITY 5: bizhub (Office/MFP) =====
-    # C + 4 digits (C3350i, C3351i, C4050i, C4051i)
-    match = re.match(r'^C([2-9])(\d{3})([EIi])?$', model_clean)
+    # ===== PRIORITY 5: bizhub i-Series (Office/MFP) =====
+    # C + 4 digits + i (C3350i, C3351i, C4050i, C4051i) - Compact Multifunction i-Series
+    match = re.match(r'^C([2-9])(\d{3})i$', model_clean)
     if match:
         series_digit = match.group(1)
+        speed = match.group(1) + match.group(2)[:1]  # e.g., "40" from "4050"
         return {
-            'series_name': 'bizhub',
-            'model_pattern': f'C{series_digit}xxx',
-            'series_description': f'Konica Minolta bizhub C{series_digit}xxx series color MFPs'
+            'series_name': 'bizhub i-Series',
+            'model_pattern': f'C{series_digit}x{match.group(2)[1:]}i',
+            'series_description': f'Konica Minolta bizhub i-Series compact color MFP (~{speed} ppm)'
         }
     
-    # C + 3 digits (C224e, C284e, C364e, C454e, C554e, C654e, C754e, C750i, C751i, C858e, C958)
-    match = re.match(r'^C([2-9])(\d{2})([EIi]|PS)?$', model_clean)
+    # C + 3 digits + i (C750i, C751i, C650i, C550i, C450i) - Color Multifunction i-Series
+    match = re.match(r'^C([2-9])(\d{2})i$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        speed = match.group(1) + match.group(2)[:1]  # e.g., "75" from "750"
+        return {
+            'series_name': 'bizhub i-Series',
+            'model_pattern': f'C{series_digit}x{match.group(2)[1]}i',
+            'series_description': f'Konica Minolta bizhub i-Series color MFP (~{speed} ppm)'
+        }
+    
+    # C + 3-4 digits + e/E/PS (C224e, C284e, C364e, C454e, C554e, C654e, C754e) - Enhanced Series (older)
+    match = re.match(r'^C([2-9])(\d{2,3})([EI]|PS)$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        suffix = match.group(3).lower()
+        series_type = 'Enhanced' if suffix in ['e', 'i'] else 'Professional'
+        return {
+            'series_name': f'bizhub {suffix.upper()}-Series',
+            'model_pattern': f'C{series_digit}xx{suffix}',
+            'series_description': f'Konica Minolta bizhub {series_type} color MFPs'
+        }
+    
+    # C + 3 digits (no suffix) - Generic bizhub
+    match = re.match(r'^C([2-9])(\d{2})$', model_clean)
     if match:
         series_digit = match.group(1)
         return {
