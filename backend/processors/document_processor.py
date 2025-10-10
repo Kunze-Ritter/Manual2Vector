@@ -1130,18 +1130,28 @@ class DocumentProcessor:
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                     }
                     
-                    # Only update product_type if NULL or default value
-                    if not current_type or current_type == 'multifunction':
-                        # Detect product_type from series
-                        if product_data.get('series_name'):
-                            from utils.product_type_mapper import get_product_type
-                            detected_type = get_product_type(
-                                series_name=product_data['series_name'],
-                                model_number=product_data['model_number']
-                            )
-                            if detected_type and detected_type != 'multifunction':
-                                update_data['product_type'] = detected_type
-                                self.logger.debug(f"Updated product_type: {detected_type}")
+                    # Detect product_type (always try to improve)
+                    from utils.product_type_mapper import get_product_type
+                    detected_type = get_product_type(
+                        series_name=product_data.get('series_name', ''),
+                        model_number=product_data['model_number']
+                    )
+                    
+                    # Update if we have a better type
+                    if detected_type:
+                        # Always update if NULL or generic fallback types
+                        should_update = (
+                            not current_type or 
+                            current_type in ['multifunction', 'laser_multifunction', 'printer']
+                        )
+                        
+                        # Or if detected type is more specific (e.g., production_printer vs laser_multifunction)
+                        if should_update or (detected_type != current_type and detected_type != 'laser_multifunction'):
+                            update_data['product_type'] = detected_type
+                            if current_type and current_type != detected_type:
+                                self.logger.info(f"Updated product_type: {current_type} → {detected_type} for {product_data['model_number']}")
+                            else:
+                                self.logger.debug(f"Set product_type: {detected_type}")
                     
                     supabase.table('products').update(update_data).eq('id', product_id).execute()
                     updated_count += 1
