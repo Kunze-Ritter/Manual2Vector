@@ -330,8 +330,9 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
             'RU-': 'accessory',         # Relay Unit
             'CU-': 'accessory',         # Cleaning Unit
             'HD-': 'hard_drive',        # Hard Disk Drive
-            'EK-': 'card_reader',       # Card Reader
-            'AU-': 'accessory',         # Authentication Module
+            'EK-': 'interface_kit',     # Local Interface Kit (USB, keyboard, Bluetooth)
+            'VI-': 'interface_kit',     # Video/Controller Interface Kit (Fiery, IC-420)
+            'AU-': 'card_reader',       # Authentication Unit (card reader)
             'UK-': 'accessory',         # USB Kit
             'WT-': 'waste_toner_box',   # Waste Toner Box
         }
