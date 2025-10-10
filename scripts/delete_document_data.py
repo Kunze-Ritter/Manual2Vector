@@ -39,17 +39,30 @@ from dotenv import load_dotenv
 
 # Load environment variables
 project_root = Path(__file__).parent.parent
-for env_file in ['.env', '.env.database', '.env.storage']:
+
+# Load all .env files in correct order
+env_files = ['.env', '.env.database', '.env.storage', '.env.external', '.env.pipeline', '.env.ai']
+print("Loading environment variables...")
+for env_file in env_files:
     env_path = project_root / env_file
     if env_path.exists():
         load_dotenv(env_path, override=True)
+        print(f"  ✓ Loaded: {env_file}")
+    else:
+        print(f"  ⚠️  Not found: {env_file}")
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ Error: SUPABASE_URL or SUPABASE_SERVICE_KEY not found in environment")
+    print("\n❌ Error: SUPABASE_URL or SUPABASE_SERVICE_KEY not found in environment")
+    print("\nDebug info:")
+    print(f"  SUPABASE_URL: {'SET' if SUPABASE_URL else 'NOT SET'}")
+    print(f"  SUPABASE_SERVICE_KEY: {'SET' if SUPABASE_KEY else 'NOT SET'}")
+    print("\nMake sure .env.database exists with:")
+    print("  SUPABASE_URL=https://...")
+    print("  SUPABASE_SERVICE_KEY=eyJ...")
     sys.exit(1)
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
