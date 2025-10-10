@@ -250,6 +250,20 @@ class ErrorCodeExtractor:
                     # Extract context
                     context = self._extract_context(text, match.start(), match.end())
                     
+                    # Special validation for JAM codes
+                    # J-##-## format is always valid (explicit JAM prefix)
+                    # ##-## format requires jam-related context
+                    if re.match(r'^\d{2}-\d{2}$', code):
+                        # Check if context contains jam-related keywords
+                        context_lower = context.lower()
+                        jam_keywords = ['jam', 'misfeed', 'paper', 'feed', 'transport', 'exit', 'duplex', 'tray', 'bypass', 'section']
+                        if not any(kw in context_lower for kw in jam_keywords):
+                            logger.debug(f"Skipping JAM code '{code}' - no jam-related context (use J-{code} format for explicit JAM codes)")
+                            continue
+                    # J-##-## codes are always valid (no context check needed)
+                    elif re.match(r'^J-\d{2}-\d{2}$', code):
+                        logger.debug(f"Accepted JAM code '{code}' - explicit J- prefix")
+                    
                     # Validate context
                     if not self._validate_context(context):
                         continue

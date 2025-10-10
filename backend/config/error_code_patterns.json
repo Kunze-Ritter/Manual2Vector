@@ -62,24 +62,30 @@
   "konica_minolta": {
     "manufacturer_name": "Konica Minolta",
     "description": "Konica Minolta error code patterns",
-    "format": "C-####, C-A###, JAM ##-##, Malfunction [A-Z]-##",
+    "format": "C-####, C-A###, J-##-## (JAM), [SDPF]-## (Malfunction)",
     "patterns": [
       "\\b(C-[A-Z]?\\d{3,4})\\b",
       "\\b(C[A-Z]\\d{3})\\b",
       "\\b(C\\d{4})\\b",
       "\\b(C-\\d{4}_\\d{4})\\b",
-      "\\b(J-\\d{3,4})\\b",
-      "\\b(J\\d{3,4})\\b",
+      "\\b(J-\\d{2}-\\d{2})\\b",
       "\\b([SDPF]-\\d{1,2})\\b",
-      "\\b(\\d{2}-\\d{2})\\b",
       "error\\s+code\\s+(C-[A-Z]?\\d{3,4})",
       "error\\s+(C-[A-Z]?\\d{3,4})",
       "code\\s+(C-[A-Z]?\\d{3,4})",
       "(C-[A-Z]?\\d{3,4})\\s+error",
-      "JAM\\s+code\\s+(\\d{2}-\\d{2})",
-      "malfunction\\s+code\\s+([SDPF]-\\d{1,2})"
+      "JAM\\s+code[:\\s]+(J?-?\\d{2}-\\d{2})",
+      "malfunction\\s+code[:\\s]+([SDPF]-\\d{1,2})",
+      "(?:jam|misfeed|paper\\s+jam)[^\\n]{0,50}(\\d{2}-\\d{2})"
     ],
-    "validation_regex": "^C-?[A-Z]?\\d{3,4}$|^C-\\d{4}_\\d{4}$|^J-?\\d{3,4}$|^[SDPF]-\\d{1,2}$|^\\d{2}-\\d{2}$",
+    "validation_regex": "^C-?[A-Z]?\\d{3,4}$|^C-\\d{4}_\\d{4}$|^J-\\d{2}-\\d{2}$|^[SDPF]-\\d{1,2}$|^\\d{2}-\\d{2}$",
+    "context_requirements": {
+      "jam_codes": {
+        "pattern": "\\d{2}-\\d{2}",
+        "require_keywords": ["jam", "misfeed", "paper", "feed", "transport", "exit", "duplex", "tray", "bypass", "section"],
+        "description": "JAM codes (##-##) require jam-related context to avoid false positives"
+      }
+    },
     "special_sections": {
       "jam_codes": {
         "section_header": "List of the JAM code",
