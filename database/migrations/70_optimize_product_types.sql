@@ -86,6 +86,7 @@ ADD CONSTRAINT product_type_check CHECK (
         'caster_base',             -- Caster base/wheels
         'bridge_unit',             -- Bridge unit (connects devices)
         'interface_kit',           -- Network/USB interface
+        'media_sensor',            -- Intelligent media sensor (paper weight/thickness)
         'memory_upgrade',          -- RAM/memory upgrade
         'hard_drive',              -- Internal hard drive
         'controller',              -- Print controller/DFE
