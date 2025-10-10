@@ -200,12 +200,18 @@ class ErrorCodeExtractor:
             batch_size = 100
             all_matches = {}
             
+            num_batches = (len(patterns_to_compile) + batch_size - 1) // batch_size
+            self.logger.info(f"   Scanning {num_batches} batches (this may take 30-60 seconds)...")
+            
             for i in range(0, len(patterns_to_compile), batch_size):
+                batch_num = i // batch_size + 1
                 batch_patterns = patterns_to_compile[i:i+batch_size]
                 combined_pattern = r'\b(' + '|'.join(batch_patterns) + r')\b'
                 compiled_regex = re.compile(combined_pattern)
                 
-                self.logger.debug(f"   Scanning batch {i//batch_size + 1}/{(len(patterns_to_compile) + batch_size - 1)//batch_size}...")
+                # Show progress every 5 batches
+                if batch_num % 5 == 0 or batch_num == num_batches:
+                    self.logger.info(f"   Scanning batch {batch_num}/{num_batches}...")
                 
                 # Find all matches for this batch
                 for match in compiled_regex.finditer(full_document_text):
