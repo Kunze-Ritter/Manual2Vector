@@ -62,7 +62,7 @@
   "konica_minolta": {
     "manufacturer_name": "Konica Minolta",
     "description": "Konica Minolta error code patterns",
-    "format": "C-####, C-A###, C####, CA###, C-####_####",
+    "format": "C-####, C-A###, JAM ##-##, Malfunction [A-Z]-##",
     "patterns": [
       "\\b(C-[A-Z]?\\d{3,4})\\b",
       "\\b(C[A-Z]\\d{3})\\b",
@@ -70,12 +70,28 @@
       "\\b(C-\\d{4}_\\d{4})\\b",
       "\\b(J-\\d{3,4})\\b",
       "\\b(J\\d{3,4})\\b",
+      "\\b([SDPF]-\\d{1,2})\\b",
+      "\\b(\\d{2}-\\d{2})\\b",
       "error\\s+code\\s+(C-[A-Z]?\\d{3,4})",
       "error\\s+(C-[A-Z]?\\d{3,4})",
       "code\\s+(C-[A-Z]?\\d{3,4})",
-      "(C-[A-Z]?\\d{3,4})\\s+error"
+      "(C-[A-Z]?\\d{3,4})\\s+error",
+      "JAM\\s+code\\s+(\\d{2}-\\d{2})",
+      "malfunction\\s+code\\s+([SDPF]-\\d{1,2})"
     ],
-    "validation_regex": "^C-?[A-Z]?\\d{3,4}$|^C-\\d{4}_\\d{4}$|^J-?\\d{3,4}$",
+    "validation_regex": "^C-?[A-Z]?\\d{3,4}$|^C-\\d{4}_\\d{4}$|^J-?\\d{3,4}$|^[SDPF]-\\d{1,2}$|^\\d{2}-\\d{2}$",
+    "special_sections": {
+      "jam_codes": {
+        "section_header": "List of the JAM code",
+        "pattern": "\\b(\\d{2}-\\d{2})\\b",
+        "description": "Paper jam codes (e.g., 10-01, 72-81)"
+      },
+      "malfunction_codes": {
+        "section_header": "List of the malfunction code",
+        "pattern": "\\b([SDPF]-\\d{1,2})\\b",
+        "description": "System malfunction codes (e.g., S-1, P-28)"
+      }
+    },
     "categories": {
       "memory": "System memory and storage errors",
       "laser": "Laser unit and beam errors",
