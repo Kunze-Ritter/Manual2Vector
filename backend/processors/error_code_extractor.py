@@ -254,6 +254,11 @@ class ErrorCodeExtractor:
                 total=len(error_codes)
             )
             
+            # Performance tracking
+            import time
+            loop_start = time.time()
+            processed_count = 0
+            
             for error_code in error_codes:
                 # Skip if already has good solution
                 if error_code.solution_text and len(error_code.solution_text) > 100:
@@ -302,6 +307,13 @@ class ErrorCodeExtractor:
                 )
                 enriched_codes.append(enriched_code)
                 progress.update(task, advance=1)
+                
+                # Log progress every 100 codes
+                processed_count += 1
+                if processed_count % 100 == 0:
+                    elapsed = time.time() - loop_start
+                    rate = processed_count / elapsed
+                    self.logger.info(f"   Processed {processed_count}/{len(error_codes)} codes ({rate:.1f} codes/sec)")
         
         return enriched_codes
     
