@@ -377,8 +377,12 @@ class DocumentProcessor:
                 # To scan ALL pages: Set LLM_MAX_PAGES=0 in environment
                 # To scan more: Set LLM_MAX_PAGES=50 (or any number)
                 import os
-                max_pages = int(os.getenv('LLM_MAX_PAGES', '20'))
+                llm_max_pages_env = os.getenv('LLM_MAX_PAGES', '20')
+                self.logger.debug(f"🔍 DEBUG: LLM_MAX_PAGES env var = '{llm_max_pages_env}'")
+                max_pages = int(llm_max_pages_env)
+                self.logger.debug(f"🔍 DEBUG: max_pages parsed = {max_pages}")
                 pages_to_scan = len(page_texts) if max_pages == 0 else min(max_pages, len(page_texts))
+                self.logger.debug(f"🔍 DEBUG: pages_to_scan = {pages_to_scan}, total pages = {len(page_texts)}")
                 
                 if pages_to_scan < len(page_texts):
                     self.logger.info(f"   → Scanning first {pages_to_scan} pages (set LLM_MAX_PAGES=0 to scan all {len(page_texts)} pages)")

@@ -32,6 +32,13 @@ for env_file in env_files:
     env_path = project_root / env_file
     if env_path.exists():
         load_dotenv(env_path, override=True)
+        print(f"✅ Loaded: {env_file}")
+    else:
+        print(f"⚠️  Not found: {env_file}")
+
+# Debug: Show LLM_MAX_PAGES value
+import os
+print(f"\n🔍 DEBUG: LLM_MAX_PAGES = {os.getenv('LLM_MAX_PAGES', 'NOT SET')}\n")
 
 # Add backend directory to path FIRST
 backend_dir = Path(__file__).parent.parent
