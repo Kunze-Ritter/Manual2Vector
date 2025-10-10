@@ -90,9 +90,9 @@ class ExtractedErrorCode(BaseModel):
     # - 59.F0 (HP hex)
     # - C-2801 (Canon)
     error_code: str = Field(..., pattern=r"^[A-Z]?-?\d{1,3}[\.\-]?[0-9A-Fa-f]{1,3}([\.\-][0-9A-Fa-f]{1,3})?$")
-    error_description: str = Field(..., min_length=20)
+    error_description: str = Field(..., min_length=10)  # Reduced from 20 to 10 (e.g., "Power line A1 error" = 19 chars)
     solution_text: Optional[str] = None
-    context_text: str = Field(..., min_length=100)
+    context_text: str = Field(..., min_length=50)  # Reduced from 100 to 50 for more flexibility
     confidence: float = Field(..., ge=0.0, le=1.0)
     page_number: int
     extraction_method: str = Field(default="regex_pattern")
