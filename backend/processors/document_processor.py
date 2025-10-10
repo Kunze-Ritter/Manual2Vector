@@ -421,10 +421,15 @@ class DocumentProcessor:
                 
                 # Step 2b: Series Detection (immediately after products!)
                 if saved_products:
-                    self.logger.info("Step 2b/5: Detecting and linking series...")
+                    self.logger.info(f"Step 2b/5: Detecting and linking series for {len(saved_products)} products...")
                     series_stats = self._detect_and_link_series(saved_products)
+                    self.logger.info(f"   Series stats: {series_stats['series_detected']} detected, {series_stats['series_created']} created, {series_stats['products_linked']} linked")
                     if series_stats['series_created'] > 0 or series_stats['products_linked'] > 0:
                         self.logger.success(f"✅ Series: {series_stats['series_created']} created, {series_stats['products_linked']} products linked")
+                    elif series_stats['series_detected'] == 0:
+                        self.logger.info("   ℹ️  No series patterns detected in product models")
+                else:
+                    self.logger.debug("   ⏭️  Skipped series detection (no products saved)")
             
             # Step 2c: Extract parts (always attempt extraction)
             self.logger.info("Step 2c/5: Extracting spare parts...")

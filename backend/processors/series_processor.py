@@ -128,9 +128,13 @@ class SeriesProcessor:
         series_data = detect_series(model_number, manufacturer_name)
         if not series_data:
             self.logger.debug(f"No series detected for {manufacturer_name} {model_number}")
-            return None
+            return {
+                'series_detected': False,
+                'series_created': False,
+                'product_linked': False
+            }
         
-        self.logger.info(f"Detected series for {model_number}: {series_data['series_name']}")
+        self.logger.info(f"✓ Detected series for {model_number}: {series_data['series_name']}")
         
         # Get or create series
         series_id, series_created = self._get_or_create_series(
@@ -150,6 +154,7 @@ class SeriesProcessor:
         return {
             'series_id': series_id,
             'series_name': series_data['series_name'],
+            'series_detected': True,
             'series_created': series_created,
             'product_linked': product_linked
         }
