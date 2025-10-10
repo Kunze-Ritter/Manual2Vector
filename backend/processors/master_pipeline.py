@@ -680,46 +680,54 @@ class MasterPipeline:
             Number of images successfully linked
         """
         try:
-            # SQL to update images with matching chunk_id
-            # Note: We use raw SQL here because Supabase PostgREST doesn't support
-            # complex UPDATE with subqueries easily
-            result = self.supabase.rpc('link_images_to_chunks_for_document', {
-                'p_document_id': str(document_id)
-            }).execute()
+            # Get all images for this document
+            images = self.supabase.table('images') \
+                .select('id, page_number') \
+                .eq('document_id', str(document_id)) \
+                .is_('chunk_id', 'null') \
+                .execute()
             
-            if result.data:
-                return result.data
-            return 0
+            if not images.data:
+                self.logger.debug("No unlinked images found")
+                return 0
+            
+            # Get all chunks for this document
+            chunks = self.supabase.table('chunks') \
+                .select('id, page_start, page_end') \
+                .eq('document_id', str(document_id)) \
+                .execute()
+            
+            if not chunks.data:
+                self.logger.debug("No chunks found to link to")
+                return 0
+            
+            # Link images to chunks
+            linked_count = 0
+            for image in images.data:
+                page_num = image.get('page_number')
+                if page_num is None:
+                    continue
+                
+                # Find matching chunk
+                for chunk in chunks.data:
+                    page_start = chunk.get('page_start', 0)
+                    page_end = chunk.get('page_end', 0)
+                    
+                    if page_start <= page_num <= page_end:
+                        # Update image with chunk_id
+                        self.supabase.table('images') \
+                            .update({'chunk_id': chunk['id']}) \
+                            .eq('id', image['id']) \
+                            .execute()
+                        linked_count += 1
+                        break  # Found matching chunk, move to next image
+            
+            return linked_count
             
         except Exception as e:
-            # Fallback: Try direct SQL if RPC doesn't exist
-            try:
-                from supabase import create_client
-                # Execute raw SQL update
-                query = f"""
-                    UPDATE krai_content.images i
-                    SET chunk_id = (
-                        SELECT c.id 
-                        FROM krai_intelligence.chunks c
-                        WHERE c.document_id = i.document_id
-                          AND c.page_start <= i.page_number 
-                          AND c.page_end >= i.page_number
-                        LIMIT 1
-                    )
-                    WHERE i.chunk_id IS NULL 
-                      AND i.document_id = '{document_id}'
-                      AND i.page_number IS NOT NULL
-                    RETURNING id
-                """
-                
-                # Use PostgREST query (fallback approach)
-                result = self.supabase.rpc('exec_sql', {'sql_text': query}).execute()
-                return len(result.data) if result.data else 0
-                
-            except Exception as e2:
-                self.logger.warning(f"Image-to-chunk linking failed: {e2}")
-                self.logger.info("   Images can still be found by page_number")
-                return 0
+            self.logger.warning(f"Image-to-chunk linking failed: {e}")
+            self.logger.info("   Images can still be found by page_number")
+            return 0
     
     def _link_error_codes_to_chunks_and_images(self, document_id: UUID) -> int:
         """
