@@ -389,32 +389,53 @@ class DocumentProcessor:
                 else:
                     self.logger.info(f"   → Scanning all {pages_to_scan} pages")
                 
-                for page_num in sorted(page_texts.keys())[:pages_to_scan]:
-                    # Skip if too short (likely not product info)
-                    if len(page_texts[page_num]) < 500:
-                        continue
-                    
-                    llm_products = self.llm_extractor.extract_from_specification_section(
-                        page_texts[page_num],
-                        self.manufacturer if self.manufacturer != "AUTO" else "KONICA MINOLTA",
-                        page_num
+                # Progress tracking for LLM extraction
+                from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+                
+                pages_to_process = sorted(page_texts.keys())[:pages_to_scan]
+                
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    TimeRemainingColumn(),
+                    console=None
+                ) as progress:
+                    task = progress.add_task(
+                        f"[cyan]LLM scanning pages...",
+                        total=len(pages_to_process)
                     )
                     
-                    # Fix manufacturer for AUTO detection
-                    if llm_products:
-                        # Get detected manufacturer from first regex product
-                        detected_mfr = next(
-                            (p.manufacturer_name for p in products if p.extraction_method.startswith("regex")),
-                            "KONICA MINOLTA"
+                    for page_num in pages_to_process:
+                        # Skip if too short (likely not product info)
+                        if len(page_texts[page_num]) < 500:
+                            progress.update(task, advance=1)
+                            continue
+                        
+                        llm_products = self.llm_extractor.extract_from_specification_section(
+                            page_texts[page_num],
+                            self.manufacturer if self.manufacturer != "AUTO" else "KONICA MINOLTA",
+                            page_num
                         )
-                        for prod in llm_products:
-                            if prod.manufacturer_name == "AUTO" or self.manufacturer == "AUTO":
-                                prod.manufacturer_name = detected_mfr
-                    
-                    if llm_products:
-                        if self.debug:
-                            self.logger.debug(f"  Page {page_num}: Found {len(llm_products)} products")
-                        products.extend(llm_products)
+                        
+                        # Fix manufacturer for AUTO detection
+                        if llm_products:
+                            # Get detected manufacturer from first regex product
+                            detected_mfr = next(
+                                (p.manufacturer_name for p in products if p.extraction_method.startswith("regex")),
+                                "KONICA MINOLTA"
+                            )
+                            for prod in llm_products:
+                                if prod.manufacturer_name == "AUTO" or self.manufacturer == "AUTO":
+                                    prod.manufacturer_name = detected_mfr
+                        
+                        if llm_products:
+                            if self.debug:
+                                self.logger.debug(f"  Page {page_num}: Found {len(llm_products)} products")
+                            products.extend(llm_products)
+                        
+                        progress.update(task, advance=1)
                 
                 llm_count = sum(1 for p in products if p.extraction_method == "llm")
                 if llm_count > 0:
