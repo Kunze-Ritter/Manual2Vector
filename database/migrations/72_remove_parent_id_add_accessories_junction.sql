@@ -13,10 +13,22 @@
 BEGIN;
 
 -- ============================================================================
--- PART 1: Remove parent_id from products
+-- PART 1: Drop dependent views that reference parent_id
 -- ============================================================================
 
--- Check if column exists before dropping (idempotent)
+-- Drop views in correct order (dependent views first)
+DROP VIEW IF EXISTS public.vw_products CASCADE;
+DROP VIEW IF EXISTS krai_core.public_products CASCADE;
+DROP VIEW IF EXISTS krai_core.products_with_names CASCADE;
+DROP VIEW IF EXISTS public.products CASCADE;
+
+RAISE NOTICE 'Dropped views that depend on parent_id';
+
+-- ============================================================================
+-- PART 2: Remove parent_id from products
+-- ============================================================================
+
+-- Now we can safely drop the column
 DO $$ 
 BEGIN
     IF EXISTS (
@@ -34,7 +46,55 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- PART 2: Create product_accessories junction table
+-- PART 3: Recreate views WITHOUT parent_id
+-- ============================================================================
+
+-- Recreate products_with_names view (without parent_id)
+CREATE OR REPLACE VIEW krai_core.products_with_names AS
+SELECT 
+    p.id,
+    p.manufacturer_id,
+    p.series_id,
+    p.model_number,
+    p.model_name,
+    p.product_type,
+    p.launch_date,
+    p.end_of_life_date,
+    p.msrp_usd,
+    p.weight_kg,
+    p.dimensions_mm,
+    p.color_options,
+    p.connectivity_options,
+    p.print_technology,
+    p.max_print_speed_ppm,
+    p.max_resolution_dpi,
+    p.max_paper_size,
+    p.duplex_capable,
+    p.network_capable,
+    p.created_at,
+    p.updated_at,
+    m.name AS manufacturer_name,
+    s.series_name
+FROM krai_core.products p
+LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+LEFT JOIN krai_core.product_series s ON p.series_id = s.id;
+
+-- Recreate public_products view
+CREATE OR REPLACE VIEW krai_core.public_products AS
+SELECT * FROM krai_core.products_with_names;
+
+-- Recreate vw_products view (for public schema)
+CREATE OR REPLACE VIEW public.vw_products AS
+SELECT * FROM krai_core.products_with_names;
+
+-- Recreate simple products view
+CREATE OR REPLACE VIEW public.products AS
+SELECT * FROM krai_core.products;
+
+RAISE NOTICE 'Recreated views without parent_id';
+
+-- ============================================================================
+-- PART 4: Create product_accessories junction table
 -- ============================================================================
 
 -- Junction table for M:N relationship between products and accessories
@@ -72,7 +132,7 @@ CREATE INDEX IF NOT EXISTS idx_product_accessories_accessory
     ON krai_core.product_accessories(accessory_id);
 
 -- ============================================================================
--- PART 3: Add helpful comments
+-- PART 5: Add helpful comments
 -- ============================================================================
 
 COMMENT ON TABLE krai_core.product_accessories IS 
