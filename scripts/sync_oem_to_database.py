@@ -20,12 +20,13 @@ import sys
 import os
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add backend directory to path
+backend_path = Path(__file__).parent.parent / 'backend'
+sys.path.insert(0, str(backend_path))
 
 from supabase import create_client
 from dotenv import load_dotenv
-from backend.utils.oem_sync import (
+from utils.oem_sync import (
     sync_oem_relationships_to_db,
     batch_update_products_oem_info
 )

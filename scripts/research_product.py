@@ -23,13 +23,14 @@ import os
 import json
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add backend directory to path
+backend_path = Path(__file__).parent.parent / 'backend'
+sys.path.insert(0, str(backend_path))
 
 from supabase import create_client
 from dotenv import load_dotenv
-from backend.research.product_researcher import ProductResearcher
-from backend.research.research_integration import ResearchIntegration
+from research.product_researcher import ProductResearcher
+from research.research_integration import ResearchIntegration
 
 # Load environment variables
 project_root = Path(__file__).parent.parent

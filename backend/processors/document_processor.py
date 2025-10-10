@@ -1266,7 +1266,7 @@ class DocumentProcessor:
             # Update products with OEM information
             if product_ids:
                 try:
-                    from backend.utils.oem_sync import update_product_oem_info
+                    from utils.oem_sync import update_product_oem_info
                     oem_updated = 0
                     
                     for product_id in product_ids:

@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Dict, Any
 from uuid import UUID
 
-from backend.research.product_researcher import ProductResearcher
+from research.product_researcher import ProductResearcher
 
 
 logger = logging.getLogger(__name__)

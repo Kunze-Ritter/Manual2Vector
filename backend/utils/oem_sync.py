@@ -16,7 +16,7 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 import logging
 
-from backend.config.oem_mappings import OEM_MAPPINGS, get_oem_manufacturer, get_oem_info
+from config.oem_mappings import OEM_MAPPINGS, get_oem_manufacturer, get_oem_info
 
 logger = logging.getLogger(__name__)
 
