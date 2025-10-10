@@ -108,15 +108,22 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
             # No OEM relationship
             return False
         
-        # Update product (same pattern as research_integration.py and rest of codebase)
-        supabase.table('products').update({
-            'oem_manufacturer': oem_info['oem_manufacturer'],
-            'oem_relationship_type': 'engine',
-            'oem_notes': oem_info['notes']
-        }).eq('id', str(product_id)).execute()
+        # TEMPORARY WORKAROUND: Skip OEM sync due to PostgREST schema cache issue
+        # The columns exist in DB but PostgREST doesn't see them yet
+        # TODO: Remove this once schema cache is properly refreshed
+        logger.debug(f"OEM sync skipped for {product_id} (PostgREST PGRST204 - columns exist but not in cache)")
+        logger.debug(f"  Would set: {oem_info['oem_manufacturer']} (engine)")
+        return False
         
-        logger.info(f"Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
-        return True
+        # Original code (will be re-enabled once cache is fixed):
+        # supabase.table('products').update({
+        #     'oem_manufacturer': oem_info['oem_manufacturer'],
+        #     'oem_relationship_type': 'engine',
+        #     'oem_notes': oem_info['notes']
+        # }).eq('id', str(product_id)).execute()
+        # 
+        # logger.info(f"Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
+        # return True
     
     except Exception as e:
         logger.error(f"Error updating product {product_id} OEM info: {e}")
