@@ -557,7 +557,7 @@ class DocumentProcessor:
                 if products:
                     # Use first product's series or model for OEM detection
                     first_product = products[0]
-                    product_series = first_product.series_name or first_product.model_name
+                    product_series = first_product.product_series or first_product.model_number
                 
                 error_codes = self.error_code_extractor.enrich_error_codes_from_document(
                     error_codes=error_codes,
