@@ -273,9 +273,20 @@ class ErrorCodeExtractor:
                 # Get pre-found matches for this code
                 matches = all_matches.get(error_code.error_code, [])
                 
-                # OPTIMIZATION: Limit to first 10 matches (avoid processing 150k+ matches!)
-                # Usually the best solution is in the first few occurrences anyway
-                matches = matches[:10]
+                # OPTIMIZATION: Filter matches to only those in error code context
+                # Avoid false positives (e.g., product names like "C4080" that appear everywhere)
+                filtered_matches = []
+                for start_pos, end_pos in matches:
+                    # Check context before the match (100 chars)
+                    context_before = full_document_text[max(0, start_pos - 100):start_pos].lower()
+                    # Look for error code indicators
+                    if any(keyword in context_before for keyword in ['error', 'code', 'trouble', 'fault', 'alarm', 'jam']):
+                        filtered_matches.append((start_pos, end_pos))
+                        if len(filtered_matches) >= 10:  # Limit to 10 good matches
+                            break
+                
+                # Fallback: If no filtered matches, use first 3 raw matches
+                matches = filtered_matches if filtered_matches else matches[:3]
                 
                 if processed_count == 0:
                     self.logger.info(f"   Found {len(matches)} matches for first code (limited to 10)")
