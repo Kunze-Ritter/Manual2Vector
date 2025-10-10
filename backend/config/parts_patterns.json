@@ -149,10 +149,11 @@
       "patterns": [
         {
           "name": "a_series_parts",
-          "pattern": "\\bA[0-9A-Z]{9}\\b",
-          "description": "Konica Minolta A-series parts - 10 chars total (e.g., A03U190900, A50U367001, AC57R74100)",
+          "pattern": "\\bA(?=.*\\d)[0-9A-Z]{9}\\b",
+          "description": "Konica Minolta A-series parts - 10 chars total, must contain at least one digit (e.g., A03U190900, A50U367001, AC57R74100)",
           "examples": ["A03U190900", "A50U367001", "AC57R74100", "A1RG569900", "A9VE160700", "A50UR72U11"],
-          "confidence": 0.97
+          "confidence": 0.97,
+          "note": "Positive lookahead after 'A' ensures at least one digit in remaining 9 chars to avoid matching keywords like ATTACHMENT, ACTIVITIES"
         },
         {
           "name": "v_series_subparts",
