@@ -415,11 +415,13 @@ class ImageProcessor:
                     # Open image
                     pil_image = Image.open(img['path'])
                     
-                    # Run OCR with confidence data
+                    # PERFORMANCE FIX: Use image_to_data only (returns text + confidence)
+                    # Calling image_to_string separately doubles the OCR time!
                     ocr_data = pytesseract.image_to_data(pil_image, output_type=pytesseract.Output.DICT)
                     
-                    # Extract text
-                    ocr_text = pytesseract.image_to_string(pil_image)
+                    # Extract text from ocr_data (no need for separate image_to_string!)
+                    text_parts = [word for word in ocr_data['text'] if word.strip()]
+                    ocr_text = ' '.join(text_parts)
                     
                     # Calculate average confidence (filter out -1 which means no text)
                     confidences = [int(conf) for conf in ocr_data['conf'] if int(conf) > 0]
