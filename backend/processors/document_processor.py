@@ -1534,8 +1534,8 @@ class DocumentProcessor:
                         'height_px': img.get('height'),
                         'file_size_bytes': Path(file_path).stat().st_size if Path(file_path).exists() else 0,
                         'storage_url': None,  # No R2 upload yet
-                        'storage_path': None,
-                        'extracted_at': datetime.utcnow().isoformat()
+                        'storage_path': None
+                        # extracted_at removed - column doesn't exist (uses created_at instead)
                     }
                     
                     # Add optional fields
