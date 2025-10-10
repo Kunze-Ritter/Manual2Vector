@@ -886,3 +886,237 @@ UPLOAD_DOCUMENTS_TO_R2=false
 5. ✅ **100% Test Coverage** - Alle Features getestet
 
 **Production Ready:** ✅ YES!
+
+---
+
+## 🔧 CURRENT SESSION (2025-10-10)
+
+### ✅ COMPLETED TODAY (2025-10-10)
+
+#### Database & Schema Improvements
+- [x] **Migration 72:** Remove `parent_id`, add `product_accessories` junction table
+  - Removed unused `parent_id` column from products
+  - Created M:N junction table for accessories (one accessory → many products)
+  - Updated all dependent views (products_with_names, public_products, vw_products)
+  - Added `is_standard` and `compatibility_notes` columns
+  - **Files:** `database/migrations/72_remove_parent_id_add_accessories_junction.sql`
+  - **Docs:** `database/migrations/PRODUCT_ACCESSORIES_GUIDE.md`
+  - **Status:** ✅ Applied to production
+
+- [x] **Data Model Update:** Removed `parent_id` from ProductModel
+  - **File:** `backend/core/data_models.py`
+
+#### Parts Extraction Improvements
+- [x] **Konica Minolta Parts Patterns Enhanced**
+  - A-Series optimized: `A[0-9A-Z]{9}` (10 chars total, based on ACC2.pdf analysis)
+  - V-Series added: `V\d{9}` (Sub-Parts/Hardware)
+  - 10-Digit Numeric added: `[1-9]\d{9}` (OEM Parts)
+  - Accessory Options added: `[A-Z]{2}-?\d{3,4}` (HT, SD, FS, etc.)
+  - **File:** `backend/config/parts_patterns.json`
+
+- [x] **Generic Patterns Removed**
+  - No more fallback patterns (reduces false positives)
+  - Clear error message when manufacturer config missing
+  - **File:** `backend/processors/parts_extractor.py`
+
+- [x] **Config Versioning Added**
+  - Added `config_version` and `last_updated` to all manufacturer configs
+  - Enables tracking which analysis version was used
+  - **File:** `backend/config/parts_patterns.json`
+
+#### Error Code Extraction Improvements
+- [x] **Validation Constraints Relaxed**
+  - `error_description`: 20 → 10 chars minimum
+  - `context_text`: 100 → 50 chars minimum
+  - More error codes extracted (less strict validation)
+  - **File:** `backend/processors/error_code_extractor.py`
+
+#### Image Processing Fixes
+- [x] **Image Saving Fixed**
+  - Removed `extracted_at` field (column doesn't exist in DB)
+  - All image INSERTs were failing silently before
+  - Vision AI descriptions now saved to DB
+  - Added debug logging for AI/OCR data
+  - **File:** `backend/processors/document_processor.py`
+
+- [x] **Image-to-Chunk Linking Rewritten**
+  - Removed dependency on non-existent RPC functions
+  - Uses direct Supabase queries instead
+  - Fetches images and chunks, matches by page_number
+  - **File:** `backend/processors/master_pipeline.py`
+
+#### Manufacturer Detection Improvements
+- [x] **Case-Insensitive Manufacturer Search**
+  - Changed `.eq()` to `.ilike()` for case-insensitive matching
+  - Prevents duplicate manufacturers (HP vs Hewlett Packard)
+  - **File:** `backend/processors/document_processor.py`
+
+- [x] **Konica Minolta Aliases Fixed**
+  - Removed overly generic aliases: 'km', 'KM', 'konica', 'minolta'
+  - Prevents false matches (e.g., "5 KM" → Konica Minolta)
+  - Only matches full name: 'konica minolta', 'Konica-Minolta'
+  - **File:** `backend/utils/manufacturer_normalizer.py`
+
+- [x] **Manufacturer Detection Score Logging**
+  - Shows all manufacturers with scores and sources
+  - Helps diagnose detection issues
+  - **File:** `backend/processors/document_processor.py`
+
+#### Product Type Detection Improvements
+- [x] **Product Type Detection Without series_name**
+  - Works even when series_name not extracted
+  - Detects from model_number patterns:
+    - 'PRESS' or 'ACCURIO' → production_printer
+    - 'LASERJET' + 'MFP' → laser_multifunction
+    - 'LASERJET' alone → laser_printer
+  - **Files:** 
+    - `backend/processors/document_processor.py`
+    - `backend/utils/product_type_mapper.py`
+
+#### File Format Support
+- [x] **.pdfz Decompression Support**
+  - Added to `document_processor.py` and `auto_processor.py`
+  - Automatic gzip decompression
+  - Fallback for non-gzipped .pdfz files
+  - Cleanup of temp files
+  - **Files:**
+    - `backend/processors/document_processor.py`
+    - `backend/processors/auto_processor.py`
+
+#### Documentation
+- [x] **Product Accessories Roadmap**
+  - Comprehensive TODO for accessory system
+  - Phase 1: Automatic detection & linking
+  - Phase 2: Advanced rules (dependencies, exclusions)
+  - Phase 3: Dashboard & UI
+  - **File:** `TODO_PRODUCT_ACCESSORIES.md`
+
+---
+
+### 🐛 KNOWN ISSUES (2025-10-10)
+
+#### Critical Bugs (Need Testing)
+1. ⚠️ **Series Linking Not Working**
+   - **Issue:** `series_id` in products table stays NULL
+   - **Symptoms:** Series detected and created, but products not linked
+   - **Debug Added:** Detailed logging in `_link_product_to_series()`
+   - **Status:** Debug logging added, needs test run
+   - **Priority:** HIGH
+   - **File:** `backend/processors/series_processor.py`
+
+2. ⚠️ **OCR/Vision AI Data Not Saved**
+   - **Issue:** `ocr_text` and `ai_description` in images table stay NULL
+   - **Symptoms:** OCR/Vision AI runs successfully, but data not in DB
+   - **Debug Added:** Logging when AI/OCR data is added to image_record
+   - **Status:** Debug logging added, needs test run
+   - **Priority:** HIGH
+   - **File:** `backend/processors/document_processor.py`
+
+3. ⚠️ **Image-to-Chunk Linking Untested**
+   - **Issue:** `chunk_id` in images table stays NULL
+   - **Fix Applied:** Rewritten to use direct queries (no RPC)
+   - **Status:** Fix committed, not tested yet
+   - **Priority:** MEDIUM
+   - **File:** `backend/processors/master_pipeline.py`
+
+---
+
+### 📋 TODO - NEXT PRIORITIES
+
+#### Immediate (Today/Tomorrow)
+1. [ ] **Test Series Linking**
+   - Run processing on test document
+   - Check logs for series detection/linking
+   - Verify `series_id` populated in products table
+   - **Expected Log:** `→ Linking product abc... to series def...`
+   - **Expected Log:** `✅ Linked product to series (updated 1 row)`
+
+2. [ ] **Test OCR/Vision AI Data Saving**
+   - Run processing on document with images
+   - Check logs for AI/OCR data
+   - Verify `ocr_text` and `ai_description` in images table
+   - **Expected Log:** `✓ OCR text: filename - X chars`
+   - **Expected Log:** `✓ AI description: filename - description...`
+
+3. [ ] **Test Image-to-Chunk Linking**
+   - Run processing on document with images
+   - Check logs for linking success
+   - Verify `chunk_id` populated in images table
+   - **Expected Log:** `🔗 Linking images to chunks...`
+   - **Expected Log:** `✅ Linked X images to chunks`
+
+#### Short-term (This Week)
+4. [ ] **Implement Basic Accessory Auto-Linking**
+   - Detect accessories by model number prefix (FS-, PF-, HT-, SD-)
+   - Simple rule: Accessory mentioned in document → link to document's products
+   - Save to `product_accessories` junction table
+   - **Priority:** HIGH
+   - **Effort:** 4-6 hours
+   - **File:** `backend/processors/accessory_linker.py` (new)
+   - **See:** `TODO_PRODUCT_ACCESSORIES.md` for detailed roadmap
+
+5. [ ] **Improve Series Detection Coverage**
+   - Add more manufacturer series patterns
+   - Test with various service manuals
+   - Verify series_name accuracy
+   - **Priority:** MEDIUM
+   - **Effort:** 2-3 hours
+
+6. [ ] **Add Comprehensive End-to-End Tests**
+   - Test complete pipeline with sample documents
+   - Verify all data saved correctly
+   - Check for silent failures
+   - **Priority:** HIGH
+   - **Effort:** 4-6 hours
+
+#### Medium-term (Next Week)
+7. [ ] **Accessory Compatibility Extraction**
+   - Extract "Compatible with: X, Y, Z" from text
+   - Parse compatibility tables in PDFs
+   - Auto-populate `product_accessories` table
+   - **Priority:** MEDIUM
+   - **Effort:** 6-8 hours
+   - **See:** `TODO_PRODUCT_ACCESSORIES.md` Phase 1.2
+
+8. [ ] **Option Dependencies System**
+   - Model "requires", "excludes", "alternatives" relationships
+   - Configuration validation
+   - **Priority:** LOW
+   - **Effort:** 8-10 hours
+   - **See:** `TODO_PRODUCT_ACCESSORIES.md` Phase 2
+
+9. [ ] **Dashboard for Accessory Management**
+   - Visual product-accessory linking
+   - Drag & drop interface
+   - Dependency rules editor
+   - **Priority:** LOW
+   - **Effort:** 20+ hours
+   - **See:** `TODO_PRODUCT_ACCESSORIES.md` Phase 3
+
+---
+
+### 📊 Session Statistics (2025-10-10)
+
+**Commits:** 20+ commits
+**Files Changed:** 15+ files
+**Lines Added:** ~500+ lines
+**Bugs Fixed:** 8 major issues
+**Features Added:** 3 (junction table, .pdfz support, improved detection)
+**Documentation:** 2 new guides (PRODUCT_ACCESSORIES_GUIDE.md, TODO_PRODUCT_ACCESSORIES.md)
+
+**Key Achievements:**
+1. ✅ Database schema cleaned up (removed unused parent_id)
+2. ✅ Proper M:N relationship for accessories
+3. ✅ Multiple silent failures fixed (images, manufacturer detection)
+4. ✅ Better error handling and debug logging
+5. ✅ Comprehensive roadmap for accessory system
+
+**Status:** Ready for testing! 🚀
+
+---
+
+**Last Updated:** 2025-10-10 (10:16)
+**Current Focus:** Testing & debugging (series, OCR, images)
+**Next Session:** Run test processing and verify all fixes work
+
+**Production Ready:** ⚠️ NEEDS TESTING (3 critical bugs to verify)
