@@ -879,21 +879,21 @@ class DocumentProcessor:
             # Normalize manufacturer name first
             from utils.manufacturer_normalizer import normalize_manufacturer
             canonical_name = normalize_manufacturer(manufacturer_name)
-            
             if canonical_name:
                 self.logger.debug(f"Normalized '{manufacturer_name}' -> '{canonical_name}'")
                 manufacturer_name = canonical_name
             
-            # 1. Try to find existing manufacturer (exact match on canonical name)
+            # 1. Try to find existing manufacturer (case-insensitive exact match on canonical name)
             result = supabase.table('manufacturers') \
-                .select('id') \
-                .eq('name', manufacturer_name) \
+                .select('id, name') \
+                .ilike('name', manufacturer_name) \
                 .limit(1) \
                 .execute()
             
             if result.data:
                 manufacturer_id = result.data[0]['id']
-                self.logger.debug(f"Found existing manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
+                existing_name = result.data[0]['name']
+                self.logger.debug(f"Found existing manufacturer: '{existing_name}' (ID: {manufacturer_id})")
                 return manufacturer_id
             
             # 2. Manufacturer not found - create new entry
