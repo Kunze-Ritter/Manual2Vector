@@ -143,8 +143,8 @@ def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
         print(f"❌ Document not found: {document_id}")
         return False
     
-    print(f"📄 Document: {doc_info.get('title', 'Unknown')}")
-    print(f"   Manufacturer: {doc_info.get('manufacturer_name', 'Unknown')}")
+    print(f"📄 Document: {doc_info.get('filename', doc_info.get('original_filename', 'Unknown'))}")
+    print(f"   Manufacturer: {doc_info.get('manufacturer', 'Unknown')}")
     print(f"   Uploaded: {doc_info.get('created_at', 'Unknown')}")
     
     # Count related data
@@ -207,7 +207,7 @@ def interactive_mode():
     
     # List recent documents
     try:
-        result = supabase.table('documents').select('id,title,manufacturer_name,created_at').order('created_at', desc=True).limit(20).execute()
+        result = supabase.table('documents').select('id,filename,original_filename,manufacturer,created_at').order('created_at', desc=True).limit(20).execute()
         
         if not result.data:
             print("\n❌ No documents found in database")
@@ -216,7 +216,10 @@ def interactive_mode():
         print("\nRecent documents:")
         print("-" * 80)
         for idx, doc in enumerate(result.data, 1):
-            print(f"{idx:2}. {doc['title'][:50]:50} | {doc['manufacturer_name']:15} | {doc['created_at'][:10]}")
+            filename = doc.get('filename') or doc.get('original_filename', 'Unknown')
+            manufacturer = doc.get('manufacturer', 'Unknown')
+            created = doc.get('created_at', 'Unknown')[:10] if doc.get('created_at') else 'Unknown'
+            print(f"{idx:2}. {filename[:50]:50} | {manufacturer:15} | {created}")
             print(f"    ID: {doc['id']}")
         
         print("\nEnter document numbers to delete (comma-separated), or 'q' to quit:")
@@ -242,7 +245,8 @@ def interactive_mode():
         print("\n" + "=" * 80)
         print("Documents to delete:")
         for doc in selected_docs:
-            print(f"  - {doc['title']} ({doc['id']})")
+            filename = doc.get('filename') or doc.get('original_filename', 'Unknown')
+            print(f"  - {filename} ({doc['id']})")
         
         # Confirm
         print("\n⚠️  WARNING: This will permanently delete all data for these documents!")
