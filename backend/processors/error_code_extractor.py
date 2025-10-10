@@ -52,7 +52,6 @@ SOLUTION_KEYWORDS_PATTERN = re.compile(
     r'\s*[:]\s*(.{50,1500}?)',  # Non-greedy
     re.IGNORECASE
 )
-
 NUMBERED_STEPS_PATTERN = re.compile(
     r'((?:(?:\d+[\.\)]|Step\s+\d+)\s+.{20,500}?[\n\r]?){2,})',  # Non-greedy, limited length
     re.MULTILINE | re.IGNORECASE
@@ -63,12 +62,23 @@ BULLET_PATTERN = re.compile(
     re.MULTILINE
 )
 
+# Additional pre-compiled patterns for _extract_solution (used in nested loops!)
+# These are called 9000+ times (3052 codes × ~3 matches each)
+STEP_LINE_PATTERN = re.compile(r'^(?:\s{0,4}\d+[\.\)]|•|-|\*|[a-z][\.\)])\s+', re.MULTILINE)
+STEP_MATCH_PATTERN = re.compile(r'(?:\d+[\.\)]|Step\s+\d+)', re.IGNORECASE)
+SECTION_END_NOTE = re.compile(r'\n\s*(?:note|warning|caution|important|tip)', re.IGNORECASE)
+SECTION_END_TITLE = re.compile(r'\n\s*[A-Z][a-z]+\s+[A-Z]')
+SECTION_END_NUMBERED = re.compile(r'\n\s*\d+\.\d+\s')
+CLASSIFICATION_PATTERN = re.compile(r'Classification\s*\n\s*(.+?)(?:\n\s*Cause|\n\s*Measures|$)', re.IGNORECASE | re.DOTALL)
+SENTENCE_END_PATTERN = re.compile(r'[.!?\n]{1,2}')
+
 
 class ErrorCodeExtractor:
     """Extract error codes using manufacturer-specific patterns"""
     
     def __init__(self, config_path: Optional[Path] = None):
         """Initialize error code extractor with configuration"""
+
         self.logger = get_logger()
         
         if config_path is None:
@@ -479,7 +489,8 @@ class ErrorCodeExtractor:
         remaining_text = text[code_end_pos:code_end_pos + max_length * 2]
         
         # Try to find structured sections (Konica Minolta format)
-        classification_match = re.search(r'Classification\s*\n\s*(.+?)(?:\n\s*Cause|\n\s*Measures|$)', remaining_text, re.IGNORECASE | re.DOTALL)
+        # PERFORMANCE: Use pre-compiled pattern
+        classification_match = CLASSIFICATION_PATTERN.search(remaining_text)
         if classification_match:
             description = classification_match.group(1).strip()
             # Limit to max_length
@@ -491,7 +502,8 @@ class ErrorCodeExtractor:
         remaining_text = remaining_text[:max_length]
         
         # Find end of sentence or paragraph
-        sentence_end = re.search(r'[.!?\n]{1,2}', remaining_text)
+        # PERFORMANCE: Use pre-compiled pattern
+        sentence_end = SENTENCE_END_PATTERN.search(remaining_text)
         
         if sentence_end:
             description = remaining_text[:sentence_end.start()].strip()
@@ -541,7 +553,8 @@ class ErrorCodeExtractor:
             filtered_lines = []
             for line in lines[:20]:
                 # Match main steps (1., 1)) AND sub-steps (  1), 2), a), etc.)
-                if re.match(r'^(?:\s{0,4}\d+[\.\)]|•|-|\*|[a-z][\.\)])\s+', line):
+                # PERFORMANCE: Use pre-compiled pattern
+                if STEP_LINE_PATTERN.match(line):
                     filtered_lines.append(line.strip())
                 elif filtered_lines and len(line.strip()) > 20:  # Continuation line
                     filtered_lines[-1] += ' ' + line.strip()
@@ -558,13 +571,9 @@ class ErrorCodeExtractor:
         if match:
             solution = match.group(1).strip()
             # Extract until next section header or end
-            end_patterns = [
-                r'\n\s*(?:note|warning|caution|important|tip)',
-                r'\n\s*[A-Z][a-z]+\s+[A-Z]',  # New section title
-                r'\n\s*\d+\.\d+\s',  # Numbered section
-            ]
-            for pattern in end_patterns:
-                section_end = re.search(pattern, solution, re.IGNORECASE)
+            # PERFORMANCE: Use pre-compiled patterns
+            for pattern in [SECTION_END_NOTE, SECTION_END_TITLE, SECTION_END_NUMBERED]:
+                section_end = pattern.search(solution)
                 if section_end:
                     solution = solution[:section_end.start()]
                     break
@@ -579,7 +588,8 @@ class ErrorCodeExtractor:
             lines = [l.strip() for l in steps.split('\n') if l.strip()]
             step_lines = []
             for line in lines[:15]:
-                if re.match(r'(?:\d+[\.\)]|Step\s+\d+)', line, re.IGNORECASE):
+                # PERFORMANCE: Use pre-compiled pattern
+                if STEP_MATCH_PATTERN.match(line):
                     step_lines.append(line)
                 elif step_lines and len(line) > 20:  # Continuation of previous step
                     step_lines[-1] += ' ' + line
