@@ -98,7 +98,6 @@ class ProductSeriesModel(BaseModel):
 class ProductModel(BaseModel):
     """Product model for krai_core.products"""
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
-    parent_id: Optional[str] = None
     manufacturer_id: str
     series_id: str
     model_number: str
