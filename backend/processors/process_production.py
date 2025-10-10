@@ -12,6 +12,13 @@ This script processes a document in FULL PRODUCTION MODE:
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from multiple .env files
+# Priority: .env.ai > .env (later files override earlier ones)
+project_root = Path(__file__).parent.parent.parent
+load_dotenv(project_root / '.env')  # Base config
+load_dotenv(project_root / '.env.ai', override=True)  # AI-specific overrides
 
 # Add backend directory to path FIRST
 backend_dir = Path(__file__).parent.parent
