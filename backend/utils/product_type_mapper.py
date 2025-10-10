@@ -11,6 +11,9 @@ from typing import Optional
 SERIES_PRODUCT_TYPE_MAP = {
     # Konica Minolta
     'AccurioPress': 'production_printer',
+    'AccurioPrint': 'production_printer',
+    'AccurioLabel': 'production_printer',
+    'AccurioJet': 'production_printer',
     'Revoria': 'production_printer',
     'bizhub': 'laser_multifunction',
     'bizhub PRESS': 'production_printer',
@@ -304,6 +307,38 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
     Returns:
         Product type or None
     """
+    # Check model_number for accessory prefixes (Konica Minolta)
+    if model_number:
+        model_upper = model_number.upper()
+        
+        # Accessory detection by prefix
+        accessory_prefixes = {
+            'HT-': 'cabinet',           # Hard Disk Table
+            'IM-': 'interface_kit',     # Image Controller
+            'PF-': 'paper_feeder',      # Paper Feeder
+            'MK-': 'maintenance_kit',   # Maintenance Kit
+            'MB-': 'mailbox',           # Mailbox
+            'EF-': 'envelope_feeder',   # Envelope Feeder
+            'SD-': 'finisher',          # Saddle Stitch Finisher
+            'FS-': 'finisher',          # Finisher
+            'DF-': 'document_feeder',   # Document Feeder
+            'LU-': 'large_capacity_feeder',  # Large Capacity Feeder
+            'PC-': 'paper_feeder',      # Paper Feed Unit
+            'MT-': 'mailbox',           # Mailbox/Sorter
+            'FK-': 'fax_kit',           # Fax Kit
+            'RU-': 'accessory',         # Relay Unit
+            'CU-': 'accessory',         # Cleaning Unit
+            'HD-': 'hard_drive',        # Hard Disk Drive
+            'EK-': 'card_reader',       # Card Reader
+            'AU-': 'accessory',         # Authentication Module
+            'UK-': 'accessory',         # USB Kit
+            'WT-': 'waste_toner_box',   # Waste Toner Box
+        }
+        
+        for prefix, accessory_type in accessory_prefixes.items():
+            if model_upper.startswith(prefix):
+                return accessory_type
+    
     # If no series_name, try to infer from model_number
     if not series_name and model_number:
         model_upper = model_number.upper()
