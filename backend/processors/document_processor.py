@@ -521,9 +521,11 @@ class DocumentProcessor:
                 images = image_result['images']
                 self.logger.success(f"✅ Image processing complete: {len(images)} images ready")
                 
-                # Save images to database (without R2 upload)
+                # Save images to database (AFTER Vision AI has run!)
+                # Vision AI adds ai_description, ai_confidence, contains_text
                 if images:
                     self._save_images_to_db(document_id, images)
+                    self.logger.debug(f"Saved {len(images)} images with Vision AI descriptions to DB")
             else:
                 self.logger.warning(f"Image extraction failed: {image_result.get('error')}")
             
@@ -1539,6 +1541,7 @@ class DocumentProcessor:
                     # Add optional fields
                     if img.get('ai_description'):
                         image_record['ai_description'] = img['ai_description']
+                        self.logger.debug(f"Adding AI description for {img.get('filename')}: {img['ai_description'][:50]}...")
                     if img.get('ai_confidence'):
                         image_record['ai_confidence'] = img['ai_confidence']
                     if img.get('ocr_text'):
