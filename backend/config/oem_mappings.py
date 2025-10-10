@@ -141,8 +141,16 @@ OEM_MAPPINGS = {
     ('Xerox', r'AltaLink [BC]\d{4}'): {
         'oem_manufacturer': 'Fujifilm',
         'series_name': 'AltaLink Series',
-        'notes': 'Fujifilm Business Innovation engine (A3 MFPs)',
+        'notes': 'Fujifilm Business Innovation engine (A3 MFPs, ex-Fuji Xerox partnership)',
         'applies_to': ['error_codes', 'parts']
+    },
+    
+    # Xerox Production Inkjet → Kyocera Engine (NEW 2025!)
+    ('Xerox', r'(?:TASKalfa Pro|Inkjet).*15000'): {
+        'oem_manufacturer': 'Kyocera',
+        'series_name': 'Production Inkjet Series',
+        'notes': 'Kyocera TASKalfa Pro 15000c engine (partnership announced July 2025)',
+        'applies_to': ['error_codes', 'parts', 'supplies']
     },
     
     # ===== RICOH FAMILY (Same Company, Different Brands) =====
@@ -214,6 +222,40 @@ OEM_MAPPINGS = {
         'oem_manufacturer': 'Samsung',
         'series_name': 'LaserJet Enterprise A3 MFP',
         'notes': 'Samsung-based A3 platform (post-2017 acquisition)',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # ===== FUJIFILM / FUJI XEROX =====
+    
+    # Fuji Xerox → Fujifilm Business Innovation (rebranded 2021)
+    ('Fuji Xerox', r'.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'All Fuji Xerox Products',
+        'notes': 'Fuji Xerox rebranded to Fujifilm Business Innovation in April 2021',
+        'applies_to': ['error_codes', 'parts', 'accessories']
+    },
+    
+    # Fujifilm Business Innovation ApeosPort → Same as Xerox AltaLink
+    ('Fujifilm', r'ApeosPort.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'ApeosPort Series',
+        'notes': 'Fujifilm engine (same platform as Xerox AltaLink, ex-Fuji Xerox)',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # Fujifilm Business Innovation DocuCentre → Same as Xerox WorkCentre
+    ('Fujifilm', r'DocuCentre.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'DocuCentre Series',
+        'notes': 'Fujifilm engine (same platform as Xerox WorkCentre, ex-Fuji Xerox)',
+        'applies_to': ['error_codes', 'parts']
+    },
+    
+    # Fujifilm DocuPrint
+    ('Fujifilm', r'DocuPrint.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'DocuPrint Series',
+        'notes': 'Fujifilm engine (ex-Fuji Xerox)',
         'applies_to': ['error_codes', 'parts']
     },
 }
