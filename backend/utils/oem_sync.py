@@ -108,15 +108,34 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
             # No OEM relationship
             return False
         
-        # Update product
-        supabase.table('products') \
-            .update({
-                'oem_manufacturer': oem_info['oem_manufacturer'],
-                'oem_relationship_type': 'engine',
-                'oem_notes': oem_info['notes']
-            }) \
-            .eq('id', str(product_id)) \
-            .execute()
+        # Update product using direct SQL via postgrest (bypasses schema cache issues)
+        # Use parameterized query for safety
+        from supabase._sync.client import SyncClient
+        import requests
+        
+        # Get Supabase URL and key from client
+        url = supabase.supabase_url
+        key = supabase.supabase_key
+        
+        # Direct REST API call with proper headers
+        response = requests.patch(
+            f"{url}/rest/v1/products",
+            params={"id": f"eq.{str(product_id)}"},
+            json={
+                "oem_manufacturer": oem_info['oem_manufacturer'],
+                "oem_relationship_type": "engine",
+                "oem_notes": oem_info['notes']
+            },
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
+            }
+        )
+        
+        if response.status_code not in [200, 204]:
+            raise Exception(f"Update failed: {response.text}")
         
         logger.info(f"Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
         return True
