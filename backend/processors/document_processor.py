@@ -1262,6 +1262,41 @@ class DocumentProcessor:
                     saved_count += 1
             
             self.logger.success(f"💾 Saved {saved_count} new products, updated {updated_count} existing")
+            
+            # Update products with OEM information
+            if product_ids:
+                try:
+                    from backend.utils.oem_sync import update_product_oem_info
+                    oem_updated = 0
+                    
+                    for product_id in product_ids:
+                        # Get product info
+                        product_result = supabase.table('products').select(
+                            'id,model_number,series_name,manufacturer_id'
+                        ).eq('id', product_id).single().execute()
+                        
+                        if product_result.data:
+                            product = product_result.data
+                            
+                            # Get manufacturer name
+                            if product.get('manufacturer_id'):
+                                mfr_result = supabase.table('manufacturers').select('name').eq(
+                                    'id', product['manufacturer_id']
+                                ).single().execute()
+                                
+                                if mfr_result.data:
+                                    manufacturer_name = mfr_result.data['name']
+                                    model_or_series = product.get('series_name') or product.get('model_number')
+                                    
+                                    # Update OEM info
+                                    if update_product_oem_info(supabase, product_id, manufacturer_name, model_or_series):
+                                        oem_updated += 1
+                    
+                    if oem_updated > 0:
+                        self.logger.info(f"🔄 Updated {oem_updated} products with OEM information")
+                except Exception as e:
+                    self.logger.debug(f"Could not update OEM info: {e}")
+            
             return product_ids
         except Exception as e:
             error_msg = str(e)
