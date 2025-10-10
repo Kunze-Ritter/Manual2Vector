@@ -1543,18 +1543,23 @@ class DocumentProcessor:
                         # extracted_at removed - column doesn't exist (uses created_at instead)
                     }
                     
-                    # Add optional fields
+                    # Add optional fields with debug logging
                     if img.get('ai_description'):
                         image_record['ai_description'] = img['ai_description']
-                        self.logger.debug(f"Adding AI description for {img.get('filename')}: {img['ai_description'][:50]}...")
+                        self.logger.debug(f"✓ AI description: {img.get('filename')} - {img['ai_description'][:50]}...")
                     if img.get('ai_confidence'):
                         image_record['ai_confidence'] = img['ai_confidence']
                     if img.get('ocr_text'):
                         image_record['ocr_text'] = img['ocr_text']
+                        self.logger.debug(f"✓ OCR text: {img.get('filename')} - {len(img['ocr_text'])} chars")
                     if img.get('ocr_confidence'):
                         image_record['ocr_confidence'] = img['ocr_confidence']
                     if img.get('contains_text') is not None:
                         image_record['contains_text'] = img['contains_text']
+                    
+                    # Debug: Log what's in the img dict
+                    if not img.get('ai_description') and not img.get('ocr_text'):
+                        self.logger.debug(f"⚠️  No AI/OCR data for {img.get('filename')} - Keys: {list(img.keys())}")
                     
                     # Insert into database
                     result = supabase.table('images').insert(image_record).execute()
