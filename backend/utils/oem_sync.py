@@ -108,42 +108,12 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
             # No OEM relationship
             return False
         
-        # Use direct SQL UPDATE via psycopg2 (bypasses PostgREST completely)
-        # This is the ONLY reliable way after schema changes
-        import os
-        import psycopg2
-        
-        # Get database connection string
-        db_url = os.getenv('DATABASE_CONNECTION_URL')
-        if not db_url:
-            # Fallback: Try to use Supabase table API (will fail if schema cache not updated)
-            logger.warning("No DATABASE_CONNECTION_URL found, using Supabase API (may fail)")
-            supabase.table('products').update({
-                'oem_manufacturer': oem_info['oem_manufacturer'],
-                'oem_relationship_type': 'engine',
-                'oem_notes': oem_info['notes']
-            }).eq('id', str(product_id)).execute()
-        else:
-            # Direct PostgreSQL connection
-            conn = psycopg2.connect(db_url)
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        UPDATE krai_core.products 
-                        SET 
-                            oem_manufacturer = %s,
-                            oem_relationship_type = %s,
-                            oem_notes = %s
-                        WHERE id = %s::uuid
-                    """, (
-                        oem_info['oem_manufacturer'],
-                        'engine',
-                        oem_info['notes'],
-                        str(product_id)
-                    ))
-                    conn.commit()
-            finally:
-                conn.close()
+        # Update product (same pattern as research_integration.py and rest of codebase)
+        supabase.table('products').update({
+            'oem_manufacturer': oem_info['oem_manufacturer'],
+            'oem_relationship_type': 'engine',
+            'oem_notes': oem_info['notes']
+        }).eq('id', str(product_id)).execute()
         
         logger.info(f"Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
         return True
