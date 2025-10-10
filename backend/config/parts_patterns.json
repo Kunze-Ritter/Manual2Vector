@@ -142,10 +142,17 @@
       "patterns": [
         {
           "name": "a_series_parts",
-          "pattern": "\\bA[0-9A-Z]{3,4}[P-R]*[P]*\\d{4,5}\\b",
-          "description": "Konica Minolta A-series parts (e.g., A6F7PP0000, A63NPP1C00)",
-          "examples": ["A6F7PP0000", "A63NPP1C00", "A0ED-R70100", "A50UR70100"],
-          "confidence": 0.95
+          "pattern": "\\bA[0-9A-Z]{9}\\b",
+          "description": "Konica Minolta A-series parts - 10 chars total (e.g., A03U190900, A50U367001, AC57R74100)",
+          "examples": ["A03U190900", "A50U367001", "AC57R74100", "A1RG569900", "A9VE160700", "A50UR72U11"],
+          "confidence": 0.97
+        },
+        {
+          "name": "v_series_subparts",
+          "pattern": "\\bV\\d{9}\\b",
+          "description": "Konica Minolta V-series sub-parts/hardware - 10 chars total (e.g., V114040604, V121040603)",
+          "examples": ["V114040604", "V121040603", "V500010057", "V217080003", "V234301650"],
+          "confidence": 0.96
         },
         {
           "name": "acer_series_parts",
@@ -197,11 +204,18 @@
           "confidence": 0.93
         },
         {
+          "name": "numeric_parts_10digit",
+          "pattern": "\\b[1-9]\\d{9}\\b",
+          "description": "Konica Minolta 10-digit numeric OEM parts (e.g., 4470402401, 4038254001)",
+          "examples": ["4470402401", "4038254001", "4581162501", "4036307501", "9335140051", "4004457301"],
+          "confidence": 0.88
+        },
+        {
           "name": "parts_4digit_numeric",
-          "pattern": "\\b\\d{4}[\\d-]{3,7}\\b",
-          "description": "Konica Minolta 4-digit parts (e.g., 4049-611, 4034572201)",
-          "examples": ["4049-611", "1234-5678", "8938-402", "4034572201"],
-          "confidence": 0.85
+          "pattern": "\\b\\d{4}-\\d{3,5}\\b",
+          "description": "Konica Minolta 4-digit parts with dash (e.g., 4049-611, 1234-5678)",
+          "examples": ["4049-611", "1234-5678", "8938-402"],
+          "confidence": 0.82
         }
       ]
     },
