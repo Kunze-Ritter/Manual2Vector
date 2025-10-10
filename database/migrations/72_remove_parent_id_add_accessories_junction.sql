@@ -50,27 +50,7 @@ END $$;
 -- Recreate products_with_names view (without parent_id)
 CREATE OR REPLACE VIEW krai_core.products_with_names AS
 SELECT 
-    p.id,
-    p.manufacturer_id,
-    p.series_id,
-    p.model_number,
-    p.model_name,
-    p.product_type,
-    p.launch_date,
-    p.end_of_life_date,
-    p.msrp_usd,
-    p.weight_kg,
-    p.dimensions_mm,
-    p.color_options,
-    p.connectivity_options,
-    p.print_technology,
-    p.max_print_speed_ppm,
-    p.max_resolution_dpi,
-    p.max_paper_size,
-    p.duplex_capable,
-    p.network_capable,
-    p.created_at,
-    p.updated_at,
+    p.*,
     m.name AS manufacturer_name,
     s.series_name
 FROM krai_core.products p
