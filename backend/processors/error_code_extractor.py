@@ -266,26 +266,46 @@ class ErrorCodeExtractor:
                     progress.update(task, advance=1)
                     continue
                 
+                # DEBUG: Log first code to see where it hangs
+                if processed_count == 0:
+                    self.logger.info(f"   Processing first code: {error_code.error_code}")
+                
                 # Get pre-found matches for this code
                 matches = all_matches.get(error_code.error_code, [])
+                
+                if processed_count == 0:
+                    self.logger.info(f"   Found {len(matches)} matches for first code")
                 
                 # Try each occurrence to find the detailed section
                 best_description = error_code.error_description
                 best_solution = error_code.solution_text
                 best_confidence = error_code.confidence
                 
-                for start_pos, end_pos in matches:
+                for match_idx, (start_pos, end_pos) in enumerate(matches):
+                    if processed_count == 0 and match_idx == 0:
+                        self.logger.info(f"   Extracting context for first match...")
+                    
                     # Extract larger context (up to 3000 chars for detailed sections)
                     context = self._extract_context(full_document_text, start_pos, end_pos, context_size=3000)
                     
+                    if processed_count == 0 and match_idx == 0:
+                        self.logger.info(f"   Context extracted ({len(context)} chars), extracting description...")
+                    
                     # Try to extract structured description
                     description = self._extract_description(full_document_text, end_pos, max_length=500)
+                    
+                    if processed_count == 0 and match_idx == 0:
+                        self.logger.info(f"   Description extracted, extracting solution...")
                     if description and len(description) > len(best_description):
                         best_description = description
                         best_confidence = min(0.95, best_confidence + 0.1)
                     
                     # Try to extract solution
                     solution = self._extract_solution(context, full_document_text, end_pos)
+                    
+                    if processed_count == 0 and match_idx == 0:
+                        self.logger.info(f"   Solution extracted, creating enriched code...")
+                    
                     if solution and len(solution) > len(best_solution or ''):
                         best_solution = solution
                         best_confidence = min(0.95, best_confidence + 0.1)
