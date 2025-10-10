@@ -204,13 +204,6 @@
           "confidence": 0.91
         },
         {
-          "name": "accessory_options",
-          "pattern": "\\b[A-Z]{2}-?\\d{3,4}[A-Za-z]?\\b",
-          "description": "Konica Minolta accessories & options (e.g., HT-503, SD-513, FS-532, TU-504)",
-          "examples": ["HT-503", "SD-513", "FS-532", "TU-504", "FD-503", "PB-503", "LC-502", "LS-507", "PE-101", "CR-103", "OC-511", "DF-713", "EF-107", "IM-101", "WT-511", "VI-515", "IC-419", "PF-602", "MB-508", "PI-502", "PK-525", "OT-512"],
-          "confidence": 0.93
-        },
-        {
           "name": "numeric_parts_10digit",
           "pattern": "\\b[1-9]\\d{9}\\b",
           "description": "Konica Minolta 10-digit numeric OEM parts (e.g., 4470402401, 4038254001)",
@@ -224,7 +217,11 @@
           "examples": ["4049-611", "1234-5678", "8938-402"],
           "confidence": 0.82
         }
-      ]
+      ],
+      "exclude_patterns": [
+        "\\b(FS|PF|HT|SD|TU|FD|PB|LC|LS|PE|CR|OC|DF|EF|IM|WT|VI|IC|MB|PI|PK|OT|FK|RU|CU|HD|EK|AU|UK|MT)-?\\d{3,4}[A-Za-z]?\\b"
+      ],
+      "exclude_description": "Exclude accessory/option prefixes (FS=Finisher, PF=Paper Feeder, HT=Hard Disk, etc.)"
     },
     
     "fujifilm": {
