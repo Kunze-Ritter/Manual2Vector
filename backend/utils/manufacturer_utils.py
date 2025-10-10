@@ -110,6 +110,8 @@ def detect_manufacturer_from_domain(domain: str, supabase) -> Optional[UUID]:
         'support.hp.com': 'HP',
         'kyoceradocumentsolutions.com': 'Kyocera',
         'kyocera.com': 'Kyocera',
+        'utax.com': 'UTAX',
+        'utax.de': 'UTAX',
         'ricoh.com': 'Ricoh',
         'brother.com': 'Brother',
         'canon.com': 'Canon',

@@ -121,6 +121,34 @@ KYOCERA_PATTERNS = {
         r'\bTASKalfa\s+\d{3,4}[a-z]{0,3}\b',
         re.IGNORECASE
     ),
+    'fs_series': re.compile(
+        r'\bFS-\d{3,4}[A-Z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'km_series': re.compile(
+        r'\bKM-\d{3,4}[A-Z]{0,3}\b',
+        re.IGNORECASE
+    ),
+}
+
+# UTAX Patterns (Kyocera rebrand)
+UTAX_PATTERNS = {
+    'p_series': re.compile(
+        r'\bP-\d{3,4}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'cd_series': re.compile(
+        r'\bCD\s?\d{3,4}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'cdc_series': re.compile(
+        r'\bCDC\s?\d{3,4}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
+    'lp_series': re.compile(
+        r'\bLP\s?\d{3,4}[a-z]{0,3}\b',
+        re.IGNORECASE
+    ),
 }
 
 # Brother Patterns
@@ -179,6 +207,7 @@ ALL_MANUFACTURER_PATTERNS = {
     'RICOH': RICOH_PATTERNS,
     'XEROX': XEROX_PATTERNS,
     'KYOCERA': KYOCERA_PATTERNS,
+    'UTAX': UTAX_PATTERNS,
     'BROTHER': BROTHER_PATTERNS,
     'EPSON': EPSON_PATTERNS,
     'SHARP': SHARP_PATTERNS,

@@ -56,10 +56,6 @@ MANUFACTURER_MAP = {
         'lexmark', 'Lexmark', 'LEXMARK',
         'Lexmark International', 'lexmark international'
     ],
-    'Kyocera': [
-        'kyocera', 'Kyocera', 'KYOCERA',
-        'Kyocera Document Solutions', 'kyocera document solutions'
-    ],
     'Sharp': [
         'sharp', 'Sharp', 'SHARP',
         'Sharp Corporation', 'sharp corporation'
@@ -86,9 +82,19 @@ MANUFACTURER_MAP = {
         'Oki Data', 'oki data', 'OKI DATA',
         'Okidata', 'okidata', 'OKIDATA'
     ],
-    'Utax': [
+    'UTAX': [
         'utax', 'Utax', 'UTAX',
-        'TA Triumph-Adler', 'ta triumph-adler'
+        'TA Triumph-Adler', 'ta triumph-adler', 'TA TRIUMPH-ADLER',
+        'Triumph Adler', 'triumph adler', 'TRIUMPH ADLER',
+        'Triumph-Adler', 'triumph-adler', 'TRIUMPH-ADLER'
+    ],
+    'Kyocera': [
+        'kyocera', 'Kyocera', 'KYOCERA',
+        'Kyocera Document Solutions', 'kyocera document solutions',
+        'Kyocera Mita', 'kyocera mita', 'KYOCERA MITA',
+        # Product series
+        'ecosys', 'ECOSYS', 'Ecosys',
+        'taskalfa', 'TASKalfa', 'TASKALFA'
     ]
 }
 
