@@ -111,6 +111,8 @@ class ErrorCodeExtractor:
         """
         Enrich error codes with full details from entire document
         
+        OPTIMIZED: Batch processing with compiled regex patterns
+        
         For codes found in lists (e.g., "List of JAM code"), search the entire
         document for detailed sections with Classification, Cause, Measures.
         
@@ -122,6 +124,59 @@ class ErrorCodeExtractor:
         Returns:
             Enriched error codes with full details
         """
+        # OPTIMIZATION 1: Skip enrichment if all codes already have good solutions
+        codes_needing_enrichment = [
+            ec for ec in error_codes 
+            if not ec.solution_text or len(ec.solution_text) <= 100
+        ]
+        
+        if not codes_needing_enrichment:
+            self.logger.debug("All error codes already have good solutions, skipping enrichment")
+            return error_codes
+        
+        self.logger.info(f"Enriching {len(codes_needing_enrichment)}/{len(error_codes)} error codes...")
+        
+        # OPTIMIZATION 2: Build a single regex pattern for all codes (batch search)
+        # Group codes by pattern to reduce regex complexity
+        code_to_original = {}
+        patterns_to_compile = []
+        
+        for error_code in codes_needing_enrichment:
+            escaped_code = re.escape(error_code.error_code)
+            patterns_to_compile.append(escaped_code)
+            code_to_original[error_code.error_code] = error_code
+        
+        # OPTIMIZATION 3: Compile single regex for all codes
+        # Use alternation (|) to match any of the codes in one pass
+        if len(patterns_to_compile) > 100:
+            # For very large lists, process in batches of 100 to avoid regex complexity
+            batch_size = 100
+            all_matches = {}
+            
+            for i in range(0, len(patterns_to_compile), batch_size):
+                batch_patterns = patterns_to_compile[i:i+batch_size]
+                combined_pattern = r'\b(' + '|'.join(batch_patterns) + r')\b'
+                compiled_regex = re.compile(combined_pattern)
+                
+                # Find all matches for this batch
+                for match in compiled_regex.finditer(full_document_text):
+                    code = match.group(0)
+                    if code not in all_matches:
+                        all_matches[code] = []
+                    all_matches[code].append((match.start(), match.end()))
+        else:
+            # Single pass for smaller lists
+            combined_pattern = r'\b(' + '|'.join(patterns_to_compile) + r')\b'
+            compiled_regex = re.compile(combined_pattern)
+            
+            all_matches = {}
+            for match in compiled_regex.finditer(full_document_text):
+                code = match.group(0)
+                if code not in all_matches:
+                    all_matches[code] = []
+                all_matches[code].append((match.start(), match.end()))
+        
+        # OPTIMIZATION 4: Process each code with its pre-found matches
         enriched_codes = []
         
         for error_code in error_codes:
@@ -130,19 +185,15 @@ class ErrorCodeExtractor:
                 enriched_codes.append(error_code)
                 continue
             
-            # Search entire document for this code
-            code_pattern = re.escape(error_code.error_code)
-            matches = list(re.finditer(rf'\b{code_pattern}\b', full_document_text))
+            # Get pre-found matches for this code
+            matches = all_matches.get(error_code.error_code, [])
             
             # Try each occurrence to find the detailed section
             best_description = error_code.error_description
             best_solution = error_code.solution_text
             best_confidence = error_code.confidence
             
-            for match in matches:
-                start_pos = match.start()
-                end_pos = match.end()
-                
+            for start_pos, end_pos in matches:
                 # Extract larger context (up to 3000 chars for detailed sections)
                 context = self._extract_context(full_document_text, start_pos, end_pos, context_size=3000)
                 
@@ -157,6 +208,10 @@ class ErrorCodeExtractor:
                 if solution and len(solution) > len(best_solution or ''):
                     best_solution = solution
                     best_confidence = min(0.95, best_confidence + 0.1)
+                    
+                    # OPTIMIZATION 5: Early exit if we found a good solution
+                    if len(best_solution) > 200:
+                        break
             
             # Create enriched error code
             enriched_code = ExtractedErrorCode(
