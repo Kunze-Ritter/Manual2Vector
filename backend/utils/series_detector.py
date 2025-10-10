@@ -541,6 +541,16 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
         }
     
     # ===== PRIORITY 5: bizhub (Office/MFP) =====
+    # C + 4 digits (C3350i, C3351i, C4050i, C4051i)
+    match = re.match(r'^C([2-9])(\d{3})([EIi])?$', model_clean)
+    if match:
+        series_digit = match.group(1)
+        return {
+            'series_name': 'bizhub',
+            'model_pattern': f'C{series_digit}xxx',
+            'series_description': f'Konica Minolta bizhub C{series_digit}xxx series color MFPs'
+        }
+    
     # C + 3 digits (C224e, C284e, C364e, C454e, C554e, C654e, C754e, C750i, C751i, C858e, C958)
     match = re.match(r'^C([2-9])(\d{2})([EIi]|PS)?$', model_clean)
     if match:
