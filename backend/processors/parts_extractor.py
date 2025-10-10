@@ -69,21 +69,22 @@ class PartsExtractor:
         patterns_to_use = []
         
         if manufacturer_key and manufacturer_key in self.patterns_config:
-            # Use manufacturer-specific patterns first
+            # Use manufacturer-specific patterns ONLY
             patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
             pattern_count = len(self.patterns_config[manufacturer_key].get("patterns", []))
-            logger.debug(f"🔍 Using {pattern_count} patterns for manufacturer: {manufacturer_key}")
+            logger.debug(f"🔍 Using {pattern_count} manufacturer-specific patterns: {manufacturer_key}")
         else:
+            # Only use generic patterns if no manufacturer-specific patterns found
             if manufacturer_name:
                 logger.warning(f"⚠️  No specific patterns found for manufacturer: '{manufacturer_name}' (key: '{manufacturer_key}')")
                 logger.info(f"   Available manufacturers: {list(self.patterns_config.keys())}")
             else:
-                logger.info("ℹ️  No manufacturer specified, using generic patterns only")
-        
-        # Always add generic patterns as fallback
-        if "generic" in self.patterns_config:
-            patterns_to_use.append(("generic", self.patterns_config["generic"]))
-            logger.debug("Added generic patterns as fallback")
+                logger.info("ℹ️  No manufacturer specified")
+            
+            # Add generic patterns as fallback ONLY when no specific patterns exist
+            if "generic" in self.patterns_config:
+                patterns_to_use.append(("generic", self.patterns_config["generic"]))
+                logger.debug("Using generic patterns (no manufacturer-specific patterns available)")
         
         # Extract parts
         extracted_parts = []
