@@ -1270,9 +1270,9 @@ class DocumentProcessor:
                     oem_updated = 0
                     
                     for product_id in product_ids:
-                        # Get product info
+                        # Get product info (with series via JOIN)
                         product_result = supabase.table('products').select(
-                            'id,model_number,series_name,manufacturer_id'
+                            'id,model_number,manufacturer_id,series_id,product_series(series_name)'
                         ).eq('id', product_id).single().execute()
                         
                         if product_result.data:
@@ -1286,7 +1286,11 @@ class DocumentProcessor:
                                 
                                 if mfr_result.data:
                                     manufacturer_name = mfr_result.data['name']
-                                    model_or_series = product.get('series_name') or product.get('model_number')
+                                    # Get series name from JOIN or use model_number
+                                    series_name = None
+                                    if product.get('product_series'):
+                                        series_name = product['product_series'].get('series_name')
+                                    model_or_series = series_name or product.get('model_number')
                                     
                                     # Update OEM info
                                     if update_product_oem_info(supabase, product_id, manufacturer_name, model_or_series):
