@@ -15,11 +15,24 @@ MANUFACTURER_MAP = {
         'hp', 'HP', 'HP Inc', 'HP Inc.', 'hp inc', 'hp inc.',
         'Hewlett Packard', 'Hewlett-Packard', 'hewlett packard',
         'hewlett-packard', 'HEWLETT PACKARD', 'HEWLETT-PACKARD',
-        'H-P', 'H P', 'Hp'
+        'H-P', 'H P', 'Hp',
+        # Product series
+        'laserjet', 'LaserJet', 'LASERJET',
+        'officejet', 'OfficeJet', 'OFFICEJET',
+        'deskjet', 'DeskJet', 'DESKJET',
+        'pagewide', 'PageWide', 'PAGEWIDE',
+        'designjet', 'DesignJet', 'DESIGNJET',
+        'indigo', 'Indigo', 'INDIGO'
     ],
     'Konica Minolta': [
         'konica minolta', 'Konica Minolta', 'KONICA MINOLTA',
-        'Konica-Minolta', 'konica-minolta', 'KONICA-MINOLTA'
+        'Konica-Minolta', 'konica-minolta', 'KONICA-MINOLTA',
+        # Product series (strong indicators)
+        'bizhub', 'Bizhub', 'BIZHUB',
+        'accuriopress', 'AccurioPress', 'ACCURIOPRESS',
+        'accurioprint', 'AccurioPrint', 'ACCURIOPRINT',
+        'accuriolabel', 'AccurioLabel', 'ACCURIOLABEL',
+        'accuriojet', 'AccurioJet', 'ACCURIOJET'
         # Removed: 'konica', 'minolta', 'km' (too generic - causes false positives)
         # 'KM' matches "5 KM" (kilometer), 'konica' alone is ambiguous
     ],
