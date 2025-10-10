@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Dict, Any
 
 # Load environment variables from multiple .env files
-# Priority: .env.ai > .env (AI settings override base config)
+# Priority: Later files override earlier ones
 try:
     from dotenv import load_dotenv
     from pathlib import Path
@@ -18,19 +18,28 @@ try:
     backend_dir = Path(__file__).parent
     project_root = backend_dir.parent
     
-    # Load base config
-    env_path = project_root / '.env'
-    if env_path.exists():
-        load_dotenv(env_path)
-        print(f"✅ Loaded base config from: {env_path}")
+    # Load all .env files in priority order (later overrides earlier)
+    env_files = [
+        '.env',           # Base config (lowest priority)
+        '.env.database',  # Database credentials
+        '.env.storage',   # R2/Storage config
+        '.env.external',  # External APIs (YouTube, etc.)
+        '.env.pipeline',  # Pipeline settings
+        '.env.ai',        # AI settings (LLM_MAX_PAGES, OLLAMA models)
+    ]
     
-    # Load AI-specific overrides (LLM_MAX_PAGES, OLLAMA models, etc.)
-    env_ai_path = project_root / '.env.ai'
-    if env_ai_path.exists():
-        load_dotenv(env_ai_path, override=True)
-        print(f"✅ Loaded AI config from: {env_ai_path}")
+    loaded_count = 0
+    for env_file in env_files:
+        env_path = project_root / env_file
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            print(f"✅ Loaded: {env_file}")
+            loaded_count += 1
+    
+    if loaded_count == 0:
+        print("⚠️  No .env files found - using system environment variables")
     else:
-        print("ℹ️  No .env.ai found (optional - for AI-specific settings)")
+        print(f"✅ Loaded {loaded_count} configuration file(s)")
     
 except ImportError:
     print("⚠️ python-dotenv not installed, using system environment variables")

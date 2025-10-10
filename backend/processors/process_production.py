@@ -15,10 +15,23 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from multiple .env files
-# Priority: .env.ai > .env (later files override earlier ones)
+# Priority: Later files override earlier ones
 project_root = Path(__file__).parent.parent.parent
-load_dotenv(project_root / '.env')  # Base config
-load_dotenv(project_root / '.env.ai', override=True)  # AI-specific overrides
+
+# Load all .env files in priority order
+env_files = [
+    '.env',           # Base config (lowest priority)
+    '.env.database',  # Database credentials
+    '.env.storage',   # R2/Storage config
+    '.env.external',  # External APIs (YouTube, etc.)
+    '.env.pipeline',  # Pipeline settings
+    '.env.ai',        # AI settings (LLM_MAX_PAGES, OLLAMA models, highest priority)
+]
+
+for env_file in env_files:
+    env_path = project_root / env_file
+    if env_path.exists():
+        load_dotenv(env_path, override=True)
 
 # Add backend directory to path FIRST
 backend_dir = Path(__file__).parent.parent
