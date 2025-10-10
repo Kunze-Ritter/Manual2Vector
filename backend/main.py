@@ -8,19 +8,30 @@ import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
-# Load environment variables from central .env file
+# Load environment variables from multiple .env files
+# Priority: .env.ai > .env (AI settings override base config)
 try:
     from dotenv import load_dotenv
-    # Try to load from root .env first, then fallback to local
-    if os.path.exists('.env'):
-        load_dotenv('.env')
-        print("✅ Environment variables loaded from root .env file")
-    elif os.path.exists('../.env'):
-        load_dotenv('../.env')
-        print("✅ Environment variables loaded from parent .env file")
+    from pathlib import Path
+    
+    # Determine project root (parent of backend/)
+    backend_dir = Path(__file__).parent
+    project_root = backend_dir.parent
+    
+    # Load base config
+    env_path = project_root / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✅ Loaded base config from: {env_path}")
+    
+    # Load AI-specific overrides (LLM_MAX_PAGES, OLLAMA models, etc.)
+    env_ai_path = project_root / '.env.ai'
+    if env_ai_path.exists():
+        load_dotenv(env_ai_path, override=True)
+        print(f"✅ Loaded AI config from: {env_ai_path}")
     else:
-        load_dotenv()
-        print("✅ Environment variables loaded from local .env file")
+        print("ℹ️  No .env.ai found (optional - for AI-specific settings)")
+    
 except ImportError:
     print("⚠️ python-dotenv not installed, using system environment variables")
     pass
