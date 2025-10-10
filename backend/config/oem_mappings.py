@@ -145,6 +145,38 @@ OEM_MAPPINGS = {
         'applies_to': ['error_codes', 'parts']
     },
     
+    # Xerox Versant → Fujifilm Engine
+    ('Xerox', r'Versant.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'Versant Series',
+        'notes': 'Fujifilm engine (production color press, renewed multi-year contract)',
+        'applies_to': ['error_codes', 'parts', 'supplies']
+    },
+    
+    # Xerox Iridesse → Fujifilm Engine
+    ('Xerox', r'Iridesse.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'Iridesse Production Press',
+        'notes': 'Fujifilm engine (specialty color production press with 6-color capability)',
+        'applies_to': ['error_codes', 'parts', 'supplies']
+    },
+    
+    # Xerox PrimeLink → Fujifilm Engine
+    ('Xerox', r'PrimeLink.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'PrimeLink Series',
+        'notes': 'Fujifilm engine (production print, entry to mid-range)',
+        'applies_to': ['error_codes', 'parts', 'supplies']
+    },
+    
+    # Xerox Nuvera → Fujifilm Engine
+    ('Xerox', r'Nuvera.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'Nuvera Series',
+        'notes': 'Fujifilm engine (high-volume monochrome production)',
+        'applies_to': ['error_codes', 'parts', 'supplies']
+    },
+    
     # Xerox Production Inkjet → Kyocera Engine (NEW 2025!)
     ('Xerox', r'(?:TASKalfa Pro|Inkjet).*15000'): {
         'oem_manufacturer': 'Kyocera',
@@ -257,6 +289,14 @@ OEM_MAPPINGS = {
         'series_name': 'DocuPrint Series',
         'notes': 'Fujifilm engine (ex-Fuji Xerox)',
         'applies_to': ['error_codes', 'parts']
+    },
+    
+    # Fujifilm Revoria Press → Same platform as Xerox Versant/Iridesse
+    ('Fujifilm', r'Revoria.*'): {
+        'oem_manufacturer': 'Fujifilm',
+        'series_name': 'Revoria Press Series',
+        'notes': 'Fujifilm production press (same platform as Xerox Versant/Iridesse, launched after Fuji Xerox split)',
+        'applies_to': ['error_codes', 'parts', 'supplies']
     },
 }
 
