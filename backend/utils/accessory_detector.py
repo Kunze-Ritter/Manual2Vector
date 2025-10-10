@@ -105,6 +105,90 @@ def detect_konica_minolta_accessory(model_number: str) -> Optional[AccessoryMatc
             compatible_series=['bizhub']
         )
     
+    # PH-* : Punch Hole Unit
+    match = re.match(r'^PH-(\d{3,4}[A-Z]?)$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='punch_finisher',
+            product_type='punch_finisher',
+            series_name='PH Series',
+            description=f'Konica Minolta {model_clean} Punch Hole Unit',
+            compatible_series=['bizhub']
+        )
+    
+    # ZF-* : Z-Fold Unit
+    match = re.match(r'^ZF-(\d{3,4})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='fold_unit',
+            product_type='fold_unit',
+            series_name='ZF Series',
+            description=f'Konica Minolta {model_clean} Z-Fold Unit',
+            compatible_series=['bizhub']
+        )
+    
+    # BF-* : Banner Feeder
+    match = re.match(r'^BF-(\d{3,4})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='banner_feeder',
+            product_type='banner_feeder',
+            series_name='BF Series',
+            description=f'Konica Minolta {model_clean} Banner Feeder',
+            compatible_series=['bizhub']
+        )
+    
+    # AK-* : Auto Keycard Reader / Authentication Kit
+    match = re.match(r'^AK-?(\d{3,4})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='authentication_kit',
+            product_type='authentication_kit',
+            series_name='AK Series',
+            description=f'Konica Minolta {model_clean} Auto Keycard Reader/Authentication Kit',
+            compatible_series=['bizhub']
+        )
+    
+    # JS-* : Job Separator
+    match = re.match(r'^JS-?(\d{3,4})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='job_separator',
+            product_type='job_separator',
+            series_name='JS Series',
+            description=f'Konica Minolta {model_clean} Job Separator',
+            compatible_series=['bizhub']
+        )
+    
+    # IS-* : Inner Shift Tray / Inner Finisher
+    match = re.match(r'^IS-(\d{3,4})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='inner_finisher',
+            product_type='inner_finisher',
+            series_name='IS Series',
+            description=f'Konica Minolta {model_clean} Inner Shift Tray/Finisher',
+            compatible_series=['bizhub']
+        )
+    
+    # DP-* : Document Processor (NOT Document Feeder!)
+    match = re.match(r'^DP-(\d{3,4})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='document_processor',
+            product_type='document_processor',
+            series_name='DP Series',
+            description=f'Konica Minolta {model_clean} Document Processor',
+            compatible_series=['bizhub']
+        )
+    
     # ===== PAPER FEEDERS/CASSETTES =====
     
     # PC-* : Paper Feed Unit/Cassette
