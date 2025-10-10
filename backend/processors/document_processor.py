@@ -1137,6 +1137,12 @@ class DocumentProcessor:
                         model_number=product_data['model_number']
                     )
                     
+                    # Log detection result
+                    self.logger.debug(f"Product Type Detection for {product_data['model_number']}:")
+                    self.logger.debug(f"  Current: {current_type or 'NULL'}")
+                    self.logger.debug(f"  Detected: {detected_type or 'None'}")
+                    self.logger.debug(f"  Series: {product_data.get('series_name', 'None')}")
+                    
                     # Update if we have a better type
                     if detected_type:
                         # Always update if NULL or generic fallback types
@@ -1149,9 +1155,11 @@ class DocumentProcessor:
                         if should_update or (detected_type != current_type and detected_type != 'laser_multifunction'):
                             update_data['product_type'] = detected_type
                             if current_type and current_type != detected_type:
-                                self.logger.info(f"Updated product_type: {current_type} → {detected_type} for {product_data['model_number']}")
+                                self.logger.info(f"✓ Updated product_type: {current_type} → {detected_type} for {product_data['model_number']}")
                             else:
-                                self.logger.debug(f"Set product_type: {detected_type}")
+                                self.logger.info(f"✓ Set product_type: {detected_type} for {product_data['model_number']}")
+                        else:
+                            self.logger.debug(f"  Skipped: Already correct or not better")
                     
                     supabase.table('products').update(update_data).eq('id', product_id).execute()
                     updated_count += 1
@@ -1167,9 +1175,12 @@ class DocumentProcessor:
                         series_name=product_data.get('series_name', ''),
                         model_number=product_data['model_number']
                     )
+                    
                     if detected_type:
                         product_type = detected_type
-                        self.logger.debug(f"Detected product_type: {product_type} for {product_data['model_number']}")
+                        self.logger.info(f"✓ New product type: {product_type} for {product_data['model_number']}")
+                    else:
+                        self.logger.debug(f"Using default product_type: {product_type} for {product_data['model_number']}")
                     
                     insert_data = {
                         'model_number': product_data['model_number'],
