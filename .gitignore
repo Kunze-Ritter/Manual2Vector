@@ -39,6 +39,7 @@ venv.bak/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.ai  # Local AI config - don't overwrite user's settings!
 credentials.txt
 
 # IDE
