@@ -225,52 +225,70 @@ class ErrorCodeExtractor:
         # OPTIMIZATION 4: Process each code with its pre-found matches
         enriched_codes = []
         
-        for error_code in error_codes:
-            # Skip if already has good solution
-            if error_code.solution_text and len(error_code.solution_text) > 100:
-                enriched_codes.append(error_code)
-                continue
-            
-            # Get pre-found matches for this code
-            matches = all_matches.get(error_code.error_code, [])
-            
-            # Try each occurrence to find the detailed section
-            best_description = error_code.error_description
-            best_solution = error_code.solution_text
-            best_confidence = error_code.confidence
-            
-            for start_pos, end_pos in matches:
-                # Extract larger context (up to 3000 chars for detailed sections)
-                context = self._extract_context(full_document_text, start_pos, end_pos, context_size=3000)
-                
-                # Try to extract structured description
-                description = self._extract_description(full_document_text, end_pos, max_length=500)
-                if description and len(description) > len(best_description):
-                    best_description = description
-                    best_confidence = min(0.95, best_confidence + 0.1)
-                
-                # Try to extract solution
-                solution = self._extract_solution(context, full_document_text, end_pos)
-                if solution and len(solution) > len(best_solution or ''):
-                    best_solution = solution
-                    best_confidence = min(0.95, best_confidence + 0.1)
-                    
-                    # OPTIMIZATION 5: Early exit if we found a good solution
-                    if len(best_solution) > 200:
-                        break
-            
-            # Create enriched error code
-            enriched_code = ExtractedErrorCode(
-                error_code=error_code.error_code,
-                error_description=best_description,
-                solution_text=best_solution or "No solution found",
-                context_text=error_code.context_text,
-                confidence=best_confidence,
-                page_number=error_code.page_number,
-                extraction_method=f"{error_code.extraction_method}_enriched",
-                severity_level=error_code.severity_level
+        # Progress tracking
+        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+            console=None  # Use default console
+        ) as progress:
+            task = progress.add_task(
+                f"[cyan]Enriching {len(error_codes)} error codes...",
+                total=len(error_codes)
             )
-            enriched_codes.append(enriched_code)
+            
+            for error_code in error_codes:
+                # Skip if already has good solution
+                if error_code.solution_text and len(error_code.solution_text) > 100:
+                    enriched_codes.append(error_code)
+                    progress.update(task, advance=1)
+                    continue
+                
+                # Get pre-found matches for this code
+                matches = all_matches.get(error_code.error_code, [])
+                
+                # Try each occurrence to find the detailed section
+                best_description = error_code.error_description
+                best_solution = error_code.solution_text
+                best_confidence = error_code.confidence
+                
+                for start_pos, end_pos in matches:
+                    # Extract larger context (up to 3000 chars for detailed sections)
+                    context = self._extract_context(full_document_text, start_pos, end_pos, context_size=3000)
+                    
+                    # Try to extract structured description
+                    description = self._extract_description(full_document_text, end_pos, max_length=500)
+                    if description and len(description) > len(best_description):
+                        best_description = description
+                        best_confidence = min(0.95, best_confidence + 0.1)
+                    
+                    # Try to extract solution
+                    solution = self._extract_solution(context, full_document_text, end_pos)
+                    if solution and len(solution) > len(best_solution or ''):
+                        best_solution = solution
+                        best_confidence = min(0.95, best_confidence + 0.1)
+                        
+                        # OPTIMIZATION 5: Early exit if we found a good solution
+                        if len(best_solution) > 200:
+                            break
+                
+                # Create enriched error code
+                enriched_code = ExtractedErrorCode(
+                    error_code=error_code.error_code,
+                    error_description=best_description,
+                    solution_text=best_solution or "No solution found",
+                    context_text=error_code.context_text,
+                    confidence=best_confidence,
+                    page_number=error_code.page_number,
+                    extraction_method=f"{error_code.extraction_method}_enriched",
+                    severity_level=error_code.severity_level
+                )
+                enriched_codes.append(enriched_code)
+                progress.update(task, advance=1)
         
         return enriched_codes
     
