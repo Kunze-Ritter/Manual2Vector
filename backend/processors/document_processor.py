@@ -1149,15 +1149,17 @@ class DocumentProcessor:
                 else:
                     # Create new product
                     # Determine product_type from series_name + model_number
-                    product_type = 'laser_multifunction'  # Default fallback (changed from 'multifunction')
-                    if product_data.get('series_name'):
-                        from utils.product_type_mapper import get_product_type
-                        detected_type = get_product_type(
-                            series_name=product_data['series_name'],
-                            model_number=product_data['model_number']
-                        )
-                        if detected_type:
-                            product_type = detected_type
+                    product_type = 'laser_multifunction'  # Default fallback
+                    
+                    # Try to detect product_type (works even without series_name)
+                    from utils.product_type_mapper import get_product_type
+                    detected_type = get_product_type(
+                        series_name=product_data.get('series_name', ''),
+                        model_number=product_data['model_number']
+                    )
+                    if detected_type:
+                        product_type = detected_type
+                        self.logger.debug(f"Detected product_type: {product_type} for {product_data['model_number']}")
                     
                     insert_data = {
                         'model_number': product_data['model_number'],

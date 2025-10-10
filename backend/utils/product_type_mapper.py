@@ -304,6 +304,19 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
     Returns:
         Product type or None
     """
+    # If no series_name, try to infer from model_number
+    if not series_name and model_number:
+        model_upper = model_number.upper()
+        # Common patterns in model numbers
+        if 'PRESS' in model_upper or 'ACCURIO' in model_upper:
+            return 'production_printer'
+        if 'LASERJET' in model_upper:
+            if 'MFP' in model_upper or 'M' in model_upper[:3]:
+                return 'laser_multifunction'
+            return 'laser_printer'
+        # Default if we can't determine
+        return 'laser_multifunction'
+    
     if not series_name:
         return None
     
