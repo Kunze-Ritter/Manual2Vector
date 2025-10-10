@@ -35,8 +35,9 @@ ADD CONSTRAINT product_type_check CHECK (
         -- ===== PRINTERS (Single Function) =====
         'laser_printer',           -- Laser/LED printer
         'inkjet_printer',          -- Inkjet printer
-        'production_printer',      -- Production/high-volume printer
-        'solid_ink_printer',       -- Solid ink (Xerox ColorQube)
+        'laser_production_printer',-- Laser production printer (AccurioPress, imagePRESS)
+        'inkjet_production_printer',-- Inkjet production printer (PageWide XL, AccurioJet)
+        'solid_ink_printer',       -- Solid ink printer (Xerox ColorQube)
         'dot_matrix_printer',      -- Dot matrix/impact printer
         'thermal_printer',         -- Thermal transfer printer
         'dye_sublimation_printer', -- Dye-sub photo printer
@@ -44,7 +45,8 @@ ADD CONSTRAINT product_type_check CHECK (
         -- ===== MULTIFUNCTION (MFP) =====
         'laser_multifunction',     -- Laser/LED MFP
         'inkjet_multifunction',    -- Inkjet MFP
-        'production_multifunction',-- Production MFP
+        'laser_production_multifunction',-- Laser production MFP
+        'inkjet_production_multifunction',-- Inkjet production MFP
         'solid_ink_multifunction', -- Solid ink MFP (Xerox ColorQube)
         
         -- ===== PLOTTERS =====

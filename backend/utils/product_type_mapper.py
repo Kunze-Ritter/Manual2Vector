@@ -10,13 +10,13 @@ from typing import Optional
 # Valid values: See migration 48_expand_product_type_values.sql
 SERIES_PRODUCT_TYPE_MAP = {
     # Konica Minolta
-    'AccurioPress': 'production_printer',
-    'AccurioPrint': 'production_printer',
-    'AccurioLabel': 'production_printer',
-    'AccurioJet': 'production_printer',
-    'Revoria': 'production_printer',
+    'AccurioPress': 'laser_production_printer',
+    'AccurioPrint': 'laser_production_printer',
+    'AccurioLabel': 'laser_production_printer',
+    'AccurioJet': 'inkjet_production_printer',
+    'Revoria': 'laser_production_printer',
     'bizhub': 'laser_multifunction',
-    'bizhub PRESS': 'production_printer',
+    'bizhub PRESS': 'laser_production_printer',
     
     # HP - Laser (Toner)
     'LaserJet': 'laser_printer',
@@ -48,8 +48,9 @@ SERIES_PRODUCT_TYPE_MAP = {
     # HP - Production & Plotter
     'DesignJet': 'inkjet_plotter',
     'Latex': 'latex_plotter',
-    'Indigo Digital Press': 'production_printer',
-    'Scitex': 'production_printer',
+    'Indigo Digital Press': 'laser_production_printer',
+    'Scitex': 'inkjet_production_printer',
+    'PageWide XL': 'inkjet_production_printer',
     
     # Canon - MFP/Printer
     'imageRUNNER': 'laser_multifunction',
@@ -59,9 +60,9 @@ SERIES_PRODUCT_TYPE_MAP = {
     'i-SENSYS MF': 'laser_multifunction',
     
     # Canon - Production
-    'imagePRESS': 'production_printer',
-    'imagePRESS C': 'production_printer',
-    'varioPRINT': 'production_printer',
+    'imagePRESS': 'laser_production_printer',
+    'imagePRESS C': 'laser_production_printer',
+    'varioPRINT': 'laser_production_printer',
     
     # Canon - Plotter
     'imagePROGRAF': 'inkjet_plotter',
@@ -72,11 +73,11 @@ SERIES_PRODUCT_TYPE_MAP = {
     'imagePROGRAF iPF': 'inkjet_plotter',
     
     # Xerox - Production
-    'Iridesse Production Press': 'production_printer',
-    'Color Press': 'production_printer',
-    'Versant': 'production_printer',
-    'iGen': 'production_printer',
-    'PrimeLink': 'production_printer',
+    'Iridesse Production Press': 'laser_production_printer',
+    'Color Press': 'laser_production_printer',
+    'Versant': 'laser_production_printer',
+    'iGen': 'laser_production_printer',
+    'PrimeLink': 'laser_production_printer',
     
     # Xerox - MFP
     'AltaLink': 'laser_multifunction',
@@ -93,9 +94,9 @@ SERIES_PRODUCT_TYPE_MAP = {
     'Wide Format': 'inkjet_plotter',
     
     # Ricoh - Production
-    'Pro C': 'production_printer',
-    'Pro VC': 'production_printer',
-    'Pro 8': 'production_printer',
+    'Pro C': 'laser_production_printer',
+    'Pro VC': 'inkjet_production_printer',
+    'Pro 8': 'laser_production_printer',
     
     # Ricoh - MFP
     'IM C': 'laser_multifunction',
@@ -114,9 +115,9 @@ SERIES_PRODUCT_TYPE_MAP = {
     'P': 'laser_printer',
     'Aficio SG': 'inkjet_printer',
     
-    # Brother - Production
-    'GTXpro': 'production_printer',
-    'GTX': 'production_printer',
+    # Brother - Production (DTG - Direct to Garment)
+    'GTXpro': 'inkjet_production_printer',
+    'GTX': 'inkjet_production_printer',
     
     # Brother - Specialty
     'PL Series': 'inkjet_plotter',
@@ -152,7 +153,7 @@ SERIES_PRODUCT_TYPE_MAP = {
     'C Series': 'laser_printer',
     
     # Lexmark - Production
-    'Enterprise Production': 'production_printer',
+    'Enterprise Production': 'laser_production_printer',
     'Enterprise Color': 'laser_multifunction',
     
     # Lexmark - Legacy
@@ -160,7 +161,7 @@ SERIES_PRODUCT_TYPE_MAP = {
     'Plus Matrix Series': 'dot_matrix_printer',
     
     # Kyocera - Production
-    'TASKalfa Pro': 'production_printer',
+    'TASKalfa Pro': 'laser_production_printer',
     
     # Kyocera - MFP
     'TASKalfa': 'laser_multifunction',
@@ -197,10 +198,10 @@ SERIES_PRODUCT_TYPE_MAP = {
     'CD Series': 'laser_printer',
     
     # Epson - Production
-    'SureColor Production': 'production_printer',
-    'SureColor F': 'production_printer',
-    'Monna Lisa': 'production_printer',
-    'SureLab': 'production_printer',
+    'SureColor Production': 'inkjet_production_printer',
+    'SureColor F': 'inkjet_production_printer',
+    'Monna Lisa': 'inkjet_production_printer',
+    'SureLab': 'dye_sublimation_printer',
     'Stylus Pro': 'inkjet_plotter',
     
     # Epson - Professional
@@ -225,8 +226,8 @@ SERIES_PRODUCT_TYPE_MAP = {
     'P Series': 'inkjet_printer',
     
     # OKI - Production
-    'Pro9': 'production_printer',
-    'Pro10': 'production_printer',
+    'Pro9': 'laser_production_printer',
+    'Pro10': 'laser_production_printer',
     
     # OKI - MFP
     'MC Series': 'laser_multifunction',
@@ -241,9 +242,9 @@ SERIES_PRODUCT_TYPE_MAP = {
     'ES Series': 'laser_printer',
     
     # Fujifilm - Production
-    'Revoria Press': 'production_printer',
-    'JetPress': 'production_printer',
-    'ApeosPro': 'production_printer',
+    'Revoria Press': 'laser_production_printer',
+    'JetPress': 'inkjet_production_printer',
+    'ApeosPro': 'laser_production_printer',
     
     # Fujifilm - MFP
     'ApeosPort-VII': 'laser_multifunction',
@@ -262,8 +263,8 @@ SERIES_PRODUCT_TYPE_MAP = {
     'INSTAX': 'dye_sublimation_printer',
     
     # Sharp - Production
-    'BP Pro': 'production_printer',
-    'MX Production': 'production_printer',
+    'BP Pro': 'laser_production_printer',
+    'MX Production': 'laser_production_printer',
     
     # Sharp - MFP
     'BP Series': 'laser_multifunction',
@@ -279,7 +280,7 @@ SERIES_PRODUCT_TYPE_MAP = {
     'AL Series': 'laser_printer',
     
     # Toshiba - Production
-    'e-STUDIO Production': 'production_printer',
+    'e-STUDIO Production': 'laser_production_printer',
     
     # Toshiba - MFP
     'e-STUDIO': 'laser_multifunction',
@@ -344,7 +345,7 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
         model_upper = model_number.upper()
         # Common patterns in model numbers
         if 'PRESS' in model_upper or 'ACCURIO' in model_upper:
-            return 'production_printer'
+            return 'laser_production_printer'
         if 'LASERJET' in model_upper:
             if 'MFP' in model_upper or 'M' in model_upper[:3]:
                 return 'laser_multifunction'
