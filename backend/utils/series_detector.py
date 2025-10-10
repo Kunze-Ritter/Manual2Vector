@@ -541,8 +541,8 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
         }
     
     # ===== PRIORITY 5: bizhub (Office/MFP) =====
-    # C + 3 digits (C224e, C284e, C364e, C454e, C554e, C654e, C754e, C858e, C958)
-    match = re.match(r'^C([2-9])(\d{2})([EI]|PS)?$', model_clean)
+    # C + 3 digits (C224e, C284e, C364e, C454e, C554e, C654e, C754e, C750i, C751i, C858e, C958)
+    match = re.match(r'^C([2-9])(\d{2})([EIi]|PS)?$', model_clean)
     if match:
         series_digit = match.group(1)
         return {

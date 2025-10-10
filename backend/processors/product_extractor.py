@@ -71,7 +71,7 @@ KONICA_MINOLTA_PATTERNS = {
         re.IGNORECASE
     ),
     'c_series': re.compile(
-        r'\bC\d{2,4}(?:P|hc)?\b'  # C4080, C4070, C84hc (2-4 digits)
+        r'\bC\d{3,4}[a-z]{0,2}\b'  # C750i, C751i, C4080, C4070, C84hc (3-4 digits + optional letters)
     ),
 }
 
