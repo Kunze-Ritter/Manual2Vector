@@ -426,6 +426,10 @@ class DocumentProcessor:
                     self.logger.info(f"   Series stats: {series_stats['series_detected']} detected, {series_stats['series_created']} created, {series_stats['products_linked']} linked")
                     if series_stats['series_created'] > 0 or series_stats['products_linked'] > 0:
                         self.logger.success(f"✅ Series: {series_stats['series_created']} created, {series_stats['products_linked']} products linked")
+                        
+                        # Step 2b.1: Update product types after series linking
+                        self.logger.info("   🔄 Updating product types based on series...")
+                        self._update_product_types_after_series(saved_products)
                     elif series_stats['series_detected'] == 0:
                         self.logger.info("   ℹ️  No series patterns detected in product models")
                 else:
@@ -1348,6 +1352,80 @@ class DocumentProcessor:
         except Exception as e:
             self.logger.warning(f"Failed to link error codes to chunks: {e}")
             return 0
+    
+    def _update_product_types_after_series(self, saved_products: list):
+        """
+        Update product types after series linking
+        
+        Now that series_name is known, we can determine more accurate product types.
+        For example: AccurioPress → production_printer (not laser_multifunction)
+        
+        Args:
+            saved_products: List of dicts with product_id and model_number
+        """
+        try:
+            from supabase import create_client
+            import os
+            from dotenv import load_dotenv
+            from utils.product_type_mapper import get_product_type
+            
+            load_dotenv()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if not supabase_url or not supabase_key:
+                self.logger.warning("Supabase not configured - skipping product type update")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            updated_count = 0
+            
+            for product in saved_products:
+                product_id = product.get('product_id')
+                model_number = product.get('model_number')
+                
+                if not product_id or not model_number:
+                    continue
+                
+                # Get current product with series_name
+                result = supabase.table('products') \
+                    .select('product_type, series_name') \
+                    .eq('id', product_id) \
+                    .limit(1) \
+                    .execute()
+                
+                if not result.data:
+                    continue
+                
+                current_type = result.data[0].get('product_type')
+                series_name = result.data[0].get('series_name')
+                
+                # Detect product type with series_name
+                detected_type = get_product_type(
+                    series_name=series_name or '',
+                    model_number=model_number
+                )
+                
+                # Update if detected type is different and more specific
+                if detected_type and detected_type != current_type:
+                    # Only update if new type is more specific (not laser_multifunction fallback)
+                    if detected_type != 'laser_multifunction' or not current_type:
+                        supabase.table('products') \
+                            .update({'product_type': detected_type}) \
+                            .eq('id', product_id) \
+                            .execute()
+                        
+                        self.logger.info(f"   ✓ Updated product_type: {current_type} → {detected_type} for {model_number}")
+                        updated_count += 1
+            
+            if updated_count > 0:
+                self.logger.success(f"   ✅ Updated {updated_count} product types")
+            else:
+                self.logger.debug("   ℹ️  No product type updates needed")
+                
+        except Exception as e:
+            self.logger.warning(f"Failed to update product types after series: {e}")
     
     def _save_error_codes_to_db(self, document_id: UUID, error_codes: list):
         """Save error codes immediately after extraction"""
