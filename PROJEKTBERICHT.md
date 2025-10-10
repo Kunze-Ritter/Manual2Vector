@@ -69,8 +69,25 @@ Das System liest PDF-Handbücher und wandelt sie in strukturierte Daten um. Dabe
 - Ersatzteil-Nummern
 - Links zu Videos
 
-**2. Künstliche Intelligenz:**
-Eine KI hilft beim Verstehen der Texte und kann auch unvollständige oder ähnliche Anfragen verstehen. Beispiel: Suche nach "Papierstau" findet auch "Paper Jam" oder "Medienstau".
+**2. Künstliche Intelligenz (LLM-basierte Extraktion):**
+Das System nutzt ein **Large Language Model (LLM)** mit 7-9 Milliarden Parametern, das lokal auf der GPU läuft. Dieses KI-Modell analysiert die ersten 20 Seiten jedes Handbuchs und extrahiert automatisch:
+- **Produktmodelle** (z.B. "AccurioPress C4080")
+- **Technische Spezifikationen** (z.B. "80 Seiten/Min, 1200 DPI, Duplex")
+- **Features und Ausstattung** (z.B. "Finisher, Großraumkassette")
+
+**Vorteile gegenüber klassischen Regex-Patterns:**
+- ✅ **Versteht Kontext:** Das LLM erkennt auch unstrukturierte Texte und Abkürzungen
+- ✅ **Flexibel:** Funktioniert auch bei ungewöhnlichen Formatierungen
+- ✅ **Intelligent:** Kann zwischen wichtigen und unwichtigen Informationen unterscheiden
+- ✅ **Mehrsprachig:** Versteht Deutsch, Englisch und weitere Sprachen
+
+**Technische Details:**
+- Läuft auf **Ollama** (lokale KI-Plattform)
+- Nutzt GPU-Beschleunigung (100% GPU-Auslastung während der Verarbeitung)
+- Modelle: Gemma 2, Llama 3 oder Mistral (je nach Verfügbarkeit)
+- Verarbeitet ~20 Seiten pro Dokument in 2-5 Minuten
+
+Die KI hilft auch bei der Suche und kann unvollständige oder ähnliche Anfragen verstehen. Beispiel: Suche nach "Papierstau" findet auch "Paper Jam" oder "Medienstau".
 
 **3. Datenbank:**
 Alle Informationen werden in einer professionellen Datenbank gespeichert, die sehr schnelle Suchen ermöglicht (unter 0,1 Sekunden).
@@ -106,20 +123,38 @@ Eine moderne Web-Oberfläche ermöglicht:
 - Unterstützte Formate: PDF (Text + OCR)
 - Genauigkeit: 94% bei Fehlercode-Erkennung
 
-### Phase 2: Intelligente Verarbeitung (GEPLANT 📅)
-**Zeitraum:** Nov 2025 - Dez 2025 (2 Monate)
+### Phase 2: Intelligente Verarbeitung (IN ENTWICKLUNG 🔄)
+**Zeitraum:** Okt 2025 - Dez 2025 (3 Monate)
 
-**Geplant:**
-- 📅 Hersteller-Normalisierung (HP = Hewlett Packard = HP Inc.)
-- 📅 Produktserien-Erkennung (LaserJet, bizhub, imageRUNNER, etc.)
-- 📅 Produkttyp-Klassifizierung (Laser, Inkjet, Production, MFP, Plotter)
-- 📅 Automatische Ersatzteil-Verknüpfung zu Fehlercodes
-- 📅 Video-Metadaten-Anreicherung (YouTube API, Vimeo API, usw.)
+**Bereits implementiert:**
+- ✅ Hersteller-Normalisierung (HP = Hewlett Packard = HP Inc.)
+- ✅ Produktserien-Erkennung für 12 Hersteller (226+ automatisierte Tests)
+  - Lexmark, HP, UTAX, Kyocera, Fujifilm, Ricoh, OKI, Xerox, Epson, Brother, Sharp, Toshiba
+  - Automatische Marketing-Namen-Erkennung (z.B. "bizhub C368" → "bizhub C3xx Serie")
+  - Technische Pattern-Generierung für Kompatibilitätsprüfungen
+- ✅ Produkttyp-System erweitert (18 → 77 spezifische Typen)
+  - 11 Kategorien: Printers, Multifunction, Plotters, Scanners, Copiers, Finishers, Feeders, Accessories, Options, Consumables, Software
+  - Automatische Datenmigration bestehender Produkte
+- ✅ Zubehör-Erkennungssystem (Konica Minolta: 23 Patterns)
+  - Finishing & Document Feeder (DF, LU, FS, SD, PK)
+  - Paper Feeders (PC, PF, MT)
+  - Fax & Connectivity (FK, MK, RU, CU)
+  - Memory/HDD/Wireless (HD, EK, WT, AU, UK)
+  - Consumables (TN, DR, SK)
+  - Automatische Kompatibilitäts-Verknüpfung zu Produktserien
+
+**In Arbeit:**
+- 🔄 Automatische Ersatzteil-Verknüpfung zu Fehlercodes
+- 🔄 Video-Metadaten-Anreicherung (YouTube API, Vimeo API)
+- 🔄 Zubehör-Erkennung für weitere Hersteller (HP, Xerox, Ricoh, etc.)
 
 **Technische Details:**
-- 90+ Produktserien erkannt
+- 226+ Produktserien-Patterns mit 100% Erfolgsrate
+- 23 Zubehör-Patterns (Konica Minolta)
+- 77 Produkttypen für präzise Klassifizierung
 - Automatische Deduplizierung
 - Smart Matching (Fuzzy Search)
+- 12 detaillierte Pattern-Dokumentationen
 
 ### Phase 3: Datenbank-Optimierung (GEPLANT 📅)
 **Zeitraum:** Jan 2026 - Feb 2026 (2 Monate)
@@ -157,15 +192,17 @@ Eine moderne Web-Oberfläche ermöglicht:
 - **Dokumente:** 10+ verarbeitet (Prototyp)
 - **Fehlercodes:** 500+ erfasst
 - **Ersatzteile:** 300+ katalogisiert
-- **Hersteller:** 8 Patterns implementiert
-- **Produktserien:** 90+ Patterns vorbereitet
+- **Hersteller:** 12 vollständig implementiert (Lexmark, HP, UTAX, Kyocera, Fujifilm, Ricoh, OKI, Xerox, Epson, Brother, Sharp, Toshiba)
+- **Produktserien:** 226+ Patterns implementiert (100% getestet)
+- **Zubehör:** 23 Patterns (Konica Minolta)
+- **Produkttypen:** 77 spezifische Typen
 - **Videos:** Integration vorbereitet
 
 ### Code-Qualität
-- **Commits:** 146 (nur heute!)
-- **Test-Coverage:** In Entwicklung
-- **Code-Zeilen:** ~15.000
-- **Dokumentation:** Vollständig
+- **Commits:** 161+ (Stand: 09.10.2025)
+- **Test-Coverage:** 249+ automatisierte Tests (226 Serien + 23 Zubehör)
+- **Code-Zeilen:** ~18.500+ (inkl. 3.500+ neue Zeilen vom 09.10.2025)
+- **Dokumentation:** Vollständig (13 neue Pattern-Dokumentationen)
 
 ### Performance
 - **PDF-Verarbeitung:** 2-5 Min. pro Dokument
@@ -361,18 +398,18 @@ Eine moderne Web-Oberfläche ermöglicht:
 ## 📊 RISIKO-ANALYSE
 
 ### Technische Risiken
-| Risiko | Wahrscheinlichkeit | Impact | Mitigation |
-|--------|-------------------|--------|------------|
-| KI-Genauigkeit unzureichend | Niedrig | Hoch | Hybrid-Ansatz, menschliche Validierung |
-| Skalierungs-Probleme | Mittel | Mittel | Cloud-native Architektur, Load Testing |
-| Datenqualität | Mittel | Hoch | Automatische Validierung, Qualitäts-Dashboard |
+| Risiko                      | Wahrscheinlichkeit  | Impact | Mitigation                                     |
+|-----------------------------|---------------------|--------|------------------------------------------------|
+| KI-Genauigkeit unzureichend | Niedrig             | Hoch   | Hybrid-Ansatz, menschliche Validierung         |
+| Skalierungs-Probleme        | Mittel              | Mittel | Cloud-native Architektur, Load Testing         |
+| Datenqualität               | Mittel              | Hoch   | Automatische Validierung, Qualitäts-Dashboard  |
 
 ### Geschäftliche Risiken
-| Risiko | Wahrscheinlichkeit | Impact | Mitigation |
-|--------|-------------------|--------|------------|
-| Marktakzeptanz | Niedrig | Hoch | Pilotprojekte, Feedback-Schleifen |
-| Wettbewerb | Mittel | Mittel | Alleinstellungsmerkmale, schnelle Iteration |
-| Datenschutz-Bedenken | Niedrig | Hoch | DSGVO-Konformität, On-Premise-Option |
+| Risiko               | Wahrscheinlichkeit | Impact    | Mitigation                                  |
+|----------------------|--------------------|-----------|---------------------------------------------|
+| Marktakzeptanz       | Niedrig            | Hoch      | Pilotprojekte, Feedback-Schleifen           |
+| Wettbewerb           | Mittel             | Mittel    | Alleinstellungsmerkmale, schnelle Iteration |
+| Datenschutz-Bedenken | Niedrig            | Hoch      | DSGVO-Konformität, On-Premise-Option        |
 
 ---
 
@@ -418,5 +455,5 @@ KRAI ist eine innovative KI-Lösung, die technisches Wissen aus Dokumentationen 
 
 ---
 
-*Dieser Bericht wurde erstellt am 08. Oktober 2025*  
-*Version 1.0*
+*Dieser Bericht wurde erstellt am 09. Oktober 2025*  
+*Version 1.1*
