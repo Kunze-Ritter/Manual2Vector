@@ -1390,9 +1390,10 @@ class DocumentProcessor:
             
             for product_id in saved_products:
                 # saved_products is a list of UUIDs, not dicts!
-                # Get current product with series_name and model_number
+                # Get current product with series info (JOIN with product_series)
+                # products.series_id → product_series.id → product_series.series_name
                 result = supabase.table('products') \
-                    .select('product_type, series_name, model_number') \
+                    .select('product_type, model_number, series_id, product_series(series_name)') \
                     .eq('id', product_id) \
                     .limit(1) \
                     .execute()
@@ -1401,8 +1402,11 @@ class DocumentProcessor:
                     continue
                 
                 current_type = result.data[0].get('product_type')
-                series_name = result.data[0].get('series_name')
                 model_number = result.data[0].get('model_number')
+                
+                # Extract series_name from joined table
+                series_data = result.data[0].get('product_series')
+                series_name = series_data.get('series_name') if series_data else None
                 
                 # Detect product type with series_name
                 detected_type = get_product_type(
