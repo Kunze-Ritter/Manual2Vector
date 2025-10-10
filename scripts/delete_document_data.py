@@ -53,17 +53,22 @@ for env_file in env_files:
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
+# Try both key names (SERVICE_KEY and SERVICE_ROLE_KEY)
+SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("\n❌ Error: SUPABASE_URL or SUPABASE_SERVICE_KEY not found in environment")
     print("\nDebug info:")
     print(f"  SUPABASE_URL: {'SET' if SUPABASE_URL else 'NOT SET'}")
-    print(f"  SUPABASE_SERVICE_KEY: {'SET' if SUPABASE_KEY else 'NOT SET'}")
+    print(f"  SUPABASE_SERVICE_KEY: {'SET' if os.getenv('SUPABASE_SERVICE_KEY') else 'NOT SET'}")
+    print(f"  SUPABASE_SERVICE_ROLE_KEY: {'SET' if os.getenv('SUPABASE_SERVICE_ROLE_KEY') else 'NOT SET'}")
     print("\nMake sure .env.database exists with:")
     print("  SUPABASE_URL=https://...")
-    print("  SUPABASE_SERVICE_KEY=eyJ...")
+    print("  SUPABASE_SERVICE_KEY=eyJ... (or SUPABASE_SERVICE_ROLE_KEY)")
     sys.exit(1)
+
+print(f"✓ Connected to Supabase: {SUPABASE_URL}")
+print()
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
