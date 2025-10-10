@@ -318,7 +318,7 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
             'IM-': 'media_sensor',      # Intelligent Media Sensor (paper weight/thickness)
             'PF-': 'paper_feeder',      # Paper Feeder
             'MK-': 'mount_kit',         # Mount Kit (for installing finishers, fax, etc.)
-            'MB-': 'mailbox',           # Mailbox
+            'MB-': 'paper_feeder',      # Multi Bypass Tray (250 sheets, banner formats)
             'EF-': 'envelope_feeder',   # Envelope Feeder
             'SD-': 'finisher',          # Saddle Stitch Finisher
             'FS-': 'finisher',          # Finisher
