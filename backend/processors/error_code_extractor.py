@@ -194,6 +194,7 @@ class ErrorCodeExtractor:
         
         # OPTIMIZATION 3: Compile single regex for all codes
         # Use alternation (|) to match any of the codes in one pass
+        self.logger.info(f"   Building batch regex for {len(patterns_to_compile)} codes...")
         if len(patterns_to_compile) > 100:
             # For very large lists, process in batches of 100 to avoid regex complexity
             batch_size = 100
@@ -203,6 +204,8 @@ class ErrorCodeExtractor:
                 batch_patterns = patterns_to_compile[i:i+batch_size]
                 combined_pattern = r'\b(' + '|'.join(batch_patterns) + r')\b'
                 compiled_regex = re.compile(combined_pattern)
+                
+                self.logger.debug(f"   Scanning batch {i//batch_size + 1}/{(len(patterns_to_compile) + batch_size - 1)//batch_size}...")
                 
                 # Find all matches for this batch
                 for match in compiled_regex.finditer(full_document_text):
@@ -215,6 +218,8 @@ class ErrorCodeExtractor:
             combined_pattern = r'\b(' + '|'.join(patterns_to_compile) + r')\b'
             compiled_regex = re.compile(combined_pattern)
             
+            self.logger.info(f"   Scanning document for {len(patterns_to_compile)} codes...")
+            
             all_matches = {}
             for match in compiled_regex.finditer(full_document_text):
                 code = match.group(0)
@@ -224,6 +229,8 @@ class ErrorCodeExtractor:
         
         # OPTIMIZATION 4: Process each code with its pre-found matches
         enriched_codes = []
+        
+        self.logger.info(f"   Starting enrichment loop for {len(error_codes)} codes...")
         
         # Progress tracking
         from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
