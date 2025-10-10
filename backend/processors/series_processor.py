@@ -240,15 +240,23 @@ class SeriesProcessor:
             True if successful
         """
         try:
-            self.supabase.table('products').update({
+            self.logger.info(f"   → Linking product {product_id[:8]}... to series {series_id[:8]}...")
+            
+            result = self.supabase.table('products').update({
                 'series_id': series_id
             }).eq('id', product_id).execute()
             
-            self.logger.debug(f"Linked product {product_id} to series {series_id}")
-            return True
+            if result.data:
+                self.logger.success(f"   ✅ Linked product to series (updated {len(result.data)} row)")
+                return True
+            else:
+                self.logger.warning(f"   ⚠️  UPDATE returned no data - product may not exist")
+                return False
             
         except Exception as e:
-            self.logger.error(f"Error linking product {product_id} to series: {e}")
+            self.logger.error(f"   ❌ Error linking product {product_id} to series: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return False
     
     def get_series_products(self, series_id: str) -> list:
