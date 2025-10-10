@@ -102,6 +102,77 @@ class ErrorCodeExtractor:
         
         return None
     
+    def enrich_error_codes_from_document(
+        self,
+        error_codes: List[ExtractedErrorCode],
+        full_document_text: str,
+        manufacturer_name: Optional[str] = None
+    ) -> List[ExtractedErrorCode]:
+        """
+        Enrich error codes with full details from entire document
+        
+        For codes found in lists (e.g., "List of JAM code"), search the entire
+        document for detailed sections with Classification, Cause, Measures.
+        
+        Args:
+            error_codes: List of error codes to enrich
+            full_document_text: Full text of entire document
+            manufacturer_name: Manufacturer name
+            
+        Returns:
+            Enriched error codes with full details
+        """
+        enriched_codes = []
+        
+        for error_code in error_codes:
+            # Skip if already has good solution
+            if error_code.solution_text and len(error_code.solution_text) > 100:
+                enriched_codes.append(error_code)
+                continue
+            
+            # Search entire document for this code
+            code_pattern = re.escape(error_code.error_code)
+            matches = list(re.finditer(rf'\b{code_pattern}\b', full_document_text))
+            
+            # Try each occurrence to find the detailed section
+            best_description = error_code.error_description
+            best_solution = error_code.solution_text
+            best_confidence = error_code.confidence
+            
+            for match in matches:
+                start_pos = match.start()
+                end_pos = match.end()
+                
+                # Extract larger context (up to 3000 chars for detailed sections)
+                context = self._extract_context(full_document_text, start_pos, end_pos, context_size=3000)
+                
+                # Try to extract structured description
+                description = self._extract_description(full_document_text, end_pos, max_length=500)
+                if description and len(description) > len(best_description):
+                    best_description = description
+                    best_confidence = min(0.95, best_confidence + 0.1)
+                
+                # Try to extract solution
+                solution = self._extract_solution(context, full_document_text, end_pos)
+                if solution and len(solution) > len(best_solution or ''):
+                    best_solution = solution
+                    best_confidence = min(0.95, best_confidence + 0.1)
+            
+            # Create enriched error code
+            enriched_code = ExtractedErrorCode(
+                error_code=error_code.error_code,
+                error_description=best_description,
+                solution_text=best_solution or "No solution found",
+                context_text=error_code.context_text,
+                confidence=best_confidence,
+                page_number=error_code.page_number,
+                extraction_method=f"{error_code.extraction_method}_enriched",
+                severity_level=error_code.severity_level
+            )
+            enriched_codes.append(enriched_code)
+        
+        return enriched_codes
+    
     def extract_from_text(
         self,
         text: str,

@@ -498,6 +498,17 @@ class DocumentProcessor:
                     error_codes_count = len(error_codes)
                     progress.update(task, advance=1, description=f"Error codes found: {error_codes_count}")
             
+            # Enrich error codes with full details from entire document
+            if error_codes:
+                self.logger.info(f"Enriching {len(error_codes)} error codes with full document context...")
+                full_text = '\n\n'.join(page_texts.values())
+                error_codes = self.error_code_extractor.enrich_error_codes_from_document(
+                    error_codes=error_codes,
+                    full_document_text=full_text,
+                    manufacturer_name=error_manufacturer
+                )
+                self.logger.success(f"Enriched error codes with detailed solutions")
+            
             # Validate error codes
             for error_code in error_codes:
                 errors = self.error_code_extractor.validate_extraction(error_code)
