@@ -14,13 +14,20 @@ from services.database_service import DatabaseService
 from services.object_storage_service import ObjectStorageService
 from services.ai_service import AIService
 from processors.upload_processor import UploadProcessor
-from processors.document_processor import DocumentProcessor
-from processors.image_processor import ImageProcessor
 from processors.master_pipeline import MasterPipeline
 
 class DocumentAPI:
     """
     Document API for KR-AI-Engine
+    
+    Uses MasterPipeline for full production processing with all optimizations:
+    - Pre-compiled regex patterns (60x faster error code enrichment)
+    - LLM-based product extraction (configurable via LLM_MAX_PAGES)
+    - OCR optimization (2x faster, no duplicate calls)
+    - Series detection and product type mapping
+    - Image processing with Vision AI
+    - Embeddings generation
+    - R2 storage integration
     
     Endpoints:
     - POST /documents/upload: Upload document
@@ -39,11 +46,9 @@ class DocumentAPI:
         self.logger = logging.getLogger("krai.api.document")
         self._setup_logging()
         
-        # Initialize processors (V2)
-        # Note: DocumentAPI is legacy - consider using MasterPipeline directly
+        # Initialize upload processor (for initial file handling)
         self.upload_processor = UploadProcessor(database_service)
-        # V2 processors have different initialization - simplified for now
-        # For full processing, use MasterPipeline from processors.master_pipeline
+        # Processing is done via MasterPipeline (same as process_production.py)
         
         # Create router
         self.router = APIRouter(prefix="/documents", tags=["documents"])
@@ -235,55 +240,68 @@ class DocumentAPI:
                 raise HTTPException(status_code=500, detail=str(e))
     
     async def _process_document_background(self, document_id: str, file_content: bytes, filename: str):
-        """Background document processing"""
+        """Background document processing using MasterPipeline"""
         try:
             self.logger.info(f"Starting background processing for document {document_id}")
             
             # Save file temporarily
             import tempfile
             import os
+            from pathlib import Path
             
             with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
                 temp_file.write(file_content)
-                temp_file_path = temp_file.name
+                temp_file_path = Path(temp_file.name)
             
             try:
-                # Create processing context
-                from core.base_processor import ProcessingContext
-                context = ProcessingContext(
-                    document_id=document_id,
+                # Initialize MasterPipeline with FULL PRODUCTION settings
+                # This uses ALL the optimized processors (error_code_extractor, product_extractor, etc.)
+                self.logger.info("Initializing MasterPipeline with production settings...")
+                
+                # Read settings from environment
+                upload_images = os.getenv('UPLOAD_IMAGES_TO_R2', 'false').lower() == 'true'
+                upload_documents = os.getenv('UPLOAD_DOCUMENTS_TO_R2', 'false').lower() == 'true'
+                
+                pipeline = MasterPipeline(
+                    supabase_client=self.database_service.supabase,
+                    manufacturer="AUTO",  # Auto-detect manufacturer
+                    enable_images=True,          # Extract images
+                    enable_ocr=True,              # OCR on images
+                    enable_vision=True,           # Vision AI analysis
+                    upload_images_to_r2=upload_images,      # Upload images to R2 (from .env)
+                    upload_documents_to_r2=upload_documents,  # Upload PDFs to R2 (from .env)
+                    enable_embeddings=True,       # Generate embeddings
+                    max_retries=2
+                )
+                
+                self.logger.info("Processing document through MasterPipeline...")
+                
+                # Process through MasterPipeline (same as process_production.py!)
+                result = pipeline.process_document(
                     file_path=temp_file_path,
-                    file_hash="",  # Will be set by processors
                     document_type="service_manual",
-                    manufacturer=None,
-                    model=None,
-                    series=None,
-                    version=None,
-                    language="en"
+                    manufacturer="AUTO"  # Auto-detect
                 )
                 
-                # Process through pipeline
-                # NOTE: DocumentAPI is legacy - for full processing use MasterPipeline
-                # This simplified version just logs the upload
-                self.logger.info(f"Document {document_id} uploaded successfully")
-                self.logger.info(f"For full processing, use MasterPipeline from processors.master_pipeline")
-                # TODO: Integrate MasterPipeline here or deprecate this API
-                
-                # Update document status
-                await self.database_service.update_document(
-                    document_id,
-                    {'processing_status': 'completed'}
-                )
-                
-                self.logger.info(f"Background processing completed for document {document_id}")
+                if result['success']:
+                    self.logger.info(f"✅ Document {document_id} processed successfully")
+                    self.logger.info(f"   Products: {result.get('products_extracted', 0)}")
+                    self.logger.info(f"   Error Codes: {result.get('error_codes_extracted', 0)}")
+                    self.logger.info(f"   Parts: {result.get('parts_extracted', 0)}")
+                    self.logger.info(f"   Images: {result.get('images_processed', 0)}")
+                    self.logger.info(f"   Chunks: {result.get('chunks_created', 0)}")
+                else:
+                    self.logger.error(f"❌ Document {document_id} processing failed: {result.get('error')}")
                 
             finally:
                 # Clean up temporary file
-                if os.path.exists(temp_file_path):
-                    os.unlink(temp_file_path)
+                if temp_file_path.exists():
+                    temp_file_path.unlink()
         
         except Exception as e:
             self.logger.error(f"Background processing failed for document {document_id}: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             # Update document status to failed
             try:
                 await self.database_service.update_document(
