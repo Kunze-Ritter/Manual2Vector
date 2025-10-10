@@ -22,8 +22,6 @@ DROP VIEW IF EXISTS krai_core.public_products CASCADE;
 DROP VIEW IF EXISTS krai_core.products_with_names CASCADE;
 DROP VIEW IF EXISTS public.products CASCADE;
 
-RAISE NOTICE 'Dropped views that depend on parent_id';
-
 -- ============================================================================
 -- PART 2: Remove parent_id from products
 -- ============================================================================
@@ -90,8 +88,6 @@ SELECT * FROM krai_core.products_with_names;
 -- Recreate simple products view
 CREATE OR REPLACE VIEW public.products AS
 SELECT * FROM krai_core.products;
-
-RAISE NOTICE 'Recreated views without parent_id';
 
 -- ============================================================================
 -- PART 4: Create product_accessories junction table
