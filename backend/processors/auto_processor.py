@@ -113,8 +113,8 @@ class AutoProcessor:
             'total_series_created': 0
         }
         
-        # Find all PDFs
-        pdf_files = list(self.input_dir.glob("*.pdf"))
+        # Find all PDFs (including .pdfz compressed)
+        pdf_files = list(self.input_dir.glob("*.pdf")) + list(self.input_dir.glob("*.pdfz"))
         stats['pdfs_found'] = len(pdf_files)
         
         if not pdf_files:

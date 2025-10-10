@@ -118,12 +118,38 @@ class DocumentProcessor:
         if enable_log_file:
             self.logger.info(f"Log file: {log_file_path}")
         
+        # Handle .pdfz (compressed) files
+        working_pdf = pdf_path
+        temp_decompressed = None
+        
+        if pdf_path.suffix.lower() == '.pdfz':
+            self.logger.info("🗜️  Decompressing .pdfz file...")
+            temp_decompressed = pdf_path.with_suffix('.pdf')
+            try:
+                import gzip
+                import shutil
+                with gzip.open(pdf_path, 'rb') as f_in:
+                    with open(temp_decompressed, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                working_pdf = temp_decompressed
+                self.logger.success(f"✅ Decompressed to: {working_pdf.name}")
+            except Exception as e:
+                # Not gzipped - treat as normal PDF
+                with open(pdf_path, 'rb') as f:
+                    header = f.read(4)
+                    if header.startswith(b'%PDF'):
+                        self.logger.info("⚠️  Not gzipped - treating as normal PDF")
+                        shutil.copy(pdf_path, temp_decompressed)
+                        working_pdf = temp_decompressed
+                    else:
+                        raise ValueError(f"Invalid PDF file: {pdf_path.name}")
+        
         validation_errors = []
         
         try:
             # Step 1: Extract text
             self.logger.info("Step 1/5: Extracting text from PDF...")
-            page_texts, metadata = self.text_extractor.extract_text(pdf_path, document_id)
+            page_texts, metadata = self.text_extractor.extract_text(working_pdf, document_id)
             
             # CRITICAL: Detect manufacturer EARLY from 3 sources (filename, metadata, document text)
             # This ensures _save_error_codes_to_db can find the manufacturer
@@ -519,7 +545,7 @@ class DocumentProcessor:
             images = []
             image_result = self.image_processor.process_document(
                 document_id=document_id,
-                pdf_path=pdf_path
+                pdf_path=working_pdf
             )
             
             if image_result['success']:
@@ -537,7 +563,7 @@ class DocumentProcessor:
             # Step 3d: Extract links and videos
             self.logger.info("Step 3d/8: Extracting links and videos...")
             links_result = self.link_extractor.extract_from_document(
-                pdf_path=pdf_path,
+                pdf_path=working_pdf,
                 page_texts=page_texts,
                 document_id=document_id
             )
@@ -677,6 +703,15 @@ class DocumentProcessor:
                 str(e),
                 processing_time
             )
+        
+        finally:
+            # Cleanup temporary decompressed file
+            if temp_decompressed and temp_decompressed.exists():
+                try:
+                    temp_decompressed.unlink()
+                    self.logger.debug(f"Cleaned up temporary file: {temp_decompressed.name}")
+                except Exception as cleanup_error:
+                    self.logger.debug(f"Could not cleanup temp file: {cleanup_error}")
     
     def upload_images_to_storage(
         self,
