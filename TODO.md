@@ -70,24 +70,36 @@
 
 ---
 
-## 🚧 IN PROGRESS
+## 🚧 IN PROGRESS / PARTIALLY COMPLETE
 
-### Vision Extraction
+### Product Type Refinement (PARTIALLY COMPLETE - 2025-10-10)
+- [x] Types defined and validated (77 types)
+- [x] **Post-processing rules (PARTIAL)** - Basic patterns implemented
+  - ✅ PRESS, ACCURIO → production_printer
+  - ✅ LASERJET + MFP → laser_multifunction
+  - ✅ LASERJET alone → laser_printer
+  - ❌ TODO: MK-* = finisher, SD-* = finisher, PF-* = feeder (not yet implemented)
+  - **File:** `backend/utils/product_type_mapper.py`
+- [ ] Improve LLM prompt for better type detection
+  - **Priority:** Low
+  - **Effort:** 1-2 hours
+- [ ] Confidence scoring per type
+  - **Priority:** Low
+  - **Effort:** 1-2 hours
+
+### Vision Extraction (CODE READY, NOT TESTED)
 - [x] LLaVA integration code (vision_extractor.py)
+- [x] Vision AI runs and generates descriptions
 - [ ] Test on real PDF pages with tables
-- [ ] Optimize image resolution vs speed
-- [ ] Compare Vision vs Text-only extraction quality
   - **Priority:** Medium
   - **Effort:** 2-3 hours
   - **Blocker:** Need complex table-heavy PDFs for testing
-
-### Product Type Refinement
-- [x] Types defined and validated
-- [ ] Improve LLM prompt for better type detection
-- [ ] Post-processing rules (MK-* = finisher, SD-* = finisher, PF-* = feeder)
-- [ ] Confidence scoring per type
+- [ ] Optimize image resolution vs speed
+  - **Priority:** Low
+  - **Effort:** 2-3 hours
+- [ ] Compare Vision vs Text-only extraction quality
   - **Priority:** Medium
-  - **Effort:** 1-2 hours
+  - **Effort:** 2-3 hours
 
 ---
 
@@ -535,28 +547,35 @@
 
 ---
 
-## 🐛 BUGS & ISSUES
+## 🐛 BUGS & ISSUES (LEGACY - Pre 2025-10-10)
 
-### Known Issues
+### Known Issues (OLD - May be resolved)
 1. ⚠️ **Product Type Mapping**: Some accessories still categorized as "printer"
-   - **Fix:** Improve LLM prompt + post-processing rules
-   - **Priority:** MEDIUM
-   - **Effort:** 2 hours
+   - **Status:** PARTIALLY FIXED (2025-10-10)
+   - **Fix Applied:** Improved product_type_mapper.py with pattern detection
+   - **Remaining:** MK-*, SD-*, PF-* prefix rules not yet implemented
+   - **Priority:** LOW
+   - **Effort:** 1-2 hours
 
 2. ⚠️ **Migration 09**: Not applied to production database
+   - **Status:** UNKNOWN (needs verification)
    - **Fix:** Manual application via Supabase dashboard
-   - **Priority:** HIGH
+   - **Priority:** MEDIUM
    - **Effort:** 15 minutes
 
 3. ⚠️ **LLM Timeout**: Occasionally times out on very dense pages
+   - **Status:** UNKNOWN (needs verification)
    - **Fix:** Increase timeout to 180s or implement retry logic
    - **Priority:** LOW
    - **Effort:** 30 minutes
 
 4. ⚠️ **Vision Results Empty**: Test showed 0 products
+   - **Status:** UNKNOWN (needs verification)
    - **Fix:** Debug keyword detection, test with known good pages
-   - **Priority:** MEDIUM
+   - **Priority:** LOW
    - **Effort:** 1-2 hours
+
+**Note:** See "KNOWN ISSUES (2025-10-10)" section below for current critical bugs
 
 ---
 
