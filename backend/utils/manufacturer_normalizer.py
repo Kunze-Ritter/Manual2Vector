@@ -19,10 +19,9 @@ MANUFACTURER_MAP = {
     ],
     'Konica Minolta': [
         'konica minolta', 'Konica Minolta', 'KONICA MINOLTA',
-        'konica', 'Konica', 'KONICA',
-        'minolta', 'Minolta', 'MINOLTA',
-        'km', 'KM', 'K-M', 'K M',
-        'Konica-Minolta', 'konica-minolta'
+        'Konica-Minolta', 'konica-minolta', 'KONICA-MINOLTA'
+        # Removed: 'konica', 'minolta', 'km' (too generic - causes false positives)
+        # 'KM' matches "5 KM" (kilometer), 'konica' alone is ambiguous
     ],
     'Canon': [
         'canon', 'Canon', 'CANON',
