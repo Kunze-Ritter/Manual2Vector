@@ -72,19 +72,18 @@ class PartsExtractor:
             # Use manufacturer-specific patterns ONLY
             patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
             pattern_count = len(self.patterns_config[manufacturer_key].get("patterns", []))
-            logger.debug(f"🔍 Using {pattern_count} manufacturer-specific patterns: {manufacturer_key}")
+            config_version = self.patterns_config[manufacturer_key].get("config_version", "unknown")
+            config_date = self.patterns_config[manufacturer_key].get("last_updated", "unknown")
+            logger.debug(f"🔍 Using {pattern_count} patterns for {manufacturer_key} (v{config_version}, {config_date})")
         else:
-            # Only use generic patterns if no manufacturer-specific patterns found
+            # No patterns available - return empty list with clear error
             if manufacturer_name:
-                logger.warning(f"⚠️  No specific patterns found for manufacturer: '{manufacturer_name}' (key: '{manufacturer_key}')")
-                logger.info(f"   Available manufacturers: {list(self.patterns_config.keys())}")
+                logger.error(f"❌ No parts patterns configured for manufacturer: '{manufacturer_name}'")
+                logger.error(f"   Available manufacturers: {', '.join([k for k in self.patterns_config.keys() if k != 'generic'])}")
+                logger.error(f"   Please add patterns to: backend/config/parts_patterns.json")
             else:
-                logger.info("ℹ️  No manufacturer specified")
-            
-            # Add generic patterns as fallback ONLY when no specific patterns exist
-            if "generic" in self.patterns_config:
-                patterns_to_use.append(("generic", self.patterns_config["generic"]))
-                logger.debug("Using generic patterns (no manufacturer-specific patterns available)")
+                logger.warning("⚠️  No manufacturer specified - cannot extract parts")
+            return []
         
         # Extract parts
         extracted_parts = []

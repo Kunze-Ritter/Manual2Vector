@@ -5,6 +5,8 @@
     
     "hp": {
       "manufacturer_name": "HP",
+      "config_version": "1.0",
+      "last_updated": "2025-01-15",
       "patterns": [
         {
           "name": "rm_series",
@@ -77,6 +79,8 @@
     
     "canon": {
       "manufacturer_name": "Canon",
+      "config_version": "1.0",
+      "last_updated": "2025-01-15",
       "patterns": [
         {
           "name": "f_series_parts",
@@ -139,6 +143,9 @@
     
     "konica_minolta": {
       "manufacturer_name": "Konica Minolta",
+      "config_version": "2.0",
+      "last_updated": "2025-10-10",
+      "source": "AccurioPrint C4065 Parts Guide (ACC2.pdf, 278 pages, 1902 unique parts)",
       "patterns": [
         {
           "name": "a_series_parts",
@@ -222,6 +229,8 @@
     
     "fujifilm": {
       "manufacturer_name": "Fujifilm",
+      "config_version": "1.0",
+      "last_updated": "2025-01-15",
       "patterns": [
         {
           "name": "ct_toner_cartridges",
@@ -468,6 +477,8 @@
     
     "xerox": {
       "manufacturer_name": "Xerox",
+      "config_version": "1.0",
+      "last_updated": "2025-01-15",
       "patterns": [
         {
           "name": "long_numeric_parts",
