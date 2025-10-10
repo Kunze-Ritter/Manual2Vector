@@ -111,7 +111,8 @@ ADD CONSTRAINT product_type_check CHECK (
         'fuser_unit',              -- Fuser/fixing unit
         'transfer_belt',           -- Transfer belt/unit
         'waste_toner_box',         -- Waste toner container
-        'maintenance_kit',         -- Maintenance kit
+        'maintenance_kit',         -- Maintenance kit (PM kits, service kits)
+        'mount_kit',               -- Mount kit (MK-xxx for installing options)
         'staple_cartridge',        -- Staple cartridge
         'punch_kit',               -- Punch waste box/kit
         'print_head',              -- Print head (inkjet)

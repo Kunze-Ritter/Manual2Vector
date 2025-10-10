@@ -317,7 +317,7 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
             'HT-': 'cabinet',           # Hard Disk Table
             'IM-': 'interface_kit',     # Image Controller
             'PF-': 'paper_feeder',      # Paper Feeder
-            'MK-': 'maintenance_kit',   # Maintenance Kit
+            'MK-': 'mount_kit',         # Mount Kit (for installing finishers, fax, etc.)
             'MB-': 'mailbox',           # Mailbox
             'EF-': 'envelope_feeder',   # Envelope Feeder
             'SD-': 'finisher',          # Saddle Stitch Finisher
