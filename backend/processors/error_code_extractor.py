@@ -38,6 +38,31 @@ TECHNICAL_TERMS = {
     'thermistor', 'heater', 'solenoid', 'clutch', 'gear', 'belt'
 }
 
+# PERFORMANCE: Pre-compile regex patterns (avoid recompilation in hot loops)
+# These patterns are used 3919+ times during enrichment!
+RECOMMENDED_ACTION_PATTERN = re.compile(
+    r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure|procedure|remedy|repair\s+procedure|measures\s+to\s+take|correction)'
+    r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?|when\s+an\s+alert\s+occurs)?)?'
+    r'\s*[\n:]+((?:(?:\d+[\.\)]|•|-|\*|step\s+\d+)\s+.{15,500}?[\n\r]?){1,})',  # Non-greedy, limited length
+    re.IGNORECASE | re.MULTILINE
+)
+
+SOLUTION_KEYWORDS_PATTERN = re.compile(
+    r'(?:solution|fix|remedy|resolution|procedure|action|steps?)'
+    r'\s*[:]\s*(.{50,1500}?)',  # Non-greedy
+    re.IGNORECASE
+)
+
+NUMBERED_STEPS_PATTERN = re.compile(
+    r'((?:(?:\d+[\.\)]|Step\s+\d+)\s+.{20,500}?[\n\r]?){2,})',  # Non-greedy, limited length
+    re.MULTILINE | re.IGNORECASE
+)
+
+BULLET_PATTERN = re.compile(
+    r'((?:(?:•|-|\*|–)\s+.{15,500}?[\n\r]?){2,})',  # Non-greedy, limited length
+    re.MULTILINE
+)
+
 
 class ErrorCodeExtractor:
     """Extract error codes using manufacturer-specific patterns"""
@@ -506,15 +531,8 @@ class ErrorCodeExtractor:
         combined_text = context + "\n" + text_after
         
         # Pattern 1: HP/Manufacturer style "Recommended action" OR Konica Minolta "Measures/Correction"
-        # Supports: 1., 1), Step 1, • bullets
-        recommended_action_pattern = re.compile(
-            r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure|procedure|remedy|repair\s+procedure|measures\s+to\s+take|correction)'
-            r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?|when\s+an\s+alert\s+occurs)?)?'
-            r'\s*[\n:]+((?:(?:\d+[\.\)]|•|-|\*|step\s+\d+)\s+.{15,}[\n\r]?){1,})',
-            re.IGNORECASE | re.MULTILINE | re.DOTALL
-        )
-        
-        match = recommended_action_pattern.search(combined_text)
+        # PERFORMANCE: Use pre-compiled pattern (avoids recompilation 3919+ times!)
+        match = RECOMMENDED_ACTION_PATTERN.search(combined_text)
         if match:
             solution = match.group(1).strip()
             # Clean up and limit length
@@ -535,13 +553,8 @@ class ErrorCodeExtractor:
                 return '\n'.join(filtered_lines)
         
         # Pattern 2: Standard "Solution:" or "Fix:" sections
-        solution_keywords_pattern = re.compile(
-            r'(?:solution|fix|remedy|resolution|procedure|action|steps?)'
-            r'\s*[:]\s*(.{50,1500})',
-            re.IGNORECASE | re.DOTALL
-        )
-        
-        match = solution_keywords_pattern.search(combined_text)
+        # PERFORMANCE: Use pre-compiled pattern
+        match = SOLUTION_KEYWORDS_PATTERN.search(combined_text)
         if match:
             solution = match.group(1).strip()
             # Extract until next section header or end
@@ -558,12 +571,8 @@ class ErrorCodeExtractor:
             return solution[:1000].strip()  # Limit length
         
         # Pattern 3: Numbered steps without header (1., 1), 2), Step 1, ...)
-        numbered_steps_pattern = re.compile(
-            r'((?:(?:\d+[\.\)]|Step\s+\d+)\s+.{20,}[\n\r]?){2,})',
-            re.MULTILINE | re.IGNORECASE
-        )
-        
-        match = numbered_steps_pattern.search(text_after)
+        # PERFORMANCE: Use pre-compiled pattern
+        match = NUMBERED_STEPS_PATTERN.search(text_after)
         if match:
             steps = match.group(1).strip()
             # Take up to 15 steps (increased for complex multi-step procedures)
@@ -578,12 +587,8 @@ class ErrorCodeExtractor:
                 return '\n'.join(step_lines)
         
         # Pattern 4: Bullet point lists
-        bullet_pattern = re.compile(
-            r'((?:(?:•|-|\*|–)\s+.{15,}[\n\r]?){2,})',
-            re.MULTILINE
-        )
-        
-        match = bullet_pattern.search(combined_text)
+        # PERFORMANCE: Use pre-compiled pattern
+        match = BULLET_PATTERN.search(text_after)
         if match:
             bullets = match.group(1).strip()
             lines = [l.strip() for l in bullets.split('\n') if l.strip()][:8]

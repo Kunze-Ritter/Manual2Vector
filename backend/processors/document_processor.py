@@ -1388,16 +1388,11 @@ class DocumentProcessor:
             
             updated_count = 0
             
-            for product in saved_products:
-                product_id = product.get('product_id')
-                model_number = product.get('model_number')
-                
-                if not product_id or not model_number:
-                    continue
-                
-                # Get current product with series_name
+            for product_id in saved_products:
+                # saved_products is a list of UUIDs, not dicts!
+                # Get current product with series_name and model_number
                 result = supabase.table('products') \
-                    .select('product_type, series_name') \
+                    .select('product_type, series_name, model_number') \
                     .eq('id', product_id) \
                     .limit(1) \
                     .execute()
@@ -1407,6 +1402,7 @@ class DocumentProcessor:
                 
                 current_type = result.data[0].get('product_type')
                 series_name = result.data[0].get('series_name')
+                model_number = result.data[0].get('model_number')
                 
                 # Detect product type with series_name
                 detected_type = get_product_type(
