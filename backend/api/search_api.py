@@ -184,40 +184,190 @@ class SearchAPI:
             manufacturer: Optional[str] = Query(None),
             limit: int = Query(10, ge=1, le=100)
         ):
-            """Search error codes"""
+            """Search error codes in database"""
             try:
-                # This would typically query the error_codes table
-                # For now, return placeholder results
-                error_codes = [
-                    {
-                        'error_code': '13.20.01',
-                        'description': 'Paper jam in duplex unit',
-                        'solution': 'Clear paper jam from duplex unit',
-                        'manufacturer': 'HP',
-                        'confidence': 0.95
-                    },
-                    {
-                        'error_code': 'C2557',
-                        'description': 'Toner cartridge error',
-                        'solution': 'Replace toner cartridge',
-                        'manufacturer': 'Konica Minolta',
-                        'confidence': 0.90
-                    }
-                ]
+                # Build query
+                query = """
+                SELECT 
+                    ec.error_code,
+                    ec.error_description as description,
+                    ec.solution_text as solution,
+                    ec.page_number,
+                    ec.severity_level,
+                    ec.confidence_score,
+                    m.name as manufacturer,
+                    d.filename as source_document
+                FROM krai_intelligence.error_codes ec
+                LEFT JOIN krai_core.manufacturers m ON ec.manufacturer_id = m.id
+                LEFT JOIN krai_core.documents d ON ec.document_id = d.id
+                WHERE ec.error_code ILIKE %s
+                """
                 
-                # Filter by manufacturer if specified
+                params = [f"%{q}%"]
+                
+                # Add manufacturer filter if specified
                 if manufacturer:
-                    error_codes = [ec for ec in error_codes if ec['manufacturer'].lower() == manufacturer.lower()]
+                    query += " AND m.name ILIKE %s"
+                    params.append(f"%{manufacturer}%")
+                
+                query += " ORDER BY ec.confidence_score DESC NULLS LAST, ec.error_code LIMIT %s"
+                params.append(limit)
+                
+                # Execute query
+                result = await self.database_service.execute_query(query, params)
+                
+                # Format results
+                error_codes = []
+                for row in result:
+                    error_codes.append({
+                        'error_code': row['error_code'],
+                        'description': row['description'],
+                        'solution': row['solution'],
+                        'manufacturer': row['manufacturer'],
+                        'page_number': row['page_number'],
+                        'severity_level': row['severity_level'],
+                        'source_document': row['source_document'],
+                        'confidence': float(row['confidence_score']) if row['confidence_score'] else 0.0
+                    })
                 
                 return {
                     'query': q,
-                    'error_codes': error_codes[:limit],
+                    'error_codes': error_codes,
                     'total_count': len(error_codes),
                     'manufacturer_filter': manufacturer
                 }
                 
             except Exception as e:
                 self.logger.error(f"Error code search failed: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.router.get("/parts")
+        async def search_parts(
+            q: str = Query(..., min_length=1),
+            manufacturer: Optional[str] = Query(None),
+            limit: int = Query(10, ge=1, le=100)
+        ):
+            """Search parts in database"""
+            try:
+                # Build query
+                query = """
+                SELECT 
+                    p.part_number,
+                    p.part_name,
+                    p.description,
+                    p.category,
+                    p.price,
+                    p.availability_status,
+                    m.name as manufacturer,
+                    d.filename as source_document
+                FROM krai_parts.parts_catalog p
+                LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+                LEFT JOIN krai_core.documents d ON p.document_id = d.id
+                WHERE (p.part_number ILIKE %s OR p.part_name ILIKE %s OR p.description ILIKE %s)
+                """
+                
+                search_pattern = f"%{q}%"
+                params = [search_pattern, search_pattern, search_pattern]
+                
+                # Add manufacturer filter if specified
+                if manufacturer:
+                    query += " AND m.name ILIKE %s"
+                    params.append(f"%{manufacturer}%")
+                
+                query += " ORDER BY p.part_number LIMIT %s"
+                params.append(limit)
+                
+                # Execute query
+                result = await self.database_service.execute_query(query, params)
+                
+                # Format results
+                parts = []
+                for row in result:
+                    parts.append({
+                        'part_number': row['part_number'],
+                        'part_name': row['part_name'],
+                        'description': row['description'],
+                        'category': row['category'],
+                        'price': float(row['price']) if row['price'] else None,
+                        'availability': row['availability_status'],
+                        'manufacturer': row['manufacturer'],
+                        'source_document': row['source_document']
+                    })
+                
+                return {
+                    'query': q,
+                    'parts': parts,
+                    'total_count': len(parts),
+                    'manufacturer_filter': manufacturer
+                }
+                
+            except Exception as e:
+                self.logger.error(f"Parts search failed: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.router.get("/videos")
+        async def search_videos(
+            q: str = Query(..., min_length=1),
+            manufacturer: Optional[str] = Query(None),
+            limit: int = Query(10, ge=1, le=100)
+        ):
+            """Search videos in database"""
+            try:
+                # Build query
+                query = """
+                SELECT 
+                    v.video_id,
+                    v.title,
+                    v.description,
+                    v.url,
+                    v.duration,
+                    v.view_count,
+                    v.published_at,
+                    v.channel_title,
+                    m.name as manufacturer
+                FROM krai_content.videos v
+                LEFT JOIN krai_core.manufacturers m ON v.manufacturer_id = m.id
+                WHERE (v.title ILIKE %s OR v.description ILIKE %s)
+                """
+                
+                search_pattern = f"%{q}%"
+                params = [search_pattern, search_pattern]
+                
+                # Add manufacturer filter if specified
+                if manufacturer:
+                    query += " AND m.name ILIKE %s"
+                    params.append(f"%{manufacturer}%")
+                
+                query += " ORDER BY v.view_count DESC NULLS LAST LIMIT %s"
+                params.append(limit)
+                
+                # Execute query
+                result = await self.database_service.execute_query(query, params)
+                
+                # Format results
+                videos = []
+                for row in result:
+                    videos.append({
+                        'video_id': row['video_id'],
+                        'title': row['title'],
+                        'description': row['description'],
+                        'url': row['url'],
+                        'duration': row['duration'],
+                        'view_count': row['view_count'],
+                        'published_at': row['published_at'].isoformat() if row['published_at'] else None,
+                        'channel': row['channel_title'],
+                        'manufacturer': row['manufacturer']
+                    })
+                
+                return {
+                    'query': q,
+                    'videos': videos,
+                    'total_count': len(videos),
+                    'manufacturer_filter': manufacturer
+                }
+                
+            except Exception as e:
+                self.logger.error(f"Videos search failed: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.router.get("/health")
