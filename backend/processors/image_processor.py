@@ -410,36 +410,44 @@ class ImageProcessor:
             import pytesseract
             
             success_count = 0
-            for img in images:
-                try:
-                    # Open image
-                    pil_image = Image.open(img['path'])
+            
+            # Progress bar for OCR
+            with self.logger.progress_bar(images, "Running OCR") as progress:
+                task = progress.add_task(f"OCR: {success_count} images with text", total=len(images))
+                
+                for img in images:
+                    try:
+                        # Open image
+                        pil_image = Image.open(img['path'])
+                        
+                        # PERFORMANCE FIX: Use image_to_data only (returns text + confidence)
+                        # Calling image_to_string separately doubles the OCR time!
+                        ocr_data = pytesseract.image_to_data(pil_image, output_type=pytesseract.Output.DICT)
+                        
+                        # Extract text from ocr_data (no need for separate image_to_string!)
+                        text_parts = [word for word in ocr_data['text'] if word.strip()]
+                        ocr_text = ' '.join(text_parts)
+                        
+                        # Calculate average confidence (filter out -1 which means no text)
+                        confidences = [int(conf) for conf in ocr_data['conf'] if int(conf) > 0]
+                        avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+                        
+                        # Store results
+                        img['ocr_text'] = ocr_text.strip()
+                        img['ocr_confidence'] = round(avg_confidence / 100, 2)  # Convert to 0-1 scale
+                        img['contains_text'] = len(ocr_text.strip()) > 0
+                        
+                        if ocr_text.strip():
+                            success_count += 1
+                            self.logger.debug(f"OCR extracted {len(ocr_text)} chars from {img['filename']}")
+                        
+                    except Exception as e:
+                        self.logger.debug(f"OCR failed for {img['filename']}: {e}")
+                        img['ocr_text'] = ''
+                        img['ocr_confidence'] = 0.0
                     
-                    # PERFORMANCE FIX: Use image_to_data only (returns text + confidence)
-                    # Calling image_to_string separately doubles the OCR time!
-                    ocr_data = pytesseract.image_to_data(pil_image, output_type=pytesseract.Output.DICT)
-                    
-                    # Extract text from ocr_data (no need for separate image_to_string!)
-                    text_parts = [word for word in ocr_data['text'] if word.strip()]
-                    ocr_text = ' '.join(text_parts)
-                    
-                    # Calculate average confidence (filter out -1 which means no text)
-                    confidences = [int(conf) for conf in ocr_data['conf'] if int(conf) > 0]
-                    avg_confidence = sum(confidences) / len(confidences) if confidences else 0
-                    
-                    # Store results
-                    img['ocr_text'] = ocr_text.strip()
-                    img['ocr_confidence'] = round(avg_confidence / 100, 2)  # Convert to 0-1 scale
-                    img['contains_text'] = len(ocr_text.strip()) > 0
-                    
-                    if ocr_text.strip():
-                        success_count += 1
-                        self.logger.debug(f"OCR extracted {len(ocr_text)} chars from {img['filename']}")
-                    
-                except Exception as e:
-                    self.logger.debug(f"OCR failed for {img['filename']}: {e}")
-                    img['ocr_text'] = ''
-                    img['ocr_confidence'] = 0.0
+                    # Update progress
+                    progress.update(task, advance=1, description=f"OCR: {success_count} images with text")
                     img['contains_text'] = False
             
             self.logger.success(f"✅ OCR processed {success_count}/{len(images)} images with text")
