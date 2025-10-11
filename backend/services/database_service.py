@@ -826,3 +826,27 @@ class DatabaseService:
         except Exception as e:
             self.logger.error(f"Failed to check embeddings: {e}")
             return False
+    
+    async def execute_query(self, query: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+        """Execute a raw SQL query and return results as list of dicts"""
+        try:
+            if not self.pg_pool:
+                raise RuntimeError("PostgreSQL connection pool not available. Cannot execute raw queries.")
+            
+            async with self.pg_pool.acquire() as conn:
+                # Execute query with parameters
+                if params:
+                    rows = await conn.fetch(query, *params)
+                else:
+                    rows = await conn.fetch(query)
+                
+                # Convert asyncpg.Record to dict
+                results = []
+                for row in rows:
+                    results.append(dict(row))
+                
+                return results
+                
+        except Exception as e:
+            self.logger.error(f"Failed to execute query: {e}")
+            raise
