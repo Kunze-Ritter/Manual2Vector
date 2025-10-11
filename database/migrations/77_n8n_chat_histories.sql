@@ -10,8 +10,9 @@
 -- This way we have ONE source of truth and n8n can use it seamlessly.
 -- ============================================================================
 
--- Drop existing table if it exists (in case it was created before)
+-- Drop existing table/view if it exists (in case it was created before)
 DROP TABLE IF EXISTS public.n8n_chat_histories CASCADE;
+DROP VIEW IF EXISTS public.n8n_chat_histories CASCADE;
 
 -- Create VIEW that maps krai_agent.memory to n8n format
 CREATE OR REPLACE VIEW public.n8n_chat_histories AS
