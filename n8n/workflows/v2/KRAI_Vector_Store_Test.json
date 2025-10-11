@@ -1,0 +1,83 @@
+{
+  "name": "KRAI Vector Store - Test Query",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [400, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "test-query",
+              "name": "query",
+              "value": "How to replace fuser unit on Lexmark CX963",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-query",
+      "name": "Set Test Query",
+      "type": "n8n-nodes-base.set",
+      "position": [600, 400],
+      "typeVersion": 3.3
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  id,\n  content,\n  metadata,\n  1 - (embedding <=> (SELECT embedding FROM krai.chunks LIMIT 1)) as similarity\nFROM krai.chunks\nWHERE embedding IS NOT NULL\nORDER BY embedding <=> (SELECT embedding FROM krai.chunks LIMIT 1)\nLIMIT 5;"
+      },
+      "id": "test-search",
+      "name": "Test Vector Search",
+      "type": "n8n-nodes-base.postgres",
+      "position": [800, 400],
+      "typeVersion": 2.4,
+      "notes": "Tests if vector search works"
+    },
+    {
+      "parameters": {
+        "content": "## Test Instructions\n\n### What This Does\nThis workflow tests if your vector search is working.\n\n**Your data:**\n- Chunks are ALREADY in `krai.chunks`\n- Embeddings are ALREADY created by backend\n- This just TESTS if search works\n\n### Prerequisites\n1. Backend has processed PDFs\n2. `krai.chunks` table has data with embeddings\n3. `match_chunks()` function exists (migration 78)\n\n### How to Test\n1. Click \"Test workflow\"\n2. Should return 5 similar chunks\n3. Check similarity scores (0-1)\n\n### Check Your Data\n```sql\n-- Check if you have chunks with embeddings\nSELECT \n  COUNT(*) as total_chunks,\n  COUNT(embedding) as chunks_with_embeddings\nFROM krai.chunks;\n\n-- Test the match_chunks function\nSELECT * FROM krai.match_chunks(\n  (SELECT embedding FROM krai.chunks WHERE embedding IS NOT NULL LIMIT 1),\n  0.5,\n  5\n);\n```\n\n### Notes\n- NO embedding creation here!\n- Backend creates embeddings during PDF processing\n- This workflow is just for testing",
+        "height": 600,
+        "width": 400,
+        "color": 7
+      },
+      "id": "sticky-note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [200, 200],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [[{ "node": "Set Test Query", "type": "main", "index": 0 }]]
+    },
+    "Set Test Query": {
+      "main": [[{ "node": "Test Vector Search", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "krai-vector-test"
+  },
+  "tags": [
+    {
+      "name": "KRAI",
+      "id": "krai"
+    },
+    {
+      "name": "Test",
+      "id": "test"
+    }
+  ]
+}

@@ -19,40 +19,22 @@ AI Agent (Ollama llama3.1:8b)
 
 ### **1. Ollama Models**
 ```bash
-# Pull required models
-ollama pull llama3.1:8b          # Main agent model
-ollama pull nomic-embed-text     # Embedding model (768 dimensions)
+# Pull required model
+ollama pull llama3.1:8b          # Main agent model (with tool support!)
 ```
 
-### **2. Vector Store (Choose One)**
+### **2. Database Setup**
 
-#### **Option A: Pinecone (Recommended for Testing)**
-1. Create free account: https://pinecone.io
-2. Create index:
-   - Name: `krai-manuals`
-   - Dimension: `768`
-   - Metric: `cosine`
-3. Get API key from dashboard
-4. Add to n8n credentials
+Your backend has already created:
+- ✅ `krai.chunks` table with embeddings
+- ✅ `krai.error_codes` table
+- ✅ `krai.parts` table
+- ✅ `krai.videos` table
 
-#### **Option B: Supabase pgvector (Self-hosted)**
+You just need to add the vector search function:
 ```sql
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Create embeddings table
-CREATE TABLE service_manuals_embeddings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    content TEXT NOT NULL,
-    embedding vector(768),
-    metadata JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create index for similarity search
-CREATE INDEX ON service_manuals_embeddings 
-USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
+-- Run migration 78
+\i database/migrations/78_vector_search_function.sql
 ```
 
 ### **3. Backend API**
@@ -63,27 +45,30 @@ Ensure your backend is running with these endpoints:
 
 ## 🚀 **Setup Steps**
 
-### **Step 1: Import Workflows**
+### **Step 1: Database Migration**
+
+```sql
+-- Supabase SQL Editor
+-- Create vector search function
+\i database/migrations/78_vector_search_function.sql
+```
+
+### **Step 2: Import Workflows**
 
 1. **Import Main Workflow:**
    - n8n → Import → `KRAI_Agent_Hybrid_Main.json`
    - This is the production chat workflow
 
-2. **Import Setup Workflow:**
-   - n8n → Import → `KRAI_Vector_Store_Setup.json`
-   - This is for one-time PDF embedding
+2. **Import Test Workflow (optional):**
+   - n8n → Import → `KRAI_Vector_Store_Test.json`
+   - This tests if vector search works
 
-### **Step 2: Configure Credentials**
+### **Step 3: Configure Credentials**
 
-#### **Supabase (for PDF storage)**
+#### **Supabase**
 - n8n → Credentials → Add Supabase
 - URL: Your Supabase URL
 - API Key: `service_role` key
-
-#### **Pinecone (if using)**
-- n8n → Credentials → Add Pinecone
-- API Key: From Pinecone dashboard
-- Environment: Your Pinecone environment
 
 #### **Ollama**
 - n8n → Credentials → Add Ollama
@@ -93,24 +78,21 @@ Ensure your backend is running with these endpoints:
 - Already configured in previous setup
 - Uses `n8n_chat_histories` view
 
-### **Step 3: Prepare Service Manuals**
+### **Step 4: Verify Data**
 
-1. **Upload PDFs to Supabase:**
-   ```bash
-   # Upload to bucket: service-manuals
-   # Naming convention: Manufacturer_Model_Manual.pdf
-   
-   Examples:
-   - Lexmark_CX963_ServiceManual.pdf
-   - KonicaMinolta_bizhubC750i_ServiceManual.pdf
-   - Lexmark_CX860_ServiceManual.pdf
-   ```
+Check if your backend has processed PDFs:
 
-2. **Run Vector Store Setup:**
-   - Open `KRAI Vector Store Setup` workflow
-   - Click "Test workflow"
-   - Wait for processing (1-2 min per PDF)
-   - Check logs for success
+```sql
+-- Check chunks with embeddings
+SELECT 
+  COUNT(*) as total_chunks,
+  COUNT(embedding) as chunks_with_embeddings
+FROM krai.chunks;
+
+-- Should show: total_chunks > 0 AND chunks_with_embeddings > 0
+```
+
+If `chunks_with_embeddings = 0`, your backend hasn't created embeddings yet!
 
 ### **Step 4: Test Main Workflow**
 
@@ -186,19 +168,23 @@ Welche Fuser Unit passt zum CX963?
 
 ### **Vector Store Not Working?**
 
-1. **Check Embeddings:**
-   ```bash
-   # Test embedding model
-   ollama run nomic-embed-text "test"
+1. **Check if chunks have embeddings:**
+   ```sql
+   SELECT COUNT(*) FROM krai.chunks WHERE embedding IS NOT NULL;
    ```
 
-2. **Check Vector Store:**
-   - Pinecone: Check dashboard for vectors
-   - Supabase: `SELECT COUNT(*) FROM service_manuals_embeddings;`
+2. **Test the match_chunks function:**
+   ```sql
+   SELECT * FROM krai.match_chunks(
+     (SELECT embedding FROM krai.chunks WHERE embedding IS NOT NULL LIMIT 1),
+     0.5,
+     5
+   );
+   ```
 
-3. **Re-run Setup:**
-   - Delete old embeddings
-   - Run setup workflow again
+3. **Check Supabase Vector Store node config:**
+   - Table Name: `krai.chunks`
+   - Query Name: `match_chunks`
 
 ### **Memory Issues?**
 
