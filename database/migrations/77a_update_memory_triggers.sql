@@ -14,7 +14,18 @@ DROP FUNCTION IF EXISTS public.n8n_chat_histories_update() CASCADE;
 -- Recreate INSERT function with NULL handling and LangChain type mapping
 CREATE OR REPLACE FUNCTION public.n8n_chat_histories_insert()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_content TEXT;
 BEGIN
+    -- Get content, skip if empty
+    v_content := COALESCE(NEW.message, NEW.data->>'content', '');
+    
+    -- Don't insert empty messages
+    IF v_content = '' OR v_content IS NULL THEN
+        RAISE NOTICE 'Skipping empty message for session %', NEW.session_id;
+        RETURN NULL;
+    END IF;
+    
     INSERT INTO krai_agent.memory (session_id, role, content, metadata, tokens_used, created_at)
     VALUES (
         NEW.session_id,
@@ -26,7 +37,7 @@ BEGIN
             WHEN NEW.type = 'tool' THEN 'tool'
             ELSE COALESCE(NEW.type, 'user')
         END,
-        COALESCE(NEW.message, NEW.data->>'content', ''),  -- Support both 'message' and 'data.content'
+        v_content,
         COALESCE(NEW.data->'metadata', '{}'::jsonb),
         COALESCE((NEW.data->>'tokens_used')::integer, 0),
         COALESCE(NEW.created_at, NOW())
