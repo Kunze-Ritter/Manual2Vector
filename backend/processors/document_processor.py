@@ -276,8 +276,9 @@ class DocumentProcessor:
                     else:  # Text only
                         self.logger.warning(f"   ⚠️  Low confidence (text only)")
                     
-                    # UPDATE self.manufacturer so it's available for error code saving!
-                    self.manufacturer = detected_manufacturer
+                    # NOTE: Do NOT update self.manufacturer here!
+                    # That would affect ALL subsequent documents in batch processing.
+                    # Use detected_manufacturer as local variable instead.
             
             # Save manufacturer to document IMMEDIATELY (with manufacturer_id!)
             if detected_manufacturer and detected_manufacturer != "AUTO":
@@ -344,7 +345,7 @@ class DocumentProcessor:
             # Re-initialize product extractor with document title for context-based series detection
             document_title = metadata.title if metadata else None
             product_extractor = ProductExtractor(
-                manufacturer_name=self.manufacturer,
+                manufacturer_name=detected_manufacturer,
                 debug=self.product_extractor.debug,
                 document_title=document_title
             )
@@ -485,8 +486,8 @@ class DocumentProcessor:
             if products:
                 # Use manufacturer from first product
                 part_manufacturer = products[0].manufacturer_name
-            elif self.manufacturer and self.manufacturer != "AUTO":
-                part_manufacturer = self.manufacturer
+            elif detected_manufacturer and detected_manufacturer != "AUTO":
+                part_manufacturer = detected_manufacturer
             
             # Extract parts from all pages (best results for parts_catalog/service_manual)
             if doc_type in ["parts_catalog", "service_manual"]:
@@ -523,8 +524,8 @@ class DocumentProcessor:
             error_manufacturer = None
             if products:
                 error_manufacturer = products[0].manufacturer_name
-            elif self.manufacturer and self.manufacturer != "AUTO":
-                error_manufacturer = self.manufacturer
+            elif detected_manufacturer and detected_manufacturer != "AUTO":
+                error_manufacturer = detected_manufacturer
             
             error_codes_count = 0
             page_count = 0
@@ -587,7 +588,7 @@ class DocumentProcessor:
             for page_num in sorted(page_texts.keys())[:5]:
                 page_versions = self.version_extractor.extract_from_text(
                     page_texts[page_num],
-                    manufacturer=self.manufacturer,
+                    manufacturer=detected_manufacturer,
                     page_number=page_num
                 )
                 versions.extend(page_versions)
