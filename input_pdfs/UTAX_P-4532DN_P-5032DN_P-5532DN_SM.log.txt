@@ -34,3 +34,5 @@
 2025-10-11 17:38:18 - DEBUG -    Series: None (not extracted)
 2025-10-11 17:38:18 - DEBUG -    Series: None (not extracted)
 2025-10-11 17:38:43 - DEBUG -    Series: None (not extracted)
+2025-10-11 17:43:37 - ERROR - [red]LLM extraction failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)[/red]
+2025-10-11 17:45:52 - DEBUG -    Series: None (not extracted)
