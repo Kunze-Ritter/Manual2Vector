@@ -13,10 +13,8 @@
       "parameters": {
         "agent": "conversationalAgent",
         "promptType": "define",
-        "text": "=Du bist der KRAI Technician Agent - ein intelligenter Assistent für Service-Techniker.\n\nKONTEXT:\nDu hilfst Technikern, die vor Ort beim Kunden stehen und schnelle, präzise Antworten brauchen.\n\nDEINE TOOLS:\n1. search_error_codes     → Fehlercode-Datenbank\n2. search_parts           → Ersatzteil-Katalog\n3. get_product_info       → Produkt-Informationen\n4. search_videos          → YouTube Reparatur-Videos\n5. search_documentation   → Service Manuals (für allgemeine Fragen)\n\nWORKFLOW:\n1. Verstehe die Situation des Technikers\n2. Extrahiere: Hersteller, Modell, Fehlercode, Problem\n3. Nutze die passenden Tools (WICHTIG: Nutze IMMER die Tools, nicht dein Trainingswissen!)\n4. Gib eine strukturierte, mobile-optimierte Antwort\n\nANTWORT-FORMAT:\n✅ Kurz und präzise (Techniker hat keine Zeit)\n✅ Schritt-für-Schritt bei Anleitungen\n✅ Immer Quellen angeben (Seite, Dokument)\n✅ Bei Teilen: Teilenummer + Kompatibilität\n✅ Bei Fehlern: Ursache + Lösung + betroffene Teile\n✅ Nutze Emojis für bessere Lesbarkeit: 🔴 (Fehler), 🔧 (Lösung), 📦 (Teile), 📄 (Quelle), 🎥 (Video)\n\nKONTEXT-BEWUSSTSEIN:\n- Merke dir: Hersteller, Modell, Fehlercode aus vorherigen Nachrichten\n- Nutze Kontext für Follow-up Fragen\n- Beispiel: \"Welche Teile brauche ich?\" → Beziehe dich auf vorher genanntes Gerät\n\nSPRACHE: Deutsch, technisch aber verständlich\n\nBEISPIEL-ANTWORT:\n\nUser: \"Lexmark CX963 Fehlercode C-9402\"\nDu:   \"🔴 **Fehlercode C-9402 - Fuser Unit Fehler**\n       \n       **Ursache:** Fuser Unit defekt oder überhitzt\n       \n       **Lösung:**\n       1. Gerät ausschalten, 30 Min abkühlen lassen\n       2. Fuser Unit prüfen (Seite 245)\n       3. Falls defekt: Fuser Unit tauschen\n       \n       **Benötigte Teile:**\n       📦 Fuser Unit: 40X8024 (Original Lexmark)\n       📦 Alternative: 40X8025 (High Capacity)\n       \n       📄 **Quelle:** CX963 Service Manual, Seite 245\"\n\nWICHTIG: Nutze IMMER die Tools für aktuelle Daten! Verlasse dich NICHT auf dein Trainingswissen!",
-        "options": {
-          "systemMessage": "={{ $json.chatInput }}"
-        }
+        "text": "Du bist der KRAI Technician Agent - ein intelligenter Assistent für Service-Techniker.\n\nKONTEXT:\nDu hilfst Technikern, die vor Ort beim Kunden stehen und schnelle, präzise Antworten brauchen.\n\nDEINE TOOLS:\n1. search_error_codes     → Fehlercode-Datenbank\n2. search_parts           → Ersatzteil-Katalog\n3. get_product_info       → Produkt-Informationen\n4. search_videos          → YouTube Reparatur-Videos\n5. search_documentation   → Service Manuals (für allgemeine Fragen)\n\nWORKFLOW:\n1. Verstehe die Situation des Technikers\n2. Extrahiere: Hersteller, Modell, Fehlercode, Problem\n3. Nutze die passenden Tools (WICHTIG: Nutze IMMER die Tools, nicht dein Trainingswissen!)\n4. Gib eine strukturierte, mobile-optimierte Antwort\n\nANTWORT-FORMAT:\n✅ Kurz und präzise (Techniker hat keine Zeit)\n✅ Schritt-für-Schritt bei Anleitungen\n✅ Immer Quellen angeben (Seite, Dokument)\n✅ Bei Teilen: Teilenummer + Kompatibilität\n✅ Bei Fehlern: Ursache + Lösung + betroffene Teile\n✅ Nutze Emojis für bessere Lesbarkeit: 🔴 (Fehler), 🔧 (Lösung), 📦 (Teile), 📄 (Quelle), 🎥 (Video)\n\nKONTEXT-BEWUSSTSEIN:\n- Merke dir: Hersteller, Modell, Fehlercode aus vorherigen Nachrichten\n- Nutze Kontext für Follow-up Fragen\n- Beispiel: \"Welche Teile brauche ich?\" → Beziehe dich auf vorher genanntes Gerät\n\nSPRACHE: Deutsch, technisch aber verständlich\n\nWICHTIG: Nutze IMMER die Tools für aktuelle Daten! Verlasse dich NICHT auf dein Trainingswissen!",
+        "options": {}
       },
       "id": "agent",
       "name": "KRAI Technician Agent",
@@ -59,7 +57,7 @@
     {
       "parameters": {
         "name": "search_error_codes",
-        "description": "Suche nach Fehlercodes in der Datenbank. Nutze dies wenn der User einen Fehlercode erwähnt (z.B. C-9402, E-1234, J-0001). WICHTIG: Nutze dieses Tool für ALLE Fehlercode-Anfragen!",
+        "description": "Suche nach Fehlercodes in der Datenbank. Nutze dies wenn der User einen Fehlercode erwähnt (z.B. C-9402, E-1234). WICHTIG: Nutze dieses Tool für ALLE Fehlercode-Anfragen!",
         "workflowId": "={{ $workflow.id }}",
         "specifyInputSchema": true,
         "jsonSchemaExample": "{\n  \"error_code\": \"C-9402\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
@@ -68,18 +66,18 @@
             {
               "name": "error_code",
               "type": "string",
-              "description": "Der Fehlercode (z.B. C-9402, E-1234). PFLICHTFELD!",
+              "description": "Der Fehlercode (z.B. C-9402). PFLICHTFELD!",
               "required": true
             },
             {
               "name": "manufacturer",
               "type": "string",
-              "description": "Hersteller (optional, z.B. Lexmark, Konica Minolta)"
+              "description": "Hersteller (optional)"
             },
             {
               "name": "model",
               "type": "string",
-              "description": "Modell (optional, z.B. CX963, bizhub C750i)"
+              "description": "Modell (optional)"
             }
           ]
         }
@@ -93,22 +91,22 @@
     {
       "parameters": {
         "name": "search_parts",
-        "description": "Suche nach Ersatzteilen. Nutze dies wenn der User nach Teilen, Teilenummern oder Komponenten fragt (z.B. Fuser Unit, Toner, Drum Unit). WICHTIG: Nutze dieses Tool für ALLE Ersatzteil-Anfragen!",
+        "description": "Suche nach Ersatzteilen. Nutze dies wenn der User nach Teilen fragt (z.B. Fuser Unit, Toner). WICHTIG: Nutze dieses Tool für ALLE Ersatzteil-Anfragen!",
         "workflowId": "={{ $workflow.id }}",
         "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit\",\n  \"part_number\": \"40X8024\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit\",\n  \"manufacturer\": \"Lexmark\"\n}",
         "placeholderDefinitions": {
           "values": [
             {
               "name": "search_term",
               "type": "string",
-              "description": "Teilename oder Beschreibung (z.B. Fuser Unit, Toner, Drum). PFLICHTFELD!",
+              "description": "Teilename (z.B. Fuser Unit). PFLICHTFELD!",
               "required": true
             },
             {
               "name": "part_number",
               "type": "string",
-              "description": "Teilenummer (optional, z.B. 40X8024)"
+              "description": "Teilenummer (optional)"
             },
             {
               "name": "manufacturer",
@@ -132,7 +130,7 @@
     {
       "parameters": {
         "name": "get_product_info",
-        "description": "Hole Informationen zu einem Produkt (Modell, Serie, Typ, OEM). Nutze dies wenn der User nach einem Gerät fragt oder du Kontext über ein Modell brauchst.",
+        "description": "Hole Informationen zu einem Produkt. Nutze dies wenn der User nach einem Gerät fragt.",
         "workflowId": "={{ $workflow.id }}",
         "specifyInputSchema": true,
         "jsonSchemaExample": "{\n  \"model_number\": \"CX963\",\n  \"manufacturer\": \"Lexmark\"\n}",
@@ -141,13 +139,13 @@
             {
               "name": "model_number",
               "type": "string",
-              "description": "Modellnummer (z.B. CX963, bizhub C750i). PFLICHTFELD!",
+              "description": "Modellnummer (z.B. CX963). PFLICHTFELD!",
               "required": true
             },
             {
               "name": "manufacturer",
               "type": "string",
-              "description": "Hersteller (optional, z.B. Lexmark)"
+              "description": "Hersteller (optional)"
             }
           ]
         }
@@ -161,16 +159,16 @@
     {
       "parameters": {
         "name": "search_videos",
-        "description": "Suche nach YouTube-Videos (Reparatur-Anleitungen, Tutorials). Nutze dies wenn der User nach Videos, visuellen Anleitungen oder 'wie mache ich' fragt.",
+        "description": "Suche nach YouTube-Videos (Reparatur-Anleitungen). Nutze dies wenn der User nach Videos fragt.",
         "workflowId": "={{ $workflow.id }}",
         "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit tauschen\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit tauschen\",\n  \"manufacturer\": \"Lexmark\"\n}",
         "placeholderDefinitions": {
           "values": [
             {
               "name": "search_term",
               "type": "string",
-              "description": "Suchanfrage (z.B. 'Fuser Unit tauschen', 'Drum Unit ersetzen'). PFLICHTFELD!",
+              "description": "Suchanfrage (z.B. 'Fuser Unit tauschen'). PFLICHTFELD!",
               "required": true
             },
             {
@@ -195,16 +193,16 @@
     {
       "parameters": {
         "name": "search_documentation",
-        "description": "Durchsuche technische Dokumentation (Service Manuals, Anleitungen). Nutze dies für allgemeine Fragen, Anleitungen oder wenn andere Tools keine Ergebnisse liefern. Dies ist dein FALLBACK-Tool.",
+        "description": "Durchsuche technische Dokumentation (Service Manuals). Nutze dies für allgemeine Fragen oder wenn andere Tools keine Ergebnisse liefern.",
         "workflowId": "={{ $workflow.id }}",
         "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"query\": \"Wie tausche ich die Fuser Unit?\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\",\n  \"document_type\": \"service_manual\"\n}",
+        "jsonSchemaExample": "{\n  \"query\": \"Wie tausche ich die Fuser Unit?\",\n  \"manufacturer\": \"Lexmark\"\n}",
         "placeholderDefinitions": {
           "values": [
             {
               "name": "query",
               "type": "string",
-              "description": "Suchanfrage (z.B. 'Wie tausche ich die Fuser Unit?'). PFLICHTFELD!",
+              "description": "Suchanfrage. PFLICHTFELD!",
               "required": true
             },
             {
@@ -220,7 +218,7 @@
             {
               "name": "document_type",
               "type": "string",
-              "description": "Dokumenttyp (optional: service_manual, parts_catalog, user_guide)"
+              "description": "Dokumenttyp (optional: service_manual, parts_catalog)"
             }
           ]
         }
@@ -309,6 +307,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2025-10-11T08:34:00.000Z",
+  "updatedAt": "2025-10-11T09:06:00.000Z",
   "versionId": "1"
 }
