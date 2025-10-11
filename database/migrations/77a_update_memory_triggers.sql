@@ -11,14 +11,21 @@ DROP TRIGGER IF EXISTS n8n_chat_histories_update_trigger ON public.n8n_chat_hist
 DROP FUNCTION IF EXISTS public.n8n_chat_histories_insert() CASCADE;
 DROP FUNCTION IF EXISTS public.n8n_chat_histories_update() CASCADE;
 
--- Recreate INSERT function with NULL handling
+-- Recreate INSERT function with NULL handling and LangChain type mapping
 CREATE OR REPLACE FUNCTION public.n8n_chat_histories_insert()
 RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO krai_agent.memory (session_id, role, content, metadata, tokens_used, created_at)
     VALUES (
         NEW.session_id,
-        COALESCE(NEW.type, 'user'),  -- Map 'type' back to 'role', default to 'user'
+        -- Map LangChain types back to our role
+        CASE 
+            WHEN NEW.type = 'ai' THEN 'assistant'
+            WHEN NEW.type = 'human' THEN 'user'
+            WHEN NEW.type = 'system' THEN 'system'
+            WHEN NEW.type = 'tool' THEN 'tool'
+            ELSE COALESCE(NEW.type, 'user')
+        END,
         COALESCE(NEW.message, NEW.data->>'content', ''),  -- Support both 'message' and 'data.content'
         COALESCE(NEW.data->'metadata', '{}'::jsonb),
         COALESCE((NEW.data->>'tokens_used')::integer, 0),
@@ -33,14 +40,20 @@ CREATE TRIGGER n8n_chat_histories_insert_trigger
     FOR EACH ROW
     EXECUTE FUNCTION public.n8n_chat_histories_insert();
 
--- Recreate UPDATE function with NULL handling
+-- Recreate UPDATE function with NULL handling and LangChain type mapping
 CREATE OR REPLACE FUNCTION public.n8n_chat_histories_update()
 RETURNS TRIGGER AS $$
 BEGIN
     UPDATE krai_agent.memory
     SET 
         session_id = NEW.session_id,
-        role = COALESCE(NEW.type, 'user'),
+        role = CASE 
+            WHEN NEW.type = 'ai' THEN 'assistant'
+            WHEN NEW.type = 'human' THEN 'user'
+            WHEN NEW.type = 'system' THEN 'system'
+            WHEN NEW.type = 'tool' THEN 'tool'
+            ELSE COALESCE(NEW.type, 'user')
+        END,
         content = COALESCE(NEW.message, NEW.data->>'content', ''),  -- Support both 'message' and 'data.content'
         metadata = COALESCE(NEW.data->'metadata', '{}'::jsonb),
         tokens_used = COALESCE((NEW.data->>'tokens_used')::integer, 0),

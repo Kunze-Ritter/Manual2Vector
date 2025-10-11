@@ -20,7 +20,13 @@ SELECT
     -- n8n expects integer ID, we use hash of UUID
     ('x' || substr(md5(id::text), 1, 8))::bit(32)::int as id,
     session_id,
-    role as type,  -- Map 'role' to 'type' (n8n terminology)
+    -- Map role to LangChain message types
+    CASE 
+        WHEN role = 'assistant' THEN 'ai'
+        WHEN role = 'system' THEN 'system'
+        WHEN role = 'tool' THEN 'tool'
+        ELSE 'human'  -- user, function, or anything else → human
+    END as type,
     content as message,  -- n8n Postgres Memory expects 'message' column
     jsonb_build_object(
         'content', content,
@@ -45,7 +51,14 @@ BEGIN
     INSERT INTO krai_agent.memory (session_id, role, content, metadata, tokens_used, created_at)
     VALUES (
         NEW.session_id,
-        COALESCE(NEW.type, 'user'),  -- Map 'type' back to 'role', default to 'user'
+        -- Map LangChain types back to our role
+        CASE 
+            WHEN NEW.type = 'ai' THEN 'assistant'
+            WHEN NEW.type = 'human' THEN 'user'
+            WHEN NEW.type = 'system' THEN 'system'
+            WHEN NEW.type = 'tool' THEN 'tool'
+            ELSE COALESCE(NEW.type, 'user')
+        END,
         COALESCE(NEW.message, NEW.data->>'content', ''),  -- Support both 'message' and 'data.content'
         COALESCE(NEW.data->'metadata', '{}'::jsonb),
         COALESCE((NEW.data->>'tokens_used')::integer, 0),
@@ -67,7 +80,13 @@ BEGIN
     UPDATE krai_agent.memory
     SET 
         session_id = NEW.session_id,
-        role = COALESCE(NEW.type, 'user'),
+        role = CASE 
+            WHEN NEW.type = 'ai' THEN 'assistant'
+            WHEN NEW.type = 'human' THEN 'user'
+            WHEN NEW.type = 'system' THEN 'system'
+            WHEN NEW.type = 'tool' THEN 'tool'
+            ELSE COALESCE(NEW.type, 'user')
+        END,
         content = COALESCE(NEW.message, NEW.data->>'content', ''),  -- Support both 'message' and 'data.content'
         metadata = COALESCE(NEW.data->'metadata', '{}'::jsonb),
         tokens_used = COALESCE((NEW.data->>'tokens_used')::integer, 0),
