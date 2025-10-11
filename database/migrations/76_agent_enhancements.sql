@@ -4,12 +4,14 @@
 -- Purpose: Add analytics, session management, and enhanced context features
 -- Date: 2025-10-11
 -- Author: KRAI Development Team
+--
+-- Strategy: All agent-related tables in krai_agent schema for better organization
 -- ============================================================================
 
 -- ============================================================================
--- 1. Tool Usage Analytics (using existing krai_intelligence schema)
+-- 1. Tool Usage Analytics (in krai_agent schema)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS krai_intelligence.tool_usage (
+CREATE TABLE IF NOT EXISTS krai_agent.tool_usage (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id TEXT NOT NULL,
     tool_name TEXT NOT NULL,
@@ -21,17 +23,17 @@ CREATE TABLE IF NOT EXISTS krai_intelligence.tool_usage (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_tool_usage_session ON krai_intelligence.tool_usage(session_id);
-CREATE INDEX IF NOT EXISTS idx_tool_usage_tool ON krai_intelligence.tool_usage(tool_name);
-CREATE INDEX IF NOT EXISTS idx_tool_usage_created ON krai_intelligence.tool_usage(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_session ON krai_agent.tool_usage(session_id);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_tool ON krai_agent.tool_usage(tool_name);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_created ON krai_agent.tool_usage(created_at DESC);
 
-COMMENT ON TABLE krai_intelligence.tool_usage IS 
+COMMENT ON TABLE krai_agent.tool_usage IS 
 'Tracks which tools are used, how often, and their performance';
 
 -- ============================================================================
 -- 2. User Feedback
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS krai_intelligence.feedback (
+CREATE TABLE IF NOT EXISTS krai_agent.feedback (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id TEXT NOT NULL,
     message_id TEXT,
@@ -41,17 +43,17 @@ CREATE TABLE IF NOT EXISTS krai_intelligence.feedback (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_feedback_session ON krai_intelligence.feedback(session_id);
-CREATE INDEX IF NOT EXISTS idx_feedback_rating ON krai_intelligence.feedback(rating);
-CREATE INDEX IF NOT EXISTS idx_feedback_created ON krai_intelligence.feedback(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_session ON krai_agent.feedback(session_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_rating ON krai_agent.feedback(rating);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON krai_agent.feedback(created_at DESC);
 
-COMMENT ON TABLE krai_intelligence.feedback IS 
+COMMENT ON TABLE krai_agent.feedback IS 
 'User feedback on agent responses for continuous improvement';
 
 -- ============================================================================
 -- 3. Session Context (Enhanced Memory)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS krai_intelligence.session_context (
+CREATE TABLE IF NOT EXISTS krai_agent.session_context (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id TEXT NOT NULL,
     context_type TEXT NOT NULL, -- 'manufacturer', 'model', 'error_code', 'part_number'
@@ -62,16 +64,16 @@ CREATE TABLE IF NOT EXISTS krai_intelligence.session_context (
     use_count INTEGER DEFAULT 1
 );
 
-CREATE INDEX IF NOT EXISTS idx_session_context_session ON krai_intelligence.session_context(session_id);
-CREATE INDEX IF NOT EXISTS idx_session_context_type ON krai_intelligence.session_context(context_type);
+CREATE INDEX IF NOT EXISTS idx_session_context_session ON krai_agent.session_context(session_id);
+CREATE INDEX IF NOT EXISTS idx_session_context_type ON krai_agent.session_context(context_type);
 
-COMMENT ON TABLE krai_intelligence.session_context IS 
+COMMENT ON TABLE krai_agent.session_context IS 
 'Stores extracted context (manufacturer, model, etc.) from conversations for better follow-up responses';
 
 -- ============================================================================
 -- 4. Function: Get Session Context
 -- ============================================================================
-CREATE OR REPLACE FUNCTION krai_intelligence.get_session_context(
+CREATE OR REPLACE FUNCTION krai_agent.get_session_context(
     p_session_id TEXT
 )
 RETURNS TABLE (
@@ -92,20 +94,20 @@ BEGIN
         sc.confidence,
         sc.use_count,
         sc.last_used_at
-    FROM krai_intelligence.session_context sc
+    FROM krai_agent.session_context sc
     WHERE sc.session_id = p_session_id
         AND sc.last_used_at > NOW() - INTERVAL '1 hour' -- Only recent context
     ORDER BY sc.use_count DESC, sc.last_used_at DESC;
 END;
 $$;
 
-COMMENT ON FUNCTION krai_intelligence.get_session_context IS 
+COMMENT ON FUNCTION krai_agent.get_session_context IS 
 'Retrieve current session context (manufacturer, model, etc.) for context-aware responses';
 
 -- ============================================================================
 -- 5. Function: Update Session Context
 -- ============================================================================
-CREATE OR REPLACE FUNCTION krai_intelligence.update_session_context(
+CREATE OR REPLACE FUNCTION krai_agent.update_session_context(
     p_session_id TEXT,
     p_context_type TEXT,
     p_context_value TEXT,
@@ -117,7 +119,7 @@ SECURITY DEFINER
 AS $$
 BEGIN
     -- Insert or update context
-    INSERT INTO krai_intelligence.session_context (
+    INSERT INTO krai_agent.session_context (
         session_id,
         context_type,
         context_value,
@@ -138,16 +140,16 @@ BEGIN
     ON CONFLICT (session_id, context_type, context_value) 
     DO UPDATE SET
         last_used_at = NOW(),
-        use_count = krai_intelligence.session_context.use_count + 1,
-        confidence = GREATEST(krai_intelligence.session_context.confidence, p_confidence);
+        use_count = krai_agent.session_context.use_count + 1,
+        confidence = GREATEST(krai_agent.session_context.confidence, p_confidence);
 END;
 $$;
 
 -- Add unique constraint for upsert
 CREATE UNIQUE INDEX IF NOT EXISTS idx_session_context_unique 
-ON krai_intelligence.session_context(session_id, context_type, context_value);
+ON krai_agent.session_context(session_id, context_type, context_value);
 
-COMMENT ON FUNCTION krai_intelligence.update_session_context IS 
+COMMENT ON FUNCTION krai_agent.update_session_context IS 
 'Update or insert session context (called when agent extracts manufacturer, model, etc.)';
 
 -- ============================================================================
@@ -326,7 +328,7 @@ COMMENT ON FUNCTION krai_intelligence.smart_search IS
 -- ============================================================================
 -- 9. View: Agent Performance Dashboard
 -- ============================================================================
-CREATE OR REPLACE VIEW krai_intelligence.agent_performance AS
+CREATE OR REPLACE VIEW krai_agent.agent_performance AS
 SELECT 
     DATE(tu.created_at) as date,
     tu.tool_name,
@@ -336,17 +338,17 @@ SELECT
     AVG(tu.response_time_ms) as avg_response_time_ms,
     PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY tu.response_time_ms) as p95_response_time_ms,
     AVG(tu.results_count) as avg_results_count
-FROM krai_intelligence.tool_usage tu
+FROM krai_agent.tool_usage tu
 GROUP BY DATE(tu.created_at), tu.tool_name
 ORDER BY date DESC, total_calls DESC;
 
-COMMENT ON VIEW krai_intelligence.agent_performance IS 
+COMMENT ON VIEW krai_agent.agent_performance IS 
 'Daily performance metrics for agent tools';
 
 -- ============================================================================
 -- 10. View: User Satisfaction
 -- ============================================================================
-CREATE OR REPLACE VIEW krai_intelligence.user_satisfaction AS
+CREATE OR REPLACE VIEW krai_agent.user_satisfaction AS
 SELECT 
     DATE(f.created_at) as date,
     COUNT(*) as total_feedback,
@@ -356,34 +358,34 @@ SELECT
     COUNT(*) FILTER (WHERE f.feedback_type = 'helpful') as helpful_count,
     COUNT(*) FILTER (WHERE f.feedback_type = 'not_helpful') as not_helpful_count,
     COUNT(*) FILTER (WHERE f.feedback_type = 'incorrect') as incorrect_count
-FROM krai_intelligence.feedback f
+FROM krai_agent.feedback f
 GROUP BY DATE(f.created_at)
 ORDER BY date DESC;
 
-COMMENT ON VIEW krai_intelligence.user_satisfaction IS 
+COMMENT ON VIEW krai_agent.user_satisfaction IS 
 'Daily user satisfaction metrics';
 
 -- ============================================================================
 -- Grant permissions
 -- ============================================================================
-GRANT EXECUTE ON FUNCTION krai_intelligence.get_session_context TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION krai_intelligence.update_session_context TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION krai_agent.get_session_context TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION krai_agent.update_session_context TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION krai_intelligence.get_popular_error_codes TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION krai_intelligence.get_frequent_parts TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION krai_intelligence.smart_search TO authenticated, anon;
 
-GRANT SELECT ON krai_intelligence.agent_performance TO authenticated;
-GRANT SELECT ON krai_intelligence.user_satisfaction TO authenticated;
+GRANT SELECT ON krai_agent.agent_performance TO authenticated;
+GRANT SELECT ON krai_agent.user_satisfaction TO authenticated;
 
-GRANT INSERT ON krai_intelligence.tool_usage TO authenticated, anon;
-GRANT INSERT ON krai_intelligence.feedback TO authenticated, anon;
+GRANT INSERT ON krai_agent.tool_usage TO authenticated, anon;
+GRANT INSERT ON krai_agent.feedback TO authenticated, anon;
 
 -- ============================================================================
 -- Test queries (comment out after testing)
 -- ============================================================================
 
 -- Test session context
--- SELECT * FROM krai_intelligence.get_session_context('test-session-123');
+-- SELECT * FROM krai_agent.get_session_context('test-session-123');
 
 -- Test popular error codes
 -- SELECT * FROM krai_intelligence.get_popular_error_codes('Lexmark', 5);
@@ -395,7 +397,7 @@ GRANT INSERT ON krai_intelligence.feedback TO authenticated, anon;
 -- SELECT * FROM krai_intelligence.smart_search('Fuser Unit', 'test-session-123');
 
 -- Test performance dashboard
--- SELECT * FROM krai_intelligence.agent_performance WHERE date >= CURRENT_DATE - INTERVAL '7 days';
+-- SELECT * FROM krai_agent.agent_performance WHERE date >= CURRENT_DATE - INTERVAL '7 days';
 
 -- Test user satisfaction
--- SELECT * FROM krai_intelligence.user_satisfaction WHERE date >= CURRENT_DATE - INTERVAL '7 days';
+-- SELECT * FROM krai_agent.user_satisfaction WHERE date >= CURRENT_DATE - INTERVAL '7 days';
