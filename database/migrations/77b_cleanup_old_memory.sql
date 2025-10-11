@@ -7,7 +7,7 @@
 
 -- Option 1: Delete all old memory (clean slate)
 -- Uncomment if you want to start fresh:
--- DELETE FROM krai_agent.memory;
+DELETE FROM krai_agent.memory;
 
 -- Option 2: Fix existing entries (migrate data)
 -- Update NULL or invalid roles to 'user'

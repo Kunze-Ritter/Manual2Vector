@@ -138,20 +138,17 @@
     },
     {
       "parameters": {
-        "mode": "load",
-        "pineconeIndex": {
-          "__rl": true,
-          "mode": "list",
-          "value": "krai-manuals"
-        },
-        "options": {}
+        "tableName": "krai.chunks",
+        "options": {
+          "queryName": "match_chunks"
+        }
       },
-      "id": "vector-store-pinecone",
+      "id": "vector-store-supabase",
       "name": "Service Manuals Vector Store",
-      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
       "position": [1200, 650],
       "typeVersion": 1,
-      "notes": "Alternative: Use Supabase Vector Store if you prefer"
+      "notes": "Uses krai.chunks table with pgvector for semantic search"
     }
   ],
   "connections": {
