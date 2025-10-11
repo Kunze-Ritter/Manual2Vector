@@ -1,68 +1,113 @@
 -- ============================================================================
--- Migration 77: n8n Chat Histories Table
+-- Migration 77: n8n Chat Histories View
 -- ============================================================================
--- Purpose: Create the default table that n8n Postgres Memory expects
+-- Purpose: Create VIEW that maps krai_agent.memory to n8n format
 -- Date: 2025-10-11
 -- Author: KRAI Development Team
+--
+-- Strategy: Instead of creating a separate table, we create a VIEW that
+-- maps our existing krai_agent.memory table to the format n8n expects.
+-- This way we have ONE source of truth and n8n can use it seamlessly.
 -- ============================================================================
 
--- Create n8n_chat_histories table (n8n default)
-CREATE TABLE IF NOT EXISTS public.n8n_chat_histories (
-    id SERIAL PRIMARY KEY,
-    session_id VARCHAR(255) NOT NULL,
-    type VARCHAR(50) NOT NULL,
-    data JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Drop existing table if it exists (in case it was created before)
+DROP TABLE IF EXISTS public.n8n_chat_histories CASCADE;
 
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_n8n_chat_histories_session 
-ON public.n8n_chat_histories(session_id);
+-- Create VIEW that maps krai_agent.memory to n8n format
+CREATE OR REPLACE VIEW public.n8n_chat_histories AS
+SELECT 
+    -- n8n expects integer ID, we use hash of UUID
+    ('x' || substr(md5(id::text), 1, 8))::bit(32)::int as id,
+    session_id,
+    role as type,  -- Map 'role' to 'type' (n8n terminology)
+    jsonb_build_object(
+        'content', content,
+        'role', role,
+        'metadata', metadata,
+        'tokens_used', tokens_used
+    ) as data,
+    created_at
+FROM krai_agent.memory;
 
-CREATE INDEX IF NOT EXISTS idx_n8n_chat_histories_created 
-ON public.n8n_chat_histories(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_n8n_chat_histories_session_created 
-ON public.n8n_chat_histories(session_id, created_at DESC);
-
--- Grant permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.n8n_chat_histories TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.n8n_chat_histories TO anon;
-GRANT USAGE, SELECT ON SEQUENCE n8n_chat_histories_id_seq TO authenticated;
-GRANT USAGE, SELECT ON SEQUENCE n8n_chat_histories_id_seq TO anon;
-
-COMMENT ON TABLE public.n8n_chat_histories IS 
-'Default n8n Postgres Memory table for chat history storage';
+COMMENT ON VIEW public.n8n_chat_histories IS 
+'n8n-compatible view of krai_agent.memory - ONE source of truth!';
 
 -- ============================================================================
--- Optional: Sync function to copy from krai_agent.memory to n8n format
+-- INSTEAD OF Triggers: Allow n8n to INSERT/UPDATE/DELETE through the VIEW
 -- ============================================================================
-CREATE OR REPLACE FUNCTION public.sync_krai_to_n8n_memory()
+
+-- INSERT Trigger: When n8n inserts into view, insert into krai_agent.memory
+CREATE OR REPLACE FUNCTION public.n8n_chat_histories_insert()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Insert into n8n format when new message is added to krai_agent.memory
-    INSERT INTO public.n8n_chat_histories (session_id, type, data, created_at)
+    INSERT INTO krai_agent.memory (session_id, role, content, metadata, tokens_used, created_at)
     VALUES (
         NEW.session_id,
-        NEW.role,
-        jsonb_build_object(
-            'content', NEW.content,
-            'role', NEW.role,
-            'metadata', NEW.metadata,
-            'tokens_used', NEW.tokens_used
-        ),
-        NEW.created_at
+        NEW.type,  -- Map 'type' back to 'role'
+        NEW.data->>'content',
+        COALESCE(NEW.data->'metadata', '{}'::jsonb),
+        COALESCE((NEW.data->>'tokens_used')::integer, 0),
+        COALESCE(NEW.created_at, NOW())
     );
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Optional trigger (commented out by default)
--- Uncomment if you want automatic sync from krai_agent.memory to n8n_chat_histories
--- CREATE TRIGGER sync_memory_to_n8n
---     AFTER INSERT ON krai_agent.memory
---     FOR EACH ROW
---     EXECUTE FUNCTION public.sync_krai_to_n8n_memory();
+CREATE TRIGGER n8n_chat_histories_insert_trigger
+    INSTEAD OF INSERT ON public.n8n_chat_histories
+    FOR EACH ROW
+    EXECUTE FUNCTION public.n8n_chat_histories_insert();
+
+-- UPDATE Trigger: When n8n updates view, update krai_agent.memory
+CREATE OR REPLACE FUNCTION public.n8n_chat_histories_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE krai_agent.memory
+    SET 
+        session_id = NEW.session_id,
+        role = NEW.type,
+        content = NEW.data->>'content',
+        metadata = COALESCE(NEW.data->'metadata', '{}'::jsonb),
+        tokens_used = COALESCE((NEW.data->>'tokens_used')::integer, 0),
+        updated_at = NOW()
+    WHERE id = (
+        SELECT id FROM krai_agent.memory 
+        WHERE ('x' || substr(md5(id::text), 1, 8))::bit(32)::int = OLD.id
+        LIMIT 1
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER n8n_chat_histories_update_trigger
+    INSTEAD OF UPDATE ON public.n8n_chat_histories
+    FOR EACH ROW
+    EXECUTE FUNCTION public.n8n_chat_histories_update();
+
+-- DELETE Trigger: When n8n deletes from view, delete from krai_agent.memory
+CREATE OR REPLACE FUNCTION public.n8n_chat_histories_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM krai_agent.memory
+    WHERE id = (
+        SELECT id FROM krai_agent.memory 
+        WHERE ('x' || substr(md5(id::text), 1, 8))::bit(32)::int = OLD.id
+        LIMIT 1
+    );
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER n8n_chat_histories_delete_trigger
+    INSTEAD OF DELETE ON public.n8n_chat_histories
+    FOR EACH ROW
+    EXECUTE FUNCTION public.n8n_chat_histories_delete();
+
+-- ============================================================================
+-- Grant permissions on VIEW
+-- ============================================================================
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.n8n_chat_histories TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.n8n_chat_histories TO anon;
 
 -- ============================================================================
 -- Helper function: Get chat history for n8n
@@ -81,14 +126,19 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT 
-        h.id,
-        h.session_id,
-        h.type,
-        h.data,
-        h.created_at
-    FROM public.n8n_chat_histories h
-    WHERE h.session_id = p_session_id
-    ORDER BY h.created_at DESC
+        ('x' || substr(md5(m.id::text), 1, 8))::bit(32)::int as id,
+        m.session_id,
+        m.role as type,
+        jsonb_build_object(
+            'content', m.content,
+            'role', m.role,
+            'metadata', m.metadata,
+            'tokens_used', m.tokens_used
+        ) as data,
+        m.created_at
+    FROM krai_agent.memory m
+    WHERE m.session_id = p_session_id
+    ORDER BY m.created_at DESC
     LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -105,7 +155,8 @@ RETURNS INTEGER AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
-    DELETE FROM public.n8n_chat_histories
+    -- Delete from underlying krai_agent.memory table
+    DELETE FROM krai_agent.memory
     WHERE created_at < NOW() - (p_days_to_keep || ' days')::INTERVAL;
     
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
@@ -118,12 +169,35 @@ GRANT EXECUTE ON FUNCTION public.clear_old_n8n_histories TO authenticated;
 -- ============================================================================
 -- Test data (optional, comment out for production)
 -- ============================================================================
+-- Test by inserting through the VIEW - it will automatically go to krai_agent.memory!
 -- INSERT INTO public.n8n_chat_histories (session_id, type, data) VALUES
---     ('test-session-001', 'human', '{"content": "Hello, I need help with error code C-9402"}'),
---     ('test-session-001', 'ai', '{"content": "C-9402 is a Fuser Unit error. Let me help you with that..."}');
+--     ('test-session-001', 'user', '{"content": "Hello, I need help with error code C-9402"}'),
+--     ('test-session-001', 'assistant', '{"content": "C-9402 is a Fuser Unit error. Let me help you with that..."}');
 
+-- Verify it's in krai_agent.memory:
+-- SELECT * FROM krai_agent.memory WHERE session_id = 'test-session-001';
+
+-- ============================================================================
+-- Comments
+-- ============================================================================
 COMMENT ON FUNCTION public.get_n8n_chat_history IS 
-'Get chat history for a session (n8n compatible)';
+'Get chat history for a session (n8n compatible) - reads from krai_agent.memory';
 
 COMMENT ON FUNCTION public.clear_old_n8n_histories IS 
-'Clear chat histories older than specified days';
+'Clear chat histories older than specified days - deletes from krai_agent.memory';
+
+-- ============================================================================
+-- Summary
+-- ============================================================================
+-- This migration creates a VIEW that makes krai_agent.memory look like
+-- n8n_chat_histories. Benefits:
+--
+-- ✅ ONE source of truth (krai_agent.memory)
+-- ✅ n8n can read/write through the view
+-- ✅ All data is in our schema
+-- ✅ Easy to query and analyze
+-- ✅ No data duplication
+--
+-- n8n will use: public.n8n_chat_histories (VIEW)
+-- Data is stored in: krai_agent.memory (TABLE)
+-- ============================================================================
