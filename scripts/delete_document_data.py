@@ -208,25 +208,31 @@ def interactive_mode():
     print("Interactive Document Deletion")
     print("=" * 80)
     
-    # List recent documents
+    # List recent documents (last session = last 50 or today)
     try:
-        result = supabase.table('documents').select('id,filename,original_filename,manufacturer,created_at').order('created_at', desc=True).limit(20).execute()
+        result = supabase.table('documents').select('id,filename,original_filename,manufacturer,created_at').order('created_at', desc=True).limit(50).execute()
         
         if not result.data:
             print("\n❌ No documents found in database")
             return
         
-        print("\nRecent documents:")
+        print(f"\nRecent documents (last {len(result.data)}):")
         print("-" * 80)
         for idx, doc in enumerate(result.data, 1):
             filename = doc.get('filename') or doc.get('original_filename', 'Unknown')
             manufacturer = doc.get('manufacturer', 'Unknown')
-            created = doc.get('created_at', 'Unknown')[:10] if doc.get('created_at') else 'Unknown'
-            print(f"{idx:2}. {filename[:50]:50} | {manufacturer:15} | {created}")
+            created = doc.get('created_at', 'Unknown')[:19] if doc.get('created_at') else 'Unknown'
+            print(f"{idx:2}. {filename[:45]:45} | {manufacturer:15} | {created}")
             print(f"    ID: {doc['id']}")
         
-        print("\nEnter document numbers to delete (comma-separated), or 'q' to quit:")
-        user_input = input("> ").strip()
+        print("\n" + "=" * 80)
+        print("Options:")
+        print("  - Enter numbers (comma-separated): 1,2,3")
+        print("  - Enter range: 1-20")
+        print("  - Enter 'all' to delete all listed documents")
+        print("  - Enter 'q' to quit")
+        print("=" * 80)
+        user_input = input("\nYour selection: ").strip()
         
         if user_input.lower() == 'q':
             print("Cancelled.")
@@ -234,10 +240,21 @@ def interactive_mode():
         
         # Parse selection
         try:
-            indices = [int(x.strip()) for x in user_input.split(',')]
-            selected_docs = [result.data[i-1] for i in indices if 1 <= i <= len(result.data)]
-        except (ValueError, IndexError):
-            print("❌ Invalid selection")
+            if user_input.lower() == 'all':
+                # Select all documents
+                selected_docs = result.data
+            elif '-' in user_input and ',' not in user_input:
+                # Range selection (e.g., "1-20")
+                start, end = user_input.split('-')
+                start_idx = int(start.strip())
+                end_idx = int(end.strip())
+                selected_docs = result.data[start_idx-1:end_idx]
+            else:
+                # Comma-separated numbers
+                indices = [int(x.strip()) for x in user_input.split(',')]
+                selected_docs = [result.data[i-1] for i in indices if 1 <= i <= len(result.data)]
+        except (ValueError, IndexError) as e:
+            print(f"❌ Invalid selection: {e}")
             return
         
         if not selected_docs:
