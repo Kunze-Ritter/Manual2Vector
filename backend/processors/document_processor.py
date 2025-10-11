@@ -155,14 +155,25 @@ class DocumentProcessor:
             # This ensures _save_error_codes_to_db can find the manufacturer
             detected_manufacturer = self.manufacturer
             if detected_manufacturer == "AUTO":
+                self.logger.info("🔍 Auto-detecting manufacturer from multiple sources...")
+                
                 # Source 1: Filename
                 filename_lower = pdf_path.stem.lower()
+                self.logger.info(f"   📄 Filename: '{pdf_path.stem}'")
                 
                 # Source 2: PDF Metadata (Title)
                 title_lower = (metadata.title or "").lower() if metadata else ""
+                if metadata and metadata.title:
+                    self.logger.info(f"   📋 Title: '{metadata.title}'")
+                else:
+                    self.logger.info(f"   📋 Title: (none)")
                 
                 # Source 3: PDF Metadata (Author)
                 author_lower = (metadata.author or "").lower() if metadata else ""
+                if metadata and metadata.author:
+                    self.logger.info(f"   ✍️  Author: '{metadata.author}'")
+                else:
+                    self.logger.info(f"   ✍️  Author: (none)")
                 
                 # Source 4: First 3 pages of document text
                 first_pages_text = ""
@@ -170,6 +181,7 @@ class DocumentProcessor:
                     first_page_keys = sorted(page_texts.keys())[:3]
                     first_pages_text = ' '.join([page_texts[p] for p in first_page_keys])
                     first_pages_text = first_pages_text[:2000].lower()  # Limit to 2000 chars
+                    self.logger.info(f"   📖 Text sample: First 3 pages ({len(first_pages_text)} chars)")
                 
                 # Use manufacturer normalizer for comprehensive patterns
                 from utils.manufacturer_normalizer import MANUFACTURER_MAP
@@ -227,11 +239,32 @@ class DocumentProcessor:
                 
                 # Select manufacturer with highest score
                 if detection_scores:
-                    # Log all detection scores for debugging
-                    self.logger.debug("Manufacturer detection scores:")
-                    for mfr, data in sorted(detection_scores.items(), key=lambda x: x[1]['score'], reverse=True):
-                        self.logger.debug(f"  {mfr}: {data['score']} points from {', '.join(data['sources'])}")
+                    self.logger.info("")
+                    self.logger.info("📊 Detection Results:")
                     
+                    # Show top 3 candidates
+                    sorted_scores = sorted(detection_scores.items(), key=lambda x: x[1]['score'], reverse=True)
+                    for i, (mfr, data) in enumerate(sorted_scores[:3], 1):
+                        icon = "🏆" if i == 1 else "  "
+                        mfr_display = mfr.replace('_', ' ').title()
+                        
+                        # Format sources with details
+                        source_details = []
+                        for src in data['sources']:
+                            if 'filename' in src:
+                                source_details.append("📄 Filename")
+                            elif 'author' in src:
+                                source_details.append("✍️  Author")
+                            elif 'title' in src:
+                                source_details.append("📋 Title")
+                            elif src.startswith('text('):
+                                count = src[5:-2]
+                                source_details.append(f"📖 Text ({count} mentions)")
+                        
+                        self.logger.info(f"   {icon} {mfr_display}: {data['score']} points")
+                        self.logger.info(f"      Sources: {', '.join(source_details)}")
+                    
+                    # Select best match
                     best_match = max(detection_scores.items(), key=lambda x: x[1]['score'])
                     mfr_key = best_match[0]
                     score = best_match[1]['score']
@@ -248,19 +281,8 @@ class DocumentProcessor:
                     if canonical_name:
                         detected_manufacturer = canonical_name
                     
-                    self.logger.info(f"🔍 Auto-detected manufacturer: {detected_manufacturer}")
-                    
-                    # Format sources for better readability
-                    formatted_sources = []
-                    for source in sources:
-                        if source.startswith('text(') and source.endswith('x)'):
-                            # Extract count from text(9x) format
-                            count = source[5:-2]  # Remove 'text(' and 'x)'
-                            formatted_sources.append(f"text ({count} mentions)")
-                        else:
-                            formatted_sources.append(source)
-                    
-                    self.logger.info(f"   Confidence score: {score} from {', '.join(formatted_sources)}")
+                    self.logger.info("")
+                    self.logger.success(f"✅ Selected: {detected_manufacturer} (score: {score})")
                     
                     # Confidence levels based on score
                     if score >= 18:  # Filename + Author + Title
