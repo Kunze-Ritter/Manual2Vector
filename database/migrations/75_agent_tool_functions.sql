@@ -332,14 +332,14 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Error codes
 CREATE INDEX IF NOT EXISTS idx_error_codes_code_trgm 
-ON krai_core.error_codes USING gin (error_code gin_trgm_ops);
+ON krai_intelligence.error_codes USING gin (error_code gin_trgm_ops);
 
 -- Parts
 CREATE INDEX IF NOT EXISTS idx_parts_name_trgm 
-ON krai_core.parts USING gin (part_name gin_trgm_ops);
+ON krai_parts.parts_catalog USING gin (part_name gin_trgm_ops);
 
 CREATE INDEX IF NOT EXISTS idx_parts_number_trgm 
-ON krai_core.parts USING gin (part_number gin_trgm_ops);
+ON krai_parts.parts_catalog USING gin (part_number gin_trgm_ops);
 
 -- Products
 CREATE INDEX IF NOT EXISTS idx_products_model_trgm 
