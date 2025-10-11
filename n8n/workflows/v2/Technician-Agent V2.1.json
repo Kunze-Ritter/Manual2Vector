@@ -1,0 +1,264 @@
+{
+  "name": "Technician-Agent V2.1",
+  "nodes": [
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "Du bist der KRAI Technician Agent - ein intelligenter Assistent für Service-Techniker.\n\nKONTEXT:\nDu hilfst Technikern, die vor Ort beim Kunden stehen und schnelle, präzise Antworten brauchen.\n\nDEINE TOOLS:\n1. search_error_codes     → Fehlercode-Datenbank\n2. search_parts           → Ersatzteil-Katalog\n3. get_product_info       → Produkt-Informationen\n4. search_videos          → YouTube Reparatur-Videos\n5. search_documentation   → Service Manuals (für allgemeine Fragen)\n\nWORKFLOW:\n1. Verstehe die Situation des Technikers\n2. Extrahiere: Hersteller, Modell, Fehlercode, Problem\n3. Nutze die passenden Tools (WICHTIG: Nutze IMMER die Tools, nicht dein Trainingswissen!)\n4. Gib eine strukturierte, mobile-optimierte Antwort\n\nANTWORT-FORMAT:\n✅ Kurz und präzise (Techniker hat keine Zeit)\n✅ Schritt-für-Schritt bei Anleitungen\n✅ Immer Quellen angeben (Seite, Dokument)\n✅ Bei Teilen: Teilenummer + Kompatibilität\n✅ Bei Fehlern: Ursache + Lösung + betroffene Teile\n✅ Nutze Emojis für bessere Lesbarkeit: 🔴 (Fehler), 🔧 (Lösung), 📦 (Teile), 📄 (Quelle), 🎥 (Video)\n\nKONTEXT-BEWUSSTSEIN:\n- Merke dir: Hersteller, Modell, Fehlercode aus vorherigen Nachrichten\n- Nutze Kontext für Follow-up Fragen\n- Beispiel: \"Welche Teile brauche ich?\" → Beziehe dich auf vorher genanntes Gerät\n\nSPRACHE: Deutsch, technisch aber verständlich\n\nWICHTIG: Nutze IMMER die Tools für aktuelle Daten! Verlasse dich NICHT auf dein Trainingswissen!",
+        "options": {}
+      },
+      "id": "dde64b31-b5f8-4b5f-9b50-3d11101b5846",
+      "name": "KRAI Technician Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        -816,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "d16aed48-bb0b-424d-8d83-d6fa5acf57c2",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        352
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "KdqGhnIUPP0vQm3m",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}"
+      },
+      "id": "c1af5e77-bf5c-4420-ac9b-977f783a8b16",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        352
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "B0uJAfAUAdsgXNJd",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "search_error_codes",
+        "description": "Suche nach Fehlercodes in der Datenbank. Nutze dies wenn der User einen Fehlercode erwähnt (z.B. C-9402, E-1234). WICHTIG: Nutze dieses Tool für ALLE Fehlercode-Anfragen!",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"error_code\": \"C-9402\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}"
+      },
+      "id": "2bda1134-6d40-46c8-b33d-99e2889bf3c6",
+      "name": "Tool: Error Code Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -288,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "name": "search_parts",
+        "description": "Suche nach Ersatzteilen. Nutze dies wenn der User nach Teilen fragt (z.B. Fuser Unit, Toner). WICHTIG: Nutze dieses Tool für ALLE Ersatzteil-Anfragen!",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit\",\n  \"manufacturer\": \"Lexmark\"\n}"
+      },
+      "id": "5d02a19f-2505-4983-8e64-9d9e0302087e",
+      "name": "Tool: Parts Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -432,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "name": "get_product_info",
+        "description": "Hole Informationen zu einem Produkt. Nutze dies wenn der User nach einem Gerät fragt.",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"model_number\": \"CX963\",\n  \"manufacturer\": \"Lexmark\"\n}"
+      },
+      "id": "7a7629c3-b495-434f-b53c-a0f974164535",
+      "name": "Tool: Product Info",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -976,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "name": "search_videos",
+        "description": "Suche nach YouTube-Videos (Reparatur-Anleitungen). Nutze dies wenn der User nach Videos fragt.",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit tauschen\",\n  \"manufacturer\": \"Lexmark\"\n}"
+      },
+      "id": "5b7b5873-63a8-41b1-9859-d1f13d6bd7b0",
+      "name": "Tool: Video Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "name": "search_documentation",
+        "description": "Durchsuche technische Dokumentation (Service Manuals). Nutze dies für allgemeine Fragen oder wenn andere Tools keine Ergebnisse liefern.",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"query\": \"Wie tausche ich die Fuser Unit?\",\n  \"manufacturer\": \"Lexmark\"\n}"
+      },
+      "id": "7004a7a4-7219-4313-bc85-368b7bee4526",
+      "name": "Tool: Documentation Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -608,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1056,
+        -32
+      ],
+      "id": "7408b1c3-55ae-4fd8-a13b-f92176f55543",
+      "name": "When chat message received",
+      "webhookId": "d9883dae-f16c-4131-ba01-ea7619fef62c"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Error Code Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Parts Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Product Info": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Video Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Documentation Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5ee35384-1e29-4481-9725-82b5b36f34e2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6c1a437e8b16512082bde84b62b61f6117713bbbdf560b47f5bdf35aa8946c8"
+  },
+  "id": "bsDbJBLnO3vcs9ga",
+  "tags": []
+}
