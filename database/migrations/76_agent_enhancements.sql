@@ -173,7 +173,7 @@ BEGIN
         ec.description::TEXT,
         COUNT(DISTINCT ec.id) as occurrence_count,
         ARRAY_AGG(DISTINCT p.model_number) as affected_models
-    FROM krai_core.error_codes ec
+    FROM krai_intelligence.error_codes ec
     LEFT JOIN krai_core.products p ON ec.product_id = p.id
     LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
     WHERE (p_manufacturer IS NULL OR m.name ILIKE '%' || p_manufacturer || '%')
@@ -210,9 +210,11 @@ BEGIN
         pt.part_name::TEXT,
         COUNT(DISTINCT pt.id) as occurrence_count,
         ARRAY_AGG(DISTINCT p.model_number) as compatible_models
-    FROM krai_core.parts pt
-    LEFT JOIN krai_core.products p ON pt.product_id = p.id
-    LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+    FROM krai_parts.parts_catalog pt
+    LEFT JOIN krai_core.manufacturers m ON pt.manufacturer_id = m.id
+    LEFT JOIN krai_core.documents d ON pt.document_id = d.id
+    LEFT JOIN krai_core.document_products dp ON d.id = dp.document_id
+    LEFT JOIN krai_core.products p ON dp.product_id = p.id
     WHERE (p_manufacturer IS NULL OR m.name ILIKE '%' || p_manufacturer || '%')
         AND (p_model IS NULL OR p.model_number ILIKE '%' || p_model || '%')
     GROUP BY pt.part_number, pt.part_name
@@ -270,7 +272,7 @@ BEGIN
             'manufacturer', m.name
         ),
         0.9::FLOAT as relevance_score
-    FROM krai_core.error_codes ec
+    FROM krai_intelligence.error_codes ec
     LEFT JOIN krai_core.products p ON ec.product_id = p.id
     LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
     WHERE ec.error_code ILIKE '%' || p_query || '%'
@@ -290,9 +292,11 @@ BEGIN
             'manufacturer', m.name
         ),
         0.8::FLOAT as relevance_score
-    FROM krai_core.parts pt
-    LEFT JOIN krai_core.products p ON pt.product_id = p.id
-    LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+    FROM krai_parts.parts_catalog pt
+    LEFT JOIN krai_core.manufacturers m ON pt.manufacturer_id = m.id
+    LEFT JOIN krai_core.documents d ON pt.document_id = d.id
+    LEFT JOIN krai_core.document_products dp ON d.id = dp.document_id
+    LEFT JOIN krai_core.products p ON dp.product_id = p.id
     WHERE pt.part_name ILIKE '%' || p_query || '%'
         OR pt.part_number ILIKE '%' || p_query || '%'
     LIMIT 3;

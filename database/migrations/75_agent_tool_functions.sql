@@ -46,7 +46,7 @@ BEGIN
         m.name::TEXT as manufacturer,
         d.filename::TEXT as source_document,
         d.id as document_id
-    FROM krai_core.error_codes ec
+    FROM krai_intelligence.error_codes ec
     LEFT JOIN krai_core.products p ON ec.product_id = p.id
     LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
     LEFT JOIN krai_core.documents d ON ec.document_id = d.id
@@ -103,10 +103,11 @@ BEGIN
         m.name::TEXT as manufacturer,
         d.filename::TEXT as source_document,
         d.id as document_id
-    FROM krai_core.parts pt
-    LEFT JOIN krai_core.products p ON pt.product_id = p.id
-    LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+    FROM krai_parts.parts_catalog pt
+    LEFT JOIN krai_core.manufacturers m ON pt.manufacturer_id = m.id
     LEFT JOIN krai_core.documents d ON pt.document_id = d.id
+    LEFT JOIN krai_core.document_products dp ON d.id = dp.document_id
+    LEFT JOIN krai_core.products p ON dp.product_id = p.id
     WHERE (
         pt.part_name ILIKE '%' || p_search_term || '%' 
         OR pt.description ILIKE '%' || p_search_term || '%'
