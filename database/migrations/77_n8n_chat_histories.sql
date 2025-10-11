@@ -45,8 +45,8 @@ BEGIN
     INSERT INTO krai_agent.memory (session_id, role, content, metadata, tokens_used, created_at)
     VALUES (
         NEW.session_id,
-        NEW.type,  -- Map 'type' back to 'role'
-        COALESCE(NEW.message, NEW.data->>'content'),  -- Support both 'message' and 'data.content'
+        COALESCE(NEW.type, 'user'),  -- Map 'type' back to 'role', default to 'user'
+        COALESCE(NEW.message, NEW.data->>'content', ''),  -- Support both 'message' and 'data.content'
         COALESCE(NEW.data->'metadata', '{}'::jsonb),
         COALESCE((NEW.data->>'tokens_used')::integer, 0),
         COALESCE(NEW.created_at, NOW())
@@ -67,8 +67,8 @@ BEGIN
     UPDATE krai_agent.memory
     SET 
         session_id = NEW.session_id,
-        role = NEW.type,
-        content = COALESCE(NEW.message, NEW.data->>'content'),  -- Support both 'message' and 'data.content'
+        role = COALESCE(NEW.type, 'user'),
+        content = COALESCE(NEW.message, NEW.data->>'content', ''),  -- Support both 'message' and 'data.content'
         metadata = COALESCE(NEW.data->'metadata', '{}'::jsonb),
         tokens_used = COALESCE((NEW.data->>'tokens_used')::integer, 0),
         updated_at = NOW()
