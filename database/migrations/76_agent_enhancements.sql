@@ -7,6 +7,13 @@
 -- ============================================================================
 
 -- ============================================================================
+-- 0. Create krai_analytics schema
+-- ============================================================================
+CREATE SCHEMA IF NOT EXISTS krai_analytics;
+
+COMMENT ON SCHEMA krai_analytics IS 'Analytics and metrics for agent performance and user feedback';
+
+-- ============================================================================
 -- 1. Tool Usage Analytics
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS krai_analytics.tool_usage (
