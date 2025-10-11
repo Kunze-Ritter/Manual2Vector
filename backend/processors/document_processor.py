@@ -534,7 +534,7 @@ class DocumentProcessor:
             if parts:
                 self.logger.success(f"✅ Extracted {len(parts)} spare parts")
                 # Save parts immediately (like error codes)
-                self._save_parts_to_db(document_id, parts)
+                self._save_parts_to_db(document_id, parts, detected_manufacturer)
             else:
                 self.logger.info(f">> No parts found (document type: {doc_type})")
             
@@ -1963,13 +1963,14 @@ class DocumentProcessor:
             'processing_time': processing_time
         }
     
-    def _save_parts_to_db(self, document_id: UUID, parts: List):
+    def _save_parts_to_db(self, document_id: UUID, parts: List, manufacturer: str = None):
         """
         Save extracted parts to database immediately
         
         Args:
             document_id: Document UUID
             parts: List of extracted parts
+            manufacturer: Detected manufacturer name
         """
         try:
             from supabase import create_client
@@ -1986,11 +1987,11 @@ class DocumentProcessor:
             
             supabase = create_client(supabase_url, supabase_key)
             
-            # Get manufacturer_id from document
+            # Get manufacturer_id from detected manufacturer
             manufacturer_id = None
-            if self.manufacturer and self.manufacturer != "AUTO":
+            if manufacturer and manufacturer != "AUTO":
                 try:
-                    manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
+                    manufacturer_id = self._ensure_manufacturer_exists(manufacturer, supabase)
                 except Exception as e:
                     self.logger.warning(f"Could not get manufacturer_id: {e}")
             
