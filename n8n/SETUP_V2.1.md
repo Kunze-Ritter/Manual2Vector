@@ -1,5 +1,41 @@
 # KRAI Technician Agent V2.1 - Setup Guide
 
+## 📊 **Database Schema Overview**
+
+The KRAI system uses a well-organized PostgreSQL database with the following schemas:
+
+### **`krai_agent`** - AI Agent System
+All agent-related data in one place:
+- `memory` - Chat history and conversations
+- `tool_usage` - Analytics on which tools are used
+- `feedback` - User ratings and feedback
+- `session_context` - Conversation context tracking
+- `agent_performance` - Performance metrics (VIEW)
+- `user_satisfaction` - Satisfaction metrics (VIEW)
+
+### **`krai_intelligence`** - AI/ML Processing
+- `chunks` - Document text chunks
+- `embeddings` - Vector embeddings for semantic search
+- `error_codes` - Extracted error codes
+- `search_analytics` - Search metrics
+
+### **`krai_core`** - Master Data
+- `manufacturers`, `products`, `documents`
+- `product_series`, `product_types`
+
+### **`krai_parts`** - Parts Catalog
+- `parts_catalog` - Parts with numbers and compatibility
+
+### **`krai_content`** - Media
+- `images`, `videos` - Screenshots and video links
+
+### **`public`** - n8n Interface
+- `n8n_chat_histories` - VIEW that maps to `krai_agent.memory`
+
+---
+
+# KRAI Technician Agent V2.1 - Setup Guide
+
 ## 🚀 **Quick Start**
 
 ### **1. Datenbank Migration ausführen**

@@ -89,8 +89,45 @@ Das System nutzt ein **Large Language Model (LLM)** mit 7-9 Milliarden Parameter
 
 Die KI hilft auch bei der Suche und kann unvollständige oder ähnliche Anfragen verstehen. Beispiel: Suche nach "Papierstau" findet auch "Paper Jam" oder "Medienstau".
 
-**3. Datenbank:**
-Alle Informationen werden in einer professionellen Datenbank gespeichert, die sehr schnelle Suchen ermöglicht (unter 0,1 Sekunden).
+**3. Datenbank-Architektur:**
+Alle Informationen werden in einer professionellen PostgreSQL-Datenbank (Supabase) gespeichert, die sehr schnelle Suchen ermöglicht (unter 0,1 Sekunden).
+
+**Datenbankstruktur (Schema-Organisation):**
+
+Die Datenbank ist in logische Bereiche (Schemas) unterteilt:
+
+- **`krai_core`** - Stammdaten
+  - Hersteller, Produkte, Dokumente
+  - Produktserien und Typen
+  - Basis-Metadaten
+  
+- **`krai_intelligence`** - KI-Verarbeitung
+  - Dokument-Chunks (Text-Abschnitte)
+  - Vector Embeddings (für semantische Suche)
+  - Extrahierte Fehlercodes
+  - Such-Analytics
+  
+- **`krai_agent`** - AI-Agent System (NEU: Oktober 2025)
+  - Chat-Verlauf (Konversationen)
+  - Tool-Usage Analytics (welche Tools werden genutzt)
+  - User Feedback (Bewertungen)
+  - Session Context (Gesprächskontext)
+  
+- **`krai_parts`** - Ersatzteile
+  - Teile-Katalog mit Nummern
+  - Kompatibilitäten
+  - Lagerbestände
+  
+- **`krai_content`** - Medien
+  - Bilder und Screenshots
+  - Video-Links (YouTube)
+  - Dokument-Anhänge
+
+**Vorteile dieser Struktur:**
+- ✅ Klare Trennung der Verantwortlichkeiten
+- ✅ Einfache Wartung und Erweiterung
+- ✅ Bessere Performance durch gezielte Indizierung
+- ✅ Saubere API-Schnittstellen
 
 **4. Benutzeroberfläche (in Planung):**
 Eine moderne Web-Oberfläche ermöglicht:
@@ -145,6 +182,65 @@ Eine moderne Web-Oberfläche ermöglicht:
 
 **In Arbeit:**
 - 🔄 Automatische Ersatzteil-Verknüpfung zu Fehlercodes
+
+### Phase 2.5: AI-Agent System (NEU: Oktober 2025) ✅
+**Zeitraum:** Okt 2025 (1 Woche Entwicklung)
+
+**Implementiert:**
+- ✅ **Conversational AI Agent** für Techniker
+  - Natürlichsprachige Interaktion (Deutsch)
+  - Kontext-bewusste Gespräche (merkt sich Gerät und Problem)
+  - 5 spezialisierte Tools für verschiedene Aufgaben
+  
+- ✅ **Tool-System:**
+  1. **Error Code Search** - Fehlercode-Datenbank
+  2. **Parts Search** - Ersatzteil-Katalog
+  3. **Product Info** - Geräteinformationen
+  4. **Video Search** - YouTube Reparatur-Videos
+  5. **Documentation Search** - Service Manual Suche
+  
+- ✅ **Analytics & Tracking:**
+  - Tool-Usage Tracking (welche Tools werden wie oft genutzt)
+  - User Feedback System (Bewertungen 1-5 Sterne)
+  - Session Context (Gesprächskontext für Follow-up Fragen)
+  - Performance Dashboards (Response Time, Success Rate)
+  
+- ✅ **Datenbank-Optimierung:**
+  - Neue Schema-Struktur (`krai_agent`)
+  - n8n-kompatible Memory-Views
+  - INSTEAD OF Triggers für seamless Integration
+  - Performance-Indexes für schnelle Suchen
+
+**Technische Umsetzung:**
+- **n8n** als Workflow-Engine
+- **Ollama** (llama3.2) als LLM
+- **PostgreSQL** (Supabase) als Datenbank
+- **5 SQL Functions** für Tool-Zugriff
+- **INSTEAD OF Triggers** für VIEW-basierte Architektur
+
+**Beispiel-Dialog:**
+```
+Techniker: "Lexmark CX963 Fehlercode C-9402"
+Agent:     "🔴 Fehlercode C-9402 - Fuser Unit Fehler
+            
+            Ursache: Fuser Unit defekt oder überhitzt
+            
+            Lösung:
+            1. Gerät ausschalten, 30 Min abkühlen
+            2. Fuser Unit prüfen (Seite 245)
+            3. Falls defekt: tauschen
+            
+            Benötigte Teile:
+            📦 40X8024 (Original Lexmark)
+            
+            📄 Quelle: CX963 Service Manual, S.245"
+```
+
+**Vorteile:**
+- ⏱️ Noch schneller als manuelle Suche (< 10 Sekunden)
+- 🧠 Versteht natürliche Sprache ("Drucker macht komische Geräusche")
+- 📱 Mobile-optimiert für Einsatz vor Ort
+- 🔗 Kombiniert mehrere Datenquellen automatisch
 - 🔄 Video-Metadaten-Anreicherung (YouTube API, Vimeo API)
 - 🔄 Zubehör-Erkennung für weitere Hersteller (HP, Xerox, Ricoh, etc.)
 
@@ -381,6 +477,7 @@ Eine moderne Web-Oberfläche ermöglicht:
 **Wirtschaftlicher Nutzen:**
 - Massive Zeitersparnis (70%)
 - Kostenreduktion durch weniger Fehlbestellungen
+- schnellere Fehlerbehebungen vor Ort ohne unnötige mehrfach Einsätze.
 - Wissensbewahrung (demografischer Wandel)
 
 **Nachhaltigkeit:**
