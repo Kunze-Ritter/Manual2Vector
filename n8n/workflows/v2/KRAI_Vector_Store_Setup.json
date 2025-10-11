@@ -1,0 +1,159 @@
+{
+  "name": "KRAI Vector Store Setup - PDF Embedding",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [400, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "bucketName": "service-manuals",
+        "fileName": "*",
+        "options": {}
+      },
+      "id": "get-pdfs",
+      "name": "Get PDFs from Supabase Storage",
+      "type": "n8n-nodes-base.supabase",
+      "position": [600, 400],
+      "typeVersion": 1,
+      "notes": "Downloads all PDFs from service-manuals bucket"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "extract-text",
+      "name": "Extract Text from PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [800, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "chunkSize": 2000,
+        "chunkOverlap": 200,
+        "options": {}
+      },
+      "id": "text-splitter",
+      "name": "Recursive Character Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "position": [1000, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.text }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source",
+                "value": "={{ $json.fileName }}"
+              },
+              {
+                "name": "manufacturer",
+                "value": "={{ $json.fileName.split('_')[0] }}"
+              },
+              {
+                "name": "model",
+                "value": "={{ $json.fileName.split('_')[1] }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "data-loader",
+      "name": "Default Data Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "position": [1000, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text",
+        "options": {}
+      },
+      "id": "embeddings",
+      "name": "Embeddings Ollama",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "position": [1200, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "mode": "list",
+          "value": "krai-manuals"
+        },
+        "options": {
+          "clearNamespace": false
+        }
+      },
+      "id": "vector-store",
+      "name": "Insert into Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "position": [1200, 400],
+      "typeVersion": 1,
+      "notes": "Alternative: Use Supabase Vector Store"
+    },
+    {
+      "parameters": {
+        "content": "## Setup Instructions\n\n### 1. Prepare Your PDFs\n- Upload service manuals to Supabase Storage bucket: `service-manuals`\n- Name format: `Manufacturer_Model_Manual.pdf` (e.g., `Lexmark_CX963_ServiceManual.pdf`)\n\n### 2. Vector Store Options\n\n**Option A: Pinecone (Cloud)**\n- Create free account at pinecone.io\n- Create index: `krai-manuals`\n- Dimension: 768 (for nomic-embed-text)\n- Metric: cosine\n\n**Option B: Supabase (Self-hosted)**\n- Enable pgvector extension\n- Create table: `service_manuals_embeddings`\n- Replace Pinecone node with Supabase Vector Store node\n\n### 3. Run This Workflow\n- Click \"Test workflow\"\n- Wait for all PDFs to be processed\n- Check vector store for embeddings\n\n### 4. Verify\n- Go to main workflow\n- Test query: \"How to replace fuser unit\"\n- Should return relevant manual sections\n\n## Notes\n- Run this workflow whenever you add new manuals\n- Processing time: ~1-2 min per PDF\n- Chunk size: 2000 chars with 200 overlap (optimal for technical docs)",
+        "height": 600,
+        "width": 400,
+        "color": 7
+      },
+      "id": "sticky-note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [200, 200],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [[{ "node": "Get PDFs from Supabase Storage", "type": "main", "index": 0 }]]
+    },
+    "Get PDFs from Supabase Storage": {
+      "main": [[{ "node": "Extract Text from PDF", "type": "main", "index": 0 }]]
+    },
+    "Extract Text from PDF": {
+      "main": [[{ "node": "Default Data Loader", "type": "main", "index": 0 }]]
+    },
+    "Default Data Loader": {
+      "ai_document": [[{ "node": "Insert into Vector Store", "type": "ai_document", "index": 0 }]]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [[{ "node": "Default Data Loader", "type": "ai_textSplitter", "index": 0 }]]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [[{ "node": "Insert into Vector Store", "type": "ai_embedding", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "krai-vector-setup"
+  },
+  "tags": [
+    {
+      "name": "KRAI",
+      "id": "krai"
+    },
+    {
+      "name": "Setup",
+      "id": "setup"
+    }
+  ]
+}

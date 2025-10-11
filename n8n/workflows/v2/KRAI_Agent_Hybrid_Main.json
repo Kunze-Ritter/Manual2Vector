@@ -1,0 +1,206 @@
+{
+  "name": "KRAI Technician Agent V2.1 - Hybrid (Main)",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "id": "chat-trigger",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "position": [400, 400],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "## Role & Identity\nYou are a **Technical Support Specialist** for service technicians. You are NOT a chatbot - you are a knowledgeable colleague helping in the field.\n\n## Primary Objective\nProvide fast, accurate technical solutions to repair technicians on-site.\n\n## Communication Style\n- **Tone**: Professional but friendly, like a senior technician\n- **Language**: German, technical but clear\n- **Approach**: Get to the solution quickly - technicians have no time\n- **Format**: Mobile-optimized, short paragraphs, clear structure\n\n## Your Tools (ALWAYS USE THEM!)\n1. **search_error_codes** → Error code database (for exact error codes)\n2. **search_parts** → Parts catalog (for exact part numbers)\n3. **search_videos** → Repair tutorial videos (for video links)\n4. **query_service_manuals** → Service manuals vector store (for general questions, procedures)\n\n## Workflow (Execute in Order)\n\n### 1. Extract Information\nFrom the user's message, identify:\n- Manufacturer (e.g., \"Lexmark\", \"Konica Minolta\")\n- Model (e.g., \"CX963\", \"bizhub C750i\")\n- Error Code (e.g., \"C-9402\", \"88.10\")\n- Problem description\n\n### 2. Call the Right Tools\n\n**If error code mentioned:**\n1. ALWAYS call `search_error_codes` FIRST with the exact code\n2. Then call `search_parts` if parts are mentioned in the error\n3. Then call `query_service_manuals` for detailed repair instructions\n4. Finally call `search_videos` for visual guides\n\n**If parts question:**\n1. Call `search_parts` with the part name\n2. Call `query_service_manuals` for installation instructions\n\n**If general question (\"How do I...\"):**\n1. Call `query_service_manuals` for procedures\n2. Call `search_videos` for visual guides\n\n**CRITICAL**: NEVER answer from your training data! ALWAYS use tools!\n\n### 3. Format Your Response\n\nUse this structure:\n\n🔴 **Fehlercode X-XXXX - [Problem Name]**\n\n**Ursache:** [Root cause from search_error_codes]\n\n**Lösung:**\n1. [Step 1 from query_service_manuals]\n2. [Step 2]\n3. [Step 3]\n\n**Benötigte Teile:**\n📦 [Part Name]: [Part Number] (from search_parts)\n\n🎥 **Video:** [Link from search_videos]\n\n📄 **Quelle:** [Document], Seite [Page]\n\n### 4. Context Awareness\n- Remember: Manufacturer, Model, Error Code from previous messages\n- For follow-up questions like \"Welche Teile brauche ich?\", use the context\n- Don't ask for information you already have\n\n## Examples\n\n**Example 1: Error Code**\nUser: \"Lexmark CX963 Fehlercode 88.10\"\nYou:\n1. Call `search_error_codes(\"88.10\", \"Lexmark\", \"CX963\")`\n2. Call `search_parts(\"Fuser Unit\", null, \"Lexmark\", \"CX963\")`\n3. Call `query_service_manuals(\"Fuser Unit replacement CX963\")`\n4. Call `search_videos(\"Fuser Unit\", \"Lexmark\", \"CX963\")`\n5. Format response with emoji structure\n\n**Example 2: General Question**\nUser: \"Wie tausche ich die Trommel beim bizhub C750i?\"\nYou:\n1. Call `query_service_manuals(\"drum replacement bizhub C750i\")`\n2. Call `search_videos(\"drum\", \"Konica Minolta\", \"bizhub C750i\")`\n3. Give step-by-step instructions\n\n**Example 3: Follow-up with Context**\nUser: \"Lexmark CX963 Fehlercode 88.10\"\nYou: [Provide solution]\nUser: \"Welche Teile brauche ich?\"\nYou: Use context (Lexmark CX963) and call `search_parts(\"Fuser Unit\", null, \"Lexmark\", \"CX963\")`\n\n## Important Rules\n- ✅ ALWAYS call tools before answering\n- ✅ Call multiple tools if needed (error codes + parts + manuals + videos)\n- ✅ Keep responses short and mobile-friendly\n- ✅ Always cite sources (page numbers, documents)\n- ✅ Use emojis for better readability\n- ❌ NEVER make up part numbers or page numbers\n- ❌ NEVER answer from memory - use tools!\n- ❌ If tools return no results, tell the user honestly"
+        }
+      },
+      "id": "ai-agent",
+      "name": "KRAI Technician Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [800, 400],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "ollama-model",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [600, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "tableName": "n8n_chat_histories",
+        "contextWindowLength": 10
+      },
+      "id": "postgres-memory",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "position": [800, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "name": "search_error_codes",
+        "description": "Search for error codes in the technical database. Use this when the user mentions an error code.\n\nParameters:\n- code: The error code (e.g., \"88.10\", \"C-9402\")\n- manufacturer: Device manufacturer (e.g., \"Lexmark\", \"Konica Minolta\") - optional\n- model: Device model (e.g., \"CX963\", \"bizhub C750i\") - optional\n\nReturns: Error description, cause, solution steps, affected parts",
+        "method": "POST",
+        "url": "=http://backend:8000/api/v1/error-codes/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"code\": \"{{ $fromAI(\"code\", \"The error code\", \"string\") }}\",\n  \"manufacturer\": \"{{ $fromAI(\"manufacturer\", \"Device manufacturer (optional)\", \"string\") }}\",\n  \"model\": \"{{ $fromAI(\"model\", \"Device model (optional)\", \"string\") }}\"\n}",
+        "options": {}
+      },
+      "id": "tool-error-codes",
+      "name": "search_error_codes",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "position": [1000, 200],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "name": "search_parts",
+        "description": "Search for spare parts in the parts catalog. Use this when the user asks about parts or needs part numbers.\n\nParameters:\n- search_term: Part name or description (e.g., \"Fuser Unit\", \"Drum\", \"Transfer Belt\")\n- part_number: Exact part number (optional)\n- manufacturer: Device manufacturer (optional)\n- model: Device model (optional)\n\nReturns: Part number, description, compatible models, availability",
+        "method": "POST",
+        "url": "=http://backend:8000/api/v1/parts/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"search_term\": \"{{ $fromAI(\"search_term\", \"Part name or description\", \"string\") }}\",\n  \"part_number\": \"{{ $fromAI(\"part_number\", \"Exact part number (optional)\", \"string\") }}\",\n  \"manufacturer\": \"{{ $fromAI(\"manufacturer\", \"Device manufacturer (optional)\", \"string\") }}\",\n  \"model\": \"{{ $fromAI(\"model\", \"Device model (optional)\", \"string\") }}\"\n}",
+        "options": {}
+      },
+      "id": "tool-parts",
+      "name": "search_parts",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "position": [1000, 350],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "name": "search_videos",
+        "description": "Search for repair tutorial videos. Use this when the user needs visual guidance.\n\nParameters:\n- search_term: What to search for (e.g., \"Fuser Unit replacement\", \"Drum installation\")\n- manufacturer: Device manufacturer (optional)\n- model: Device model (optional)\n\nReturns: Video title, URL, description, duration",
+        "method": "POST",
+        "url": "=http://backend:8000/api/v1/videos/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"search_term\": \"{{ $fromAI(\"search_term\", \"What to search for\", \"string\") }}\",\n  \"manufacturer\": \"{{ $fromAI(\"manufacturer\", \"Device manufacturer (optional)\", \"string\") }}\",\n  \"model\": \"{{ $fromAI(\"model\", \"Device model (optional)\", \"string\") }}\"\n}",
+        "options": {}
+      },
+      "id": "tool-videos",
+      "name": "search_videos",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "position": [1000, 500],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "name": "query_service_manuals",
+        "description": "Query the service manuals vector store for repair procedures, technical information, and general questions. Use this for:\n- How-to questions (\"How do I replace...\")\n- Technical procedures\n- Troubleshooting steps\n- General device information\n\nThis tool uses semantic search to find relevant information in service manuals.\n\nParameter:\n- query: Your search query (e.g., \"How to replace fuser unit on CX963\", \"Drum replacement procedure bizhub C750i\")\n\nReturns: Relevant text passages from service manuals with page numbers"
+      },
+      "id": "tool-vector-store",
+      "name": "query_service_manuals",
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "position": [1000, 650],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text",
+        "options": {}
+      },
+      "id": "embeddings-ollama",
+      "name": "Embeddings Ollama",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "position": [1200, 800],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "options": {}
+      },
+      "id": "ollama-model-rag",
+      "name": "Ollama Chat Model for RAG",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [1400, 800],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "pineconeIndex": {
+          "__rl": true,
+          "mode": "list",
+          "value": "krai-manuals"
+        },
+        "options": {}
+      },
+      "id": "vector-store-pinecone",
+      "name": "Service Manuals Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "position": [1200, 650],
+      "typeVersion": 1,
+      "notes": "Alternative: Use Supabase Vector Store if you prefer"
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [[{ "node": "KRAI Technician Agent", "type": "main", "index": 0 }]]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [[{ "node": "KRAI Technician Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [[{ "node": "KRAI Technician Agent", "type": "ai_memory", "index": 0 }]]
+    },
+    "search_error_codes": {
+      "ai_tool": [[{ "node": "KRAI Technician Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "search_parts": {
+      "ai_tool": [[{ "node": "KRAI Technician Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "search_videos": {
+      "ai_tool": [[{ "node": "KRAI Technician Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "query_service_manuals": {
+      "ai_tool": [[{ "node": "KRAI Technician Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Service Manuals Vector Store": {
+      "ai_vectorStore": [[{ "node": "query_service_manuals", "type": "ai_vectorStore", "index": 0 }]]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [[{ "node": "Service Manuals Vector Store", "type": "ai_embedding", "index": 0 }]]
+    },
+    "Ollama Chat Model for RAG": {
+      "ai_languageModel": [[{ "node": "query_service_manuals", "type": "ai_languageModel", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "krai-hybrid-main"
+  },
+  "tags": [
+    {
+      "name": "KRAI",
+      "id": "krai"
+    },
+    {
+      "name": "Production",
+      "id": "production"
+    }
+  ]
+}
