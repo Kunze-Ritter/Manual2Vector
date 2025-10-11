@@ -101,14 +101,20 @@ class TextExtractor:
             
             # Extract text from each page
             for page_num in range(len(doc)):
-                page = doc[page_num]
-                text = page.get_text("text")
+                try:
+                    page = doc[page_num]
+                    text = page.get_text("text")
+                    
+                    # Clean up text
+                    text = self._clean_text(text)
+                    
+                    if text.strip():
+                        page_texts[page_num + 1] = text  # 1-indexed
                 
-                # Clean up text
-                text = self._clean_text(text)
-                
-                if text.strip():
-                    page_texts[page_num + 1] = text  # 1-indexed
+                except Exception as page_error:
+                    logger.warning(f"Failed to extract page {page_num + 1}: {page_error}")
+                    # Continue with next page
+                    continue
             
             doc.close()
             

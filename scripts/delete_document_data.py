@@ -173,16 +173,16 @@ def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
         print("\n✓ Dry run complete (no data deleted)")
         return True
     
-    # Delete data in correct order (children first, then parent)
-    # Based on actual DB schema with CASCADE deletes
+    # Delete data in correct order
+    # Strategy: Delete parent first, let CASCADE handle children (faster!)
+    # This avoids timeout issues with large tables like chunks
     deletion_order = [
-        # Junction tables first (many-to-many)
+        # Delete parent document first - CASCADE will handle all children
+        ('documents', 'id'),
+        # Cleanup any orphaned data (shouldn't be needed if CASCADE works)
         ('document_products', 'document_id'),
-        # Child tables with document_id
-        ('chunks', 'document_id'),
         ('error_codes', 'document_id'),
-        # Parent table last (CASCADE will handle orphans)
-        ('documents', 'id')
+        ('chunks', 'document_id'),
     ]
     
     print("\n🗑️  Deleting data...")
