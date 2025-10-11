@@ -7,16 +7,9 @@
 -- ============================================================================
 
 -- ============================================================================
--- 0. Create krai_analytics schema
+-- 1. Tool Usage Analytics (using existing krai_intelligence schema)
 -- ============================================================================
-CREATE SCHEMA IF NOT EXISTS krai_analytics;
-
-COMMENT ON SCHEMA krai_analytics IS 'Analytics and metrics for agent performance and user feedback';
-
--- ============================================================================
--- 1. Tool Usage Analytics
--- ============================================================================
-CREATE TABLE IF NOT EXISTS krai_analytics.tool_usage (
+CREATE TABLE IF NOT EXISTS krai_intelligence.tool_usage (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id TEXT NOT NULL,
     tool_name TEXT NOT NULL,
@@ -28,17 +21,17 @@ CREATE TABLE IF NOT EXISTS krai_analytics.tool_usage (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_tool_usage_session ON krai_analytics.tool_usage(session_id);
-CREATE INDEX IF NOT EXISTS idx_tool_usage_tool ON krai_analytics.tool_usage(tool_name);
-CREATE INDEX IF NOT EXISTS idx_tool_usage_created ON krai_analytics.tool_usage(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_session ON krai_intelligence.tool_usage(session_id);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_tool ON krai_intelligence.tool_usage(tool_name);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_created ON krai_intelligence.tool_usage(created_at DESC);
 
-COMMENT ON TABLE krai_analytics.tool_usage IS 
+COMMENT ON TABLE krai_intelligence.tool_usage IS 
 'Tracks which tools are used, how often, and their performance';
 
 -- ============================================================================
 -- 2. User Feedback
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS krai_analytics.feedback (
+CREATE TABLE IF NOT EXISTS krai_intelligence.feedback (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id TEXT NOT NULL,
     message_id TEXT,
@@ -48,11 +41,11 @@ CREATE TABLE IF NOT EXISTS krai_analytics.feedback (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_feedback_session ON krai_analytics.feedback(session_id);
-CREATE INDEX IF NOT EXISTS idx_feedback_rating ON krai_analytics.feedback(rating);
-CREATE INDEX IF NOT EXISTS idx_feedback_created ON krai_analytics.feedback(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_session ON krai_intelligence.feedback(session_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_rating ON krai_intelligence.feedback(rating);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON krai_intelligence.feedback(created_at DESC);
 
-COMMENT ON TABLE krai_analytics.feedback IS 
+COMMENT ON TABLE krai_intelligence.feedback IS 
 'User feedback on agent responses for continuous improvement';
 
 -- ============================================================================
@@ -333,7 +326,7 @@ COMMENT ON FUNCTION krai_intelligence.smart_search IS
 -- ============================================================================
 -- 9. View: Agent Performance Dashboard
 -- ============================================================================
-CREATE OR REPLACE VIEW krai_analytics.agent_performance AS
+CREATE OR REPLACE VIEW krai_intelligence.agent_performance AS
 SELECT 
     DATE(tu.created_at) as date,
     tu.tool_name,
@@ -343,17 +336,17 @@ SELECT
     AVG(tu.response_time_ms) as avg_response_time_ms,
     PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY tu.response_time_ms) as p95_response_time_ms,
     AVG(tu.results_count) as avg_results_count
-FROM krai_analytics.tool_usage tu
+FROM krai_intelligence.tool_usage tu
 GROUP BY DATE(tu.created_at), tu.tool_name
 ORDER BY date DESC, total_calls DESC;
 
-COMMENT ON VIEW krai_analytics.agent_performance IS 
+COMMENT ON VIEW krai_intelligence.agent_performance IS 
 'Daily performance metrics for agent tools';
 
 -- ============================================================================
 -- 10. View: User Satisfaction
 -- ============================================================================
-CREATE OR REPLACE VIEW krai_analytics.user_satisfaction AS
+CREATE OR REPLACE VIEW krai_intelligence.user_satisfaction AS
 SELECT 
     DATE(f.created_at) as date,
     COUNT(*) as total_feedback,
@@ -363,11 +356,11 @@ SELECT
     COUNT(*) FILTER (WHERE f.feedback_type = 'helpful') as helpful_count,
     COUNT(*) FILTER (WHERE f.feedback_type = 'not_helpful') as not_helpful_count,
     COUNT(*) FILTER (WHERE f.feedback_type = 'incorrect') as incorrect_count
-FROM krai_analytics.feedback f
+FROM krai_intelligence.feedback f
 GROUP BY DATE(f.created_at)
 ORDER BY date DESC;
 
-COMMENT ON VIEW krai_analytics.user_satisfaction IS 
+COMMENT ON VIEW krai_intelligence.user_satisfaction IS 
 'Daily user satisfaction metrics';
 
 -- ============================================================================
@@ -379,11 +372,11 @@ GRANT EXECUTE ON FUNCTION krai_intelligence.get_popular_error_codes TO authentic
 GRANT EXECUTE ON FUNCTION krai_intelligence.get_frequent_parts TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION krai_intelligence.smart_search TO authenticated, anon;
 
-GRANT SELECT ON krai_analytics.agent_performance TO authenticated;
-GRANT SELECT ON krai_analytics.user_satisfaction TO authenticated;
+GRANT SELECT ON krai_intelligence.agent_performance TO authenticated;
+GRANT SELECT ON krai_intelligence.user_satisfaction TO authenticated;
 
-GRANT INSERT ON krai_analytics.tool_usage TO authenticated, anon;
-GRANT INSERT ON krai_analytics.feedback TO authenticated, anon;
+GRANT INSERT ON krai_intelligence.tool_usage TO authenticated, anon;
+GRANT INSERT ON krai_intelligence.feedback TO authenticated, anon;
 
 -- ============================================================================
 -- Test queries (comment out after testing)
@@ -402,7 +395,7 @@ GRANT INSERT ON krai_analytics.feedback TO authenticated, anon;
 -- SELECT * FROM krai_intelligence.smart_search('Fuser Unit', 'test-session-123');
 
 -- Test performance dashboard
--- SELECT * FROM krai_analytics.agent_performance WHERE date >= CURRENT_DATE - INTERVAL '7 days';
+-- SELECT * FROM krai_intelligence.agent_performance WHERE date >= CURRENT_DATE - INTERVAL '7 days';
 
 -- Test user satisfaction
--- SELECT * FROM krai_analytics.user_satisfaction WHERE date >= CURRENT_DATE - INTERVAL '7 days';
+-- SELECT * FROM krai_intelligence.user_satisfaction WHERE date >= CURRENT_DATE - INTERVAL '7 days';
