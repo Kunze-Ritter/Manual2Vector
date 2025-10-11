@@ -114,6 +114,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.n8n_chat_histories TO anon;
 -- ============================================================================
 -- Helper function: Get chat history for n8n
 -- ============================================================================
+
+-- Drop existing function first (signature might have changed)
+DROP FUNCTION IF EXISTS public.get_n8n_chat_history(VARCHAR, INTEGER);
+DROP FUNCTION IF EXISTS public.get_n8n_chat_history(TEXT, INTEGER);
+
 CREATE OR REPLACE FUNCTION public.get_n8n_chat_history(
     p_session_id VARCHAR,
     p_limit INTEGER DEFAULT 10
@@ -152,6 +157,10 @@ GRANT EXECUTE ON FUNCTION public.get_n8n_chat_history TO authenticated, anon;
 -- ============================================================================
 -- Helper function: Clear old chat histories
 -- ============================================================================
+
+-- Drop existing function first
+DROP FUNCTION IF EXISTS public.clear_old_n8n_histories(INTEGER);
+
 CREATE OR REPLACE FUNCTION public.clear_old_n8n_histories(
     p_days_to_keep INTEGER DEFAULT 30
 )
