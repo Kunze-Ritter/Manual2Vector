@@ -115,9 +115,12 @@ BEGIN
         content = v_content,
         metadata = COALESCE(NEW.message->'additional_kwargs', '{}'::jsonb),
         updated_at = NOW()
-    WHERE session_id = OLD.session_id
-      AND created_at = OLD.created_at
-    LIMIT 1;
+    WHERE id = (
+        SELECT id FROM krai_agent.memory
+        WHERE session_id = OLD.session_id
+          AND created_at = OLD.created_at
+        LIMIT 1
+    );
     
     RETURN NEW;
 END;
