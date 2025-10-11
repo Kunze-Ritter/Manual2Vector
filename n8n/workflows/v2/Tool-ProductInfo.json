@@ -1,0 +1,74 @@
+{
+  "name": "Tool: Product Info",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM krai_intelligence.get_product_info(\n  '{{ $json.model_number }}',\n  {{ $json.manufacturer ? \"'\" + $json.manufacturer + \"'\" : \"NULL\" }}\n);",
+        "options": {}
+      },
+      "id": "supabase-query",
+      "name": "Supabase Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-postgres",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format product info results for the agent\nconst results = $input.all();\n\nif (results.length === 0) {\n  return [{\n    json: {\n      message: \"Keine Produkt-Informationen gefunden.\",\n      results: []\n    }\n  }];\n}\n\n// Format each result\nconst formatted = results.map(item => ({\n  product_id: item.json.product_id,\n  model_number: item.json.model_number,\n  manufacturer: item.json.manufacturer,\n  series_name: item.json.series_name,\n  product_type: item.json.product_type,\n  oem_manufacturer: item.json.oem_manufacturer,\n  oem_relationship: item.json.oem_relationship_type,\n  document_count: item.json.document_count\n}));\n\nreturn [{\n  json: {\n    message: `${results.length} Produkt(e) gefunden`,\n    results: formatted\n  }\n}];"
+      },
+      "id": "format-results",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Query": {
+      "main": [
+        [
+          {
+            "node": "Format Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-10-11T08:46:00.000Z",
+  "versionId": "1"
+}

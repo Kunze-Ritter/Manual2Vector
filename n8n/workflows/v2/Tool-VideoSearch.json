@@ -1,0 +1,74 @@
+{
+  "name": "Tool: Video Search",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM krai_intelligence.search_videos(\n  '{{ $json.search_term }}',\n  {{ $json.manufacturer ? \"'\" + $json.manufacturer + \"'\" : \"NULL\" }},\n  {{ $json.model ? \"'\" + $json.model + \"'\" : \"NULL\" }}\n);",
+        "options": {}
+      },
+      "id": "supabase-query",
+      "name": "Supabase Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-postgres",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format video results for the agent\nconst results = $input.all();\n\nif (results.length === 0) {\n  return [{\n    json: {\n      message: \"Keine Videos gefunden.\",\n      results: []\n    }\n  }];\n}\n\n// Format each result\nconst formatted = results.map(item => ({\n  video_id: item.json.video_id,\n  youtube_id: item.json.youtube_id,\n  title: item.json.title,\n  description: item.json.description ? item.json.description.substring(0, 200) + '...' : '',\n  channel: item.json.channel_name,\n  views: item.json.view_count,\n  url: item.json.video_url,\n  manufacturer: item.json.manufacturer,\n  model: item.json.model_number\n}));\n\nreturn [{\n  json: {\n    message: `${results.length} Video(s) gefunden`,\n    results: formatted\n  }\n}];"
+      },
+      "id": "format-results",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Query": {
+      "main": [
+        [
+          {
+            "node": "Format Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-10-11T08:46:00.000Z",
+  "versionId": "1"
+}
