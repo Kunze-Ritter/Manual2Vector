@@ -242,57 +242,77 @@
         ]
       ]
     },
-    "KRAI Technician Agent": {
+    "Ollama Chat Model": {
       "ai_languageModel": [
         [
           {
-            "node": "Ollama Chat Model",
+            "node": "KRAI Technician Agent",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
-      ],
+      ]
+    },
+    "Postgres Chat Memory": {
       "ai_memory": [
         [
           {
-            "node": "Postgres Chat Memory",
+            "node": "KRAI Technician Agent",
             "type": "ai_memory",
             "index": 0
           }
         ]
-      ],
+      ]
+    },
+    "Tool: Error Code Search": {
       "ai_tool": [
         [
           {
-            "node": "Tool: Error Code Search",
+            "node": "KRAI Technician Agent",
             "type": "ai_tool",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Tool: Parts Search": {
+      "ai_tool": [
         [
           {
-            "node": "Tool: Parts Search",
+            "node": "KRAI Technician Agent",
             "type": "ai_tool",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Tool: Product Info": {
+      "ai_tool": [
         [
           {
-            "node": "Tool: Product Info",
+            "node": "KRAI Technician Agent",
             "type": "ai_tool",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Tool: Video Search": {
+      "ai_tool": [
         [
           {
-            "node": "Tool: Video Search",
+            "node": "KRAI Technician Agent",
             "type": "ai_tool",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Tool: Documentation Search": {
+      "ai_tool": [
         [
           {
-            "node": "Tool: Documentation Search",
+            "node": "KRAI Technician Agent",
             "type": "ai_tool",
             "index": 0
           }
