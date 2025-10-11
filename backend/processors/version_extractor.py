@@ -181,10 +181,18 @@ class VersionExtractor:
             'utax': [
                 (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.95),  # Version 1.0
                 (r'v\s*(\d+\.\d+)', 'version', 0.90),  # v1.0
+                (r'(\d{2}/\d{4})', 'date', 0.85),  # 5/2024
             ],
             'triumph_adler': [
                 (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.95),  # Version 1.0
-                (r'(\d{2}/\d{4})', 'date', 0.90),  # 5/2024
+                (r'v\s*(\d+\.\d+)', 'version', 0.90),  # v1.0
+                (r'(\d{2}/\d{4})', 'date', 0.85),  # 5/2024
+            ],
+            'kyocera': [
+                (r'version\s+(\d+\.\d+(?:\.\d+)?)', 'version', 0.95),  # Version 1.0
+                (r'v\s*(\d+\.\d+)', 'version', 0.90),  # v1.0
+                (r'(\d{2}/\d{4})', 'date', 0.85),  # 5/2024
+                (r'rev\.\s*([A-Z])', 'revision', 0.80),  # Rev. A
             ],
         }
         
