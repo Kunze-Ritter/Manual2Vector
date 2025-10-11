@@ -673,27 +673,29 @@ class DocumentProcessor:
                 analyzed_count = 0
                 failed_count = 0
                 
-                for idx, video in enumerate(videos, 1):
-                    video_title = video.get('title', video.get('youtube_id', 'Unknown'))[:50]
-                    try:
-                        self.logger.info(f"      [{idx}/{len(videos)}] {video_title}...")
+                with self.logger.progress_bar(videos, "Analyzing video thumbnails") as progress:
+                    task = progress.add_task(f"Analyzed: {analyzed_count} videos", total=len(videos))
+                    
+                    for idx, video in enumerate(videos, 1):
+                        video_title = video.get('title', video.get('youtube_id', 'Unknown'))[:50]
+                        try:
+                            analyzed_video = self.link_extractor.analyze_video_thumbnail(
+                                video_metadata=video,
+                                enable_ocr=True,
+                                enable_vision=True
+                            )
+                            # Update video with analysis results
+                            video.update(analyzed_video)
+                            
+                            if 'thumbnail_ai_description' in analyzed_video or 'thumbnail_ocr_text' in analyzed_video:
+                                analyzed_count += 1
+                            
+                        except Exception as e:
+                            failed_count += 1
+                            self.logger.warning(f"      Failed to analyze video: {e}")
                         
-                        analyzed_video = self.link_extractor.analyze_video_thumbnail(
-                            video_metadata=video,
-                            enable_ocr=True,
-                            enable_vision=True
-                        )
-                        # Update video with analysis results
-                        video.update(analyzed_video)
-                        
-                        if 'thumbnail_ai_description' in analyzed_video or 'thumbnail_ocr_text' in analyzed_video:
-                            analyzed_count += 1
-                            self.logger.success(f"      ✅ [{idx}/{len(videos)}] Analysis complete")
-                        else:
-                            self.logger.info(f"      ⚠️  [{idx}/{len(videos)}] No text/description found")
-                    except Exception as e:
-                        failed_count += 1
-                        self.logger.warning(f"      ❌ [{idx}/{len(videos)}] Analysis failed: {e}")
+                        # Update progress
+                        progress.update(task, advance=1, description=f"Analyzed: {analyzed_count} videos")
                 
                 # Summary
                 if analyzed_count > 0:
@@ -1185,15 +1187,19 @@ class DocumentProcessor:
             saved_count = 0
             updated_count = 0
             
-            for product in products:
-                # Convert ExtractedProduct to dict if needed
-                product_data = product if isinstance(product, dict) else {
-                    'model_number': getattr(product, 'model_number', ''),
-                    'manufacturer_name': getattr(product, 'manufacturer_name', ''),
-                    'product_name': getattr(product, 'product_name', None),
-                    'series_name': getattr(product, 'series_name', None),
-                    'confidence': getattr(product, 'confidence', 0.0)
-                }
+            # Progress bar for saving products
+            with self.logger.progress_bar(products, "Saving products") as progress:
+                task = progress.add_task(f"Saved: {saved_count}, Updated: {updated_count}", total=len(products))
+                
+                for product in products:
+                    # Convert ExtractedProduct to dict if needed
+                    product_data = product if isinstance(product, dict) else {
+                        'model_number': getattr(product, 'model_number', ''),
+                        'manufacturer_name': getattr(product, 'manufacturer_name', ''),
+                        'product_name': getattr(product, 'product_name', None),
+                        'series_name': getattr(product, 'series_name', None),
+                        'confidence': getattr(product, 'confidence', 0.0)
+                    }
                 
                 # Get manufacturer_id (inherit from document if not specified)
                 manufacturer_name = product_data.get('manufacturer_name') or self.manufacturer
@@ -1283,6 +1289,9 @@ class DocumentProcessor:
                     if result.data:
                         product_ids.append(result.data[0]['id'])
                     saved_count += 1
+                    
+                    # Update progress
+                    progress.update(task, advance=1, description=f"Saved: {saved_count}, Updated: {updated_count}")
             
             self.logger.success(f"💾 Saved {saved_count} new products, updated {updated_count} existing")
             
