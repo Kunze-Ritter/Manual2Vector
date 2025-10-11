@@ -308,16 +308,16 @@
       "ai_tool": [[{ "node": "Main Coordinator Agent", "type": "ai_tool", "index": 0 }]]
     },
     "Error Code LLM": {
-      "ai_languageModel": [[{ "node": "error_code_specialist", "type": "ai_languageModel", "index": 0 }]]
+      "ai_languageModel": [[{ "node": "Error Code Agent", "type": "ai_languageModel", "index": 0 }]]
     },
     "Parts LLM": {
-      "ai_languageModel": [[{ "node": "parts_specialist", "type": "ai_languageModel", "index": 0 }]]
+      "ai_languageModel": [[{ "node": "Parts Agent", "type": "ai_languageModel", "index": 0 }]]
     },
     "Video LLM": {
-      "ai_languageModel": [[{ "node": "video_specialist", "type": "ai_languageModel", "index": 0 }]]
+      "ai_languageModel": [[{ "node": "Video Agent", "type": "ai_languageModel", "index": 0 }]]
     },
     "Manual LLM": {
-      "ai_languageModel": [[{ "node": "manual_specialist", "type": "ai_languageModel", "index": 0 }]]
+      "ai_languageModel": [[{ "node": "Manual Agent", "type": "ai_languageModel", "index": 0 }]]
     },
     "Error Code Agent": {
       "ai_agent": [[{ "node": "error_code_specialist", "type": "ai_agent", "index": 0 }]]
