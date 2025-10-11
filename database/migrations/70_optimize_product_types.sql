@@ -101,6 +101,7 @@ ADD CONSTRAINT product_type_check CHECK (
         'duplex_unit',             -- Duplex unit
         'output_tray',             -- Output tray
         'mailbox',                 -- Mailbox sorter
+        'mount_kit',               -- Mount kit (MK-xxx for installing options)        
         'job_separator',           -- Job separator
         
         -- ===== CONSUMABLES =====
@@ -113,7 +114,6 @@ ADD CONSTRAINT product_type_check CHECK (
         'transfer_belt',           -- Transfer belt/unit
         'waste_toner_box',         -- Waste toner container
         'maintenance_kit',         -- Maintenance kit (PM kits, service kits)
-        'mount_kit',               -- Mount kit (MK-xxx for installing options)
         'staple_cartridge',        -- Staple cartridge
         'punch_kit',               -- Punch waste box/kit
         'print_head',              -- Print head (inkjet)

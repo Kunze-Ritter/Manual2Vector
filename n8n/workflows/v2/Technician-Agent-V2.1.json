@@ -1,0 +1,314 @@
+{
+  "name": "KRAI Technician Agent V2.1",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "chat-trigger",
+      "name": "When chat message received",
+      "type": "n8n-nodes-base.chatTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=Du bist der KRAI Technician Agent - ein intelligenter Assistent für Service-Techniker.\n\nKONTEXT:\nDu hilfst Technikern, die vor Ort beim Kunden stehen und schnelle, präzise Antworten brauchen.\n\nDEINE TOOLS:\n1. search_error_codes     → Fehlercode-Datenbank\n2. search_parts           → Ersatzteil-Katalog\n3. get_product_info       → Produkt-Informationen\n4. search_videos          → YouTube Reparatur-Videos\n5. search_documentation   → Service Manuals (für allgemeine Fragen)\n\nWORKFLOW:\n1. Verstehe die Situation des Technikers\n2. Extrahiere: Hersteller, Modell, Fehlercode, Problem\n3. Nutze die passenden Tools (WICHTIG: Nutze IMMER die Tools, nicht dein Trainingswissen!)\n4. Gib eine strukturierte, mobile-optimierte Antwort\n\nANTWORT-FORMAT:\n✅ Kurz und präzise (Techniker hat keine Zeit)\n✅ Schritt-für-Schritt bei Anleitungen\n✅ Immer Quellen angeben (Seite, Dokument)\n✅ Bei Teilen: Teilenummer + Kompatibilität\n✅ Bei Fehlern: Ursache + Lösung + betroffene Teile\n✅ Nutze Emojis für bessere Lesbarkeit: 🔴 (Fehler), 🔧 (Lösung), 📦 (Teile), 📄 (Quelle), 🎥 (Video)\n\nKONTEXT-BEWUSSTSEIN:\n- Merke dir: Hersteller, Modell, Fehlercode aus vorherigen Nachrichten\n- Nutze Kontext für Follow-up Fragen\n- Beispiel: \"Welche Teile brauche ich?\" → Beziehe dich auf vorher genanntes Gerät\n\nSPRACHE: Deutsch, technisch aber verständlich\n\nBEISPIEL-ANTWORT:\n\nUser: \"Lexmark CX963 Fehlercode C-9402\"\nDu:   \"🔴 **Fehlercode C-9402 - Fuser Unit Fehler**\n       \n       **Ursache:** Fuser Unit defekt oder überhitzt\n       \n       **Lösung:**\n       1. Gerät ausschalten, 30 Min abkühlen lassen\n       2. Fuser Unit prüfen (Seite 245)\n       3. Falls defekt: Fuser Unit tauschen\n       \n       **Benötigte Teile:**\n       📦 Fuser Unit: 40X8024 (Original Lexmark)\n       📦 Alternative: 40X8025 (High Capacity)\n       \n       📄 **Quelle:** CX963 Service Manual, Seite 245\"\n\nWICHTIG: Nutze IMMER die Tools für aktuelle Daten! Verlasse dich NICHT auf dein Trainingswissen!",
+        "options": {
+          "systemMessage": "={{ $json.chatInput }}"
+        }
+      },
+      "id": "agent",
+      "name": "KRAI Technician Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 2000
+        }
+      },
+      "id": "ollama-llm",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 10
+      },
+      "id": "postgres-memory",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-postgres",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "search_error_codes",
+        "description": "Suche nach Fehlercodes in der Datenbank. Nutze dies wenn der User einen Fehlercode erwähnt (z.B. C-9402, E-1234, J-0001). WICHTIG: Nutze dieses Tool für ALLE Fehlercode-Anfragen!",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"error_code\": \"C-9402\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "error_code",
+              "type": "string",
+              "description": "Der Fehlercode (z.B. C-9402, E-1234). PFLICHTFELD!",
+              "required": true
+            },
+            {
+              "name": "manufacturer",
+              "type": "string",
+              "description": "Hersteller (optional, z.B. Lexmark, Konica Minolta)"
+            },
+            {
+              "name": "model",
+              "type": "string",
+              "description": "Modell (optional, z.B. CX963, bizhub C750i)"
+            }
+          ]
+        }
+      },
+      "id": "tool-error-codes",
+      "name": "Tool: Error Code Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "name": "search_parts",
+        "description": "Suche nach Ersatzteilen. Nutze dies wenn der User nach Teilen, Teilenummern oder Komponenten fragt (z.B. Fuser Unit, Toner, Drum Unit). WICHTIG: Nutze dieses Tool für ALLE Ersatzteil-Anfragen!",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit\",\n  \"part_number\": \"40X8024\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "search_term",
+              "type": "string",
+              "description": "Teilename oder Beschreibung (z.B. Fuser Unit, Toner, Drum). PFLICHTFELD!",
+              "required": true
+            },
+            {
+              "name": "part_number",
+              "type": "string",
+              "description": "Teilenummer (optional, z.B. 40X8024)"
+            },
+            {
+              "name": "manufacturer",
+              "type": "string",
+              "description": "Hersteller (optional)"
+            },
+            {
+              "name": "model",
+              "type": "string",
+              "description": "Modell (optional)"
+            }
+          ]
+        }
+      },
+      "id": "tool-parts",
+      "name": "Tool: Parts Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "name": "get_product_info",
+        "description": "Hole Informationen zu einem Produkt (Modell, Serie, Typ, OEM). Nutze dies wenn der User nach einem Gerät fragt oder du Kontext über ein Modell brauchst.",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"model_number\": \"CX963\",\n  \"manufacturer\": \"Lexmark\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "model_number",
+              "type": "string",
+              "description": "Modellnummer (z.B. CX963, bizhub C750i). PFLICHTFELD!",
+              "required": true
+            },
+            {
+              "name": "manufacturer",
+              "type": "string",
+              "description": "Hersteller (optional, z.B. Lexmark)"
+            }
+          ]
+        }
+      },
+      "id": "tool-product-info",
+      "name": "Tool: Product Info",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "name": "search_videos",
+        "description": "Suche nach YouTube-Videos (Reparatur-Anleitungen, Tutorials). Nutze dies wenn der User nach Videos, visuellen Anleitungen oder 'wie mache ich' fragt.",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit tauschen\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "search_term",
+              "type": "string",
+              "description": "Suchanfrage (z.B. 'Fuser Unit tauschen', 'Drum Unit ersetzen'). PFLICHTFELD!",
+              "required": true
+            },
+            {
+              "name": "manufacturer",
+              "type": "string",
+              "description": "Hersteller (optional)"
+            },
+            {
+              "name": "model",
+              "type": "string",
+              "description": "Modell (optional)"
+            }
+          ]
+        }
+      },
+      "id": "tool-videos",
+      "name": "Tool: Video Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [680, 700]
+    },
+    {
+      "parameters": {
+        "name": "search_documentation",
+        "description": "Durchsuche technische Dokumentation (Service Manuals, Anleitungen). Nutze dies für allgemeine Fragen, Anleitungen oder wenn andere Tools keine Ergebnisse liefern. Dies ist dein FALLBACK-Tool.",
+        "workflowId": "={{ $workflow.id }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"query\": \"Wie tausche ich die Fuser Unit?\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\",\n  \"document_type\": \"service_manual\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "type": "string",
+              "description": "Suchanfrage (z.B. 'Wie tausche ich die Fuser Unit?'). PFLICHTFELD!",
+              "required": true
+            },
+            {
+              "name": "manufacturer",
+              "type": "string",
+              "description": "Hersteller (optional)"
+            },
+            {
+              "name": "model",
+              "type": "string",
+              "description": "Modell (optional)"
+            },
+            {
+              "name": "document_type",
+              "type": "string",
+              "description": "Dokumenttyp (optional: service_manual, parts_catalog, user_guide)"
+            }
+          ]
+        }
+      },
+      "id": "tool-documentation",
+      "name": "Tool: Documentation Search",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [680, 800]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "KRAI Technician Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KRAI Technician Agent": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Ollama Chat Model",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_memory": [
+        [
+          {
+            "node": "Postgres Chat Memory",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_tool": [
+        [
+          {
+            "node": "Tool: Error Code Search",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tool: Parts Search",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tool: Product Info",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tool: Video Search",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tool: Documentation Search",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-10-11T08:34:00.000Z",
+  "versionId": "1"
+}

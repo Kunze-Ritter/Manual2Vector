@@ -1,0 +1,61 @@
+BEGIN;
+
+-- krai_intelligence children
+DELETE FROM krai_intelligence.error_code_images;
+DELETE FROM krai_intelligence.error_code_parts;
+
+-- krai_content children
+DELETE FROM krai_content.video_products;
+DELETE FROM krai_content.videos;
+DELETE FROM krai_content.links;
+DELETE FROM krai_content.print_defects;
+DELETE FROM krai_content.images;
+
+-- krai_intelligence main
+DELETE FROM krai_intelligence.error_codes;
+DELETE FROM krai_intelligence.search_analytics;
+DELETE FROM krai_intelligence.chunks;
+
+-- krai_parts
+DELETE FROM krai_parts.inventory_levels;
+DELETE FROM krai_parts.parts_catalog;
+
+-- krai_core relations (excluding manufacturers)
+DELETE FROM krai_core.document_products;
+DELETE FROM krai_core.product_accessories;
+DELETE FROM krai_core.product_configurations;
+DELETE FROM krai_core.products_backup;
+DELETE FROM krai_core.documents;
+DELETE FROM krai_core.document_relationships;
+DELETE FROM krai_core.products;
+DELETE FROM krai_core.product_series;
+
+-- krai_system
+DELETE FROM krai_system.processing_queue;
+DELETE FROM krai_system.stage_tracking;
+DELETE FROM krai_system.audit_log;
+DELETE FROM krai_system.system_metrics;
+DELETE FROM krai_system.health_checks;
+
+-- krai_service
+DELETE FROM krai_service.service_history;
+DELETE FROM krai_service.service_calls;
+DELETE FROM krai_service.technicians;
+
+-- krai_users
+DELETE FROM krai_users.user_sessions;
+DELETE FROM krai_users.users;
+
+-- krai_agent
+DELETE FROM krai_agent.message;
+DELETE FROM krai_agent.memory;
+
+-- krai_integrations
+DELETE FROM krai_integrations.webhook_logs;
+DELETE FROM krai_integrations.api_keys;
+
+-- krai_ml
+DELETE FROM krai_ml.model_performance_history;
+DELETE FROM krai_ml.model_registry;
+
+COMMIT;
