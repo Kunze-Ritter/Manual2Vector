@@ -228,11 +228,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:8000/api/v1/error-codes/search",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"code\": \"{{ $json.error_code }}\",\n  \"manufacturer\": \"{{ $json.manufacturer }}\",\n  \"model\": \"{{ $json.model }}\"\n}"
+        "method": "GET",
+        "url": "=http://host.docker.internal:8000/api/v1/search/error-codes?q={{ $json.error_code }}{{ $json.manufacturer ? '&manufacturer=' + $json.manufacturer : '' }}&limit=10"
       },
       "id": "56f64452-4374-4bcf-9144-230e0903a3e0",
       "name": "Search Error Codes",
@@ -245,11 +242,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:8000/api/v1/parts/search",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"search_term\": \"{{ $json.search_term }}\",\n  \"manufacturer\": \"{{ $json.manufacturer }}\",\n  \"model\": \"{{ $json.model }}\"\n}"
+        "method": "GET",
+        "url": "=http://host.docker.internal:8000/api/v1/search/parts?q={{ $json.search_term }}{{ $json.manufacturer ? '&manufacturer=' + $json.manufacturer : '' }}&limit=10"
       },
       "id": "63ac4934-0bb2-4fcd-a49f-79b4f1448e7b",
       "name": "Search Parts",
@@ -262,11 +256,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:8000/api/v1/videos/search",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"search_term\": \"{{ $json.search_term }}\",\n  \"manufacturer\": \"{{ $json.manufacturer }}\",\n  \"model\": \"{{ $json.model }}\"\n}"
+        "method": "GET",
+        "url": "=http://host.docker.internal:8000/api/v1/search/videos?q={{ $json.search_term }}{{ $json.manufacturer ? '&manufacturer=' + $json.manufacturer : '' }}&limit=10"
       },
       "id": "943f5e01-3bd3-4ed4-a4d4-ee22c6387267",
       "name": "Search Videos",
