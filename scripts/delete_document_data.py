@@ -196,7 +196,11 @@ def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
                 print(f"   ✓ Deleted {deleted_count} items from {table}")
         
         except Exception as e:
-            print(f"   ⚠️  Error deleting from {table}: {e}")
+            error_msg = str(e)
+            if 'statement timeout' in error_msg.lower() and table == 'chunks':
+                print(f"   ⚠️  Chunks deletion timeout (will be handled by CASCADE)")
+            else:
+                print(f"   ⚠️  Error deleting from {table}: {e}")
     
     print(f"\n✅ Successfully deleted all data for document: {document_id}")
     return True
