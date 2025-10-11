@@ -25,9 +25,11 @@ All agent-related data in one place:
 
 ### **`krai_parts`** - Parts Catalog
 - `parts_catalog` - Parts with numbers and compatibility
+- `inventory_levels` - Stock levels (planned)
 
 ### **`krai_content`** - Media
-- `images`, `videos` - Screenshots and video links
+- `images` - Screenshots and images
+- `videos` - Video links (YouTube, Vimeo, Self-hosted, etc.)
 
 ### **`public`** - n8n Interface
 - `n8n_chat_histories` - VIEW that maps to `krai_agent.memory`

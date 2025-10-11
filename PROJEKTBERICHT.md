@@ -107,7 +107,7 @@ Die Datenbank ist in logische Bereiche (Schemas) unterteilt:
   - Extrahierte Fehlercodes
   - Such-Analytics
   
-- **`krai_agent`** - AI-Agent System (NEU: Oktober 2025)
+- **`krai_agent`** - AI-Agent System
   - Chat-Verlauf (Konversationen)
   - Tool-Usage Analytics (welche Tools werden genutzt)
   - User Feedback (Bewertungen)
@@ -116,11 +116,11 @@ Die Datenbank ist in logische Bereiche (Schemas) unterteilt:
 - **`krai_parts`** - Ersatzteile
   - Teile-Katalog mit Nummern
   - Kompatibilitäten
-  - Lagerbestände
+  - Lagerbestände (geplant)
   
 - **`krai_content`** - Medien
   - Bilder und Screenshots
-  - Video-Links (YouTube)
+  - Video-Links (YouTube, Vimeo, Self-hosted, etc.)
   - Dokument-Anhänge
 
 **Vorteile dieser Struktur:**
@@ -196,7 +196,7 @@ Eine moderne Web-Oberfläche ermöglicht:
   1. **Error Code Search** - Fehlercode-Datenbank
   2. **Parts Search** - Ersatzteil-Katalog
   3. **Product Info** - Geräteinformationen
-  4. **Video Search** - YouTube Reparatur-Videos
+  4. **Video Search** - Reparatur-Videos (YouTube, Vimeo, Self-hosted)
   5. **Documentation Search** - Service Manual Suche
   
 - ✅ **Analytics & Tracking:**

@@ -272,7 +272,7 @@ User: "Zeige System Status"
 ✅ Search documents
 ✅ Error code lookup (with screenshots!)
 ✅ System status (with video/link stats!)
-✅ Video enrichment (YouTube/Vimeo/Brightcove) 🆕
+✅ Video enrichment (YouTube, Vimeo, Brightcove, Self-hosted) 🆕
 ✅ Link validation & fixing 🆕
 ✅ Content management 🆕
 ```
@@ -283,7 +283,7 @@ User: "Zeige System Status"
 
 ### **Example 1: Video Help**
 ```
-User: "Ich habe ein YouTube Video zur Wartung gefunden: 
+User: "Ich habe ein Video zur Wartung gefunden: 
        https://www.youtube.com/watch?v=abc123"
 
 Agent: [Calls enrich_video tool]
