@@ -119,8 +119,9 @@ Die Datenbank ist in logische Bereiche (Schemas) unterteilt:
   - Lagerbestände (geplant)
   
 - **`krai_content`** - Medien
-  - Bilder und Screenshots
-  - Video-Links (YouTube, Vimeo, Self-hosted, etc.)
+  - Bilder und Screenshots (aus Service Manuals)
+  - Video-Links (Reparatur-Anleitungen: "Wie tausche ich die Trommel?", "Wie ersetze ich die Fuser Unit?")
+    - Quellen: YouTube, Vimeo, Self-hosted, Hersteller-Portale
   - Dokument-Anhänge
 
 **Vorteile dieser Struktur:**
@@ -196,7 +197,7 @@ Eine moderne Web-Oberfläche ermöglicht:
   1. **Error Code Search** - Fehlercode-Datenbank
   2. **Parts Search** - Ersatzteil-Katalog
   3. **Product Info** - Geräteinformationen
-  4. **Video Search** - Reparatur-Videos (YouTube, Vimeo, Self-hosted)
+  4. **Video Search** - Reparatur-Anleitungen ("Wie tausche ich die Trommel?", "Wie ersetze ich Teil X?")
   5. **Documentation Search** - Service Manual Suche
   
 - ✅ **Analytics & Tracking:**

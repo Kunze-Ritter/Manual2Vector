@@ -28,8 +28,9 @@ All agent-related data in one place:
 - `inventory_levels` - Stock levels (planned)
 
 ### **`krai_content`** - Media
-- `images` - Screenshots and images
-- `videos` - Video links (YouTube, Vimeo, Self-hosted, etc.)
+- `images` - Screenshots and images from service manuals
+- `videos` - Repair tutorial videos ("How to replace drum unit?", "How to change fuser?")
+  - Sources: YouTube, Vimeo, Self-hosted, Manufacturer portals
 
 ### **`public`** - n8n Interface
 - `n8n_chat_histories` - VIEW that maps to `krai_agent.memory`
