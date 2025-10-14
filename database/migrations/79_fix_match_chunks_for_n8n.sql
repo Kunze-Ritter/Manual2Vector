@@ -34,8 +34,8 @@ BEGIN
         END
         -- Only return results with embeddings
         AND c.embedding IS NOT NULL
-        -- Similarity threshold
-        AND 1 - (c.embedding <=> query_embedding) > 0.5
+        -- Similarity threshold (lowered to 0.3 for better recall)
+        AND 1 - (c.embedding <=> query_embedding) > 0.3
     ORDER BY c.embedding <=> query_embedding
     LIMIT match_count;
 END;

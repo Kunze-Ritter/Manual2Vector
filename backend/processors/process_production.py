@@ -119,6 +119,8 @@ def main():
     # Check Ollama
     print("\n📊 Step 3/4: Checking Ollama...")
     ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+    embedding_model = os.getenv('OLLAMA_MODEL_EMBEDDING', 'nomic-embed-text:latest')
+    vision_model = os.getenv('OLLAMA_MODEL_VISION', 'llava:7b')
     print(f"   Ollama URL: {ollama_url}")
     
     try:
@@ -126,19 +128,23 @@ def main():
         response = requests.get(f"{ollama_url}/api/tags", timeout=2)
         if response.status_code == 200:
             models = response.json().get('models', [])
-            has_embedding = any('embeddinggemma' in m.get('name', '') for m in models)
-            has_vision = any('llava' in m.get('name', '') for m in models)
+            # Extract base model name (remove :tag)
+            embedding_base = embedding_model.split(':')[0]
+            vision_base = vision_model.split(':')[0]
+            
+            has_embedding = any(embedding_base in m.get('name', '') for m in models)
+            has_vision = any(vision_base in m.get('name', '') for m in models)
             
             print(f"✅ Ollama available")
-            print(f"   Embedding model: {'✅' if has_embedding else '❌'} embeddinggemma")
-            print(f"   Vision model: {'✅' if has_vision else '❌'} llava")
+            print(f"   Embedding model: {'✅' if has_embedding else '❌'} {embedding_model}")
+            print(f"   Vision model: {'✅' if has_vision else '❌'} {vision_model}")
             
             if not has_embedding:
-                print("\n⚠️  WARNING: embeddinggemma not found!")
-                print("   Run: ollama pull embeddinggemma")
+                print(f"\n⚠️  WARNING: {embedding_model} not found!")
+                print(f"   Run: ollama pull {embedding_model}")
             if not has_vision:
-                print("\n⚠️  WARNING: llava not found!")
-                print("   Run: ollama pull llava-phi3")
+                print(f"\n⚠️  WARNING: {vision_model} not found!")
+                print(f"   Run: ollama pull {vision_model}")
         else:
             print("⚠️  Warning: Ollama not responding")
     except Exception as e:

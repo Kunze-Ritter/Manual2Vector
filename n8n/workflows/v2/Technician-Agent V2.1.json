@@ -20,7 +20,7 @@
         "promptType": "define",
         "text": "={{ $json.chatInput }}",
         "options": {
-          "systemMessage": "## Role & Identity\nYou are a **Technical Support Coordinator** for service technicians. You coordinate between specialized tools to provide complete solutions.\n\n## Your Specialized Tools\nYou have access to 4 specialized sub-agents, each expert in their domain:\n\n1. **error_code_specialist** → Expert for error codes and diagnostics\n   - Use when: User mentions error code (e.g., \"C-9402\", \"88.10\")\n   - Input: error_code, manufacturer, model\n\n2. **parts_specialist** → Expert for spare parts and compatibility\n   - Use when: User asks about parts, replacements, part numbers\n   - Input: search_term, manufacturer, model\n\n3. **video_specialist** → Expert for finding repair videos\n   - Use when: User needs visual guidance or asks for videos\n   - Input: search_term, manufacturer, model\n\n4. **manual_specialist** → Expert for service manual procedures\n   - Use when: User asks \"how to\" or needs step-by-step instructions\n   - Input: query, manufacturer, model\n\n## Your Workflow\n\n### Step 1: Extract Information\nFrom the user's message, identify:\n- Manufacturer (e.g., \"Lexmark\", \"Konica Minolta\")\n- Model (e.g., \"CX963\", \"bizhub C750i\")\n- Error Code (if mentioned)\n- What they need (diagnosis, parts, instructions, video)\n\n### Step 2: Call the Right Specialists\n\n**If error code mentioned:**\n1. Call `error_code_specialist` first\n2. Based on the error, call `parts_specialist` for needed parts\n3. Call `manual_specialist` for repair procedure\n4. Call `video_specialist` for visual guide\n\n**If parts question:**\n1. Call `parts_specialist`\n2. Call `manual_specialist` for installation instructions\n\n**If \"how to\" question:**\n1. Call `manual_specialist`\n2. Call `video_specialist` for visual guide\n\n### Step 3: Synthesize Response\nCombine the specialists' responses into a clear, structured answer:\n\n🔴 **[Problem/Question]**\n\n**Diagnose:** [From error_code_specialist]\n\n**Lösung:**\n[From manual_specialist]\n\n**Benötigte Teile:**\n[From parts_specialist]\n\n🎥 **Video:**\n[From video_specialist]\n\n## Important Rules\n- ✅ ALWAYS call the appropriate specialists\n- ✅ Call multiple specialists if needed\n- ✅ Synthesize their responses into ONE coherent answer\n- ✅ Keep responses mobile-friendly\n- ✅ Use emojis for structure\n- ❌ NEVER answer without calling specialists\n- ❌ NEVER make up information\n\n## Context Awareness\n- Remember: Manufacturer, Model, Error Code from previous messages\n- For follow-up questions, use context and call specialists with that info\n\n## Language\nAlways respond in German, technical but clear."
+          "systemMessage": "You are a Technical Support Coordinator. You MUST ALWAYS use the specialist tools to answer questions.\n\n## CRITICAL RULES:\n1. ❌ NEVER answer directly - ALWAYS call a specialist tool first\n2. ✅ For \"how to\" questions → Call search_service_manuals\n3. ✅ For error codes → Call error_code_specialist\n4. ✅ For parts → Call parts_specialist\n5. ✅ For videos → Call video_specialist\n\n## Example:\nUser: \"Wie tausche ich die Fuser Unit beim HP E877?\"\nYou MUST:\n1. Call: search_service_manuals with query \"How to replace fuser unit on HP E877?\"\n2. Wait for response\n3. Return the answer in German\n\nYou are FORBIDDEN from answering without calling a specialist tool first!"
         }
       },
       "id": "561961a8-6e44-478d-9efc-0935ba26261e",
@@ -133,25 +133,6 @@
     },
     {
       "parameters": {
-        "name": "manual_specialist",
-        "description": "Expert for service manual procedures and technical documentation. Call this for 'how to' questions, step-by-step instructions, or general technical information. Uses semantic search in service manuals. Input: query (required), manufacturer (optional), model (optional)",
-        "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"query\": \"How to replace fuser unit\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
-        "options": {
-          "systemMessage": "You are a **Service Manual Specialist**.\n\nYour task: Provide step-by-step procedures using the search_manuals tool (vector store).\n\nWhen called with a query, you MUST:\n1. Call the search_manuals tool\n2. Format the response in German:\n\n**Anleitung:** [procedure name]\n\n**Schritte:**\n1. [Step 1]\n2. [Step 2]\n3. [Step 3]\n...\n\n**Hinweise:** [important notes, warnings]\n**Werkzeug:** [required tools]\n**Quelle:** [manual, page]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Provide clear step-by-step instructions\n- ✅ Include safety warnings\n- ✅ Cite sources\n- ❌ NEVER make up procedures\n- ❌ If not found, say so clearly"
-        }
-      },
-      "id": "4813fda1-3ec2-4329-9c5c-a2e58902f6c2",
-      "name": "manual_specialist",
-      "type": "@n8n/n8n-nodes-langchain.agentTool",
-      "position": [
-        96,
-        0
-      ],
-      "typeVersion": 2.2
-    },
-    {
-      "parameters": {
         "model": "llama3.1:8b",
         "options": {
           "temperature": 0.1
@@ -207,28 +188,6 @@
       "position": [
         -576,
         400
-      ],
-      "typeVersion": 1,
-      "credentials": {
-        "ollamaApi": {
-          "id": "KdqGhnIUPP0vQm3m",
-          "name": "Ollama account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "llama3.2:latest",
-        "options": {
-          "temperature": 0.1
-        }
-      },
-      "id": "57197865-e8a3-43ac-8b92-e7da753bc8b3",
-      "name": "Manual LLM",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "position": [
-        112,
-        144
       ],
       "typeVersion": 1,
       "credentials": {
@@ -319,7 +278,10 @@
       }
     },
     {
-      "parameters": {},
+      "parameters": {
+        "name": "search_service_manuals",
+        "description": "Search service manuals and technical documentation using semantic search. Use this for 'how to' questions, repair procedures, technical specifications, or any question about device maintenance. Input: your question in natural language (e.g., 'How to replace fuser unit on HP E877?')"
+      },
       "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
       "typeVersion": 1.1,
       "position": [
@@ -327,7 +289,7 @@
         192
       ],
       "id": "04f4298a-7bfd-4488-a202-a060d9a7cae1",
-      "name": "Answer questions with a vector store"
+      "name": "Search Service Manuals"
     },
     {
       "parameters": {
@@ -417,17 +379,6 @@
         ]
       ]
     },
-    "manual_specialist": {
-      "ai_tool": [
-        [
-          {
-            "node": "Main Coordinator Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Error Code LLM": {
       "ai_languageModel": [
         [
@@ -455,17 +406,6 @@
         [
           {
             "node": "video_specialist",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Manual LLM": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "manual_specialist",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -520,18 +460,18 @@
       "ai_vectorStore": [
         [
           {
-            "node": "Answer questions with a vector store",
+            "node": "Search Service Manuals",
             "type": "ai_vectorStore",
             "index": 0
           }
         ]
       ]
     },
-    "Answer questions with a vector store": {
+    "Search Service Manuals": {
       "ai_tool": [
         [
           {
-            "node": "manual_specialist",
+            "node": "Main Coordinator Agent",
             "type": "ai_tool",
             "index": 0
           }
@@ -542,7 +482,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "Answer questions with a vector store",
+            "node": "Search Service Manuals",
             "type": "ai_languageModel",
             "index": 0
           }
