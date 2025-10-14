@@ -79,12 +79,12 @@
         "name": "error_code_specialist",
         "description": "Expert for error code diagnosis. Call this when the user mentions an error code (e.g., 'C-9402', '88.10', 'E-1234'). Returns: error description, root cause, affected components, solution steps. Input: error_code (required), manufacturer (optional), model (optional)",
         "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"error_code\": \"88.10\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "jsonSchemaExample": "{\n  \"error_code\": \"88.10\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
         "options": {
           "systemMessage": "You are an **Error Code Diagnosis Specialist**.\n\nYour task: Diagnose error codes precisely using the search_database tool.\n\nWhen called with an error_code, you MUST:\n1. Call the search_database tool\n2. Format the response in German:\n\n**Fehlercode:** [code]\n**Beschreibung:** [what it means]\n**Ursache:** [root cause]\n**Betroffene Komponenten:** [affected parts]\n**Lösung:** [solution steps]\n**Quelle:** [document, page]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Be precise and technical\n- ✅ Cite sources\n- ❌ NEVER make up information\n- ❌ If not found, say so clearly"
         }
       },
-      "id": "84616d11-62ed-4f63-937e-d7601c3c9788",
+      "id": "3a8f105b-e4c8-4944-a7d9-ef987505f370",
       "name": "error_code_specialist",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "position": [
@@ -98,12 +98,12 @@
         "name": "parts_specialist",
         "description": "Expert for spare parts and compatibility. Call this when the user asks about parts, replacements, or part numbers. Returns: part numbers, descriptions, compatible models. Input: search_term (required), manufacturer (optional), model (optional)",
         "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
         "options": {
           "systemMessage": "You are a **Spare Parts Specialist**.\n\nYour task: Find exact part numbers and compatibility using the search_database tool.\n\nWhen called with a search_term, you MUST:\n1. Call the search_database tool\n2. Format the response in German:\n\n**Ersatzteil:** [part name]\n**Teilenummer:** [part number]\n**Beschreibung:** [what it does]\n**Kompatible Modelle:** [compatible devices]\n**Quelle:** [catalog, page]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Provide exact part numbers\n- ✅ List compatible models\n- ✅ Cite sources\n- ❌ NEVER make up part numbers\n- ❌ If not found, suggest alternatives"
         }
       },
-      "id": "855a0772-1d60-4ca1-a568-e0e63026e1d2",
+      "id": "67e4f6db-ee06-4e6a-b2a9-25ae2d540f17",
       "name": "parts_specialist",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "position": [
@@ -117,12 +117,12 @@
         "name": "video_specialist",
         "description": "Expert for finding repair tutorial videos. Call this when the user needs visual guidance or asks for videos. Returns: video titles, URLs, descriptions. Input: search_term (required), manufacturer (optional), model (optional)",
         "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit replacement\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit replacement\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
         "options": {
           "systemMessage": "You are a **Video Tutorial Specialist**.\n\nYour task: Find relevant repair videos using the search_database tool.\n\nWhen called with a search_term, you MUST:\n1. Call the search_database tool\n2. Format the response in German:\n\n**Video:** [title]\n**Link:** [URL]\n**Beschreibung:** [what the video shows]\n**Dauer:** [length]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Provide working video links\n- ✅ Describe what the video shows\n- ❌ NEVER make up video links\n- ❌ If not found, say so clearly"
         }
       },
-      "id": "92f2e8d1-e4e6-423a-83b5-384e89b83935",
+      "id": "5e1ea2fc-4908-4287-92a2-ffb81a303db0",
       "name": "video_specialist",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "position": [
@@ -136,12 +136,12 @@
         "name": "manual_specialist",
         "description": "Expert for service manual procedures and technical documentation. Call this for 'how to' questions, step-by-step instructions, or general technical information. Uses semantic search in service manuals. Input: query (required), manufacturer (optional), model (optional)",
         "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"query\": \"How to replace fuser unit\",\n  \"manufacturer\": \"Lexmark\",\n  \"model\": \"CX963\"\n}",
+        "jsonSchemaExample": "{\n  \"query\": \"How to replace fuser unit\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
         "options": {
           "systemMessage": "You are a **Service Manual Specialist**.\n\nYour task: Provide step-by-step procedures using the search_manuals tool (vector store).\n\nWhen called with a query, you MUST:\n1. Call the search_manuals tool\n2. Format the response in German:\n\n**Anleitung:** [procedure name]\n\n**Schritte:**\n1. [Step 1]\n2. [Step 2]\n3. [Step 3]\n...\n\n**Hinweise:** [important notes, warnings]\n**Werkzeug:** [required tools]\n**Quelle:** [manual, page]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Provide clear step-by-step instructions\n- ✅ Include safety warnings\n- ✅ Cite sources\n- ❌ NEVER make up procedures\n- ❌ If not found, say so clearly"
         }
       },
-      "id": "413357e1-4133-4f02-ba9d-c3a7ce7a2bdf",
+      "id": "4813fda1-3ec2-4329-9c5c-a2e58902f6c2",
       "name": "manual_specialist",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "position": [
