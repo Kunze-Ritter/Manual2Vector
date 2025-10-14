@@ -37,7 +37,7 @@ class EmbeddingProcessor:
         self,
         supabase_client=None,
         ollama_url: Optional[str] = None,
-        model_name: str = "embeddinggemma",
+        model_name: str = None,
         batch_size: int = 100,
         embedding_dimension: int = 768
     ):
@@ -47,9 +47,9 @@ class EmbeddingProcessor:
         Args:
             supabase_client: Supabase client for storage
             ollama_url: Ollama API URL (default: from env)
-            model_name: Embedding model name (default: embeddinggemma)
+            model_name: Embedding model name (default: from OLLAMA_MODEL_EMBEDDING env)
             batch_size: Number of chunks to embed per batch
-            embedding_dimension: Dimension of embedding vectors (768 for embeddinggemma)
+            embedding_dimension: Dimension of embedding vectors (768 for embeddinggemma, nomic-embed-text)
         """
         self.logger = get_logger()
         self.supabase = supabase_client
@@ -58,7 +58,8 @@ class EmbeddingProcessor:
         
         # Ollama configuration
         self.ollama_url = ollama_url or os.getenv('OLLAMA_URL', 'http://localhost:11434')
-        self.model_name = model_name
+        # Read model from env if not provided
+        self.model_name = model_name or os.getenv('OLLAMA_MODEL_EMBEDDING', 'nomic-embed-text:latest')
         
         # Stage tracker
         if supabase_client:
