@@ -21,10 +21,10 @@ BEGIN
     RETURN QUERY
     SELECT 
         c.id,
-        c.content,
+        c.text_chunk as content,
         c.metadata,
         1 - (c.embedding <=> query_embedding) as similarity
-    FROM krai_content.chunks c
+    FROM krai_intelligence.chunks c
     WHERE 
         -- Apply filters if provided
         CASE 

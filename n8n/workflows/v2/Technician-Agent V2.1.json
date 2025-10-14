@@ -279,7 +279,7 @@
     },
     {
       "parameters": {
-        "tableName": "krai.chunks",
+        "tableName": "krai_intelligence.chunks",
         "options": {
           "queryName": "match_chunks"
         }
