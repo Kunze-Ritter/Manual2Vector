@@ -118,11 +118,11 @@ JSON:"""
         return prompt
     
     def _call_ollama(self, prompt: str) -> str:
-        """Call Ollama API (using new /api/chat endpoint)"""
+        """Call Ollama API (supports both old and new API)"""
         
-        url = f"{self.ollama_url}/api/chat"
-        
-        payload = {
+        # Try new API first (/api/chat)
+        url_chat = f"{self.ollama_url}/api/chat"
+        payload_chat = {
             "model": self.model_name,
             "messages": [
                 {
@@ -131,25 +131,54 @@ JSON:"""
                 }
             ],
             "stream": False,
-            "format": "json",  # Force JSON output
+            "format": "json",
             "options": {
-                "temperature": 0.1,  # Low temp for consistency
+                "temperature": 0.1,
                 "num_predict": 2000
             }
         }
         
-        response = requests.post(url, json=payload, timeout=120)  # 2 minutes for complex pages
-        response.raise_for_status()
-        
-        result = response.json()
-        # New API returns message.content instead of response
-        llm_response = result.get("message", {}).get("content", "")
-        
-        if self.debug:
-            self.logger.debug(f"Ollama response length: {len(llm_response)}")
-            self.logger.debug(f"Ollama response preview: {llm_response[:300]}")
-        
-        return llm_response
+        try:
+            response = requests.post(url_chat, json=payload_chat, timeout=120)
+            response.raise_for_status()
+            result = response.json()
+            llm_response = result.get("message", {}).get("content", "")
+            
+            if self.debug:
+                self.logger.debug(f"✅ Used new Ollama API (/api/chat)")
+                self.logger.debug(f"Response length: {len(llm_response)}")
+            
+            return llm_response
+            
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 405:
+                # Fall back to old API (/api/generate)
+                self.logger.warning("New API not supported, falling back to old API (/api/generate)")
+                
+                url_generate = f"{self.ollama_url}/api/generate"
+                payload_generate = {
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                    "format": "json",
+                    "options": {
+                        "temperature": 0.1,
+                        "num_predict": 2000
+                    }
+                }
+                
+                response = requests.post(url_generate, json=payload_generate, timeout=120)
+                response.raise_for_status()
+                result = response.json()
+                llm_response = result.get("response", "")
+                
+                if self.debug:
+                    self.logger.debug(f"✅ Used old Ollama API (/api/generate)")
+                    self.logger.debug(f"Response length: {len(llm_response)}")
+                
+                return llm_response
+            else:
+                raise
     
     def _parse_llm_response(
         self,
