@@ -62,6 +62,15 @@ from processors.master_pipeline import MasterPipeline
 from processors.__version__ import __version__, __commit__, __date__
 from supabase import create_client
 
+# Import GPU utils from API directory
+sys.path.insert(0, str(backend_dir / 'api'))
+try:
+    from gpu_utils import GPUManager
+    gpu_manager = GPUManager()
+except ImportError:
+    print("⚠️  GPU Utils not available")
+    gpu_manager = None
+
 # Change back
 os.chdir(original_dir)
 
@@ -86,6 +95,27 @@ def main():
     print("   - OCR: ENABLED (Tesseract)")
     print("   - Vision AI: ENABLED (LLaVA)")
     print("   - All stages: ACTIVE")
+    
+    # Initialize GPU if enabled
+    if gpu_manager:
+        print("\n🎮 GPU Configuration:")
+        use_gpu = os.getenv('USE_GPU', 'false').lower() == 'true'
+        if use_gpu:
+            print("   - GPU Acceleration: ENABLED")
+            gpu_info = gpu_manager.get_gpu_info()
+            if gpu_info['cuda_available']:
+                print(f"   - CUDA Available: {gpu_info['device_count']} device(s)")
+                print(f"   - Device: {gpu_info['device_name']}")
+                print(f"   - VRAM: {gpu_info['total_memory']:.1f} GB")
+                if gpu_manager.is_opencv_cuda_available():
+                    print("   - OpenCV CUDA: Available")
+                    gpu_manager.configure_opencv()
+                else:
+                    print("   - OpenCV CUDA: Not available (using CPU)")
+            else:
+                print("   - CUDA: Not available (using CPU)")
+        else:
+            print("   - GPU Acceleration: DISABLED (USE_GPU=false)")
     
     # Initialize Supabase
     print("\n📊 Step 1/4: Connecting to Supabase...")
