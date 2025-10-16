@@ -1,0 +1,6 @@
+fix: Disable Vision AI for parts enrichment
+
+Vision AI for parts requires analyze_page method which is not yet implemented in image_processor.
+For now, rely on improved pattern matching which should handle most cases.
+
+TODO: Implement Vision AI enrichment later if needed.

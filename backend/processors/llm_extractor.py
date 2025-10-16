@@ -118,13 +118,18 @@ JSON:"""
         return prompt
     
     def _call_ollama(self, prompt: str) -> str:
-        """Call Ollama API"""
+        """Call Ollama API (using new /api/chat endpoint)"""
         
-        url = f"{self.ollama_url}/api/generate"
+        url = f"{self.ollama_url}/api/chat"
         
         payload = {
             "model": self.model_name,
-            "prompt": prompt,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
             "stream": False,
             "format": "json",  # Force JSON output
             "options": {
@@ -137,7 +142,8 @@ JSON:"""
         response.raise_for_status()
         
         result = response.json()
-        llm_response = result.get("response", "")
+        # New API returns message.content instead of response
+        llm_response = result.get("message", {}).get("content", "")
         
         if self.debug:
             self.logger.debug(f"Ollama response length: {len(llm_response)}")
