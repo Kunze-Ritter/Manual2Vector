@@ -653,14 +653,14 @@ class ErrorCodeExtractor:
             solution = match.group(1).strip()
             # Clean up and limit length
             lines = solution.split('\n')
-            # Take up to 20 lines or until we hit a new section (increased for complex procedures)
+            # Take up to 50 lines (increased from 20 for longer procedures)
             filtered_lines = []
-            for line in lines[:20]:
+            for line in lines[:50]:
                 # Match main steps (1., 1)) AND sub-steps (  1), 2), a), etc.)
                 # PERFORMANCE: Use pre-compiled pattern
                 if STEP_LINE_PATTERN.match(line):
                     filtered_lines.append(line.strip())
-                elif filtered_lines and len(line.strip()) > 20:  # Continuation line
+                elif filtered_lines and len(line.strip()) > 10:  # Continuation line (lowered from 20 to catch more)
                     filtered_lines[-1] += ' ' + line.strip()
                 elif filtered_lines and not line.strip():  # Empty line between steps - keep going
                     continue
@@ -681,17 +681,17 @@ class ErrorCodeExtractor:
                 if section_end:
                     solution = solution[:section_end.start()]
                     break
-            return solution[:1000].strip()  # Limit length
+            return solution[:3000].strip()  # Limit length (increased from 1000 to 3000)
         
         # Pattern 3: Numbered steps without header (1., 1), 2), Step 1, ...)
         # PERFORMANCE: Use pre-compiled pattern
         match = NUMBERED_STEPS_PATTERN.search(text_after)
         if match:
             steps = match.group(1).strip()
-            # Take up to 15 steps (increased for complex multi-step procedures)
+            # Take up to 30 steps (increased from 15 for complex multi-step procedures)
             lines = [l.strip() for l in steps.split('\n') if l.strip()]
             step_lines = []
-            for line in lines[:15]:
+            for line in lines[:30]:
                 # PERFORMANCE: Use pre-compiled pattern
                 if STEP_MATCH_PATTERN.match(line):
                     step_lines.append(line)

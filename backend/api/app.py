@@ -23,8 +23,16 @@ from processors.upload_processor import UploadProcessor, BatchUploadProcessor
 from processors.document_processor import DocumentProcessor
 from processors.stage_tracker import StageTracker
 
-# Load environment
-load_dotenv()
+# Import API routers
+from api.agent_api import create_agent_api
+
+# Load ALL environment files (they are in project root)
+project_root = Path(__file__).parent.parent.parent
+load_dotenv(project_root / '.env.ai')
+load_dotenv(project_root / '.env.database')
+load_dotenv(project_root / '.env.external')
+load_dotenv(project_root / '.env.pipeline')
+load_dotenv(project_root / '.env.storage')
 
 # Initialize FastAPI
 app = FastAPI(
@@ -46,6 +54,7 @@ app.add_middleware(
 supabase_client = None
 upload_processor = None
 document_processor = None
+agent_app = None
 
 
 # === DEPENDENCY INJECTION ===
@@ -82,6 +91,14 @@ def get_document_processor():
             debug=False
         )
     return document_processor
+
+
+def get_agent_app():
+    """Get Agent API app"""
+    global agent_app
+    if agent_app is None:
+        agent_app = create_agent_api(get_supabase())
+    return agent_app
 
 
 # === PYDANTIC MODELS ===
@@ -500,6 +517,11 @@ async def get_system_metrics(supabase=Depends(get_supabase)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Mount Agent API
+agent_api = get_agent_app()
+app.mount("/agent", agent_api)
 
 
 if __name__ == "__main__":

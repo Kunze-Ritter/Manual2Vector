@@ -11,13 +11,24 @@
         "SUPABASE_ACCESS_TOKEN": "sbp_0789c60681fb654e01308de196aad2a44050c879"
       }
     },
-    "Supabase-Docker ": {
+    "Supabase-Docker": {
       "command": "npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-postgres",
         "postgres://postgres:postgres@localhost:54322/postgres"
       ]
+    }
+  },
+  "n8n-mcp": {
+    "command": "npx",
+    "args": ["n8n-mcp"],
+    "env": {
+      "MCP_MODE": "stdio",
+      "LOG_LEVEL": "error",
+      "DISABLE_CONSOLE_OUTPUT": "true",
+      "N8N_API_URL": "http://localhost:5678",
+      "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMzJmOTc3OS01ZjM4LTRlYjQtYTY1NC1kYzYyOTY2MjlmY2MiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYwNTEyNzUxfQ.K-mp9D63o2lxkKudcpPy0Rah2oOwl5Slmb2TJ6Frv80"
     }
   }
 }

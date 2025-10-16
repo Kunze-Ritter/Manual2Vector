@@ -55,7 +55,17 @@ class DocumentProcessor:
         # Initialize extractors
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
-        self.parts_extractor = PartsExtractor()
+        
+        # Initialize Vision Processor for parts extraction
+        try:
+            from .vision_processor import VisionProcessor
+            self.vision_processor = VisionProcessor()
+            self.logger.info("Vision AI enabled for parts extraction")
+        except Exception as e:
+            self.logger.warning(f"Vision processor not available: {e}")
+            self.vision_processor = None
+        
+        self.parts_extractor = PartsExtractor(vision_processor=self.vision_processor)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
         self.image_processor = ImageProcessor(supabase_client=supabase_client)
@@ -532,6 +542,16 @@ class DocumentProcessor:
                     progress.update(task, advance=1, description=f"Parts found: {parts_count}")
             
             if parts:
+                # Enrich parts with Vision AI if needed
+                parts_without_names = sum(1 for p in parts if not p.part_name)
+                if parts_without_names > 0 and self.vision_processor:
+                    self.logger.info(f"Enriching {parts_without_names} parts with Vision AI...")
+                    parts = self.parts_extractor.enrich_parts_with_vision(
+                        parts=parts,
+                        pdf_path=pdf_path,
+                        manufacturer_name=part_manufacturer
+                    )
+                
                 self.logger.success(f"✅ Extracted {len(parts)} spare parts")
                 # Save parts immediately (like error codes)
                 self._save_parts_to_db(document_id, parts, detected_manufacturer)

@@ -1,5 +1,6 @@
 """
 Parts Extractor - Extract spare parts from parts catalogs using manufacturer-specific patterns
+Enhanced with Vision AI for complex tables and layouts
 """
 
 import re
@@ -13,14 +14,15 @@ from .models import ExtractedPart
 
 
 class PartsExtractor:
-    """Extract spare parts from documents using pattern matching"""
+    """Extract spare parts from documents using pattern matching + Vision AI"""
     
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Optional[Path] = None, vision_processor=None):
         """
         Initialize parts extractor with configuration
         
         Args:
             config_path: Path to parts_patterns.json config file
+            vision_processor: Optional VisionProcessor for AI-based extraction
         """
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "parts_patterns.json"
@@ -28,8 +30,11 @@ class PartsExtractor:
         self.config_path = config_path
         self.patterns_config = self._load_config()
         self.extraction_rules = self.patterns_config.get("extraction_rules", {})
+        self.vision_processor = vision_processor
         
         logger.info(f"Loaded parts patterns for {len(self.patterns_config) - 1} manufacturers")
+        if vision_processor:
+            logger.info("Vision AI enabled for parts extraction")
     
     def _load_config(self) -> Dict[str, Any]:
         """Load parts patterns configuration"""
@@ -228,6 +233,105 @@ class PartsExtractor:
         
         return parts
     
+    def enrich_parts_with_vision(
+        self,
+        parts: List[ExtractedPart],
+        pdf_path: Path,
+        manufacturer_name: str
+    ) -> List[ExtractedPart]:
+        """
+        Enrich parts with missing names/descriptions using Vision AI
+        
+        Args:
+            parts: List of extracted parts (some may have None for part_name)
+            pdf_path: Path to PDF file
+            manufacturer_name: Manufacturer name for context
+            
+        Returns:
+            Enriched parts list with Vision AI data
+        """
+        if not self.vision_processor:
+            logger.warning("Vision processor not available, skipping enrichment")
+            return parts
+        
+        # Find parts that need enrichment (no name or description)
+        parts_needing_vision = [
+            p for p in parts 
+            if not p.part_name or (not p.part_description and len(p.context) < 50)
+        ]
+        
+        if not parts_needing_vision:
+            logger.info("All parts have names, skipping Vision AI enrichment")
+            return parts
+        
+        logger.info(f"Enriching {len(parts_needing_vision)} parts with Vision AI...")
+        
+        # Group by page number for efficient processing
+        pages_to_process = list(set(p.page_number for p in parts_needing_vision))
+        
+        enriched_parts = []
+        for part in parts:
+            if part.page_number in pages_to_process and not part.part_name:
+                # Use Vision AI to extract part info from page image
+                vision_result = self._extract_part_with_vision(
+                    pdf_path=pdf_path,
+                    page_number=part.page_number,
+                    part_number=part.part_number,
+                    manufacturer_name=manufacturer_name
+                )
+                
+                if vision_result:
+                    # Update part with Vision AI data
+                    part.part_name = vision_result.get('part_name') or part.part_name
+                    part.part_description = vision_result.get('part_description') or part.part_description
+                    part.confidence = max(part.confidence, vision_result.get('confidence', 0.5))
+                    logger.debug(f"✅ Vision AI enriched {part.part_number}: {part.part_name}")
+            
+            enriched_parts.append(part)
+        
+        return enriched_parts
+    
+    def _extract_part_with_vision(
+        self,
+        pdf_path: Path,
+        page_number: int,
+        part_number: str,
+        manufacturer_name: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Extract part info from page image using Vision AI
+        
+        Returns:
+            Dict with part_name, part_description, confidence
+        """
+        try:
+            # Create prompt for Vision AI
+            prompt = f"""This is a parts catalog page from {manufacturer_name}.
+Find the part number {part_number} in this image.
+Extract:
+1. Part name (short description, 1-5 words)
+2. Part description (longer description if available)
+
+Format your response as JSON:
+{{"part_name": "...", "part_description": "...", "confidence": 0.0-1.0}}
+
+If you cannot find the part number, return {{"found": false}}"""
+            
+            # Use vision processor to analyze page
+            result = self.vision_processor.analyze_page(
+                pdf_path=pdf_path,
+                page_number=page_number,
+                prompt=prompt
+            )
+            
+            if result and result.get('found') != False:
+                return result
+            
+        except Exception as e:
+            logger.error(f"Vision AI error for {part_number} on page {page_number}: {e}")
+        
+        return None
+    
     def _validate_context(self, context: str) -> bool:
         """Validate that context looks like a parts catalog entry"""
         context_lower = context.lower()
@@ -244,23 +348,45 @@ class PartsExtractor:
     
     def _extract_part_info(self, context: str, part_number: str) -> Tuple[Optional[str], Optional[str]]:
         """Extract part name and description from context"""
-        # Simple heuristic: text after part number is likely the description
         lines = context.split('\n')
         part_name = None
         part_description = None
         
         for i, line in enumerate(lines):
             if part_number in line:
-                # Name is often on the same line or next line
+                # Try to extract name from same line
                 remaining = line.split(part_number, 1)[1].strip()
+                
+                # Clean up common prefixes/separators
+                for prefix in [':', '|', '-', '–']:
+                    if remaining.startswith(prefix):
+                        remaining = remaining[1:].strip()
+                
+                # If we have text after part number, use it as name
                 if remaining and len(remaining) > 3:
+                    # Stop at common delimiters
+                    for delimiter in ['|', '\t', '  ']:  # pipe, tab, double space
+                        if delimiter in remaining:
+                            remaining = remaining.split(delimiter)[0].strip()
                     part_name = remaining[:255]
                 
-                # Description might be on next lines
-                if i + 1 < len(lines):
+                # If no name yet, check next line
+                if not part_name and i + 1 < len(lines):
                     next_line = lines[i + 1].strip()
-                    if next_line and len(next_line) > 10:
-                        part_description = next_line[:500]
+                    # Skip common labels
+                    for label in ['Description:', 'Desc:', 'Part Name:', 'Name:']:
+                        if next_line.startswith(label):
+                            next_line = next_line[len(label):].strip()
+                    
+                    if next_line and len(next_line) > 3:
+                        part_name = next_line[:255]
+                
+                # Description from next lines (skip if it's the name)
+                for j in range(i + 1, min(i + 4, len(lines))):
+                    desc_line = lines[j].strip()
+                    if desc_line and len(desc_line) > 10 and desc_line != part_name:
+                        part_description = desc_line[:500]
+                        break
                 
                 break
         

@@ -5,3 +5,13 @@ pydantic==2.5.3
 python-dotenv==1.0.0
 supabase==2.3.0
 requests==2.31.0
+
+# LangChain for AI Agent
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-core>=0.3.75
+langchain-ollama>=0.2.0
+numpy>=2.1.0,<2.3.0
+
+# PostgreSQL adapter - use psycopg (new version) instead of psycopg2
+psycopg[binary]>=3.1.0

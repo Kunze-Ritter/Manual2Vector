@@ -3,6 +3,7 @@ AI Model Configuration with Hardware Auto-Detection
 Intelligente Modell-Auswahl basierend auf verfügbarer Hardware
 """
 
+import os
 import psutil
 import platform
 from typing import Dict, List, Optional
@@ -271,10 +272,13 @@ class HardwareDetector:
         gpu_available = self.specs.gpu_available
         gpu_memory_gb = self.specs.gpu_memory_gb or 0
         
+        # Read embedding model from env
+        embedding_model = os.getenv('OLLAMA_MODEL_EMBEDDING', 'nomic-embed-text:latest')
+        
         configs = {
             ModelTier.CONSERVATIVE: ModelConfig(
                 text_classification="llama3.2:3b",
-                embeddings="embeddinggemma:300m", 
+                embeddings=embedding_model, 
                 vision="llava:7b",
                 tier=ModelTier.CONSERVATIVE,
                 estimated_ram_usage_gb=8.0,
@@ -284,7 +288,7 @@ class HardwareDetector:
             ),
             ModelTier.BALANCED: ModelConfig(
                 text_classification="llama3.2:latest",
-                embeddings="embeddinggemma:latest",
+                embeddings=embedding_model,
                 vision="llava:latest", 
                 tier=ModelTier.BALANCED,
                 estimated_ram_usage_gb=16.0,
@@ -294,7 +298,7 @@ class HardwareDetector:
             ),
                    ModelTier.HIGH_PERFORMANCE: ModelConfig(
                        text_classification="llama3.2:latest",
-                       embeddings="embeddinggemma:latest",
+                       embeddings=embedding_model,
                        vision="llava:latest",
                        tier=ModelTier.HIGH_PERFORMANCE,
                        estimated_ram_usage_gb=16.0,

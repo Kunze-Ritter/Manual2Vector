@@ -186,56 +186,70 @@ class SearchAPI:
         ):
             """Search error codes in database"""
             try:
+                # Extract error code from query (remove words like "Fehler", "Error", etc.)
+                import re
+                # Find patterns like: 10.00.33, C-1005, C9402, 100.01, etc.
+                
+                # Priority 1: Patterns with dots (like 10.00.33, 100.01)
+                error_code_pattern = r'\b\d+(?:\.\d+)+\b'
+                matches = re.findall(error_code_pattern, q, re.IGNORECASE)
+                
+                # Priority 2: Letter + optional dash + digits (like C-1005, C9402)
+                if not matches:
+                    error_code_pattern = r'\b[A-Z]-?\d{3,}\b'  # At least 3 digits
+                    matches = re.findall(error_code_pattern, q, re.IGNORECASE)
+                
+                search_term = matches[0] if matches else q
+                
+                self.logger.info(f"Error code search: query='{q}' -> extracted='{search_term}'")
+                
                 # Build query
-                query = """
-                SELECT 
-                    ec.error_code,
-                    ec.error_description as description,
-                    ec.solution_text as solution,
-                    ec.page_number,
-                    ec.severity_level,
-                    ec.confidence_score,
-                    m.name as manufacturer,
-                    d.filename as source_document
-                FROM krai_intelligence.error_codes ec
-                LEFT JOIN krai_core.manufacturers m ON ec.manufacturer_id = m.id
-                LEFT JOIN krai_core.documents d ON ec.document_id = d.id
-                WHERE ec.error_code ILIKE %s
-                """
-                
-                params = [f"%{q}%"]
-                
-                # Add manufacturer filter if specified
-                if manufacturer:
-                    query += " AND m.name ILIKE %s"
-                    params.append(f"%{manufacturer}%")
-                
-                query += " ORDER BY ec.confidence_score DESC NULLS LAST, ec.error_code LIMIT %s"
-                params.append(limit)
+                # Use Supabase PostgREST API - search in public.error_codes view
+                query_builder = self.database_service.client.table('error_codes').select(
+                    'error_code, error_description, solution_text, page_number, severity_level, confidence_score, '
+                    'manufacturer_id, document_id'
+                ).ilike('error_code', f'%{search_term}%')
                 
                 # Execute query
-                result = await self.database_service.execute_query(query, params)
+                response = query_builder.order('confidence_score', desc=True).limit(limit).execute()
+                
+                # Get manufacturer and document names if needed
+                manufacturer_ids = [row['manufacturer_id'] for row in response.data if row.get('manufacturer_id')]
+                document_ids = [row['document_id'] for row in response.data if row.get('document_id')]
+                
+                manufacturers = {}
+                documents = {}
+                
+                if manufacturer_ids:
+                    mfr_response = self.database_service.client.table('manufacturers').select('id, name').in_('id', manufacturer_ids).execute()
+                    manufacturers = {m['id']: m['name'] for m in mfr_response.data}
+                
+                if document_ids:
+                    doc_response = self.database_service.client.table('documents').select('id, filename').in_('id', document_ids).execute()
+                    documents = {d['id']: d['filename'] for d in doc_response.data}
                 
                 # Format results
                 error_codes = []
-                for row in result:
+                for row in response.data:
+                    # Filter by manufacturer if specified
+                    if manufacturer:
+                        mfr_name = manufacturers.get(row.get('manufacturer_id'), '')
+                        if manufacturer.lower() not in mfr_name.lower():
+                            continue
+                    
                     error_codes.append({
-                        'error_code': row['error_code'],
-                        'description': row['description'],
-                        'solution': row['solution'],
-                        'manufacturer': row['manufacturer'],
-                        'page_number': row['page_number'],
-                        'severity_level': row['severity_level'],
-                        'source_document': row['source_document'],
+                        'error_code': row.get('error_code'),
+                        'description': row.get('error_description'),
+                        'solution': row.get('solution_text'),
+                        'manufacturer': manufacturers.get(row.get('manufacturer_id')),
+                        'page_number': row.get('page_number'),
+                        'severity_level': row.get('severity_level'),
+                        'source_document': documents.get(row.get('document_id')),
                         'confidence': float(row['confidence_score']) if row['confidence_score'] else 0.0
                     })
                 
-                return {
-                    'query': q,
-                    'error_codes': error_codes,
-                    'total_count': len(error_codes),
-                    'manufacturer_filter': manufacturer
-                }
+                # Return array directly for n8n compatibility
+                return error_codes
                 
             except Exception as e:
                 self.logger.error(f"Error code search failed: {e}")

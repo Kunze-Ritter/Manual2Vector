@@ -100,10 +100,13 @@ async def lifespan(app: FastAPI):
         # Initialize database service
         database_service = DatabaseService(
             supabase_url=os.getenv("SUPABASE_URL"),
-            supabase_key=os.getenv("SUPABASE_ANON_KEY")
+            supabase_key=os.getenv("SUPABASE_ANON_KEY"),
+            postgres_url=os.getenv("DATABASE_CONNECTION_URL")
         )
         await database_service.connect()
         print("✅ Database service connected")
+        if database_service.pg_pool:
+            print("✅ PostgreSQL connection pool initialized")
         
         # Initialize object storage service
         storage_service = ObjectStorageService(

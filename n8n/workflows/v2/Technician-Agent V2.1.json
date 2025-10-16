@@ -1,16 +1,16 @@
 {
-  "name": "KRAI Technician Agent V2.2 - Specialized Sub-Agents",
+  "name": "Technician-Agent V2.1",
   "nodes": [
     {
       "parameters": {
         "options": {}
       },
-      "id": "01ce13bc-f351-4860-98a3-127b5ca322c8",
+      "id": "777fdbe0-a052-4a9b-a1fe-c162d068e7a4",
       "name": "When chat message received",
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "position": [
-        -512,
-        -160
+        -1072,
+        -144
       ],
       "typeVersion": 1.3,
       "webhookId": "184a5522-07b3-4e34-9a04-84022fdd0469"
@@ -20,15 +20,15 @@
         "promptType": "define",
         "text": "={{ $json.chatInput }}",
         "options": {
-          "systemMessage": "You are a Technical Support Coordinator. You MUST ALWAYS use the specialist tools to answer questions.\n\n## CRITICAL RULES:\n1. ❌ NEVER answer directly - ALWAYS call a specialist tool first\n2. ✅ For \"how to\" questions → Call search_service_manuals\n3. ✅ For error codes → Call error_code_specialist\n4. ✅ For parts → Call parts_specialist\n5. ✅ For videos → Call video_specialist\n\n## Example:\nUser: \"Wie tausche ich die Fuser Unit beim HP E877?\"\nYou MUST:\n1. Call: search_service_manuals with query \"How to replace fuser unit on HP E877?\"\n2. Wait for response\n3. Return the answer in German\n\nYou are FORBIDDEN from answering without calling a specialist tool first!"
+          "systemMessage": "##Role\nYou are a Technical Support Assistant that helps technicians diagnose and fix printer/copier issues.\n\n##Task\nYour task is to take the user's question and delegate it to the correct tool. You MUST use the tools to answer - NEVER answer directly from your knowledge.\n\nTools you can call:\n- search_error_codes: Use when user mentions an error code or error number\n- search_service_manuals: Use for 'how to' questions, repair procedures, or technical specifications\n\n##Critical Rules\n1. ALWAYS call a tool - NEVER answer without calling a tool first\n2. Use ONLY the information returned by the tool\n3. NEVER add information not in the tool response\n4. NEVER make assumptions or guesses\n5. If tool returns no results: Say \"Keine Informationen gefunden\"\n\n##Response Format (Error Codes)\nWhen tool returns data, format in German:\n**Fehlercode:** [error_code]\n**Beschreibung:** [description]\n**Lösung:** [solution]\n**Quelle:** Seite [page_number]"
         }
       },
-      "id": "561961a8-6e44-478d-9efc-0935ba26261e",
+      "id": "54054600-efda-4134-abf9-806322f94ec2",
       "name": "Main Coordinator Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "position": [
-        -256,
-        -160
+        -816,
+        -144
       ],
       "typeVersion": 1.6
     },
@@ -39,12 +39,12 @@
           "temperature": 0.1
         }
       },
-      "id": "6bdb390f-d42e-4e22-94fe-151c6ac0db69",
+      "id": "84ca7f2e-610c-453d-9913-9362f017a890",
       "name": "Main LLM",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "position": [
-        -656,
-        48
+        -1344,
+        112
       ],
       "typeVersion": 1,
       "credentials": {
@@ -59,12 +59,12 @@
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId }}"
       },
-      "id": "d80b3e4b-c3a7-4f56-9a2d-902ad8cf9369",
+      "id": "30fd8ede-a142-4e69-b64b-dcdfcde2787d",
       "name": "Postgres Chat Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "position": [
-        -528,
-        48
+        -1168,
+        112
       ],
       "typeVersion": 1,
       "credentials": {
@@ -76,74 +76,49 @@
     },
     {
       "parameters": {
-        "name": "error_code_specialist",
-        "description": "Expert for error code diagnosis. Call this when the user mentions an error code (e.g., 'C-9402', '88.10', 'E-1234'). Returns: error description, root cause, affected components, solution steps. Input: error_code (required), manufacturer (optional), model (optional)",
-        "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"error_code\": \"88.10\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
         "options": {
-          "systemMessage": "You are an **Error Code Diagnosis Specialist**.\n\nYour task: Diagnose error codes precisely using the search_database tool.\n\nWhen called with an error_code, you MUST:\n1. Call the search_database tool\n2. Format the response in German:\n\n**Fehlercode:** [code]\n**Beschreibung:** [what it means]\n**Ursache:** [root cause]\n**Betroffene Komponenten:** [affected parts]\n**Lösung:** [solution steps]\n**Quelle:** [document, page]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Be precise and technical\n- ✅ Cite sources\n- ❌ NEVER make up information\n- ❌ If not found, say so clearly"
+          "systemMessage": "##Role\nYou are an Error Code Specialist.\n\n##Task\nYour ONLY job is to call the Search Error Codes tool and format the response.\n\n##Critical Rules\n1. ALWAYS call the Search Error Codes tool (no parameters needed - it uses the user's message automatically)\n2. Use ONLY the data returned by the tool\n3. NEVER make up information\n4. If tool returns empty results: Say \"Fehlercode nicht in der Datenbank gefunden\"\n\n##Response Format\nWhen tool returns data, format in German:\n**Fehlercode:** [error_code]\n**Beschreibung:** [description]\n**Lösung:** [solution]\n**Quelle:** Seite [page_number]\n\nIMPORTANT: The tool automatically extracts the error code from the user's message. Just call it!"
         }
       },
-      "id": "3a8f105b-e4c8-4944-a7d9-ef987505f370",
+      "id": "57157975-28c3-47bf-a6df-5f13ff41da36",
       "name": "error_code_specialist",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "position": [
-        -400,
-        560
+        -752,
+        528
       ],
       "typeVersion": 2.2
     },
     {
       "parameters": {
-        "name": "parts_specialist",
-        "description": "Expert for spare parts and compatibility. Call this when the user asks about parts, replacements, or part numbers. Returns: part numbers, descriptions, compatible models. Input: search_term (required), manufacturer (optional), model (optional)",
-        "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
-        "options": {
-          "systemMessage": "You are a **Spare Parts Specialist**.\n\nYour task: Find exact part numbers and compatibility using the search_database tool.\n\nWhen called with a search_term, you MUST:\n1. Call the search_database tool\n2. Format the response in German:\n\n**Ersatzteil:** [part name]\n**Teilenummer:** [part number]\n**Beschreibung:** [what it does]\n**Kompatible Modelle:** [compatible devices]\n**Quelle:** [catalog, page]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Provide exact part numbers\n- ✅ List compatible models\n- ✅ Cite sources\n- ❌ NEVER make up part numbers\n- ❌ If not found, suggest alternatives"
-        }
-      },
-      "id": "67e4f6db-ee06-4e6a-b2a9-25ae2d540f17",
-      "name": "parts_specialist",
-      "type": "@n8n/n8n-nodes-langchain.agentTool",
-      "position": [
-        -144,
-        272
-      ],
-      "typeVersion": 2.2
-    },
-    {
-      "parameters": {
-        "name": "video_specialist",
-        "description": "Expert for finding repair tutorial videos. Call this when the user needs visual guidance or asks for videos. Returns: video titles, URLs, descriptions. Input: search_term (required), manufacturer (optional), model (optional)",
-        "specifyInputSchema": true,
-        "jsonSchemaExample": "{\n  \"search_term\": \"Fuser Unit replacement\",\n  \"manufacturer\": \"HP\",\n  \"model\": \"E877\"\n}",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
         "options": {
           "systemMessage": "You are a **Video Tutorial Specialist**.\n\nYour task: Find relevant repair videos using the search_database tool.\n\nWhen called with a search_term, you MUST:\n1. Call the search_database tool\n2. Format the response in German:\n\n**Video:** [title]\n**Link:** [URL]\n**Beschreibung:** [what the video shows]\n**Dauer:** [length]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Provide working video links\n- ✅ Describe what the video shows\n- ❌ NEVER make up video links\n- ❌ If not found, say so clearly"
         }
       },
-      "id": "5e1ea2fc-4908-4287-92a2-ffb81a303db0",
+      "id": "bbf8f2f1-36f4-4fb6-bbdc-8a59f358ca3b",
       "name": "video_specialist",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "position": [
-        -576,
-        208
+        -1040,
+        224
       ],
       "typeVersion": 2.2
     },
     {
       "parameters": {
-        "model": "llama3.1:8b",
+        "model": "llama3.2:latest",
         "options": {
           "temperature": 0.1
         }
       },
-      "id": "4b1ae9e4-0388-484f-9d6c-4c4b43579bd4",
+      "id": "c1730fb2-7df3-45dd-8e3f-0e5bb6e10645",
       "name": "Error Code LLM",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "position": [
-        -432,
-        784
+        -784,
+        752
       ],
       "typeVersion": 1,
       "credentials": {
@@ -160,12 +135,12 @@
           "temperature": 0.1
         }
       },
-      "id": "9aea9cda-c050-4774-bdac-64ac3838b6fa",
+      "id": "7b1ccca2-a9e1-4654-890e-1f8ecfae0922",
       "name": "Parts LLM",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "position": [
-        -208,
-        432
+        -624,
+        320
       ],
       "typeVersion": 1,
       "credentials": {
@@ -177,17 +152,17 @@
     },
     {
       "parameters": {
-        "model": "llama3.1:8b",
+        "model": "llama3.2:latest",
         "options": {
           "temperature": 0.1
         }
       },
-      "id": "3725f9cc-88b1-4a72-9da6-c6b88a02358b",
+      "id": "e47ca387-efc9-40a9-b0a5-f1993fcfceec",
       "name": "Video LLM",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "position": [
-        -576,
-        400
+        -1040,
+        416
       ],
       "typeVersion": 1,
       "credentials": {
@@ -199,14 +174,29 @@
     },
     {
       "parameters": {
-        "url": "=http://host.docker.internal:8000/search/error-codes?q={{ $json.error_code }}{{ $json.manufacturer ? '&manufacturer=' + $json.manufacturer : '' }}&limit=10"
+        "url": "http://host.docker.internal:8000/search/error-codes",
+        "sendQuery": true,
+        "specifyInputSchema": true,
+        "inputSchemaJson": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"query\": {\n      \"type\": \"string\",\n      \"description\": \"The search query (error code, manufacturer, model)\"\n    }\n  }\n}",
+        "parametersQuery": {
+          "values": [
+            {
+              "name": "q",
+              "value": "={{ $json.query || $('When chat message received').first().json.chatInput }}"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            }
+          ]
+        }
       },
-      "id": "d0ee34a4-dfb2-4588-8585-8e077641f2f4",
+      "id": "4315140c-f5df-4fb7-b56c-c015144f225b",
       "name": "Search Error Codes",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "position": [
-        -224,
-        784
+        -576,
+        752
       ],
       "typeVersion": 1.1
     },
@@ -214,12 +204,12 @@
       "parameters": {
         "url": "=http://host.docker.internal:8000/search/parts?q={{ $json.search_term }}{{ $json.manufacturer ? '&manufacturer=' + $json.manufacturer : '' }}&limit=10"
       },
-      "id": "87a76fbc-61a8-48bd-873d-5c7411050a4f",
+      "id": "0a98a4ee-26be-4e45-bbcb-3543d00ebf27",
       "name": "Search Parts",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "position": [
-        0,
-        544
+        -416,
+        432
       ],
       "typeVersion": 1.1
     },
@@ -227,12 +217,12 @@
       "parameters": {
         "url": "=http://host.docker.internal:8000/search/videos?q={{ $json.search_term }}{{ $json.manufacturer ? '&manufacturer=' + $json.manufacturer : '' }}&limit=10"
       },
-      "id": "0056a056-a2ec-437a-896a-32917e646729",
+      "id": "ed2fd0a5-6ca5-4698-a6df-8e86b86177a4",
       "name": "Search Videos",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "position": [
-        -432,
-        400
+        -896,
+        416
       ],
       "typeVersion": 1.1
     },
@@ -243,12 +233,12 @@
           "queryName": "match_chunks"
         }
       },
-      "id": "bcf29546-91fc-4d64-8cae-023ae6cd7ac9",
+      "id": "2a50ddff-71e2-4471-b27a-4b07ba69c4e1",
       "name": "Search Manuals Vector Store",
       "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
       "position": [
-        288,
-        416
+        -256,
+        288
       ],
       "typeVersion": 1,
       "credentials": {
@@ -260,14 +250,14 @@
     },
     {
       "parameters": {
-        "model": "embeddinggemma:latest"
+        "model": "nomic-embed-text:latest"
       },
-      "id": "0a9c8dd6-2ef4-46e1-9762-565144d3bcfd",
+      "id": "b85b7058-5db2-4f91-b8c8-7cc1cd35344e",
       "name": "Embeddings Ollama",
       "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
       "position": [
-        336,
-        608
+        -208,
+        480
       ],
       "typeVersion": 1,
       "credentials": {
@@ -279,16 +269,15 @@
     },
     {
       "parameters": {
-        "name": "search_service_manuals",
         "description": "Search service manuals and technical documentation using semantic search. Use this for 'how to' questions, repair procedures, technical specifications, or any question about device maintenance. Input: your question in natural language (e.g., 'How to replace fuser unit on HP E877?')"
       },
       "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
       "typeVersion": 1.1,
       "position": [
-        352,
-        192
+        -192,
+        64
       ],
-      "id": "04f4298a-7bfd-4488-a202-a060d9a7cae1",
+      "id": "46d424e8-72ac-4592-adb3-4e3110adb031",
       "name": "Search Service Manuals"
     },
     {
@@ -298,10 +287,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "typeVersion": 1,
       "position": [
-        608,
-        352
+        64,
+        224
       ],
-      "id": "d03b2592-ecbf-4fa8-9dac-645e246a5c21",
+      "id": "d33d0870-83c6-42ee-a714-00907e97dd9f",
       "name": "Ollama Chat Model",
       "credentials": {
         "ollamaApi": {
@@ -309,6 +298,22 @@
           "name": "Ollama account"
         }
       }
+    },
+    {
+      "parameters": {
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "You are a **Spare Parts Specialist**.\n\nYour task: Find exact part numbers and compatibility using the search_database tool.\n\nWhen called with a search_term, you MUST:\n1. Call the search_database tool\n2. Format the response in German:\n\n**Ersatzteil:** [part name]\n**Teilenummer:** [part number]\n**Beschreibung:** [what it does]\n**Kompatible Modelle:** [compatible devices]\n**Quelle:** [catalog, page]\n\nRules:\n- ✅ ALWAYS use the tool\n- ✅ Provide exact part numbers\n- ✅ List compatible models\n- ✅ Cite sources\n- ❌ NEVER make up part numbers\n- ❌ If not found, suggest alternatives"
+        }
+      },
+      "id": "a9f3ae38-20a4-4f83-9bfc-34e231ea25f8",
+      "name": "parts_specialist",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "position": [
+        -560,
+        160
+      ],
+      "typeVersion": 2.2
     }
   ],
   "pinData": {},
@@ -347,17 +352,6 @@
       ]
     },
     "error_code_specialist": {
-      "ai_tool": [
-        [
-          {
-            "node": "Main Coordinator Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "parts_specialist": {
       "ai_tool": [
         [
           {
@@ -488,13 +482,24 @@
           }
         ]
       ]
+    },
+    "parts_specialist": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Coordinator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "6d6cb5b7-a1b5-4803-bd93-557a1aef2829",
+  "versionId": "a9203be6-1165-4158-a5f5-7b3a7a6b65c9",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c6c1a437e8b16512082bde84b62b61f6117713bbbdf560b47f5bdf35aa8946c8"
