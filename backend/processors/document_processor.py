@@ -56,16 +56,9 @@ class DocumentProcessor:
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
         
-        # Initialize Vision Processor for parts extraction
-        try:
-            from .vision_processor import VisionProcessor
-            self.vision_processor = VisionProcessor()
-            self.logger.info("Vision AI enabled for parts extraction")
-        except Exception as e:
-            self.logger.warning(f"Vision processor not available: {e}")
-            self.vision_processor = None
-        
-        self.parts_extractor = PartsExtractor(vision_processor=self.vision_processor)
+        # Use existing image_processor for Vision AI (initialized below)
+        # We'll pass it to parts_extractor after initialization
+        self.parts_extractor = PartsExtractor()
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
         self.image_processor = ImageProcessor(supabase_client=supabase_client)
@@ -542,15 +535,11 @@ class DocumentProcessor:
                     progress.update(task, advance=1, description=f"Parts found: {parts_count}")
             
             if parts:
-                # Enrich parts with Vision AI if needed
+                # TODO: Vision AI enrichment for parts (requires analyze_page method in image_processor)
+                # For now, rely on improved pattern matching
                 parts_without_names = sum(1 for p in parts if not p.part_name)
-                if parts_without_names > 0 and self.vision_processor:
-                    self.logger.info(f"Enriching {parts_without_names} parts with Vision AI...")
-                    parts = self.parts_extractor.enrich_parts_with_vision(
-                        parts=parts,
-                        pdf_path=pdf_path,
-                        manufacturer_name=part_manufacturer
-                    )
+                if parts_without_names > 0:
+                    self.logger.info(f"ℹ️  {parts_without_names} parts without names (Vision AI not yet implemented)")
                 
                 self.logger.success(f"✅ Extracted {len(parts)} spare parts")
                 # Save parts immediately (like error codes)
