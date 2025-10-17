@@ -1387,9 +1387,9 @@ class DocumentProcessor:
                     oem_updated = 0
                     
                     for product_id in product_ids:
-                        # Get product info (with series via JOIN)
+                        # Get product info (series_name is already in vw_products view)
                         product_result = supabase.table('vw_products').select(
-                            'id,model_number,manufacturer_id,series_id,product_series(series_name)'
+                            'id,model_number,manufacturer_id,series_id,series_name'
                         ).eq('id', product_id).single().execute()
                         
                         if product_result.data:
@@ -1593,10 +1593,9 @@ class DocumentProcessor:
             
             for product_id in saved_products:
                 # saved_products is a list of UUIDs, not dicts!
-                # Get current product with series info (JOIN with product_series)
-                # products.series_id → product_series.id → product_series.series_name
+                # Get current product with series info (series_name is in vw_products view)
                 result = supabase.table('vw_products') \
-                    .select('product_type, model_number, series_id, product_series(series_name)') \
+                    .select('product_type, model_number, series_id, series_name') \
                     .eq('id', product_id) \
                     .limit(1) \
                     .execute()
