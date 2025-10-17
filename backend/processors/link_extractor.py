@@ -121,11 +121,17 @@ class LinkExtractor:
             
             # Check for Vimeo
             elif 'vimeo.com' in url.lower():
+                video_metadata = self._create_generic_video_metadata(url, link['id'], 'vimeo')
+                all_videos.append(video_metadata)
+                link['video_id'] = video_metadata['id']
                 link['link_type'] = 'video'
                 link['link_category'] = 'vimeo'
             
             # Check for Brightcove
             elif 'brightcove' in url.lower():
+                video_metadata = self._create_generic_video_metadata(url, link['id'], 'brightcove')
+                all_videos.append(video_metadata)
+                link['video_id'] = video_metadata['id']
                 link['link_type'] = 'video'
                 link['link_category'] = 'brightcove'
             
@@ -615,6 +621,56 @@ Any visible text or product names?"""
             'metadata': {
                 'filename': filename,
                 'needs_enrichment': True  # Flag for enrichment script
+            }
+        }
+    
+    def _create_generic_video_metadata(self, url: str, link_id: str, platform: str) -> Dict:
+        """
+        Create video metadata dict for non-YouTube platforms (Vimeo, Brightcove, etc.)
+        
+        Args:
+            url: Video URL
+            link_id: Link ID
+            platform: Platform name (vimeo, brightcove, etc.)
+            
+        Returns:
+            Video metadata dict
+        """
+        from urllib.parse import urlparse, parse_qs
+        
+        # Try to extract video ID from URL
+        parsed = urlparse(url)
+        video_id = None
+        
+        if platform == 'vimeo':
+            # Vimeo: https://vimeo.com/123456789
+            path_parts = parsed.path.strip('/').split('/')
+            if path_parts:
+                video_id = path_parts[0]
+        elif platform == 'brightcove':
+            # Brightcove: various formats, try to extract ID from query params
+            query_params = parse_qs(parsed.query)
+            video_id = query_params.get('videoId', [None])[0] or query_params.get('bctid', [None])[0]
+        
+        # Generate title from URL if no ID found
+        title = f"{platform.title()} Video"
+        if video_id:
+            title = f"{platform.title()} Video {video_id}"
+        
+        return {
+            'id': str(uuid4()),
+            'link_id': link_id,
+            'youtube_id': None,
+            'platform': platform,
+            'video_url': url,
+            'title': title,
+            'description': f'{platform.title()} video - enrichment needed',
+            'thumbnail_url': None,
+            'duration': None,
+            'metadata': {
+                'video_id': video_id,
+                'needs_enrichment': True,
+                'platform': platform
             }
         }
     
