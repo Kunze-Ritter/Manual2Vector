@@ -15,6 +15,7 @@ DROP VIEW IF EXISTS public.video_products CASCADE;
 DROP VIEW IF EXISTS public.system_metrics CASCADE;
 DROP VIEW IF EXISTS public.intelligence_chunks CASCADE;
 DROP VIEW IF EXISTS public.processing_queue CASCADE;
+DROP VIEW IF EXISTS public.images CASCADE;
 
 -- ======================================================================
 -- PART 2: Create vw_ views for tables that don't have them yet
