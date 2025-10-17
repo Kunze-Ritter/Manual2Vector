@@ -660,11 +660,11 @@ class ErrorCodeExtractor:
                 # PERFORMANCE: Use pre-compiled pattern
                 if STEP_LINE_PATTERN.match(line):
                     filtered_lines.append(line.strip())
-                elif filtered_lines and len(line.strip()) > 10:  # Continuation line (lowered from 20 to catch more)
+                elif filtered_lines and len(line.strip()) > 3:  # Continuation line (lowered from 10 to catch short words)
                     filtered_lines[-1] += ' ' + line.strip()
                 elif filtered_lines and not line.strip():  # Empty line between steps - keep going
                     continue
-                elif filtered_lines:  # Stop at section header
+                elif filtered_lines and line.strip() and line.strip()[0].isupper():  # Stop at section header (must start with capital)
                     break
             if filtered_lines:
                 return '\n'.join(filtered_lines)

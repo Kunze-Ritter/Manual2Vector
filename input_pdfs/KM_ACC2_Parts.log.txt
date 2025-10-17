@@ -1,0 +1,1586 @@
+2025-10-16 17:37:40 - INFO - Document ID: cdc3f941-00cf-464c-90f8-542fde0a14e1
+2025-10-16 17:37:40 - INFO - Log file: C:\Users\haast\docker\krai-minimal\input_pdfs\KM_ACC2_Parts.log.txt
+2025-10-16 17:37:40 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-16 17:37:40 - INFO - Extracting text from: KM_ACC2_Parts.pdf
+2025-10-16 17:37:40 - INFO - Using engine: pymupdf
+2025-10-16 17:37:43 - INFO - [green]Extracted 278 pages with PyMuPDF[/green]
+2025-10-16 17:37:43 - INFO - 🔍 Auto-detecting manufacturer from multiple sources...
+2025-10-16 17:37:43 - INFO -    📄 Filename: 'KM_ACC2_Parts'
+2025-10-16 17:37:43 - INFO -    📋 Title: 'ACC2'
+2025-10-16 17:37:43 - INFO -    ✍️  Author: 'H'
+2025-10-16 17:37:43 - INFO -    📖 Text sample: First 3 pages (2000 chars)
+2025-10-16 17:37:43 - INFO - 
+2025-10-16 17:37:43 - INFO - 📊 Detection Results:
+2025-10-16 17:37:43 - INFO -    🏆 Konica Minolta: 3 points
+2025-10-16 17:37:43 - INFO -       Sources: 📖 Text (3 mentions)
+2025-10-16 17:37:43 - INFO - 
+2025-10-16 17:37:43 - INFO - [green]✅ Selected: Konica Minolta (score: 3)[/green]
+2025-10-16 17:37:43 - WARNING - [yellow]   ⚠️  Low confidence (text only)[/yellow]
+2025-10-16 17:37:44 - DEBUG - Normalized 'Konica Minolta' -> 'Konica Minolta'
+2025-10-16 17:37:44 - DEBUG - Found existing manufacturer: 'Konica Minolta' (ID: a62168e3-8b74-47b6-824c-5a1772e6b06f)
+2025-10-16 17:37:44 - INFO - ✅ Set document manufacturer: Konica Minolta (ID: a62168e3-8b74-47b6-824c-5a1772e6b06f)
+2025-10-16 17:37:44 - INFO - Step 2/5: Extracting product models...
+2025-10-16 17:37:44 - INFO - Extracted 1 products from page 1
+2025-10-16 17:37:44 - INFO - Running LLM extraction on all pages...
+2025-10-16 17:37:44 - DEBUG - 🔍 DEBUG: LLM_MAX_PAGES env var = '20'
+2025-10-16 17:37:44 - DEBUG - 🔍 DEBUG: max_pages parsed = 20
+2025-10-16 17:37:44 - DEBUG - 🔍 DEBUG: pages_to_scan = 20, total pages = 278
+2025-10-16 17:37:44 - INFO -    → Scanning first 20 pages (set LLM_MAX_PAGES=0 to scan all 278 pages)
+2025-10-16 17:37:54 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:37:57 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:01 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:04 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:08 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:12 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:15 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:18 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:22 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:25 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:29 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:32 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:36 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:39 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:43 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:46 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:49 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:38:49 - INFO - [green]Extracted 1 products[/green]
+2025-10-16 17:38:50 - DEBUG - Normalized 'KONICA MINOLTA' -> 'Konica Minolta'
+2025-10-16 17:38:50 - DEBUG - Found existing manufacturer: 'Konica Minolta' (ID: a62168e3-8b74-47b6-824c-5a1772e6b06f)
+2025-10-16 17:38:51 - INFO - ✓ New product type: laser_production_printer for AccurioPrint C4065
+2025-10-16 17:38:51 - INFO - [green]💾 Saved 1 new products, updated 0 existing[/green]
+2025-10-16 17:38:51 - INFO - Step 2b/5: Detecting and linking series for 1 products...
+2025-10-16 17:38:52 - DEBUG - No series detected for Konica Minolta AccurioPrint C4065
+2025-10-16 17:38:52 - INFO -    Series stats: 0 detected, 0 created, 0 linked
+2025-10-16 17:38:52 - INFO -    ℹ️  No series patterns detected in product models
+2025-10-16 17:38:52 - INFO - Step 2c/5: Extracting spare parts...
+2025-10-16 17:38:52 - INFO - 📦 Document type 'parts_catalog' - extracting parts with high confidence
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - DEBUG - 🔍 Using 10 patterns for konica_minolta (v2.0, 2025-10-10)
+2025-10-16 17:38:52 - INFO - ℹ️  103 parts without names (Vision AI not yet implemented)
+2025-10-16 17:38:52 - INFO - [green]✅ Extracted 2209 spare parts[/green]
+2025-10-16 17:38:53 - DEBUG - Normalized 'Konica Minolta' -> 'Konica Minolta'
+2025-10-16 17:38:53 - DEBUG - Found existing manufacturer: 'Konica Minolta' (ID: a62168e3-8b74-47b6-824c-5a1772e6b06f)
+2025-10-16 17:41:23 - INFO - ⏭️  Skipped 859 duplicate parts
+2025-10-16 17:41:23 - INFO - [green]💾 Saved 1350 parts to DB[/green]
+2025-10-16 17:41:23 - INFO - Step 3/5: Extracting error codes...
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - DEBUG - Using error code patterns for manufacturer: konica_minolta
+2025-10-16 17:41:23 - INFO - [green]Extracted 0 error codes[/green]
+2025-10-16 17:41:23 - INFO - Step 3b/7: Extracting document versions...
+2025-10-16 17:41:23 - INFO - No version found
+2025-10-16 17:41:23 - INFO - Step 3c/8: Extracting images...
+2025-10-16 17:41:23 - INFO - Processing images from: KM_ACC2_Parts.pdf
+2025-10-16 17:41:24 - INFO -    → Extracted 8 raw images from PDF
+2025-10-16 17:41:24 - INFO -    → Filtered to 8 relevant images (removed 0 logos/headers)
+2025-10-16 17:41:24 - INFO -    → Running OCR on images...
+2025-10-16 17:41:25 - DEBUG - OCR extracted 183 chars from page_0026_img_000.png
+2025-10-16 17:41:26 - DEBUG - OCR extracted 3 chars from page_0266_img_000.png
+2025-10-16 17:41:26 - DEBUG - OCR extracted 182 chars from page_0268_img_000.png
+2025-10-16 17:41:26 - DEBUG - OCR extracted 374 chars from page_0268_img_001.png
+2025-10-16 17:41:26 - INFO - [green]✅ OCR processed 4/8 images with text[/green]
+2025-10-16 17:41:26 - INFO -    → Running Vision AI analysis...
+2025-10-16 17:41:26 - INFO - Processing 8 images with Vision AI...
+2025-10-16 17:41:27 - DEBUG - Using vision model: llava:13b
+2025-10-16 17:41:52 - DEBUG - Analyzed page_0026_img_000.png: This image appears to be an instructional illustra...
+2025-10-16 17:42:06 - DEBUG - Analyzed page_0258_img_000.png: The image is an exploded view diagram typically fo...
+2025-10-16 17:42:17 - DEBUG - Analyzed page_0260_img_000.png: This is an exploded-view drawing of a mechanical d...
+2025-10-16 17:42:31 - DEBUG - Analyzed page_0262_img_000.png: The image appears to be an isometric illustration ...
+2025-10-16 17:42:41 - DEBUG - Analyzed page_0264_img_000.png: The image shows an exploded view of a printed circ...
+2025-10-16 17:42:51 - DEBUG - Analyzed page_0266_img_000.png: This is a black and white technical drawing or dia...
+2025-10-16 17:43:11 - DEBUG - Analyzed page_0268_img_000.png: This is a service manual page featuring an explode...
+2025-10-16 17:43:35 - DEBUG - Analyzed page_0268_img_001.png: The image appears to be a table from a service man...
+2025-10-16 17:43:35 - INFO - [green]✅ Vision AI analyzed 8/8 images[/green]
+2025-10-16 17:43:35 - INFO - [green]✅ Image processing complete: 8 images ready[/green]
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0026_img_000.png - This image appears to be an instructional illustra...
+2025-10-16 17:43:37 - DEBUG - ✓ OCR text: page_0026_img_000.png - 183 chars
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0026_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0258_img_000.png - The image is an exploded view diagram typically fo...
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0258_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0260_img_000.png - This is an exploded-view drawing of a mechanical d...
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0260_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0262_img_000.png - The image appears to be an isometric illustration ...
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0262_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0264_img_000.png - The image shows an exploded view of a printed circ...
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0264_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0266_img_000.png - This is a black and white technical drawing or dia...
+2025-10-16 17:43:37 - DEBUG - ✓ OCR text: page_0266_img_000.png - 3 chars
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0266_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0268_img_000.png - This is a service manual page featuring an explode...
+2025-10-16 17:43:37 - DEBUG - ✓ OCR text: page_0268_img_000.png - 182 chars
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0268_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - ✓ AI description: page_0268_img_001.png - The image appears to be a table from a service man...
+2025-10-16 17:43:37 - DEBUG - ✓ OCR text: page_0268_img_001.png - 374 chars
+2025-10-16 17:43:37 - DEBUG - Failed to save image temp_images\cdc3f941-00cf-464c-90f8-542fde0a14e1\page_0268_img_001.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:43:37 - DEBUG - Saved 8 images with Vision AI descriptions to DB
+2025-10-16 17:43:37 - INFO - Step 3d/8: Extracting links and videos...
+2025-10-16 17:43:37 - INFO - [green]Extracted 0 unique links (0 videos)[/green]
+2025-10-16 17:43:37 - INFO - Step 4/8: Chunking text...
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'PARTS GUIDE MANUAL
+JULY 2025
+AccurioPrint C4065...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - ⏭️  Skipped chunk (too short after header cleaning): 4 chars (min: 30)
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '07/01/2025
+INFORMATION FOR PARTS GUIDE MANUAL...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+System Configuration...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+GENERAL CONTENTS...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+23...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+46...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Section Configuration...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+CONTENTS...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+INDEX...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '1
+88-1...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+56AA40360...' | Products: ['C4065', 'A4036']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '61-6
+65AA47820...' | Products: ['A4782']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A00V240600...' | Products: ['C4065', 'V2406']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '3U893502
+106-12...' | Products: ['U8935']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A1DU764000...' | Products: ['C4065', 'U7640']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '07801
+8-13...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A50U165500...' | Products: ['C4065', 'U1655']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '16
+A50U368400...' | Products: ['U3684']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A50U501702...' | Products: ['C4065', 'U5017']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '50U622600
+65-12...' | Products: ['U6226']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A50U634200...' | Products: ['C4065', 'U6342']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '8500
+104-27...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A50U761300...' | Products: ['C4065', 'U7613']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'A50U832600
+90-19...' | Products: ['U8326']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A50U853700...' | Products: ['C4065', 'U8537']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '86900
+93-36...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A50UN14201...' | Products: ['C4065', 'N1420']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '-13
+A5VM944600...' | Products: ['M9446']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A85CN27800...' | Products: ['C4065', 'N2780']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '9VE628400
+64-15...' | Products: ['E6284']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+A9VEF62109...' | Products: ['C4065', 'F6210']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '-20
+AA7NR72500...' | Products: ['R7250']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+AC57401200...' | Products: ['C4065', 'C5740']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '113-27
+AC57M15300...' | Products: ['M1530']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+AC57R73600...' | Products: ['C4065', 'R7360']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'External Parts Section
+P 1...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+External Parts Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'External Parts Section
+P 2...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+External Parts Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'External Parts Section
+P 3...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+External Parts Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'External Parts Section
+P 4...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+External Parts Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 5...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '32
+AC57121100...' | Products: ['C5712']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 6...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 7...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 8...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 9...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 10...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 11...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 12...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Main Frame Section
+P 13
+c...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Main Frame Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Operation Panel Section
+P 14...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Operation Panel Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Operation Panel Section
+P 15...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Operation Panel Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Operation Panel Section
+P 16...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Operation Panel Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Scanner Section
+P 17...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Scanner Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Scanner Section
+P 18...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Scanner Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Scanner Section
+P 19...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Scanner Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Scanner Section
+P 20...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Scanner Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Write Section
+P 21...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Write Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Charging Section
+P 22...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Charging Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Photo Conductor Section
+P 23...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Photo Conductor Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Developing Section
+P 24...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Developing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Developing Section
+P 25...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Developing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Developing Section
+P 26...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Developing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Developing Section
+P 27...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Developing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Supply Section
+P 28...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Supply Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Supply Section
+P 29...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Supply Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Supply Section
+P 30...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Supply Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Supply Section
+P 31...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Supply Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Supply Section
+P 32...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Supply Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Collection Section
+P 33...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Collection Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Collection Section
+P 34...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Collection Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Toner Collection Driving Section
+P 35...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Toner Collection Driving Sectio...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 36...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 37...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 38...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 39...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 40...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 41...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 41A...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Intermediate Transfer Section
+P 41B...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Intermediate Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Color Resist Section
+P 42...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Color Resist Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Color Resist Section
+P 42A...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Color Resist Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 43...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '0V)
+定着ユニット...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 44...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 45...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 46...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 47...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 48...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 49...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 50...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'D
+1...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Fusing Section
+P 51...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Fusing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Process Carriage Section
+P 52...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Process Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Process Carriage Section
+P 53...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Process Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Process Carriage Section
+P 54...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Process Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Process Carriage Section
+P 55...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Process Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Process Carriage Section
+P 56
+d...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Process Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Process Carriage Section
+P 57
+d...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Process Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Process Carriage Section
+P 58...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Process Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Secondary Transfer Section
+P 59...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Secondary Transfer Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 1 Section
+P 60...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 1 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 1 Section
+P 61...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 1 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 1 Section
+P 62...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 1 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 1 Section
+P 63...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 1 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 2 Section
+P 64...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 2 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 2 Section
+P 65...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 2 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 2 Section
+P 66...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 2 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 2 Section
+P 67...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 2 Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 1 Paper Feed Section
+P 68...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 1 Paper Feed Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 1 Paper Feed Section
+P 69...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 1 Paper Feed Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 1 Paper Feed Section
+P 70...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 1 Paper Feed Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 2 Paper Feed Section
+P 71...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 2 Paper Feed Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 2 Paper Feed Section
+P 72...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 2 Paper Feed Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray 2 Paper Feed Section
+P 73...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray 2 Paper Feed Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Paper Feed Driving Section
+P 74...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Paper Feed Driving Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Tray Driving Section
+P 75...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Tray Driving Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Drum Driving Section
+P 76...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Drum Driving Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Drum Driving Section
+P 77...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Drum Driving Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Drum Driving Section
+P 78...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Drum Driving Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Drum Driving Section
+P 79...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Drum Driving Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Vertical Conveyance Section
+P 80...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Vertical Conveyance Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Vertical Conveyance Section
+P 81...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Vertical Conveyance Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Carriage Section
+P 82...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Carriage Section
+P 83...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Carriage Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 84...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 85...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 86...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 87...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 88...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 89...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 90...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 91...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '3600
+Guide /1...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 92...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 93...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '１　ＡＳＳＹ
+C...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 94...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 95...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Section
+P 96...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Swing Section
+P 97...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Swing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Duplex Swing Section
+P 98...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Duplex Swing Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Reverse Section
+P 99...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Reverse Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Reverse Section
+P 100...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Reverse Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Reverse Section
+P 101...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Reverse Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Resist Section
+P 102...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Resist Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Resist Section
+P 103...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Resist Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Resist Section
+P 104
+C...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Resist Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Exit Section
+P 105...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Exit Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Exit Section
+P 106...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Exit Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Charge Control Section
+P 107...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Charge Control Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Charge Control Section
+P 108...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Charge Control Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Charge Control Section
+P 109...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Charge Control Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Rear Electrical Section
+P 110...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Rear Electrical Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Rear Electrical Section
+P 111...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Rear Electrical Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Rear Electrical Section
+P 112...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Rear Electrical Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Rear Electrical Section
+P 113...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Rear Electrical Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Rear Electrical Section
+P 114...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Rear Electrical Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Rear Electrical Section
+P 115...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Rear Electrical Section...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Wiring
+P 116...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Wiring...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Wiring
+P 117...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Wiring...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Wiring
+P 118...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Wiring...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Wiring
+P 119...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Wiring...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Service Tool
+P 120...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Service Tool...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Accessory Parts
+P 121...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Accessory Parts...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'Accessory Parts
+P 122...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+Accessory Parts...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+MAINTENANCE LIST...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '00
+P59-1...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+*1:...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '95M20311
+P81-5...' | Products: ['M2031']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+*:...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+メンテナンスリスト...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '900K
+A50U752200...' | Products: ['U7522']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+*1:...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: '08900
+P109-5...' | Products: []
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:43:37 - DEBUG - 🎯 Found header: 'AccurioPrint C4065
+DESTINATION...' | Products: ['C4065']
+2025-10-16 17:43:37 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:43:37 - INFO - [green]✅ Created 301 chunks from 278 pages[/green]
+2025-10-16 17:43:37 - INFO -    Types: general: 300, specification: 1
+2025-10-16 17:43:37 - INFO -    Headers preserved: 299/301 chunks
+2025-10-16 17:43:37 - INFO - [green]Created 301 chunks[/green]
+2025-10-16 17:43:37 - INFO - Step 5/8: Saving links and videos...
+2025-10-16 17:43:37 - INFO - Step 6/8: Calculating statistics...
+2025-10-16 17:43:37 - INFO - Step 7/8: Saving document to database...
+2025-10-16 17:43:38 - DEBUG - Normalized 'Konica Minolta' -> 'Konica Minolta'
+2025-10-16 17:43:38 - DEBUG - Found existing manufacturer: 'Konica Minolta' (ID: a62168e3-8b74-47b6-824c-5a1772e6b06f)
+2025-10-16 17:43:38 - INFO - ✅ Resolved manufacturer_id: a62168e3-8b74-47b6-824c-5a1772e6b06f for 'Konica Minolta'
+2025-10-16 17:43:38 - INFO - [green]✅ Saved document to database via RPC[/green]
+2025-10-16 17:43:38 - INFO - [green]Processing completed in 357.80s[/green]

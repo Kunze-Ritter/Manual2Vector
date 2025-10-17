@@ -1,0 +1,15 @@
+feat: Integrate GPU acceleration in production processor
+
+Added GPU configuration and initialization:
+- Imports GPUManager from api/gpu_utils
+- Checks USE_GPU environment variable
+- Displays GPU info (CUDA, device, VRAM)
+- Configures OpenCV for CUDA if available
+- Falls back to CPU if GPU not available
+
+GPU acceleration now active for:
+- OpenCV operations
+- Image processing
+- Computer vision tasks
+
+Set USE_GPU=true in .env.ai to enable.

@@ -1,0 +1,205 @@
+2025-10-16 17:44:34 - INFO - Document ID: d449be1c-96c6-4252-99d4-ed66ac9d3af7
+2025-10-16 17:44:34 - INFO - Log file: C:\Users\haast\docker\krai-minimal\input_pdfs\PF-P20-AAJUWY1.log.txt
+2025-10-16 17:44:34 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-16 17:44:34 - INFO - Extracting text from: PF-P20-AAJUWY1.pdf
+2025-10-16 17:44:34 - INFO - Using engine: pymupdf
+2025-10-16 17:44:34 - INFO - [green]Extracted 28 pages with PyMuPDF[/green]
+2025-10-16 17:44:34 - INFO - 🔍 Auto-detecting manufacturer from multiple sources...
+2025-10-16 17:44:34 - INFO -    📄 Filename: 'PF-P20-AAJUWY1'
+2025-10-16 17:44:34 - INFO -    📋 Title: 'AAJUWY1'
+2025-10-16 17:44:34 - INFO -    ✍️  Author: 'M'
+2025-10-16 17:44:34 - INFO -    📖 Text sample: First 3 pages (2000 chars)
+2025-10-16 17:44:34 - INFO - Step 2/5: Extracting product models...
+2025-10-16 17:44:34 - INFO - No products on first page, scanning additional pages...
+2025-10-16 17:44:34 - INFO - Running LLM extraction on all pages...
+2025-10-16 17:44:34 - DEBUG - 🔍 DEBUG: LLM_MAX_PAGES env var = '20'
+2025-10-16 17:44:34 - DEBUG - 🔍 DEBUG: max_pages parsed = 20
+2025-10-16 17:44:34 - DEBUG - 🔍 DEBUG: pages_to_scan = 20, total pages = 28
+2025-10-16 17:44:34 - INFO -    → Scanning first 20 pages (set LLM_MAX_PAGES=0 to scan all 28 pages)
+2025-10-16 17:44:44 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:44:47 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:44:50 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:44:54 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:44:57 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:45:01 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:45:04 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:45:08 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:45:11 - ERROR - [red]LLM extraction failed: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat[/red]
+2025-10-16 17:45:11 - INFO - [green]Extracted 0 products[/green]
+2025-10-16 17:45:11 - INFO - Step 2c/5: Extracting spare parts...
+2025-10-16 17:45:11 - INFO - 📦 Document type 'service_manual' - extracting parts with high confidence
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]⚠️  No manufacturer specified - cannot extract parts[/yellow]
+2025-10-16 17:45:11 - INFO - >> No parts found (document type: service_manual)
+2025-10-16 17:45:11 - INFO - Step 3/5: Extracting error codes...
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - WARNING - [yellow]No manufacturer specified for error code extraction - skipping[/yellow]
+2025-10-16 17:45:11 - INFO - [green]Extracted 0 error codes[/green]
+2025-10-16 17:45:11 - INFO - Step 3b/7: Extracting document versions...
+2025-10-16 17:45:11 - INFO - No version found
+2025-10-16 17:45:11 - INFO - Step 3c/8: Extracting images...
+2025-10-16 17:45:12 - INFO - Processing images from: PF-P20-AAJUWY1.pdf
+2025-10-16 17:45:12 - INFO -    → Extracted 1 raw images from PDF
+2025-10-16 17:45:12 - INFO -    → Filtered to 1 relevant images (removed 0 logos/headers)
+2025-10-16 17:45:12 - INFO -    → Running OCR on images...
+2025-10-16 17:45:12 - INFO - [green]✅ OCR processed 0/1 images with text[/green]
+2025-10-16 17:45:12 - INFO -    → Running Vision AI analysis...
+2025-10-16 17:45:12 - INFO - Processing 1 images with Vision AI...
+2025-10-16 17:45:12 - DEBUG - Using vision model: llava:13b
+2025-10-16 17:45:35 - DEBUG - Analyzed page_0022_img_000.png: The image appears to be a section from a service m...
+2025-10-16 17:45:35 - INFO - [green]✅ Vision AI analyzed 1/1 images[/green]
+2025-10-16 17:45:35 - INFO - [green]✅ Image processing complete: 1 images ready[/green]
+2025-10-16 17:45:36 - DEBUG - ✓ AI description: page_0022_img_000.png - The image appears to be a section from a service m...
+2025-10-16 17:45:36 - DEBUG - Failed to save image temp_images\d449be1c-96c6-4252-99d4-ed66ac9d3af7\page_0022_img_000.png: {'message': "Could not find the 'file_size_bytes' column of 'images' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-10-16 17:45:36 - DEBUG - Saved 1 images with Vision AI descriptions to DB
+2025-10-16 17:45:36 - INFO - Step 3d/8: Extracting links and videos...
+2025-10-16 17:45:36 - INFO - [green]Extracted 0 unique links (0 videos)[/green]
+2025-10-16 17:45:36 - INFO - Step 4/8: Chunking text...
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PARTS GUIDE MANUAL
+APRIL 2025...' | Products: []
+2025-10-16 17:45:36 - DEBUG - ⏭️  Skipped chunk (too short after header cleaning): 14 chars (min: 30)
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: '04/01/2025
+INFORMATION FOR PARTS GUIDE MANUAL...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+CONTENTS...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+INDEX...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: '-3
+AAJU695200...' | Products: ['U6952']
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed', 'header_products']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'External Parts
+P 1...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+External Parts...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'External Parts
+P 2...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+External Parts...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Frame Section
+P 3...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Frame Section...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Drive Section
+P 4...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Drive Section...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Paper Feed Section
+P 5...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Paper Feed Section...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Paper Feed Section
+P 6...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Paper Feed Section...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Tray Section
+P 7...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Tray Section...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Tray Section
+P 8...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Tray Section...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Wiring Accessories
+22...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Wiring Accessories...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'Accessory Parts
+P 10...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+Accessory Parts...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+MAINTENANCE LIST...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+メンテナンスリスト...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+DESTINATION...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - DEBUG - 🎯 Found header: 'PF-P20
+K...' | Products: []
+2025-10-16 17:45:36 - DEBUG - 📋 Added header metadata to chunk: ['page_header', 'header_removed']
+2025-10-16 17:45:36 - INFO - [green]✅ Created 28 chunks from 28 pages[/green]
+2025-10-16 17:45:36 - INFO -    Types: general: 28
+2025-10-16 17:45:36 - INFO -    Headers preserved: 28/28 chunks
+2025-10-16 17:45:36 - INFO - [green]Created 28 chunks[/green]
+2025-10-16 17:45:36 - INFO - Step 5/8: Saving links and videos...
+2025-10-16 17:45:36 - INFO - Step 6/8: Calculating statistics...
+2025-10-16 17:45:36 - INFO - Step 7/8: Saving document to database...
+2025-10-16 17:45:37 - INFO - [green]✅ Saved document to database via RPC[/green]
+2025-10-16 17:45:37 - INFO - [green]Processing completed in 62.13s[/green]
