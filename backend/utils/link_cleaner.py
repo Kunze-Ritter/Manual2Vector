@@ -127,9 +127,13 @@ def merge_multiline_url(line1: str, line2: str) -> Optional[str]:
     """
     Merge URL that spans multiple lines
     
+    Handles cases like:
+    - "https://support.hp.com/us-en/" + "document/c12345"
+    - "https://support.hp.com/us-en/docu" + "ment/c12345"
+    
     Args:
-        line1: First line
-        line2: Second line
+        line1: First line (contains start of URL)
+        line2: Second line (contains end of URL)
         
     Returns:
         Merged URL or None
@@ -138,7 +142,28 @@ def merge_multiline_url(line1: str, line2: str) -> Optional[str]:
     if not re.search(r'https?://', line1):
         return None
     
-    # Merge and clean
+    # Extract URL fragment from line1 (everything after http://)
+    url_match = re.search(r'(https?://[^\s]*)', line1)
+    if not url_match:
+        return None
+    
+    url_start = url_match.group(1)
+    
+    # Extract potential URL continuation from line2
+    # Look for word characters, slashes, dots, hyphens at start of line2
+    line2_clean = line2.strip()
+    url_continuation = re.match(r'^([a-zA-Z0-9\-._/~:?#\[\]@!$&\'()*+,;=%]+)', line2_clean)
+    
+    if url_continuation:
+        # Merge URL parts
+        merged = url_start + url_continuation.group(1)
+        
+        # Clean and validate
+        cleaned = clean_url(merged)
+        if cleaned:
+            return cleaned
+    
+    # Fallback: simple merge
     merged = line1.strip() + line2.strip()
     return clean_url(merged)
 
@@ -160,4 +185,22 @@ if __name__ == '__main__':
         cleaned = clean_url(url)
         print(f"Original: {url}")
         print(f"Cleaned:  {cleaned}")
+        print()
+    
+    # Test multiline URL merging
+    print("\nMultiline URL Merging Tests:")
+    print("=" * 80)
+    
+    test_cases = [
+        ("Visit https://support.hp.com/us-en/", "document/c12345 for more info"),
+        ("See https://support.hp.com/us-en/docu", "ment/c12345 for details"),
+        ("https://player.vimeo.com/video/", "219477336"),
+        ("Go to https://lms.konicaminolta.com/license/KM/", "support.aspx for help"),
+    ]
+    
+    for line1, line2 in test_cases:
+        merged = merge_multiline_url(line1, line2)
+        print(f"Line 1: {line1}")
+        print(f"Line 2: {line2}")
+        print(f"Merged: {merged}")
         print()
