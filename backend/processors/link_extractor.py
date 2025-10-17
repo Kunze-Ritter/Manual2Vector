@@ -211,6 +211,11 @@ class LinkExtractor:
         for match in matches:
             url = match.group(0)
             
+            # Filter placeholder URLs (x.x.x.x, 0.0.0.0, etc.)
+            if self._is_placeholder_url(url):
+                self.logger.debug(f"Skipping placeholder URL: {url}")
+                continue
+            
             # Clean URL (remove trailing punctuation, etc.)
             from utils.link_cleaner import clean_url
             cleaned_url = clean_url(url)
@@ -225,15 +230,21 @@ class LinkExtractor:
             
             url = cleaned_url
             
-            # Get context around URL
-            start = max(0, match.start() - 50)
-            end = min(len(text), match.end() + 50)
+            # Get context around URL (150 chars before/after for better descriptions)
+            start = max(0, match.start() - 150)
+            end = min(len(text), match.end() + 150)
             context = text[start:end].strip()
+            
+            # Clean context: remove excessive whitespace, newlines
+            context = ' '.join(context.split())
+            
+            # Extract better description from context
+            description = self._extract_link_description(context, url)
             
             links.append({
                 'url': url,
                 'page_number': page_num,
-                'description': context,
+                'description': description,
                 'position_data': {
                     'char_start': match.start(),
                     'char_end': match.end(),
@@ -628,3 +639,71 @@ Any visible text or product names?"""
                     seen_urls[url_normalized] = link
         
         return list(seen_urls.values())
+    
+    def _is_placeholder_url(self, url: str) -> bool:
+        """
+        Check if URL is a placeholder (x.x.x.x, 0.0.0.0, etc.)
+        
+        Returns:
+            True if URL is a placeholder and should be skipped
+        """
+        import re
+        
+        # Check for x.x.x.x pattern
+        if re.search(r'[xX]\.[xX]\.[xX]\.[xX]', url):
+            return True
+        
+        # Check for 0.0.0.0 or 127.0.0.1 (localhost)
+        if '0.0.0.0' in url or '127.0.0.1' in url:
+            return True
+        
+        # Check for example.com or similar placeholders
+        placeholder_domains = ['example.com', 'example.org', 'test.com', 'localhost']
+        for domain in placeholder_domains:
+            if domain in url.lower():
+                return True
+        
+        return False
+    
+    def _extract_link_description(self, context: str, url: str) -> str:
+        """
+        Extract meaningful description from context around URL
+        
+        Args:
+            context: Text context around URL
+            url: The URL itself
+            
+        Returns:
+            Clean description string
+        """
+        # Remove the URL itself from context
+        description = context.replace(url, '').strip()
+        
+        # Remove common prefixes
+        prefixes_to_remove = [
+            'Click here:', 'Visit:', 'See:', 'Go to:', 'Link:',
+            'URL:', 'Website:', 'Download:', 'More info:',
+            'For more information:', 'Access the following URL:'
+        ]
+        
+        for prefix in prefixes_to_remove:
+            if description.lower().startswith(prefix.lower()):
+                description = description[len(prefix):].strip()
+        
+        # If description is too short or just punctuation, try to extract sentence
+        if len(description) < 10 or not any(c.isalnum() for c in description):
+            # Try to find sentence containing the URL
+            sentences = context.split('.')
+            for sentence in sentences:
+                if url in sentence:
+                    description = sentence.replace(url, '').strip()
+                    break
+        
+        # Limit length
+        if len(description) > 300:
+            description = description[:297] + '...'
+        
+        # Final cleanup
+        description = description.strip('.,;:- \t\n')
+        
+        return description if description else context[:100]
