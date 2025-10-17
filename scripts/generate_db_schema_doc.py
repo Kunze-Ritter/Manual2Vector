@@ -75,11 +75,15 @@ tables = [
 ]
 
 # Build documentation
+from datetime import datetime
+
 doc = []
 doc.append("# KRAI Database Schema Documentation")
 doc.append("=" * 80)
 doc.append("")
-doc.append("**Generated:** " + str(Path(__file__).parent.parent))
+doc.append(f"**Zuletzt aktualisiert:** {datetime.now().strftime('%d.%m.%Y um %H:%M Uhr')}")
+doc.append("")
+doc.append("**Hinweis:** Diese Dokumentation wird automatisch generiert.")
 doc.append("")
 doc.append("## Table of Contents")
 doc.append("")
