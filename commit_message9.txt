@@ -1,0 +1,29 @@
+feat: Add video-product linking + complete vw_ migration
+
+VIDEO-PRODUCT LINKING:
+- Videos now automatically linked to products
+- Extract model numbers from video title/description
+- Save links in video_products junction table
+- Agent can now find videos for specific products
+
+MIGRATION 84:
+- Create vw_product_series view
+- Create vw_document_products view
+- Create vw_video_products view
+- Create vw_system_metrics view
+- Create vw_intelligence_chunks view
+- Drop old views without vw_ prefix
+
+CODE CHANGES:
+- document_processor.py: Add _link_video_to_products() method
+- Automatically link videos to products after extraction
+- Use ProductExtractor to find model numbers in video metadata
+
+BENEFITS:
+- Videos are now searchable by product
+- Agent can answer: "Show me videos for HP LaserJet M507"
+- Complete vw_ prefix coverage for all tables
+- Clean, consistent naming convention
+
+This completes the view refactoring and adds intelligent
+video-product linking for better search capabilities.
