@@ -39,8 +39,11 @@ def cleanup_database(skip_confirm: bool = False):
     - All views and functions
     """
     
-    # Load environment
-    load_dotenv()
+    # Load environment from root directory
+    root_dir = Path(__file__).parent.parent
+    env_path = root_dir / '.env'
+    load_dotenv(env_path)
+    
     supabase_url = os.getenv('SUPABASE_URL')
     supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
     
