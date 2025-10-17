@@ -430,7 +430,7 @@ class MasterPipeline:
         """Save error codes to krai_intelligence.error_codes table"""
         try:
             # Get manufacturer from document and find manufacturer_id
-            doc_result = self.supabase.table('documents') \
+            doc_result = self.supabase.table('vw_documents') \
                 .select('manufacturer') \
                 .eq('id', str(document_id)) \
                 .limit(1) \
@@ -441,7 +441,7 @@ class MasterPipeline:
                 manufacturer_name = doc_result.data[0]['manufacturer']
                 
                 # Find manufacturer_id by name
-                mfr_result = self.supabase.table('manufacturers') \
+                mfr_result = self.supabase.table('vw_manufacturers') \
                     .select('id') \
                     .ilike('name', f"%{manufacturer_name}%") \
                     .limit(1) \
@@ -520,7 +520,7 @@ class MasterPipeline:
                 if manufacturer_name:
                     try:
                         # Try to find existing manufacturer
-                        mfr_result = self.supabase.table('manufacturers') \
+                        mfr_result = self.supabase.table('vw_manufacturers') \
                             .select('id') \
                             .ilike('name', f"%{manufacturer_name}%") \
                             .limit(1) \
@@ -532,7 +532,7 @@ class MasterPipeline:
                             self.logger.info(f"✅ Found manufacturer: {manufacturer_name}")
                         else:
                             # Create new manufacturer (only name is required)
-                            new_mfr = self.supabase.table('manufacturers').insert({
+                            new_mfr = self.supabase.table('vw_manufacturers').insert({
                                 'name': manufacturer_name
                             }).execute()
                             
@@ -596,7 +596,7 @@ class MasterPipeline:
                 }
                 
                 # Check if product already exists (use krai_core schema)
-                existing = self.supabase.table('products') \
+                existing = self.supabase.table('vw_products') \
                     .select('id') \
                     .eq('model_number', record['model_number']) \
                     .limit(1) \
@@ -604,7 +604,7 @@ class MasterPipeline:
                 
                 if not existing.data:
                     # Insert via public schema (PostgREST default)
-                    result = self.supabase.table('products').insert(record).execute()
+                    result = self.supabase.table('vw_products').insert(record).execute()
                     # Store product_id for document_products relationship
                     if result.data:
                         prod_data['_db_id'] = result.data[0]['id']
@@ -681,7 +681,7 @@ class MasterPipeline:
         """
         try:
             # Get all images for this document
-            images = self.supabase.table('images') \
+            images = self.supabase.table('vw_images') \
                 .select('id, page_number') \
                 .eq('document_id', str(document_id)) \
                 .is_('chunk_id', 'null') \
@@ -692,7 +692,7 @@ class MasterPipeline:
                 return 0
             
             # Get all chunks for this document
-            chunks = self.supabase.table('chunks') \
+            chunks = self.supabase.table('vw_chunks') \
                 .select('id, page_start, page_end') \
                 .eq('document_id', str(document_id)) \
                 .execute()
@@ -715,7 +715,7 @@ class MasterPipeline:
                     
                     if page_start <= page_num <= page_end:
                         # Update image with chunk_id
-                        self.supabase.table('images') \
+                        self.supabase.table('vw_images') \
                             .update({'chunk_id': chunk['id']}) \
                             .eq('id', image['id']) \
                             .execute()
@@ -750,7 +750,7 @@ class MasterPipeline:
             # ==========================================
             
             # Get all error codes for this document (without image_id)
-            error_codes = self.supabase.table('error_codes') \
+            error_codes = self.supabase.table('vw_error_codes') \
                 .select('id, error_code, page_number') \
                 .eq('document_id', str(document_id)) \
                 .is_('image_id', 'null') \
@@ -768,7 +768,7 @@ class MasterPipeline:
                         continue
                     
                     # Get images on same page with Vision AI descriptions
-                    images = self.supabase.table('images') \
+                    images = self.supabase.table('vw_images') \
                         .select('id, ai_description, image_index') \
                         .eq('document_id', str(document_id)) \
                         .eq('page_number', page_num) \
@@ -807,7 +807,7 @@ class MasterPipeline:
                     
                     # Update error code with matched image
                     if matched_image_id:
-                        self.supabase.table('error_codes') \
+                        self.supabase.table('vw_error_codes') \
                             .update({
                                 'image_id': matched_image_id,
                                 'metadata': {
@@ -907,7 +907,7 @@ class MasterPipeline:
                 update_data['version'] = document_version
             
             if update_data:
-                self.supabase.table('documents').update(update_data).eq(
+                self.supabase.table('vw_documents').update(update_data).eq(
                     'id', str(document_id)
                 ).execute()
                 
@@ -948,7 +948,7 @@ class MasterPipeline:
                 # Add processing_results (requires Migration 12!)
                 update_data['processing_results'] = clean_results
             
-            self.supabase.table('documents').update(update_data).eq(
+            self.supabase.table('vw_documents').update(update_data).eq(
                 'id', str(document_id)
             ).execute()
             

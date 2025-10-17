@@ -106,7 +106,7 @@ class KRSmartProcessor:
     async def get_all_documents(self):
         """Get all documents from database"""
         try:
-            result = self.database_service.client.table('documents').select('*').execute()
+            result = self.database_service.client.table('vw_documents').select('*').execute()
             return result.data if result.data else []
         except Exception as e:
             print(f"Error getting documents: {e}")
@@ -154,13 +154,13 @@ class KRSmartProcessor:
                 # Simple check if stage is needed
                 if stage_name == 'text':
                     # Check if chunks exist
-                    chunks_result = self.database_service.client.table('chunks').select('id').eq('document_id', document_id).limit(1).execute()
+                    chunks_result = self.database_service.client.table('vw_chunks').select('id').eq('document_id', document_id).limit(1).execute()
                     if chunks_result.data:
                         print(f"   ✅ {stage_display} already completed")
                         continue
                 elif stage_name == 'image':
                     # Check if images exist
-                    images_result = self.database_service.client.table('images').select('id').eq('document_id', document_id).limit(1).execute()
+                    images_result = self.database_service.client.table('vw_images').select('id').eq('document_id', document_id).limit(1).execute()
                     if images_result.data:
                         print(f"   ✅ {stage_display} already completed")
                         continue
@@ -171,7 +171,7 @@ class KRSmartProcessor:
                         continue
                 elif stage_name == 'embedding':
                     # Check if embeddings exist
-                    embeddings_result = self.database_service.client.table('embeddings').select('id').eq('document_id', document_id).limit(1).execute()
+                    embeddings_result = self.database_service.client.table('vw_embeddings').select('id').eq('document_id', document_id).limit(1).execute()
                     if embeddings_result.data:
                         print(f"   ✅ {stage_display} already completed")
                         continue

@@ -26,7 +26,7 @@ print("=" * 80)
 
 # Get all error codes without chunk_id
 print("\n1. Finding error codes without chunk_id...")
-error_codes = supabase.table('error_codes') \
+error_codes = supabase.table('vw_error_codes') \
     .select('id, document_id, error_code, page_number') \
     .is_('chunk_id', 'null') \
     .execute()
@@ -68,7 +68,7 @@ for doc_id, codes in docs.items():
             continue
         
         # Find chunk that contains this page
-        chunk = supabase.table('chunks') \
+        chunk = supabase.table('vw_chunks') \
             .select('id') \
             .eq('document_id', doc_id) \
             .lte('page_start', page_num) \
@@ -80,7 +80,7 @@ for doc_id, codes in docs.items():
             chunk_id = chunk.data[0]['id']
             
             # Update error code with chunk_id
-            supabase.table('error_codes') \
+            supabase.table('vw_error_codes') \
                 .update({'chunk_id': chunk_id}) \
                 .eq('id', ec['id']) \
                 .execute()

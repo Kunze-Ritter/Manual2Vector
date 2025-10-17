@@ -379,7 +379,7 @@ class EmbeddingProcessor:
             }
             
             # Upsert to chunks (view routes to krai_intelligence.chunks)
-            result = self.supabase.table('chunks').upsert(record).execute()
+            result = self.supabase.table('vw_chunks').upsert(record).execute()
             
             return True
             

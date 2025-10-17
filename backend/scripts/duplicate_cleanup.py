@@ -106,7 +106,7 @@ class DuplicateCleanup:
     async def count_related_chunks(self, document_id: str) -> int:
         """Count chunks related to a document"""
         try:
-            result = self.database_service.client.table('chunks').select('id', count='exact').eq('document_id', document_id).execute()
+            result = self.database_service.client.table('vw_chunks').select('id', count='exact').eq('document_id', document_id).execute()
             return result.count if result.count else 0
         except:
             return 0
@@ -114,7 +114,7 @@ class DuplicateCleanup:
     async def count_related_images(self, document_id: str) -> int:
         """Count images related to a document"""
         try:
-            result = self.database_service.client.table('images').select('id', count='exact').eq('document_id', document_id).execute()
+            result = self.database_service.client.table('vw_images').select('id', count='exact').eq('document_id', document_id).execute()
             return result.count if result.count else 0
         except:
             return 0
@@ -123,10 +123,10 @@ class DuplicateCleanup:
         """Merge data from duplicate into master document"""
         try:
             # Update chunks to point to master document
-            await self.database_service.client.table('chunks').update({'document_id': master_id}).eq('document_id', duplicate_id).execute()
+            await self.database_service.client.table('vw_chunks').update({'document_id': master_id}).eq('document_id', duplicate_id).execute()
             
             # Update images to point to master document
-            await self.database_service.client.table('images').update({'document_id': master_id}).eq('document_id', duplicate_id).execute()
+            await self.database_service.client.table('vw_images').update({'document_id': master_id}).eq('document_id', duplicate_id).execute()
             
             print(f"    📄 Merged chunks and images from {duplicate_id[:8]}... to {master_id[:8]}...")
             
@@ -138,7 +138,7 @@ class DuplicateCleanup:
         try:
             # Delete documents (cascading will handle chunks/images)
             for doc_id in document_ids:
-                await self.database_service.client.table('documents').delete().eq('id', doc_id).execute()
+                await self.database_service.client.table('vw_documents').delete().eq('id', doc_id).execute()
             
             print(f"    🗑️  Deleted {len(document_ids)} duplicate documents")
             

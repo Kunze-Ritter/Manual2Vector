@@ -44,7 +44,7 @@ def validate_document(document_id: str = None, check_latest: bool = False):
     # Get document
     try:
         if check_latest:
-            result = supabase.table('documents') \
+            result = supabase.table('vw_documents') \
                 .select('*') \
                 .order('created_at', desc=True) \
                 .limit(1) \
@@ -58,7 +58,7 @@ def validate_document(document_id: str = None, check_latest: bool = False):
             document_id = document['id']
             print(f"\n📄 Checking LATEST document:")
         else:
-            result = supabase.table('documents') \
+            result = supabase.table('vw_documents') \
                 .select('*') \
                 .eq('id', document_id) \
                 .execute()
@@ -102,7 +102,7 @@ def validate_document(document_id: str = None, check_latest: bool = False):
     # 2. Check chunks in krai_intelligence.chunks
     print("\n2️⃣  Chunks (krai_intelligence.chunks):")
     try:
-        chunk_result = supabase.table('chunks') \
+        chunk_result = supabase.table('vw_chunks') \
             .select('id, text_chunk, embedding') \
             .eq('document_id', document_id) \
             .execute()
@@ -123,7 +123,7 @@ def validate_document(document_id: str = None, check_latest: bool = False):
     # 3. Check error codes in krai_intelligence.error_codes
     print("\n3️⃣  Error Codes (krai_intelligence.error_codes):")
     try:
-        ec_result = supabase.table('error_codes') \
+        ec_result = supabase.table('vw_error_codes') \
             .select('*') \
             .eq('document_id', document_id) \
             .execute()
@@ -156,7 +156,7 @@ def validate_document(document_id: str = None, check_latest: bool = False):
                 for prod in extracted_products:
                     model_number = prod.get('model_number')
                     if model_number:
-                        prod_result = supabase.table('products') \
+                        prod_result = supabase.table('vw_products') \
                             .select('id') \
                             .eq('model_number', model_number) \
                             .execute()
@@ -179,7 +179,7 @@ def validate_document(document_id: str = None, check_latest: bool = False):
     # 5. Check images in krai_content.images
     print("\n5️⃣  Images (krai_content.images):")
     try:
-        img_result = supabase.table('images') \
+        img_result = supabase.table('vw_images') \
             .select('id, filename, file_hash, storage_url') \
             .eq('document_id', document_id) \
             .execute()

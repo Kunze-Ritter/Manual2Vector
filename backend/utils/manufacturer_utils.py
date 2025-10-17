@@ -34,7 +34,7 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
     
     try:
         # 1. Try exact match first
-        result = supabase.table('manufacturers') \
+        result = supabase.table('vw_manufacturers') \
             .select('id,name') \
             .eq('name', manufacturer_name) \
             .limit(1) \
@@ -46,7 +46,7 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
             return manufacturer_id
         
         # 2. Try case-insensitive match
-        result = supabase.table('manufacturers') \
+        result = supabase.table('vw_manufacturers') \
             .select('id,name') \
             .ilike('name', manufacturer_name) \
             .limit(1) \
@@ -58,7 +58,7 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
             return manufacturer_id
         
         # 3. Try partial match
-        result = supabase.table('manufacturers') \
+        result = supabase.table('vw_manufacturers') \
             .select('id,name') \
             .ilike('name', f'%{manufacturer_name}%') \
             .limit(1) \
@@ -72,7 +72,7 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
         # 4. Manufacturer not found - create new entry
         logger.info(f"🔨 Creating new manufacturer: {manufacturer_name}")
         
-        create_result = supabase.table('manufacturers') \
+        create_result = supabase.table('vw_manufacturers') \
             .insert({
                 'name': manufacturer_name
             }) \
@@ -217,7 +217,7 @@ def ensure_product_exists(
     
     try:
         # 1. Try to find existing product
-        result = supabase.table('products') \
+        result = supabase.table('vw_products') \
             .select('id,model_name') \
             .eq('manufacturer_id', str(manufacturer_id)) \
             .ilike('model_name', model_name) \
@@ -241,7 +241,7 @@ def ensure_product_exists(
         if series_id:
             product_data['series_id'] = str(series_id)
         
-        create_result = supabase.table('products') \
+        create_result = supabase.table('vw_products') \
             .insert(product_data) \
             .execute()
         

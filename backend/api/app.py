@@ -170,7 +170,7 @@ async def health_check(supabase=Depends(get_supabase)):
     
     # Check database
     try:
-        result = supabase.table("documents").select("id").limit(1).execute()
+        result = supabase.table("vw_documents").select("id").limit(1).execute()
         services["database"] = {
             "status": "healthy",
             "message": "Database connected"
@@ -344,7 +344,7 @@ async def get_document_status(document_id: str, supabase=Depends(get_supabase)):
     """
     try:
         # Get document
-        doc_result = supabase.table("documents") \
+        doc_result = supabase.table("vw_documents") \
             .select("*") \
             .eq("id", document_id) \
             .execute()
@@ -409,7 +409,7 @@ async def get_pipeline_status(supabase=Depends(get_supabase)):
     """
     try:
         # Get all documents
-        documents = supabase.table("documents").select("*").execute()
+        documents = supabase.table("vw_documents").select("*").execute()
         
         # Get queue
         queue = supabase.table("processing_queue").select("*").execute()

@@ -32,7 +32,7 @@ def find_duplicates():
     print("=" * 80)
     
     # Get all error codes
-    result = supabase.table('error_codes').select(
+    result = supabase.table('vw_error_codes').select(
         'id, error_code, manufacturer_id, document_id, created_at'
     ).order('created_at', desc=False).execute()
     
@@ -91,7 +91,7 @@ def delete_duplicates(duplicates, supabase):
     deleted_count = 0
     for dup in duplicates:
         try:
-            supabase.table('error_codes').delete().eq('id', dup['id']).execute()
+            supabase.table('vw_error_codes').delete().eq('id', dup['id']).execute()
             deleted_count += 1
         except Exception as e:
             print(f"❌ Failed to delete {dup['id']}: {e}")

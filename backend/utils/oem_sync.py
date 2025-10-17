@@ -116,7 +116,7 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
         return False
         
         # Original code (will be re-enabled once cache is fixed):
-        # supabase.table('products').update({
+        # supabase.table('vw_products').update({
         #     'oem_manufacturer': oem_info['oem_manufacturer'],
         #     'oem_relationship_type': 'engine',
         #     'oem_notes': oem_info['notes']
@@ -152,7 +152,7 @@ def batch_update_products_oem_info(supabase, limit: int = 1000) -> Dict[str, int
     
     try:
         # Get all products
-        result = supabase.table('products') \
+        result = supabase.table('vw_products') \
             .select('id,manufacturer_id,model_name,series_name') \
             .limit(limit) \
             .execute()
@@ -168,7 +168,7 @@ def batch_update_products_oem_info(supabase, limit: int = 1000) -> Dict[str, int
         manufacturers = {}
         
         for mfr_id in manufacturer_ids:
-            mfr_result = supabase.table('manufacturers') \
+            mfr_result = supabase.table('vw_manufacturers') \
                 .select('id,name') \
                 .eq('id', mfr_id) \
                 .execute()

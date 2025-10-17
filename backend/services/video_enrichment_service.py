@@ -120,12 +120,12 @@ class VideoEnrichmentService:
                 # Deduplicate by youtube_id
                 youtube_id = metadata.get('video_id')
                 if youtube_id:
-                    result = supabase.table('videos').select('*').eq('youtube_id', youtube_id).limit(1).execute()
+                    result = supabase.table('vw_videos').select('*').eq('youtube_id', youtube_id).limit(1).execute()
                     if result.data:
                         existing = result.data[0]
             else:
                 # Deduplicate by video_url
-                result = supabase.table('videos').select('*').eq('video_url', url).limit(1).execute()
+                result = supabase.table('vw_videos').select('*').eq('video_url', url).limit(1).execute()
                 if result.data:
                     existing = result.data[0]
             
@@ -162,7 +162,7 @@ class VideoEnrichmentService:
                     if metadata.get('models'):
                         video_data['metadata']['models'] = metadata.get('models')
                 
-                insert_result = supabase.table('videos').insert(video_data).execute()
+                insert_result = supabase.table('vw_videos').insert(video_data).execute()
                 
                 if not insert_result.data:
                     logger.error("Failed to insert video into database")

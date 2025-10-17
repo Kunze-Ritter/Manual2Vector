@@ -23,7 +23,7 @@ print("IMAGE EXTRACTION CHECK")
 print("=" * 80)
 
 # Check images
-images = supabase.table('images').select('*').eq('document_id', DOC_ID).execute()
+images = supabase.table('vw_images').select('*').eq('document_id', DOC_ID).execute()
 print(f"\n📸 IMAGES: {len(images.data)} found")
 
 if images.data:
@@ -43,7 +43,7 @@ else:
     print("  3. Processing not complete")
 
 # Check error codes with images
-error_codes = supabase.table('error_codes').select('error_code, image_id, page_number').eq('document_id', DOC_ID).execute()
+error_codes = supabase.table('vw_error_codes').select('error_code, image_id, page_number').eq('document_id', DOC_ID).execute()
 with_images = [ec for ec in error_codes.data if ec.get('image_id')]
 without_images = [ec for ec in error_codes.data if not ec.get('image_id')]
 

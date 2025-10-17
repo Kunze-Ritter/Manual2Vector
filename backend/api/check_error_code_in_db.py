@@ -22,7 +22,7 @@ print("CHECKING ERROR CODE C9402 IN DATABASE")
 print("="*60)
 
 # Query error codes
-result = supabase.table('error_codes') \
+result = supabase.table('vw_error_codes') \
     .select('error_code, error_description, solution_text, page_number, document_id') \
     .ilike('error_code', '%C9402%') \
     .limit(3) \

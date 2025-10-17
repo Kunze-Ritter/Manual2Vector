@@ -115,7 +115,7 @@ class KRAITools:
             self.logger.info(f"Extracted error code: '{search_term}' from query: '{query}'")
             
             # Query Supabase
-            response = self.supabase.table('error_codes') \
+            response = self.supabase.table('vw_error_codes') \
                 .select('error_code, error_description, solution_text, page_number, severity_level, confidence_score, manufacturer_id, document_id') \
                 .ilike('error_code', f'%{search_term}%') \
                 .order('confidence_score', desc=True) \
@@ -134,7 +134,7 @@ class KRAITools:
             
             manufacturers = {}
             if manufacturer_ids:
-                mfr_response = self.supabase.table('manufacturers') \
+                mfr_response = self.supabase.table('vw_manufacturers') \
                     .select('id, name') \
                     .in_('id', manufacturer_ids) \
                     .execute()
@@ -142,7 +142,7 @@ class KRAITools:
             
             documents = {}
             if document_ids:
-                doc_response = self.supabase.table('documents') \
+                doc_response = self.supabase.table('vw_documents') \
                     .select('id, filename') \
                     .in_('id', document_ids) \
                     .execute()
@@ -324,7 +324,7 @@ class KRAITools:
             self.logger.info(f"Tool called: search_videos with query='{query}'")
             
             # Query Supabase
-            response = self.supabase.table('videos') \
+            response = self.supabase.table('vw_videos') \
                 .select('title, url, description, duration, manufacturer_id, model_series') \
                 .or_(f'title.ilike.%{query}%,description.ilike.%{query}%,model_series.ilike.%{query}%') \
                 .limit(10) \
@@ -340,7 +340,7 @@ class KRAITools:
             manufacturer_ids = list(set([row['manufacturer_id'] for row in response.data if row.get('manufacturer_id')]))
             manufacturers = {}
             if manufacturer_ids:
-                mfr_response = self.supabase.table('manufacturers') \
+                mfr_response = self.supabase.table('vw_manufacturers') \
                     .select('id, name') \
                     .in_('id', manufacturer_ids) \
                     .execute()

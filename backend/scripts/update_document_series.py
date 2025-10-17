@@ -25,7 +25,7 @@ print("UPDATE DOCUMENT SERIES FROM PRODUCTS")
 print("=" * 80)
 
 # Get all documents without series
-docs = supabase.table('documents') \
+docs = supabase.table('vw_documents') \
     .select('id, filename, manufacturer') \
     .is_('series', 'null') \
     .execute()
@@ -63,7 +63,7 @@ for doc in docs.data:
         # Update document with series
         series_str = ','.join(sorted(series_set))
         
-        supabase.table('documents') \
+        supabase.table('vw_documents') \
             .update({'series': series_str}) \
             .eq('id', doc_id) \
             .execute()

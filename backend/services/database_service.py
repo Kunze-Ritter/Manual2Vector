@@ -128,7 +128,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     document_data[key] = value.isoformat()
             
-            result = self.client.table("documents").insert(document_data).execute()
+            result = self.client.table("vw_documents").insert(document_data).execute()
             document_id = result.data[0]["id"]
             self.logger.info(f"Created new document {document_id}")
             return document_id
@@ -143,7 +143,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("documents").select("id, filename, file_hash, created_at").eq("file_hash", file_hash).execute()
+            result = self.client.table("vw_documents").select("id, filename, file_hash, created_at").eq("file_hash", file_hash).execute()
             if result.data:
                 doc_data = result.data[0]
                 self.logger.info(f"Found existing document with hash {file_hash[:16]}...")
@@ -170,7 +170,7 @@ class DatabaseService:
                     processing_status="pending"
                 )
             
-            result = self.client.table("documents").select("*").eq("id", document_id).execute()
+            result = self.client.table("vw_documents").select("*").eq("id", document_id).execute()
             if result.data:
                 return DocumentModel(**result.data[0])
             return None
@@ -187,7 +187,7 @@ class DatabaseService:
                 return True
             
             updates["updated_at"] = datetime.utcnow().isoformat()
-            result = self.client.table("documents").update(updates).eq("id", document_id).execute()
+            result = self.client.table("vw_documents").update(updates).eq("id", document_id).execute()
             self.logger.info(f"Updated document {document_id}")
             return True
         except Exception as e:
@@ -216,7 +216,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     manufacturer_data[key] = value.isoformat()
             
-            result = self.client.table("manufacturers").insert(manufacturer_data).execute()
+            result = self.client.table("vw_manufacturers").insert(manufacturer_data).execute()
             manufacturer_id = result.data[0]["id"]
             self.logger.info(f"Created new manufacturer {manufacturer_id}")
             return manufacturer_id
@@ -231,7 +231,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("manufacturers").select("id, name").eq("name", name).execute()
+            result = self.client.table("vw_manufacturers").select("id, name").eq("name", name).execute()
             if result.data:
                 manufacturer_data = result.data[0]
                 self.logger.info(f"Found existing manufacturer: {name}")
@@ -310,7 +310,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     product_data[key] = value.isoformat()
             
-            result = self.client.table("products").insert(product_data).execute()
+            result = self.client.table("vw_products").insert(product_data).execute()
             product_id = result.data[0]["id"]
             self.logger.info(f"Created new product {product_id}")
             return product_id
@@ -325,7 +325,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("products").select("id, model_number").eq("model_number", model_number).eq("manufacturer_id", manufacturer_id).execute()
+            result = self.client.table("vw_products").select("id, model_number").eq("model_number", model_number).eq("manufacturer_id", manufacturer_id).execute()
             if result.data:
                 product_data = result.data[0]
                 self.logger.info(f"Found existing product: {model_number}")
@@ -355,7 +355,7 @@ class DatabaseService:
             # Remove metadata from main insert (store separately if needed)
             chunk_insert_data = {k: v for k, v in chunk_data.items() if k != 'metadata'}
             
-            result = self.client.table("chunks").insert(chunk_insert_data).execute()
+            result = self.client.table("vw_chunks").insert(chunk_insert_data).execute()
             chunk_id = result.data[0]["id"]
             self.logger.info(f"Created new smart chunk {chunk_id} (page: {chunk_data.get('page_number', 'N/A')}, section: {chunk_data.get('section_title', 'N/A')})")
             return chunk_id
@@ -384,7 +384,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     chunk_data[key] = value.isoformat()
             
-            result = self.client.table("chunks").insert(chunk_data).execute()
+            result = self.client.table("vw_chunks").insert(chunk_data).execute()
             chunk_id = result.data[0]["id"]
             self.logger.info(f"Created new chunk {chunk_id}")
             return chunk_id
@@ -399,7 +399,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("chunks").select("id, document_id, chunk_index").eq("document_id", document_id).eq("chunk_index", chunk_index).execute()
+            result = self.client.table("vw_chunks").select("id, document_id, chunk_index").eq("document_id", document_id).eq("chunk_index", chunk_index).execute()
             if result.data:
                 chunk_data = result.data[0]
                 self.logger.info(f"Found existing chunk: {chunk_index} for document {document_id}")
@@ -430,7 +430,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     image_data[key] = value.isoformat()
             
-            result = self.client.table("images").insert(image_data).execute()
+            result = self.client.table("vw_images").insert(image_data).execute()
             image_id = result.data[0]["id"]
             self.logger.info(f"Created new image {image_id}")
             return image_id
@@ -533,7 +533,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     embedding_data[key] = value.isoformat()
             
-            result = self.client.table("embeddings").insert(embedding_data).execute()
+            result = self.client.table("vw_embeddings").insert(embedding_data).execute()
             embedding_id = result.data[0]["id"]
             self.logger.info(f"Created new embedding {embedding_id}")
             return embedding_id
@@ -548,7 +548,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("embeddings").select("id, chunk_id").eq("chunk_id", chunk_id).execute()
+            result = self.client.table("vw_embeddings").select("id, chunk_id").eq("chunk_id", chunk_id).execute()
             if result.data:
                 embedding_data = result.data[0]
                 self.logger.info(f"Found existing embedding for chunk {chunk_id}")
@@ -579,7 +579,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     error_code_data[key] = value.isoformat()
             
-            result = self.client.table("error_codes").insert(error_code_data).execute()
+            result = self.client.table("vw_error_codes").insert(error_code_data).execute()
             error_code_id = result.data[0]["id"]
             self.logger.info(f"Created new error code {error_code_id}")
             return error_code_id
@@ -594,7 +594,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("error_codes").select("id, error_code").eq("error_code", error_code).execute()
+            result = self.client.table("vw_error_codes").select("id, error_code").eq("error_code", error_code).execute()
             if result.data:
                 error_code_data = result.data[0]
                 self.logger.info(f"Found existing error code: {error_code}")
@@ -763,7 +763,7 @@ class DatabaseService:
     async def get_chunks_by_document_id(self, document_id: str) -> List[ChunkModel]:
         """Get all chunks for a document"""
         try:
-            result = self.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
+            result = self.client.table('vw_chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
             
             chunks = []
             for chunk_data in result.data:

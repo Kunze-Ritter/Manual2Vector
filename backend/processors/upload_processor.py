@@ -186,7 +186,7 @@ class UploadProcessor:
     def _check_duplicate(self, file_hash: str) -> Optional[Dict]:
         """Check if document with same hash already exists"""
         try:
-            result = self.supabase.table("documents") \
+            result = self.supabase.table("vw_documents") \
                 .select("*") \
                 .eq("file_hash", file_hash) \
                 .execute()
@@ -278,7 +278,7 @@ class UploadProcessor:
         }
         
         try:
-            self.supabase.table("documents").insert(record).execute()
+            self.supabase.table("vw_documents").insert(record).execute()
             return document_id
             
         except Exception as e:
@@ -309,7 +309,7 @@ class UploadProcessor:
         }
         
         try:
-            self.supabase.table("documents") \
+            self.supabase.table("vw_documents") \
                 .update(update_data) \
                 .eq("id", document_id) \
                 .execute()

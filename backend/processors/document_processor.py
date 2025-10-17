@@ -334,7 +334,7 @@ class DocumentProcessor:
                         except Exception as mfr_error:
                             # Fallback: Just set manufacturer string via table update
                             try:
-                                supabase.table('documents').update({
+                                supabase.table('vw_documents').update({
                                     'manufacturer': detected_manufacturer
                                 }).eq('id', str(document_id)).execute()
                                 self.logger.warning(f"Set manufacturer string only (RPC failed): {mfr_error}")
@@ -992,7 +992,7 @@ class DocumentProcessor:
                 manufacturer_name = canonical_name
             
             # 1. Try to find existing manufacturer (case-insensitive exact match on canonical name)
-            result = supabase.table('manufacturers') \
+            result = supabase.table('vw_manufacturers') \
                 .select('id, name') \
                 .ilike('name', manufacturer_name) \
                 .limit(1) \
@@ -1007,7 +1007,7 @@ class DocumentProcessor:
             # 2. Manufacturer not found - create new entry
             self.logger.info(f"📝 Creating new manufacturer entry: {manufacturer_name}")
             
-            create_result = supabase.table('manufacturers') \
+            create_result = supabase.table('vw_manufacturers') \
                 .insert({'name': manufacturer_name}) \
                 .execute()
             
@@ -1058,7 +1058,7 @@ class DocumentProcessor:
             
             for link in links:
                 # Check for duplicate
-                existing = supabase.table('links') \
+                existing = supabase.table('vw_links') \
                     .select('id') \
                     .eq('document_id', link['document_id']) \
                     .eq('url', link['url']) \
@@ -1071,7 +1071,7 @@ class DocumentProcessor:
                     link_id_map[link['url']] = link_id
                 else:
                     # Insert new link
-                    result = supabase.table('links').insert(link).execute()
+                    result = supabase.table('vw_links').insert(link).execute()
                     
                     if result.data and len(result.data) > 0:
                         link_id = result.data[0]['id']
@@ -1121,7 +1121,7 @@ class DocumentProcessor:
                 # Check for duplicate by youtube_id
                 should_insert = False
                 if video.get('youtube_id'):
-                    existing = supabase.table('videos') \
+                    existing = supabase.table('vw_videos') \
                         .select('id') \
                         .eq('youtube_id', video['youtube_id']) \
                         .limit(1) \
@@ -1139,7 +1139,7 @@ class DocumentProcessor:
                     
                     # Verify link_id exists before inserting
                     if video.get('link_id'):
-                        link_check = supabase.table('links').select('id').eq('id', video['link_id']).execute()
+                        link_check = supabase.table('vw_links').select('id').eq('id', video['link_id']).execute()
                         if not link_check.data:
                             self.logger.debug(f"Skipping video {video.get('youtube_id')} - link_id not found")
                             continue
@@ -1149,14 +1149,14 @@ class DocumentProcessor:
                     video_data = {k: v for k, v in video.items() 
                                   if k not in ['thumbnail_ocr_text', 'thumbnail_ai_description']}
                     
-                    result = supabase.table('videos').insert(video_data).execute()
+                    result = supabase.table('vw_videos').insert(video_data).execute()
                     
                     # Auto-link manufacturer/series via link_id (videos → links → document)
                     if result.data and len(result.data) > 0 and video.get('link_id'):
                         video_id = result.data[0]['id']
                         try:
                             # Get document_id from link
-                            link_result = supabase.table('links').select('document_id').eq('id', video['link_id']).single().execute()
+                            link_result = supabase.table('vw_links').select('document_id').eq('id', video['link_id']).single().execute()
                             if link_result.data:
                                 supabase.rpc('auto_link_resource_to_document', {
                                     'p_resource_table': 'krai_content.videos',
@@ -1221,7 +1221,7 @@ class DocumentProcessor:
                         self.logger.debug(f"Could not get manufacturer_id: {e}")
                 
                 # Check if product already exists
-                existing = supabase.table('products').select('id').eq(
+                existing = supabase.table('vw_products').select('id').eq(
                     'model_number', product_data['model_number']
                 ).limit(1).execute()
                 
@@ -1230,7 +1230,7 @@ class DocumentProcessor:
                     product_id = existing.data[0]['id']
                     
                     # Get current product_type to check if we should update
-                    current_result = supabase.table('products').select('product_type').eq('id', product_id).single().execute()
+                    current_result = supabase.table('vw_products').select('product_type').eq('id', product_id).single().execute()
                     current_type = current_result.data.get('product_type') if current_result.data else None
                     
                     update_data = {
@@ -1268,7 +1268,7 @@ class DocumentProcessor:
                         else:
                             self.logger.debug(f"  Skipped: Already correct or not better")
                     
-                    supabase.table('products').update(update_data).eq('id', product_id).execute()
+                    supabase.table('vw_products').update(update_data).eq('id', product_id).execute()
                     updated_count += 1
                     product_ids.append(product_id)
                 else:
@@ -1294,7 +1294,7 @@ class DocumentProcessor:
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None,
                         'product_type': product_type
                     }
-                    result = supabase.table('products').insert(insert_data).execute()
+                    result = supabase.table('vw_products').insert(insert_data).execute()
                     if result.data:
                         product_ids.append(result.data[0]['id'])
                     saved_count += 1
@@ -1312,7 +1312,7 @@ class DocumentProcessor:
                     
                     for product_id in product_ids:
                         # Get product info (with series via JOIN)
-                        product_result = supabase.table('products').select(
+                        product_result = supabase.table('vw_products').select(
                             'id,model_number,manufacturer_id,series_id,product_series(series_name)'
                         ).eq('id', product_id).single().execute()
                         
@@ -1321,7 +1321,7 @@ class DocumentProcessor:
                             
                             # Get manufacturer name
                             if product.get('manufacturer_id'):
-                                mfr_result = supabase.table('manufacturers').select('name').eq(
+                                mfr_result = supabase.table('vw_manufacturers').select('name').eq(
                                     'id', product['manufacturer_id']
                                 ).single().execute()
                                 
@@ -1445,7 +1445,7 @@ class DocumentProcessor:
             supabase = create_client(supabase_url, supabase_key)
             
             # Get all error codes for this document without chunk_id
-            error_codes = supabase.table('error_codes') \
+            error_codes = supabase.table('vw_error_codes') \
                 .select('id, page_number') \
                 .eq('document_id', str(document_id)) \
                 .is_('chunk_id', 'null') \
@@ -1462,7 +1462,7 @@ class DocumentProcessor:
                     continue
                 
                 # Find chunk that contains this page
-                chunk = supabase.table('chunks') \
+                chunk = supabase.table('vw_chunks') \
                     .select('id') \
                     .eq('document_id', str(document_id)) \
                     .lte('page_start', page_num) \
@@ -1474,7 +1474,7 @@ class DocumentProcessor:
                     chunk_id = chunk.data[0]['id']
                     
                     # Update error code with chunk_id
-                    supabase.table('error_codes') \
+                    supabase.table('vw_error_codes') \
                         .update({'chunk_id': chunk_id}) \
                         .eq('id', ec['id']) \
                         .execute()
@@ -1519,7 +1519,7 @@ class DocumentProcessor:
                 # saved_products is a list of UUIDs, not dicts!
                 # Get current product with series info (JOIN with product_series)
                 # products.series_id → product_series.id → product_series.series_name
-                result = supabase.table('products') \
+                result = supabase.table('vw_products') \
                     .select('product_type, model_number, series_id, product_series(series_name)') \
                     .eq('id', product_id) \
                     .limit(1) \
@@ -1545,7 +1545,7 @@ class DocumentProcessor:
                 if detected_type and detected_type != current_type:
                     # Only update if new type is more specific (not laser_multifunction fallback)
                     if detected_type != 'laser_multifunction' or not current_type:
-                        supabase.table('products') \
+                        supabase.table('vw_products') \
                             .update({'product_type': detected_type}) \
                             .eq('id', product_id) \
                             .execute()
@@ -1583,7 +1583,7 @@ class DocumentProcessor:
             # Note: Use only 'manufacturer' since view might not have manufacturer_id
             # The document might not be in DB yet if we're saving error codes during processing
             try:
-                doc_result = supabase.table('documents') \
+                doc_result = supabase.table('vw_documents') \
                     .select('manufacturer') \
                     .eq('id', str(document_id)) \
                     .limit(1) \
@@ -1680,7 +1680,7 @@ class DocumentProcessor:
                 # DEDUPLICATION: Check if this exact error code already exists
                 # Must match the unique constraint: error_code + manufacturer_id + document_id
                 try:
-                    existing = supabase.table('error_codes') \
+                    existing = supabase.table('vw_error_codes') \
                         .select('id') \
                         .eq('error_code', ec_data['error_code']) \
                         .eq('manufacturer_id', str(manufacturer_id)) \
@@ -1803,7 +1803,7 @@ class DocumentProcessor:
                         file_hash = hashlib.sha256(f.read()).hexdigest()
                     
                     # Check if image already exists
-                    existing = supabase.table('images') \
+                    existing = supabase.table('vw_images') \
                         .select('id') \
                         .eq('file_hash', file_hash) \
                         .limit(1) \
@@ -1848,7 +1848,7 @@ class DocumentProcessor:
                         self.logger.debug(f"⚠️  No AI/OCR data for {img.get('filename')} - Keys: {list(img.keys())}")
                     
                     # Insert into database
-                    result = supabase.table('images').insert(image_record).execute()
+                    result = supabase.table('vw_images').insert(image_record).execute()
                     
                     if result.data:
                         saved_count += 1
@@ -2041,7 +2041,7 @@ class DocumentProcessor:
                 }
                 
                 # Check for duplicates
-                existing = supabase.table('parts_catalog') \
+                existing = supabase.table('vw_parts') \
                     .select('id') \
                     .eq('part_number', record['part_number']) \
                     .eq('manufacturer_id', manufacturer_id) \
@@ -2049,7 +2049,7 @@ class DocumentProcessor:
                     .execute()
                 
                 if not existing.data:
-                    supabase.table('parts_catalog').insert(record).execute()
+                    supabase.table('vw_parts').insert(record).execute()
                     saved_count += 1
                 else:
                     duplicate_count += 1
@@ -2145,16 +2145,16 @@ class DocumentProcessor:
                 self.logger.warning(f"RPC upsert failed, using fallback: {rpc_error}")
                 document_data_fallback = {k: v for k, v in document_data.items() if k != 'manufacturer_id'}
                 
-                existing = supabase.table('documents').select('id').eq(
+                existing = supabase.table('vw_documents').select('id').eq(
                     'id', str(document_id)
                 ).execute()
                 
                 if existing.data:
-                    supabase.table('documents').update(document_data_fallback).eq(
+                    supabase.table('vw_documents').update(document_data_fallback).eq(
                         'id', str(document_id)
                     ).execute()
                 else:
-                    supabase.table('documents').insert(document_data_fallback).execute()
+                    supabase.table('vw_documents').insert(document_data_fallback).execute()
                 
                 self.logger.success(f"✅ Saved document to database (fallback, without manufacturer_id)")
                 

@@ -37,7 +37,7 @@ async def main():
         
         # Get ALL documents from database
         print("\n=== FORCE SMART PROCESSING - ALL DOCUMENTS ===")
-        all_docs = pipeline.database_service.client.table('documents').select('*').execute()
+        all_docs = pipeline.database_service.client.table('vw_documents').select('*').execute()
         
         if not all_docs.data:
             logger.info("No documents found in database!")

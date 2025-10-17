@@ -274,7 +274,7 @@ class StageTracker:
             Dictionary with all stage statuses
         """
         try:
-            result = self.supabase.table("documents") \
+            result = self.supabase.table("vw_documents") \
                 .select("stage_status") \
                 .eq("id", document_id) \
                 .execute()

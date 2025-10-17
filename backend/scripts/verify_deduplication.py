@@ -69,7 +69,7 @@ class DeduplicationVerifier:
         
         try:
             # Get all documents
-            result = self.database_service.client.table('documents').select('id, file_hash, filename, created_at').execute()
+            result = self.database_service.client.table('vw_documents').select('id, file_hash, filename, created_at').execute()
             documents = result.data
             
             # Group by file_hash
@@ -105,7 +105,7 @@ class DeduplicationVerifier:
         
         try:
             # Get all images
-            result = self.database_service.client.table('images').select('id, file_hash, filename, created_at').execute()
+            result = self.database_service.client.table('vw_images').select('id, file_hash, filename, created_at').execute()
             images = result.data
             
             # Group by file_hash
@@ -141,7 +141,7 @@ class DeduplicationVerifier:
         
         try:
             # Get all chunks
-            result = self.database_service.client.table('chunks').select('id, content_hash, document_id, created_at').execute()
+            result = self.database_service.client.table('vw_chunks').select('id, content_hash, document_id, created_at').execute()
             chunks = result.data
             
             # Group by content_hash
@@ -177,7 +177,7 @@ class DeduplicationVerifier:
         
         try:
             # Get all embeddings
-            result = self.database_service.client.table('embeddings').select('id, chunk_id, created_at').execute()
+            result = self.database_service.client.table('vw_embeddings').select('id, chunk_id, created_at').execute()
             embeddings = result.data
             
             # Group by chunk_id
@@ -213,7 +213,7 @@ class DeduplicationVerifier:
         
         try:
             # Get all manufacturers
-            result = self.database_service.client.table('manufacturers').select('id, name, created_at').execute()
+            result = self.database_service.client.table('vw_manufacturers').select('id, name, created_at').execute()
             manufacturers = result.data
             
             # Group by name (case insensitive)

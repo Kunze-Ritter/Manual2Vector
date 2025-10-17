@@ -52,7 +52,7 @@ class ImageDuplicateCleanup:
         
         try:
             # Get all images with their hashes
-            result = self.database_service.client.table('images').select('id, file_hash, filename, created_at, document_id').execute()
+            result = self.database_service.client.table('vw_images').select('id, file_hash, filename, created_at, document_id').execute()
             
             if not result.data:
                 logger.info("No images found in database")
@@ -96,7 +96,7 @@ class ImageDuplicateCleanup:
                 for image in delete_images:
                     try:
                         # Delete from database
-                        delete_result = self.database_service.client.table('images').delete().eq('id', image['id']).execute()
+                        delete_result = self.database_service.client.table('vw_images').delete().eq('id', image['id']).execute()
                         
                         if delete_result.data:
                             self.deleted_count += 1
@@ -120,7 +120,7 @@ class ImageDuplicateCleanup:
         
         try:
             # Check for remaining duplicates
-            result = self.database_service.client.table('images').select('file_hash').execute()
+            result = self.database_service.client.table('vw_images').select('file_hash').execute()
             
             if not result.data:
                 logger.info("No images remaining")

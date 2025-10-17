@@ -205,7 +205,7 @@ class SearchAPI:
                 
                 # Build query
                 # Use Supabase PostgREST API - search in public.error_codes view
-                query_builder = self.database_service.client.table('error_codes').select(
+                query_builder = self.database_service.client.table('vw_error_codes').select(
                     'error_code, error_description, solution_text, page_number, severity_level, confidence_score, '
                     'manufacturer_id, document_id'
                 ).ilike('error_code', f'%{search_term}%')
@@ -221,11 +221,11 @@ class SearchAPI:
                 documents = {}
                 
                 if manufacturer_ids:
-                    mfr_response = self.database_service.client.table('manufacturers').select('id, name').in_('id', manufacturer_ids).execute()
+                    mfr_response = self.database_service.client.table('vw_manufacturers').select('id, name').in_('id', manufacturer_ids).execute()
                     manufacturers = {m['id']: m['name'] for m in mfr_response.data}
                 
                 if document_ids:
-                    doc_response = self.database_service.client.table('documents').select('id, filename').in_('id', document_ids).execute()
+                    doc_response = self.database_service.client.table('vw_documents').select('id, filename').in_('id', document_ids).execute()
                     documents = {d['id']: d['filename'] for d in doc_response.data}
                 
                 # Format results

@@ -46,7 +46,7 @@ class PartsProcessor:
         
         try:
             # Get document info
-            doc_result = self.supabase.table('documents').select('*').eq('id', document_id).execute()
+            doc_result = self.supabase.table('vw_documents').select('*').eq('id', document_id).execute()
             if not doc_result.data:
                 raise ValueError(f"Document {document_id} not found")
             
@@ -61,7 +61,7 @@ class PartsProcessor:
             self.logger.info(f"Extracting parts for manufacturer: {manufacturer_name}")
             
             # Get all chunks for this document
-            chunks_result = self.supabase.table('chunks').select('*').eq('document_id', document_id).execute()
+            chunks_result = self.supabase.table('vw_chunks').select('*').eq('document_id', document_id).execute()
             chunks = chunks_result.data
             
             self.logger.info(f"Processing {len(chunks)} chunks for parts extraction")
@@ -228,7 +228,7 @@ class PartsProcessor:
         """
         try:
             # Check if part already exists
-            existing = self.supabase.table('parts_catalog').select('*').eq(
+            existing = self.supabase.table('vw_parts').select('*').eq(
                 'part_number', part_data['part_number']
             ).eq(
                 'manufacturer_id', part_data['manufacturer_id']
@@ -251,13 +251,13 @@ class PartsProcessor:
                 
                 # Update if new description is longer/better
                 if len(new_desc) > len(old_desc):
-                    self.supabase.table('parts_catalog').update(store_data).eq('id', part_id).execute()
+                    self.supabase.table('vw_parts').update(store_data).eq('id', part_id).execute()
                     self.logger.debug(f"Updated part {part_data['part_number']}")
                     return 'updated'
                 return 'exists'
             else:
                 # Create new part
-                self.supabase.table('parts_catalog').insert(store_data).execute()
+                self.supabase.table('vw_parts').insert(store_data).execute()
                 self.logger.debug(f"Created part {part_data['part_number']}")
                 return 'created'
                 
@@ -279,7 +279,7 @@ class PartsProcessor:
         
         try:
             # Get all error codes for this document
-            error_codes_result = self.supabase.table('error_codes').select(
+            error_codes_result = self.supabase.table('vw_error_codes').select(
                 'id, error_code, solution_text, chunk_id'
             ).eq('document_id', document_id).execute()
             
@@ -301,7 +301,7 @@ class PartsProcessor:
                 
                 # Also check the chunk where error code was found
                 if chunk_id:
-                    chunk_result = self.supabase.table('chunks').select('text').eq('id', chunk_id).execute()
+                    chunk_result = self.supabase.table('vw_chunks').select('text').eq('id', chunk_id).execute()
                     if chunk_result.data:
                         chunk_text = chunk_result.data[0].get('text', '')
                         parts_in_chunk = self._extract_and_link_parts_from_text(
@@ -346,7 +346,7 @@ class PartsProcessor:
                 confidence = part_item.get('confidence', 0.8)
                 
                 # Find part in database
-                part_result = self.supabase.table('parts_catalog').select('id').eq(
+                part_result = self.supabase.table('vw_parts').select('id').eq(
                     'part_number', part_number
                 ).execute()
                 

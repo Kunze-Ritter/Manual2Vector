@@ -125,7 +125,7 @@ class DatabaseService:
         
         try:
             # Insert document into krai_core.documents
-            result = self.client.table('documents').insert(document_data).execute()
+            result = self.client.table('vw_documents').insert(document_data).execute()
             
             if result.data:
                 document_id = result.data[0]['id']
@@ -141,7 +141,7 @@ class DatabaseService:
     async def get_document(self, document_id: str) -> Optional[DocumentModel]:
         """Get document by ID"""
         try:
-            result = self.client.table('documents').select('*').eq('id', document_id).execute()
+            result = self.client.table('vw_documents').select('*').eq('id', document_id).execute()
             
             if result.data:
                 return DocumentModel(**result.data[0])
@@ -154,7 +154,7 @@ class DatabaseService:
     async def get_document_by_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
         """Get document by file hash for deduplication"""
         try:
-            result = self.client.table('documents').select('*').eq('file_hash', file_hash).execute()
+            result = self.client.table('vw_documents').select('*').eq('file_hash', file_hash).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             self.logger.error(f"Failed to get document by hash {file_hash[:16]}...: {e}")
@@ -163,7 +163,7 @@ class DatabaseService:
     async def get_image_by_hash(self, image_hash: str) -> Optional[Dict[str, Any]]:
         """Get image by hash for deduplication"""
         try:
-            result = self.client.table('images').select('*').eq('image_hash', image_hash).execute()
+            result = self.client.table('vw_images').select('*').eq('image_hash', image_hash).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             self.logger.error(f"Failed to get image by hash {image_hash[:16]}...: {e}")
@@ -172,7 +172,7 @@ class DatabaseService:
     async def get_embedding_by_chunk_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
         """Get embedding by chunk_id for deduplication"""
         try:
-            result = self.client.table('embeddings').select('*').eq('chunk_id', chunk_id).execute()
+            result = self.client.table('vw_embeddings').select('*').eq('chunk_id', chunk_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             self.logger.error(f"Failed to get embedding by chunk_id {chunk_id[:16]}...: {e}")
@@ -191,7 +191,7 @@ class DatabaseService:
             for i in range(0, len(chunk_ids), batch_size):
                 batch = chunk_ids[i:i + batch_size]
                 try:
-                    result = self.client.table('embeddings').select('*').in_('chunk_id', batch).execute()
+                    result = self.client.table('vw_embeddings').select('*').in_('chunk_id', batch).execute()
                     if result.data:
                         all_embeddings.extend(result.data)
                 except Exception as batch_error:
@@ -207,7 +207,7 @@ class DatabaseService:
     async def update_document(self, document_id: str, updates: Dict[str, Any]) -> bool:
         """Update document"""
         try:
-            result = self.client.table('documents').update(updates).eq('id', document_id).execute()
+            result = self.client.table('vw_documents').update(updates).eq('id', document_id).execute()
             
             if result.data:
                 self.logger.info(f"Updated document {document_id}")
@@ -233,7 +233,7 @@ class DatabaseService:
         manufacturer_data = manufacturer.model_dump(mode='json')
         
         try:
-            result = self.client.table('manufacturers').insert(manufacturer_data).execute()
+            result = self.client.table('vw_manufacturers').insert(manufacturer_data).execute()
             
             if result.data:
                 manufacturer_id = result.data[0]['id']
@@ -249,7 +249,7 @@ class DatabaseService:
     async def get_manufacturer_by_name(self, name: str) -> Optional[ManufacturerModel]:
         """Get manufacturer by name"""
         try:
-            result = self.client.table('manufacturers').select('*').eq('name', name).execute()
+            result = self.client.table('vw_manufacturers').select('*').eq('name', name).execute()
             
             if result.data:
                 return ManufacturerModel(**result.data[0])
@@ -294,7 +294,7 @@ class DatabaseService:
     async def get_product_by_model(self, model_name: str, manufacturer_id: str) -> Optional[Any]:
         """Get product by model name and manufacturer"""
         try:
-            result = self.client.table('products').select('*').eq('model_name', model_name).eq('manufacturer_id', manufacturer_id).execute()
+            result = self.client.table('vw_products').select('*').eq('model_name', model_name).eq('manufacturer_id', manufacturer_id).execute()
             
             if result.data:
                 return result.data[0]
@@ -309,7 +309,7 @@ class DatabaseService:
         product_data = product.model_dump(mode='json')
         
         try:
-            result = self.client.table('products').insert(product_data).execute()
+            result = self.client.table('vw_products').insert(product_data).execute()
             
             if result.data:
                 product_id = result.data[0]['id']
@@ -327,7 +327,7 @@ class DatabaseService:
         chunk_data = chunk.model_dump(mode='json')
         
         try:
-            result = self.client.table('chunks').insert(chunk_data).execute()
+            result = self.client.table('vw_chunks').insert(chunk_data).execute()
             
             if result.data:
                 chunk_id = result.data[0]['id']
@@ -345,7 +345,7 @@ class DatabaseService:
         chunk_data = chunk.model_dump(mode='json')
         
         try:
-            result = self.client.table('chunks').insert(chunk_data).execute()
+            result = self.client.table('vw_chunks').insert(chunk_data).execute()
             
             if result.data:
                 chunk_id = result.data[0]['id']
@@ -369,7 +369,7 @@ class DatabaseService:
     async def get_chunks_by_document_id(self, document_id: str) -> List[ChunkModel]:
         """Get all chunks for a document (returns ChunkModel objects)"""
         try:
-            result = self.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
+            result = self.client.table('vw_chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
             
             chunks = []
             for chunk_data in result.data:
@@ -385,7 +385,7 @@ class DatabaseService:
         image_data = image.model_dump(mode='json')
         
         try:
-            result = self.client.table('images').insert(image_data).execute()
+            result = self.client.table('vw_images').insert(image_data).execute()
             
             if result.data:
                 image_id = result.data[0]['id']
@@ -421,7 +421,7 @@ class DatabaseService:
         embedding_data = embedding.model_dump(mode='json')
         
         try:
-            result = self.client.table('embeddings').insert(embedding_data).execute()
+            result = self.client.table('vw_embeddings').insert(embedding_data).execute()
             
             if result.data:
                 embedding_id = result.data[0]['id']
@@ -458,7 +458,7 @@ class DatabaseService:
             # Direct INSERT with Service Role Key (cross-schema access)
             client = self.service_client if self.service_client else self.client
             
-            result = client.table('error_codes').insert(error_code_data).execute()
+            result = client.table('vw_error_codes').insert(error_code_data).execute()
             
             if result.data:
                 error_code_id = result.data[0]['id']
@@ -557,7 +557,7 @@ class DatabaseService:
             }
             
             # Get document counts
-            docs_result = self.client.table('documents').select('processing_status').execute()
+            docs_result = self.client.table('vw_documents').select('processing_status').execute()
             status['total_documents'] = len(docs_result.data)
             
             # Count by status

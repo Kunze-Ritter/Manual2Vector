@@ -207,7 +207,7 @@ class QualityCheckService:
             # Check 1: Database connectivity
             try:
                 # Simple query to test connection
-                result = self.database_service.client.table('documents').select('id').limit(1).execute()
+                result = self.database_service.client.table('vw_documents').select('id').limit(1).execute()
                 health['checks']['database'] = 'healthy'
             except Exception as e:
                 health['checks']['database'] = 'failed'
@@ -215,9 +215,9 @@ class QualityCheckService:
             
             # Check 2: Tables exist and have data
             try:
-                docs = self.database_service.client.table('documents').select('id', count='exact').execute()
+                docs = self.database_service.client.table('vw_documents').select('id', count='exact').execute()
                 content_chunks = self.database_service.client.from_('vw_chunks').select('id', count='exact').limit(1).execute()
-                intelligence_chunks = self.database_service.service_client.schema('krai_intelligence').table('chunks').select('id', count='exact').limit(1).execute()
+                intelligence_chunks = self.database_service.service_client.schema('krai_intelligence').table('vw_chunks').select('id', count='exact').limit(1).execute()
                 
                 health['checks']['documents_count'] = docs.count or 0
                 health['checks']['content_chunks_count'] = content_chunks.count or 0

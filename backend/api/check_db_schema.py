@@ -40,7 +40,7 @@ print("CHECKING ACTUAL DATA FOR C9402")
 print("="*60)
 
 # Get actual data
-result2 = supabase.table('error_codes').select('error_code, solution_text, LENGTH(solution_text) as len').eq('error_code', 'C9402').limit(1).execute()
+result2 = supabase.table('vw_error_codes').select('error_code, solution_text, LENGTH(solution_text) as len').eq('error_code', 'C9402').limit(1).execute()
 
 if result2.data:
     print(f"\nError Code: {result2.data[0]['error_code']}")

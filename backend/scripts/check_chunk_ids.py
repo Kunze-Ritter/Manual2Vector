@@ -21,7 +21,7 @@ print("ERROR CODES WITH CHUNK IDs")
 print("=" * 80)
 
 # Get sample error codes
-result = supabase.table('error_codes') \
+result = supabase.table('vw_error_codes') \
     .select('error_code, chunk_id, page_number') \
     .eq('document_id', '89387251-6506-4c41-ac7c-53666e82d457') \
     .limit(10) \
@@ -34,13 +34,13 @@ for ec in result.data:
     print(f"  {ec['error_code']:<12} chunk_id={chunk_display:<12} (page {ec['page_number']})")
 
 # Count with/without chunk_id
-with_chunk = supabase.table('error_codes') \
+with_chunk = supabase.table('vw_error_codes') \
     .select('id', count='exact') \
     .eq('document_id', '89387251-6506-4c41-ac7c-53666e82d457') \
     .not_.is_('chunk_id', 'null') \
     .execute()
 
-without_chunk = supabase.table('error_codes') \
+without_chunk = supabase.table('vw_error_codes') \
     .select('id', count='exact') \
     .eq('document_id', '89387251-6506-4c41-ac7c-53666e82d457') \
     .is_('chunk_id', 'null') \

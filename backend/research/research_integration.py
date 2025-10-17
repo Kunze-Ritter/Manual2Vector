@@ -63,7 +63,7 @@ class ResearchIntegration:
         
         # Get current product data
         try:
-            product = self.supabase.table('products').select(
+            product = self.supabase.table('vw_products').select(
                 'id,series_id,specifications,oem_manufacturer'
             ).eq('id', str(product_id)).single().execute()
             
@@ -141,7 +141,7 @@ class ResearchIntegration:
             
             # Update product
             if update_data:
-                self.supabase.table('products').update(update_data).eq(
+                self.supabase.table('vw_products').update(update_data).eq(
                     'id', str(product_id)
                 ).execute()
                 
@@ -169,7 +169,7 @@ class ResearchIntegration:
             if series_result.data:
                 # Link to existing series
                 series_id = series_result.data[0]['id']
-                self.supabase.table('products').update({
+                self.supabase.table('vw_products').update({
                     'series_id': series_id
                 }).eq('id', str(product_id)).execute()
                 
@@ -183,7 +183,7 @@ class ResearchIntegration:
                 
                 if new_series.data:
                     series_id = new_series.data[0]['id']
-                    self.supabase.table('products').update({
+                    self.supabase.table('vw_products').update({
                         'series_id': series_id
                     }).eq('id', str(product_id)).execute()
                     
@@ -210,7 +210,7 @@ class ResearchIntegration:
         try:
             # Find products that need research
             # (no specs, no series, or low confidence)
-            products = self.supabase.table('products').select(
+            products = self.supabase.table('vw_products').select(
                 'id,model_number,manufacturer_id,specifications,series_id'
             ).is_('specifications', 'null').limit(limit).execute()
             
@@ -225,7 +225,7 @@ class ResearchIntegration:
             manufacturers = {}
             
             for mfr_id in manufacturer_ids:
-                mfr_result = self.supabase.table('manufacturers').select('id,name').eq(
+                mfr_result = self.supabase.table('vw_manufacturers').select('id,name').eq(
                     'id', mfr_id
                 ).execute()
                 if mfr_result.data:

@@ -301,7 +301,7 @@ class KRMasterPipeline:
         
         try:
             # Use direct database service
-            all_docs = self.database_service.client.table('documents').select('processing_status').execute()
+            all_docs = self.database_service.client.table('vw_documents').select('processing_status').execute()
             
             status = {
                 'total_documents': len(all_docs.data),
@@ -329,7 +329,7 @@ class KRMasterPipeline:
         try:
             # Get ALL pending AND failed documents directly (no chunk check)
             pending_docs = []
-            all_docs = self.database_service.client.table('documents').select('*').in_('processing_status', ['pending', 'failed']).execute()
+            all_docs = self.database_service.client.table('vw_documents').select('*').in_('processing_status', ['pending', 'failed']).execute()
             
             for doc in all_docs.data:
                 # Add ALL pending documents (chunks already exist)
@@ -358,7 +358,7 @@ class KRMasterPipeline:
     async def get_all_documents(self) -> List[Dict[str, Any]]:
         """Get all documents with resolved file paths"""
         try:
-            all_docs = self.database_service.client.table('documents').select('*').execute()
+            all_docs = self.database_service.client.table('vw_documents').select('*').execute()
             
             # Resolve file paths using file locator
             for doc in all_docs.data:
@@ -1077,9 +1077,9 @@ class KRMasterPipeline:
         """Get comprehensive pipeline processing status"""
         try:
             # Use simple table queries for status
-            docs_result = self.database_service.client.table('documents').select('*').execute()
-            chunks_result = self.database_service.client.table('chunks').select('*').execute()
-            images_result = self.database_service.client.table('images').select('*').execute()
+            docs_result = self.database_service.client.table('vw_documents').select('*').execute()
+            chunks_result = self.database_service.client.table('vw_chunks').select('*').execute()
+            images_result = self.database_service.client.table('vw_images').select('*').execute()
             
             # Process results
             total_docs = len(docs_result.data) if docs_result.data else 0
@@ -1159,7 +1159,7 @@ class KRMasterPipeline:
         except Exception as e:
             # Fallback: simple count of documents without classification
             try:
-                docs_result = self.database_service.client.table('documents').select('id').is_('manufacturer', 'null').execute()
+                docs_result = self.database_service.client.table('vw_documents').select('id').is_('manufacturer', 'null').execute()
                 return len(docs_result.data) if docs_result.data else 0
             except:
                 return 0
@@ -1437,7 +1437,7 @@ async def main():
             
             # FORCE Smart Processing for all documents (regardless of upload results)
             print("\n=== FORCED SMART PROCESSING - ALL DOCUMENTS ===")
-            all_docs = pipeline.database_service.client.table('documents').select('*').execute()
+            all_docs = pipeline.database_service.client.table('vw_documents').select('*').execute()
             
             if all_docs.data:
                 print(f"Found {len(all_docs.data)} total documents - forcing smart processing...")

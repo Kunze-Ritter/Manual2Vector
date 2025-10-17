@@ -82,7 +82,7 @@ class ConfigurationAgent:
         - SELECT * FROM krai_core.product_accessories
         """
         # Query products
-        products_result = connection.table("products").select("*").execute()
+        products_result = connection.table("vw_products").select("*").execute()
         for product in products_result.data:
             self.validator.add_product(
                 model_number=product["model_number"],

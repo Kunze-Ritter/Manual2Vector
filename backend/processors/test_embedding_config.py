@@ -57,7 +57,7 @@ def main():
             # Test connection
             try:
                 # Try a simple query to verify connection
-                result = supabase_client.table('documents').select("id").limit(1).execute()
+                result = supabase_client.table('vw_documents').select("id").limit(1).execute()
                 logger.success("✅ Supabase connection verified (can query database)")
             except Exception as e:
                 logger.warning(f"⚠️  Supabase client created but query failed: {e}")

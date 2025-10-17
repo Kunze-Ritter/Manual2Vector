@@ -127,7 +127,7 @@ class ImageStorageProcessor:
             return None
         
         try:
-            result = self.supabase.table('images') \
+            result = self.supabase.table('vw_images') \
                 .select('*') \
                 .eq('file_hash', file_hash) \
                 .limit(1) \
@@ -251,7 +251,7 @@ class ImageStorageProcessor:
                 if 'ocr_confidence' in metadata:
                     image_record['ocr_confidence'] = metadata['ocr_confidence']
             
-            db_result = self.supabase.table('images').insert(image_record).execute()
+            db_result = self.supabase.table('vw_images').insert(image_record).execute()
             
             self.logger.debug(f"Uploaded new image: {file_hash[:8]}... -> {storage_path}")
             
@@ -373,7 +373,7 @@ class ImageStorageProcessor:
         
         try:
             # Total images
-            total_result = self.supabase.table('images') \
+            total_result = self.supabase.table('vw_images') \
                 .select('id', count='exact') \
                 .execute()
             

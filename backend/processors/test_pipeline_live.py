@@ -37,7 +37,7 @@ def test_supabase_connection():
         supabase = create_client(supabase_url, supabase_key)
         
         # Test query
-        result = supabase.table('documents').select('id').limit(1).execute()
+        result = supabase.table('vw_documents').select('id').limit(1).execute()
         
         print(f"\n✅ Supabase connected!")
         print(f"   URL: {supabase_url}")

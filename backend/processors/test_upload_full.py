@@ -195,7 +195,7 @@ class UploadProcessorTester:
                 
                 # Verify in database
                 print("\n  4.2 Verifying in database...")
-                doc = self.supabase.table("documents") \
+                doc = self.supabase.table("vw_documents") \
                     .select("*") \
                     .eq("id", result['document_id']) \
                     .execute()

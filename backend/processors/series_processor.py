@@ -44,7 +44,7 @@ class SeriesProcessor:
         
         try:
             # Get all products without series_id
-            products_result = self.supabase.table('products').select(
+            products_result = self.supabase.table('vw_products').select(
                 '*'
             ).is_('series_id', 'null').execute()
             
@@ -86,7 +86,7 @@ class SeriesProcessor:
         """
         try:
             # Get product
-            product_result = self.supabase.table('products').select(
+            product_result = self.supabase.table('vw_products').select(
                 '*'
             ).eq('id', product_id).execute()
             
@@ -119,7 +119,7 @@ class SeriesProcessor:
         
         # Get manufacturer name from manufacturers table
         try:
-            mfr_result = self.supabase.table('manufacturers').select('name').eq('id', manufacturer_id).single().execute()
+            mfr_result = self.supabase.table('vw_manufacturers').select('name').eq('id', manufacturer_id).single().execute()
             manufacturer_name = mfr_result.data.get('name', '') if mfr_result.data else ''
         except:
             manufacturer_name = ''
@@ -242,7 +242,7 @@ class SeriesProcessor:
         try:
             self.logger.info(f"   → Linking product {product_id[:8]}... to series {series_id[:8]}...")
             
-            result = self.supabase.table('products').update({
+            result = self.supabase.table('vw_products').update({
                 'series_id': series_id
             }).eq('id', product_id).execute()
             
@@ -270,7 +270,7 @@ class SeriesProcessor:
             List of products
         """
         try:
-            result = self.supabase.table('products').select('*').eq(
+            result = self.supabase.table('vw_products').select('*').eq(
                 'series_id', series_id
             ).execute()
             

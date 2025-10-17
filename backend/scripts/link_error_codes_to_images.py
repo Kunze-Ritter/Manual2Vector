@@ -30,7 +30,7 @@ print("=" * 80)
 
 # Get all error codes
 print("\n1. Loading error codes...")
-error_codes = supabase.table('error_codes') \
+error_codes = supabase.table('vw_error_codes') \
     .select('id, error_code, page_number, document_id') \
     .execute()
 
@@ -56,7 +56,7 @@ for doc_id, codes in docs.items():
     print(f"   Error codes: {len(codes)}")
     
     # Get all images for this document
-    images = supabase.table('images') \
+    images = supabase.table('vw_images') \
         .select('id, page_number, ai_description, ocr_text') \
         .eq('document_id', doc_id) \
         .execute()

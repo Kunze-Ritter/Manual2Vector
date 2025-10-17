@@ -74,7 +74,7 @@ class PipelineProcessor:
             doc_result = None
             
             for attempt in range(max_retries):
-                doc_result = self.supabase.table('documents').select(
+                doc_result = self.supabase.table('vw_documents').select(
                     '*'
                 ).eq('id', document_id).execute()
                 
@@ -178,7 +178,7 @@ class PipelineProcessor:
         
         try:
             # Get all error codes for this document (they have product_id)
-            error_codes_result = self.supabase.table('error_codes').select(
+            error_codes_result = self.supabase.table('vw_error_codes').select(
                 'product_id'
             ).eq('document_id', document_id).not_.is_('product_id', 'null').execute()
             
@@ -230,7 +230,7 @@ class PipelineProcessor:
         
         try:
             # Get all documents
-            docs_result = self.supabase.table('documents').select('id, title').execute()
+            docs_result = self.supabase.table('vw_documents').select('id, title').execute()
             documents = docs_result.data
             
             self.logger.info(f"Found {len(documents)} documents to process")
