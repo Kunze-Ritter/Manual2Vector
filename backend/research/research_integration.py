@@ -162,7 +162,7 @@ class ResearchIntegration:
         """
         try:
             # Check if series exists
-            series_result = self.supabase.table('product_series').select('id').eq(
+            series_result = self.supabase.table('vw_product_series').select('id').eq(
                 'series_name', series_name
             ).limit(1).execute()
             
@@ -176,7 +176,7 @@ class ResearchIntegration:
                 logger.debug(f"Linked product to existing series: {series_name}")
             else:
                 # Create new series
-                new_series = self.supabase.table('product_series').insert({
+                new_series = self.supabase.table('vw_product_series').insert({
                     'series_name': series_name,
                     'source': 'online_research'
                 }).execute()

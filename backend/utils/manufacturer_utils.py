@@ -159,7 +159,7 @@ def ensure_series_exists(
     
     try:
         # 1. Try to find existing series
-        result = supabase.table('product_series') \
+        result = supabase.table('vw_product_series') \
             .select('id,name') \
             .eq('manufacturer_id', str(manufacturer_id)) \
             .ilike('name', series_name) \
@@ -174,7 +174,7 @@ def ensure_series_exists(
         # 2. Series not found - create new entry
         logger.info(f"🔨 Creating new series: {series_name}")
         
-        create_result = supabase.table('product_series') \
+        create_result = supabase.table('vw_product_series') \
             .insert({
                 'series_name': series_name,
                 'manufacturer_id': str(manufacturer_id)
@@ -288,7 +288,7 @@ def link_video_to_products(
             
             if product_id:
                 # Check if link already exists
-                existing = supabase.table('video_products') \
+                existing = supabase.table('vw_video_products') \
                     .select('id') \
                     .eq('video_id', str(video_id)) \
                     .eq('product_id', str(product_id)) \
@@ -297,7 +297,7 @@ def link_video_to_products(
                 
                 if not existing.data:
                     # Create link
-                    supabase.table('video_products') \
+                    supabase.table('vw_video_products') \
                         .insert({
                             'video_id': str(video_id),
                             'product_id': str(product_id)

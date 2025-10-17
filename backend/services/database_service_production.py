@@ -114,7 +114,7 @@ class DatabaseService:
                 raise RuntimeError("Database client not connected")
             
             # Simple query to test connection
-            result = self.client.table("system_metrics").select("id").limit(1).execute()
+            result = self.client.table("vw_system_metrics").select("id").limit(1).execute()
             self.logger.info("Database connection test successful")
         except Exception as e:
             self.logger.warning(f"Database connection test failed: {e}")
@@ -264,7 +264,7 @@ class DatabaseService:
         series_data = series.model_dump(mode='json')
         
         try:
-            result = self.client.table('product_series').insert(series_data).execute()
+            result = self.client.table('vw_product_series').insert(series_data).execute()
             
             if result.data:
                 series_id = result.data[0]['id']
@@ -281,7 +281,7 @@ class DatabaseService:
         """Get product series by name and manufacturer"""
         try:
             # Column is 'series_name', not 'name'
-            result = self.client.table('product_series').select('*').eq('series_name', name).eq('manufacturer_id', manufacturer_id).execute()
+            result = self.client.table('vw_product_series').select('*').eq('series_name', name).eq('manufacturer_id', manufacturer_id).execute()
             
             if result.data:
                 return ProductSeriesModel(**result.data[0])
@@ -403,7 +403,7 @@ class DatabaseService:
         chunk_data = chunk.model_dump(mode='json')
         
         try:
-            result = self.client.table('intelligence_chunks').insert(chunk_data).execute()
+            result = self.client.table('vw_intelligence_chunks').insert(chunk_data).execute()
             
             if result.data:
                 chunk_id = result.data[0]['id']

@@ -1165,10 +1165,86 @@ class DocumentProcessor:
                                 }).execute()
                         except Exception as video_error:
                             self.logger.debug(f"Could not auto-link manufacturer/series: {video_error}")
+                        
+                        # Link video to products (extract from title/description)
+                        try:
+                            self._link_video_to_products(supabase, video_id, video)
+                        except Exception as link_error:
+                            self.logger.debug(f"Could not link video to products: {link_error}")
             
             self.logger.success(f"Saved {len(videos)} videos to database")
         except Exception as e:
             self.logger.error(f"Failed to save videos: {e}")
+    
+    def _link_video_to_products(self, supabase, video_id: str, video: Dict):
+        """
+        Link video to products by extracting model numbers from title/description
+        
+        Args:
+            supabase: Supabase client
+            video_id: Video UUID
+            video: Video metadata dict with title, description
+        """
+        # Extract text to search for products
+        search_text = ""
+        if video.get('title'):
+            search_text += video['title'] + " "
+        if video.get('description'):
+            search_text += video['description']
+        
+        if not search_text:
+            return
+        
+        # Use ProductExtractor to find model numbers
+        from .product_extractor import ProductExtractor
+        
+        # Get manufacturer from video metadata or document
+        manufacturer = video.get('manufacturer_name') or self.manufacturer
+        if manufacturer == "AUTO":
+            manufacturer = None
+        
+        extractor = ProductExtractor(manufacturer_name=manufacturer or "HP")
+        
+        # Extract products from video text
+        products = extractor.extract_from_text(search_text, page_number=0)
+        
+        if not products:
+            return
+        
+        # Link each found product to video
+        linked_count = 0
+        for product in products:
+            try:
+                # Find product in database by model_number
+                product_result = supabase.table('vw_products') \
+                    .select('id') \
+                    .eq('model_number', product.model_number) \
+                    .limit(1) \
+                    .execute()
+                
+                if product_result.data:
+                    product_id = product_result.data[0]['id']
+                    
+                    # Check if link already exists
+                    existing = supabase.table('vw_video_products') \
+                        .select('id') \
+                        .eq('video_id', video_id) \
+                        .eq('product_id', product_id) \
+                        .limit(1) \
+                        .execute()
+                    
+                    if not existing.data:
+                        # Create link
+                        supabase.table('vw_video_products').insert({
+                            'video_id': video_id,
+                            'product_id': product_id
+                        }).execute()
+                        linked_count += 1
+            except Exception as e:
+                self.logger.debug(f"Could not link product {product.model_number} to video: {e}")
+        
+        if linked_count > 0:
+            self.logger.info(f"   ✓ Linked video to {linked_count} product(s)")
     
     def _save_products_to_db(self, document_id: UUID, products: List) -> List[str]:
         """

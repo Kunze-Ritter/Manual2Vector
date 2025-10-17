@@ -501,7 +501,7 @@ async def get_system_metrics(supabase=Depends(get_supabase)):
     """
     try:
         # Get metrics from database
-        metrics = supabase.table("system_metrics") \
+        metrics = supabase.table("vw_system_metrics") \
             .select("*") \
             .order("timestamp", desc=True) \
             .limit(1) \

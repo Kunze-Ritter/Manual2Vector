@@ -101,7 +101,7 @@ class DatabaseService:
                 raise RuntimeError("Database client not connected")
             
             # Simple query to test connection
-            result = self.client.table("system_metrics").select("id").limit(1).execute()
+            result = self.client.table("vw_system_metrics").select("id").limit(1).execute()
             self.logger.info("Database connection test successful")
         except Exception as e:
             self.logger.warning(f"Database connection test failed: {e}")
@@ -263,7 +263,7 @@ class DatabaseService:
                 if hasattr(value, 'isoformat'):  # datetime objects
                     series_data[key] = value.isoformat()
             
-            result = self.client.table("product_series").insert(series_data).execute()
+            result = self.client.table("vw_product_series").insert(series_data).execute()
             series_id = result.data[0]["id"]
             self.logger.info(f"Created new product series {series_id}")
             return series_id
@@ -278,7 +278,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("product_series").select("id, series_name").eq("series_name", name).eq("manufacturer_id", manufacturer_id).execute()
+            result = self.client.table("vw_product_series").select("id, series_name").eq("series_name", name).eq("manufacturer_id", manufacturer_id).execute()
             if result.data:
                 series_data = result.data[0]
                 self.logger.info(f"Found existing product series: {name}")
@@ -487,7 +487,7 @@ class DatabaseService:
                 self.logger.info(f"Intelligence chunk for chunk {chunk.chunk_id} already exists: {existing_chunk['id']}")
                 return existing_chunk['id']
             
-            result = self.client.table("intelligence_chunks").insert(chunk.dict()).execute()
+            result = self.client.table("vw_intelligence_chunks").insert(chunk.dict()).execute()
             chunk_id = result.data[0]["id"]
             self.logger.info(f"Created new intelligence chunk {chunk_id}")
             return chunk_id
@@ -502,7 +502,7 @@ class DatabaseService:
                 # Mock mode for testing
                 return None
             
-            result = self.client.table("intelligence_chunks").select("id, chunk_id").eq("chunk_id", chunk_id).execute()
+            result = self.client.table("vw_intelligence_chunks").select("id, chunk_id").eq("chunk_id", chunk_id).execute()
             if result.data:
                 chunk_data = result.data[0]
                 self.logger.info(f"Found existing intelligence chunk for chunk {chunk_id}")
@@ -744,7 +744,7 @@ class DatabaseService:
             start_time = datetime.utcnow()
             
             # Test basic query
-            result = self.client.table("system_metrics").select("id").limit(1).execute()
+            result = self.client.table("vw_system_metrics").select("id").limit(1).execute()
             
             response_time = (datetime.utcnow() - start_time).total_seconds()
             

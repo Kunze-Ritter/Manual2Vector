@@ -179,7 +179,7 @@ class SeriesProcessor:
         try:
             # Check if series exists (by series_name + model_pattern)
             model_pattern = series_data.get('model_pattern')
-            existing = self.supabase.table('product_series').select('id').eq(
+            existing = self.supabase.table('vw_product_series').select('id').eq(
                 'manufacturer_id', manufacturer_id
             ).eq(
                 'series_name', series_name
@@ -199,7 +199,7 @@ class SeriesProcessor:
                 'series_description': series_data.get('series_description')
             }
             
-            result = self.supabase.table('product_series').insert(new_series).execute()
+            result = self.supabase.table('vw_product_series').insert(new_series).execute()
             
             if result.data:
                 series_id = result.data[0]['id']
@@ -214,7 +214,7 @@ class SeriesProcessor:
             if '23505' in error_str or 'duplicate key' in error_str.lower():
                 self.logger.debug(f"Series '{series_name}' already exists (duplicate key), fetching existing...")
                 try:
-                    existing = self.supabase.table('product_series').select('id').eq(
+                    existing = self.supabase.table('vw_product_series').select('id').eq(
                         'manufacturer_id', manufacturer_id
                     ).eq(
                         'series_name', series_name
@@ -292,7 +292,7 @@ class SeriesProcessor:
         """
         try:
             # Get series
-            series_result = self.supabase.table('product_series').select('*').eq(
+            series_result = self.supabase.table('vw_product_series').select('*').eq(
                 'manufacturer_id', manufacturer_id
             ).execute()
             

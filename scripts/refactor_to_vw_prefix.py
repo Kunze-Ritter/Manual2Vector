@@ -37,6 +37,21 @@ TABLE_MAPPINGS = {
     
     "table('embeddings')": "table('vw_embeddings')",
     'table("embeddings")': 'table("vw_embeddings")',
+    
+    "table('product_series')": "table('vw_product_series')",
+    'table("product_series")': 'table("vw_product_series")',
+    
+    "table('document_products')": "table('vw_document_products')",
+    'table("document_products")': 'table("vw_document_products")',
+    
+    "table('video_products')": "table('vw_video_products')",
+    'table("video_products")': 'table("vw_video_products")',
+    
+    "table('system_metrics')": "table('vw_system_metrics')",
+    'table("system_metrics")': 'table("vw_system_metrics")',
+    
+    "table('intelligence_chunks')": "table('vw_intelligence_chunks')",
+    'table("intelligence_chunks")': 'table("vw_intelligence_chunks")',
 }
 
 # Tables that should NOT be changed (already correct or special cases)

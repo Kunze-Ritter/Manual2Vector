@@ -558,7 +558,7 @@ class MasterPipeline:
                 if series_name and manufacturer_id:
                     try:
                         # Try to find existing series
-                        series_result = self.supabase.table('product_series') \
+                        series_result = self.supabase.table('vw_product_series') \
                             .select('id') \
                             .eq('manufacturer_id', manufacturer_id) \
                             .ilike('series_name', series_name) \
@@ -570,7 +570,7 @@ class MasterPipeline:
                             self.logger.debug(f"Found series: {series_name}")
                         else:
                             # Create new series
-                            new_series = self.supabase.table('product_series').insert({
+                            new_series = self.supabase.table('vw_product_series').insert({
                                 'manufacturer_id': manufacturer_id,
                                 'series_name': series_name
                             }).execute()
@@ -647,7 +647,7 @@ class MasterPipeline:
                 }
                 
                 # Check if relationship already exists
-                existing = self.supabase.table('document_products') \
+                existing = self.supabase.table('vw_document_products') \
                     .select('id') \
                     .eq('document_id', relationship['document_id']) \
                     .eq('product_id', relationship['product_id']) \
@@ -655,7 +655,7 @@ class MasterPipeline:
                     .execute()
                 
                 if not existing.data:
-                    self.supabase.table('document_products').insert(relationship).execute()
+                    self.supabase.table('vw_document_products').insert(relationship).execute()
                     saved_count += 1
             
             self.logger.success(f"Saved {saved_count} document-product relationships")
