@@ -1,0 +1,20 @@
+fix: Critical error code extraction fix and cleanup
+
+CRITICAL FIX - Error Code Solutions:
+- Fixed continuation line threshold: 10 -> 3 chars
+- This fixes the 18-character truncation bug
+- Solutions now capture full text including short words
+- Improved section header detection
+
+Database Cleanup Script:
+- Added batch deletion (100 IDs per batch)
+- Added images, links, processing_queue tables
+- Skip non-existent tables gracefully
+- Handles large datasets without timeout
+
+Code Cleanup:
+- Removed duplicate migration 16a (superseded by 31)
+- Migration 31 has proper triggers for links/videos
+- Cleaner migration structure
+
+This fixes the critical bug where error code solutions were truncated to 18 characters.
