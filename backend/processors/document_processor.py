@@ -375,21 +375,19 @@ class DocumentProcessor:
                 document_title=document_title
             )
             
-            # Try first page
-            if 1 in page_texts:
-                first_page_products = product_extractor.extract_from_text(
-                    page_texts[1], page_number=1
+            # Scan ALL pages for products (regex extraction)
+            self.logger.info(f"Running regex extraction on all {len(page_texts)} pages...")
+            regex_count = 0
+            for page_num in sorted(page_texts.keys()):
+                page_products = product_extractor.extract_from_text(
+                    page_texts[page_num], page_number=page_num
                 )
-                products.extend(first_page_products)
+                if page_products:
+                    regex_count += len(page_products)
+                products.extend(page_products)
             
-            # Scan additional pages if no products found
-            if not products and len(page_texts) > 1:
-                self.logger.info("No products on first page, scanning additional pages...")
-                for page_num in sorted(page_texts.keys())[:5]:  # First 5 pages
-                    page_products = product_extractor.extract_from_text(
-                        page_texts[page_num], page_number=page_num
-                    )
-                    products.extend(page_products)
+            if regex_count > 0:
+                self.logger.success(f"Regex extracted {regex_count} products from {len(page_texts)} pages")
             
             # Step 2b: LLM extraction from ALL pages (not just spec sections)
             if self.use_llm and self.llm_extractor:
