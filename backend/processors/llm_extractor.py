@@ -241,7 +241,7 @@ JSON:"""
             for item in data:
                 try:
                     # Determine product type
-                    product_type_raw = item.get("product_type", "printer").lower()
+                    product_type_raw = item.get("product_type", "laser_printer").lower()
                     
                     # Map LLM types to valid types
                     valid_types = [
@@ -269,7 +269,7 @@ JSON:"""
                             "mfp": "multifunction",
                             "all-in-one": "multifunction"
                         }
-                        product_type = type_mapping.get(product_type_raw, "printer")
+                        product_type = type_mapping.get(product_type_raw, "laser_printer")
                     
                     # Build specifications JSONB (exclude core fields)
                     specifications = {
