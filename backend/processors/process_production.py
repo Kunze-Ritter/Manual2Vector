@@ -102,11 +102,11 @@ def main():
         use_gpu = os.getenv('USE_GPU', 'false').lower() == 'true'
         if use_gpu:
             print("   - GPU Acceleration: ENABLED")
-            gpu_info = gpu_manager.get_gpu_info()
-            if gpu_info['cuda_available']:
-                print(f"   - CUDA Available: {gpu_info['device_count']} device(s)")
-                print(f"   - Device: {gpu_info['device_name']}")
-                print(f"   - VRAM: {gpu_info['total_memory']:.1f} GB")
+            gpu_info = gpu_manager.get_info()
+            if gpu_info.get('gpu_available'):
+                print(f"   - CUDA Available: YES")
+                if 'cuda_device_name' in gpu_info:
+                    print(f"   - Device: {gpu_info['cuda_device_name']}")
                 if gpu_manager.is_opencv_cuda_available():
                     print("   - OpenCV CUDA: Available")
                     gpu_manager.configure_opencv()
