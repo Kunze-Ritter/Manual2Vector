@@ -51,21 +51,29 @@ try:
     def delete_table_in_batches(table_name, batch_size=500):
         """Delete all rows from a table in batches"""
         total_deleted = 0
-        while True:
-            # Get batch of IDs
-            result = supabase.table(table_name).select('id').limit(batch_size).execute()
-            
-            if not result.data or len(result.data) == 0:
-                break
-            
-            # Delete batch by ID
-            ids_to_delete = [row['id'] for row in result.data]
-            for chunk_start in range(0, len(ids_to_delete), 100):  # Delete in chunks of 100
-                chunk = ids_to_delete[chunk_start:chunk_start + 100]
-                supabase.table(table_name).delete().in_('id', chunk).execute()
-            
-            total_deleted += len(ids_to_delete)
-            print(f"   Deleted {total_deleted} rows...", end='\r')
+        try:
+            while True:
+                # Get batch of IDs
+                result = supabase.table(table_name).select('id').limit(batch_size).execute()
+                
+                if not result.data or len(result.data) == 0:
+                    break
+                
+                # Delete batch by ID
+                ids_to_delete = [row['id'] for row in result.data]
+                for chunk_start in range(0, len(ids_to_delete), 100):  # Delete in chunks of 100
+                    chunk = ids_to_delete[chunk_start:chunk_start + 100]
+                    supabase.table(table_name).delete().in_('id', chunk).execute()
+                
+                total_deleted += len(ids_to_delete)
+                print(f"   Deleted {total_deleted} rows...", end='\r')
+        except Exception as e:
+            if 'PGRST205' in str(e) or 'not find the table' in str(e):
+                # Table/view doesn't exist, return 0
+                return 0
+            else:
+                # Real error, re-raise
+                raise
         
         return total_deleted
     
@@ -81,19 +89,19 @@ try:
 
     # 3. Delete intelligence chunks
     print("\n3. Deleting intelligence chunks...")
-    try:
-        count = delete_table_in_batches('vw_intelligence_chunks')
+    count = delete_table_in_batches('vw_intelligence_chunks')
+    if count == 0:
+        print(f"   ⚠️  No data or view not found")
+    else:
         print(f"   ✅ Deleted {count} intelligence chunks")
-    except Exception as e:
-        print(f"   ⚠️  Table not found, skipping")
 
     # 4. Delete embeddings
     print("\n4. Deleting embeddings...")
-    try:
-        count = delete_table_in_batches('vw_embeddings')
+    count = delete_table_in_batches('vw_embeddings')
+    if count == 0:
+        print(f"   ⚠️  No data or view not found")
+    else:
         print(f"   ✅ Deleted {count} embeddings")
-    except Exception as e:
-        print(f"   ⚠️  Table not found, skipping")
 
     # 5. Delete parts
     print("\n5. Deleting parts...")
@@ -102,11 +110,8 @@ try:
 
     # 6. Delete document-product relationships
     print("\n6. Deleting document-product relationships...")
-    try:
-        count = delete_table_in_batches('vw_document_products')
-        print(f"   ✅ Deleted {count} relationships")
-    except Exception as e:
-        print(f"   ⚠️  Table not found, skipping")
+    count = delete_table_in_batches('vw_document_products')
+    print(f"   ✅ Deleted {count} relationships")
 
     # 7. Delete products
     print("\n7. Deleting products...")
@@ -115,43 +120,28 @@ try:
 
     # 8. Delete product series (optional - can keep for reuse)
     print("\n8. Deleting product series...")
-    try:
-        count = delete_table_in_batches('vw_product_series')
-        print(f"   ✅ Deleted {count} series")
-    except Exception as e:
-        print(f"   ⚠️  Skipping (keeping for reuse)")
+    count = delete_table_in_batches('vw_product_series')
+    print(f"   ✅ Deleted {count} series")
 
     # 9. Delete videos
     print("\n9. Deleting videos...")
-    try:
-        count = delete_table_in_batches('vw_videos')
-        print(f"   ✅ Deleted {count} videos")
-    except Exception as e:
-        print(f"   ⚠️  Table not found, skipping")
+    count = delete_table_in_batches('vw_videos')
+    print(f"   ✅ Deleted {count} videos")
 
     # 10. Delete images
     print("\n10. Deleting images...")
-    try:
-        count = delete_table_in_batches('vw_images')
-        print(f"   ✅ Deleted {count} images")
-    except Exception as e:
-        print(f"   ⚠️  Table not found, skipping")
+    count = delete_table_in_batches('vw_images')
+    print(f"   ✅ Deleted {count} images")
 
     # 11. Delete links (external links/videos)
     print("\n11. Deleting links...")
-    try:
-        count = delete_table_in_batches('vw_links')
-        print(f"   ✅ Deleted {count} links")
-    except Exception as e:
-        print(f"   ⚠️  Table not found, skipping")
+    count = delete_table_in_batches('vw_links')
+    print(f"   ✅ Deleted {count} links")
 
     # 12. Delete processing queue
     print("\n12. Deleting processing queue...")
-    try:
-        count = delete_table_in_batches('vw_processing_queue')
-        print(f"   ✅ Deleted {count} queue entries")
-    except Exception as e:
-        print(f"   ⚠️  Table not found, skipping")
+    count = delete_table_in_batches('vw_processing_queue')
+    print(f"   ✅ Deleted {count} queue entries")
 
     # 13. Delete documents (last because of foreign keys)
     print("\n13. Deleting documents...")
