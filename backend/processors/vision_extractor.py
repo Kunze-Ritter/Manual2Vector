@@ -300,16 +300,23 @@ JSON:"""
                     specifications = item.get("specifications", {})
                     
                     # Determine product type
-                    product_type = item.get("product_type", "laser_printer")
-                    if product_type not in ["printer", "scanner", "multifunction", "copier", "plotter"]:
-                        # Map accessories to valid types
-                        type_mapping = {
-                            "finisher": "printer",  # Accessories use base type
-                            "feeder": "printer",
-                            "tray": "printer",
-                            "cabinet": "printer"
-                        }
-                        product_type = type_mapping.get(product_type.lower(), "laser_printer")
+                    product_type_raw = item.get("product_type", "laser_printer").lower()
+                    
+                    # Map to DB-valid types
+                    type_mapping = {
+                        "printer": "laser_printer",
+                        "multifunction": "laser_multifunction",
+                        "mfp": "laser_multifunction",
+                        "scanner": "scanner",
+                        "copier": "copier",
+                        "plotter": "inkjet_plotter",
+                        "finisher": "finisher",
+                        "feeder": "feeder",
+                        "tray": "output_tray",
+                        "cabinet": "cabinet",
+                        "accessory": "accessory"
+                    }
+                    product_type = type_mapping.get(product_type_raw, "laser_printer")
                     
                     product = ExtractedProduct(
                         model_number=item.get("model_number", ""),

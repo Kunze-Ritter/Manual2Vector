@@ -495,21 +495,53 @@ class ProductExtractor:
         Determine product type from model name
         
         Returns:
-            One of: printer, scanner, multifunction, copier, plotter
+            Specific product type matching DB constraint (e.g., laser_printer, inkjet_printer, laser_multifunction)
         """
         model_lower = model.lower()
         
+        # Check for plotters first
         if 'designjet' in model_lower:
-            return "plotter"
+            if 'latex' in model_lower:
+                return "latex_plotter"
+            elif 'inkjet' in model_lower:
+                return "inkjet_plotter"
+            else:
+                return "inkjet_plotter"  # DesignJet is typically inkjet
+        
+        # Check for multifunction devices
         elif any(kw in model_lower for kw in ['mfp', 'multifunction', 'all-in-one']):
-            return "multifunction"
-        elif 'scanner' in model_lower:
-            return "scanner"
+            # Determine if laser or inkjet
+            if any(kw in model_lower for kw in ['laserjet', 'laser', 'accurio', 'bizhub', 'imagerunner']):
+                return "laser_multifunction"
+            elif any(kw in model_lower for kw in ['officejet', 'inkjet', 'pagewide']):
+                return "inkjet_multifunction"
+            else:
+                return "laser_multifunction"  # Default for unknown MFPs
+        
+        # Check for scanners
+        elif 'scanner' in model_lower or 'scanjet' in model_lower:
+            if 'document' in model_lower:
+                return "document_scanner"
+            elif 'photo' in model_lower:
+                return "photo_scanner"
+            else:
+                return "scanner"
+        
+        # Check for copiers
         elif 'copier' in model_lower:
             return "copier"
+        
+        # Default: Determine printer type
         else:
-            # Default to printer for LaserJet, OfficeJet, etc.
-            return "printer"
+            # Check if it's a laser printer
+            if any(kw in model_lower for kw in ['laserjet', 'laser', 'accurio', 'bizhub', 'imagerunner', 'phaser']):
+                return "laser_printer"
+            # Check if it's an inkjet printer
+            elif any(kw in model_lower for kw in ['officejet', 'inkjet', 'pagewide', 'pixma', 'workforce']):
+                return "inkjet_printer"
+            # Default to laser printer (most common in enterprise)
+            else:
+                return "laser_printer"
     
     def _extract_series_from_title(self, title: Optional[str]) -> List[str]:
         """

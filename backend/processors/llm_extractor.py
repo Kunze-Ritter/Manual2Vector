@@ -243,33 +243,39 @@ JSON:"""
                     # Determine product type
                     product_type_raw = item.get("product_type", "laser_printer").lower()
                     
-                    # Map LLM types to valid types
-                    valid_types = [
-                        "printer", "scanner", "multifunction", "copier", "plotter",
-                        "finisher", "feeder", "tray", "cabinet", "accessory", "consumable"
-                    ]
-                    
-                    # Try exact match first
-                    if product_type_raw in valid_types:
-                        product_type = product_type_raw
-                    else:
-                        # Fuzzy matching for common variations
-                        type_mapping = {
-                            "paper feeder": "feeder",
-                            "paper deck": "feeder",
-                            "paper tray": "tray",
-                            "bypass tray": "tray",
-                            "multi-bypass": "tray",
-                            "booklet finisher": "finisher",
-                            "saddle finisher": "finisher",
-                            "folder": "finisher",
-                            "stapler": "finisher",
-                            "paper cabinet": "cabinet",
-                            "option": "accessory",
-                            "mfp": "multifunction",
-                            "all-in-one": "multifunction"
-                        }
-                        product_type = type_mapping.get(product_type_raw, "laser_printer")
+                    # Map LLM types to DB-valid types
+                    # First, map generic types to specific types
+                    type_mapping = {
+                        # Generic to specific
+                        "printer": "laser_printer",
+                        "multifunction": "laser_multifunction",
+                        "mfp": "laser_multifunction",
+                        "all-in-one": "laser_multifunction",
+                        "scanner": "scanner",
+                        "copier": "copier",
+                        "plotter": "inkjet_plotter",
+                        # Accessories
+                        "finisher": "finisher",
+                        "booklet finisher": "booklet_finisher",
+                        "saddle finisher": "finisher",
+                        "stapler finisher": "stapler_finisher",
+                        "folder": "folder",
+                        "stapler": "stapler_finisher",
+                        "feeder": "feeder",
+                        "paper feeder": "paper_feeder",
+                        "paper deck": "feeder",
+                        "envelope feeder": "envelope_feeder",
+                        "tray": "output_tray",
+                        "paper tray": "output_tray",
+                        "bypass tray": "output_tray",
+                        "multi-bypass": "output_tray",
+                        "cabinet": "cabinet",
+                        "paper cabinet": "cabinet",
+                        "option": "accessory",
+                        "accessory": "accessory",
+                        "consumable": "consumable"
+                    }
+                    product_type = type_mapping.get(product_type_raw, "laser_printer")
                     
                     # Build specifications JSONB (exclude core fields)
                     specifications = {
