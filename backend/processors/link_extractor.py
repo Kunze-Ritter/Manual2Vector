@@ -119,21 +119,14 @@ class LinkExtractor:
                     link['link_type'] = 'video'
                     link['link_category'] = 'youtube'
             
-            # Check for Vimeo
-            elif 'vimeo.com' in url.lower():
-                video_metadata = self._create_generic_video_metadata(url, link['id'], 'vimeo')
+            # Check for other video platforms
+            elif self._is_video_platform(url):
+                platform = self._detect_video_platform(url)
+                video_metadata = self._create_generic_video_metadata(url, link['id'], platform)
                 all_videos.append(video_metadata)
                 link['video_id'] = video_metadata['id']
                 link['link_type'] = 'video'
-                link['link_category'] = 'vimeo'
-            
-            # Check for Brightcove
-            elif 'brightcove' in url.lower():
-                video_metadata = self._create_generic_video_metadata(url, link['id'], 'brightcove')
-                all_videos.append(video_metadata)
-                link['video_id'] = video_metadata['id']
-                link['link_type'] = 'video'
-                link['link_category'] = 'brightcove'
+                link['link_category'] = platform
             
             else:
                 # Classify link type
@@ -623,6 +616,83 @@ Any visible text or product names?"""
                 'needs_enrichment': True  # Flag for enrichment script
             }
         }
+    
+    def _is_video_platform(self, url: str) -> bool:
+        """Check if URL is from a known video platform"""
+        url_lower = url.lower()
+        
+        video_platforms = [
+            'vimeo.com',
+            'brightcove',
+            'wistia.com', 'wistia.net',
+            'vidyard.com',
+            'jwplayer.com', 'jwplatform.com',
+            'kaltura.com',
+            'ustream.tv', 'video.ibm.com',
+            'panopto.com',
+            'loom.com',
+            'streamyard.com',
+            'twitch.tv',
+            'facebook.com/watch', 'fb.watch',
+            'instagram.com/p/', 'instagram.com/reel/',
+            'tiktok.com',
+            'linkedin.com/posts/',
+            'dailymotion.com',
+            'youku.com',
+            'bilibili.com',
+            'rutube.ru',
+            'komododecks.com',
+            'sproutvideo.com',
+            'vzaar.com',
+            'cincopa.com',
+            'twentythree.com',
+            'movingimage.com'
+        ]
+        
+        return any(platform in url_lower for platform in video_platforms)
+    
+    def _detect_video_platform(self, url: str) -> str:
+        """Detect which video platform the URL is from"""
+        url_lower = url.lower()
+        
+        # Map domains to platform names
+        platform_map = {
+            'vimeo.com': 'vimeo',
+            'brightcove': 'brightcove',
+            'wistia.com': 'wistia',
+            'wistia.net': 'wistia',
+            'vidyard.com': 'vidyard',
+            'jwplayer.com': 'jwplayer',
+            'jwplatform.com': 'jwplayer',
+            'kaltura.com': 'kaltura',
+            'ustream.tv': 'ibm_video',
+            'video.ibm.com': 'ibm_video',
+            'panopto.com': 'panopto',
+            'loom.com': 'loom',
+            'streamyard.com': 'streamyard',
+            'twitch.tv': 'twitch',
+            'facebook.com': 'facebook',
+            'fb.watch': 'facebook',
+            'instagram.com': 'instagram',
+            'tiktok.com': 'tiktok',
+            'linkedin.com': 'linkedin',
+            'dailymotion.com': 'dailymotion',
+            'youku.com': 'youku',
+            'bilibili.com': 'bilibili',
+            'rutube.ru': 'rutube',
+            'komododecks.com': 'komododecks',
+            'sproutvideo.com': 'sproutvideo',
+            'vzaar.com': 'vzaar',
+            'cincopa.com': 'cincopa',
+            'twentythree.com': 'twentythree',
+            'movingimage.com': 'movingimage'
+        }
+        
+        for domain, platform in platform_map.items():
+            if domain in url_lower:
+                return platform
+        
+        return 'unknown'
     
     def _create_generic_video_metadata(self, url: str, link_id: str, platform: str) -> Dict:
         """
