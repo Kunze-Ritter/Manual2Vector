@@ -71,72 +71,91 @@ try:
     
     # 1. Delete error codes
     print("\n1. Deleting error codes...")
-    count = delete_table_in_batches('error_codes')
+    count = delete_table_in_batches('vw_error_codes')
     print(f"   ✅ Deleted {count} error codes")
 
     # 2. Delete chunks
     print("\n2. Deleting chunks...")
-    count = delete_table_in_batches('chunks')
+    count = delete_table_in_batches('vw_chunks')
     print(f"   ✅ Deleted {count} chunks")
 
-    # 3. Delete parts
-    print("\n3. Deleting parts...")
-    count = delete_table_in_batches('parts_catalog')
-    print(f"   ✅ Deleted {count} parts")
-
-    # 4. Delete products
-    print("\n4. Deleting products...")
-    count = delete_table_in_batches('products')
-    print(f"   ✅ Deleted {count} products")
-
-    # 5. Delete product series
-    print("\n5. Deleting product series...")
-    count = delete_table_in_batches('product_series')
-    print(f"   ✅ Deleted {count} series")
-
-    # 6. Delete bulletins (if exists)
-    print("\n6. Deleting bulletins...")
+    # 3. Delete intelligence chunks
+    print("\n3. Deleting intelligence chunks...")
     try:
-        count = delete_table_in_batches('bulletins')
-        print(f"   ✅ Deleted {count} bulletins")
+        count = delete_table_in_batches('vw_intelligence_chunks')
+        print(f"   ✅ Deleted {count} intelligence chunks")
     except Exception as e:
         print(f"   ⚠️  Table not found, skipping")
 
-    # 7. Delete videos (if exists)
-    print("\n7. Deleting videos...")
+    # 4. Delete embeddings
+    print("\n4. Deleting embeddings...")
     try:
-        count = delete_table_in_batches('videos')
+        count = delete_table_in_batches('vw_embeddings')
+        print(f"   ✅ Deleted {count} embeddings")
+    except Exception as e:
+        print(f"   ⚠️  Table not found, skipping")
+
+    # 5. Delete parts
+    print("\n5. Deleting parts...")
+    count = delete_table_in_batches('vw_parts')
+    print(f"   ✅ Deleted {count} parts")
+
+    # 6. Delete document-product relationships
+    print("\n6. Deleting document-product relationships...")
+    try:
+        count = delete_table_in_batches('vw_document_products')
+        print(f"   ✅ Deleted {count} relationships")
+    except Exception as e:
+        print(f"   ⚠️  Table not found, skipping")
+
+    # 7. Delete products
+    print("\n7. Deleting products...")
+    count = delete_table_in_batches('vw_products')
+    print(f"   ✅ Deleted {count} products")
+
+    # 8. Delete product series (optional - can keep for reuse)
+    print("\n8. Deleting product series...")
+    try:
+        count = delete_table_in_batches('vw_product_series')
+        print(f"   ✅ Deleted {count} series")
+    except Exception as e:
+        print(f"   ⚠️  Skipping (keeping for reuse)")
+
+    # 9. Delete videos
+    print("\n9. Deleting videos...")
+    try:
+        count = delete_table_in_batches('vw_videos')
         print(f"   ✅ Deleted {count} videos")
     except Exception as e:
         print(f"   ⚠️  Table not found, skipping")
 
-    # 8. Delete images
-    print("\n8. Deleting images...")
+    # 10. Delete images
+    print("\n10. Deleting images...")
     try:
-        count = delete_table_in_batches('images')
+        count = delete_table_in_batches('vw_images')
         print(f"   ✅ Deleted {count} images")
     except Exception as e:
         print(f"   ⚠️  Table not found, skipping")
 
-    # 9. Delete links (external links/videos)
-    print("\n9. Deleting links...")
+    # 11. Delete links (external links/videos)
+    print("\n11. Deleting links...")
     try:
-        count = delete_table_in_batches('links')
+        count = delete_table_in_batches('vw_links')
         print(f"   ✅ Deleted {count} links")
     except Exception as e:
         print(f"   ⚠️  Table not found, skipping")
 
-    # 10. Delete processing queue
-    print("\n10. Deleting processing queue...")
+    # 12. Delete processing queue
+    print("\n12. Deleting processing queue...")
     try:
-        count = delete_table_in_batches('processing_queue')
+        count = delete_table_in_batches('vw_processing_queue')
         print(f"   ✅ Deleted {count} queue entries")
     except Exception as e:
         print(f"   ⚠️  Table not found, skipping")
 
-    # 11. Delete documents (last because of foreign keys)
-    print("\n11. Deleting documents...")
-    count = delete_table_in_batches('documents')
+    # 13. Delete documents (last because of foreign keys)
+    print("\n13. Deleting documents...")
+    count = delete_table_in_batches('vw_documents')
     print(f"   ✅ Deleted {count} documents")
 
     print("\n" + "="*60)
