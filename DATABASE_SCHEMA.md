@@ -1,9 +1,9 @@
 # KRAI Database Schema Documentation
 ================================================================================
 
-**Zuletzt aktualisiert:** 17.10.2025 um 10:47 Uhr
+**Zuletzt aktualisiert:** 17.10.2025 um 10:53 Uhr
 
-**Quelle:** Generiert aus SQL Migration Files
+**Quelle:** Direkt aus Supabase (ECHTE Struktur)
 
 ## ⚠️ WICHTIGE INFORMATIONEN
 
@@ -32,12 +32,12 @@
 
 ## Table of Contents
 
-- [krai_agent](#krai-agent) (4 Tabellen)
+- [krai_agent](#krai-agent) (2 Tabellen)
 - [krai_config](#krai-config) (4 Tabellen)
-- [krai_content](#krai-content) (7 Tabellen)
-- [krai_core](#krai-core) (8 Tabellen)
+- [krai_content](#krai-content) (5 Tabellen)
+- [krai_core](#krai-core) (12 Tabellen)
 - [krai_integrations](#krai-integrations) (2 Tabellen)
-- [krai_intelligence](#krai-intelligence) (7 Tabellen)
+- [krai_intelligence](#krai-intelligence) (11 Tabellen)
 - [krai_ml](#krai-ml) (2 Tabellen)
 - [krai_parts](#krai-parts) (2 Tabellen)
 - [krai_service](#krai-service) (3 Tabellen)
@@ -48,841 +48,858 @@
 
 ## krai_agent
 
-### krai_agent.feedback
-
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `session_id` | TEXT NOT NULL |
-| `message_id` | TEXT |
-| `rating` | INTEGER |
-| `feedback_type` | TEXT |
-| `comment` | TEXT |
-| `created_at` | TIMESTAMPTZ DEFAULT NOW() |
-
 ### krai_agent.memory
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4() |
-| `session_id` | VARCHAR(255) NOT NULL |
-| `role` | VARCHAR(50) NOT NULL |
-| `content` | TEXT NOT NULL |
-| `metadata` | JSONB DEFAULT '{}'::jsonb |
-| `tokens_used` | INTEGER DEFAULT 0 |
-| `created_at` | TIMESTAMPTZ DEFAULT now() |
-| `updated_at` | TIMESTAMPTZ DEFAULT now() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `session_id` | character varying(255) | NO | - |
+| `role` | character varying(50) | NO | 'technician'::character varying |
+| `content` | text | NO | - |
+| `metadata` | jsonb | NO | '{}'::jsonb |
+| `tokens_used` | int4 | NO | 0 |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `message` | text | NO | ''::text |
 
-### krai_agent.session_context
+### krai_agent.message
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `session_id` | TEXT NOT NULL |
-| `context_type` | TEXT NOT NULL |
-| `context_value` | TEXT NOT NULL |
-| `confidence` | FLOAT DEFAULT 1.0 |
-| `first_mentioned_at` | TIMESTAMPTZ DEFAULT NOW() |
-| `last_used_at` | TIMESTAMPTZ DEFAULT NOW() |
-| `use_count` | INTEGER DEFAULT 1 |
-
-### krai_agent.tool_usage
-
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `session_id` | TEXT NOT NULL |
-| `tool_name` | TEXT NOT NULL |
-| `query_params` | JSONB |
-| `results_count` | INTEGER |
-| `response_time_ms` | INTEGER |
-| `success` | BOOLEAN DEFAULT true |
-| `error_message` | TEXT |
-| `created_at` | TIMESTAMPTZ DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | int4 | NO | nextval('krai_agent.message_id_seq'::... |
+| `session_id` | character varying(255) | NO | - |
+| `message` | jsonb | NO | - |
 
 ## krai_config
 
 ### krai_config.competition_analysis
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `our_product_id` | UUID NOT NULL → krai_core.products |
-| `competitor_manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `competitor_model_name` | VARCHAR(200) |
-| `comparison_category` | VARCHAR(100) |
-| `our_advantage` | TEXT |
-| `competitor_advantage` | TEXT |
-| `feature_comparison` | JSONB DEFAULT '{}' |
-| `price_comparison` | JSONB DEFAULT '{}' |
-| `market_position` | VARCHAR(50) |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `our_product_id` | uuid | NO | - |
+| `competitor_manufacturer_id` | uuid | NO | - |
+| `competitor_model_name` | character varying(200) | YES | - |
+| `comparison_category` | character varying(100) | YES | - |
+| `our_advantage` | text | YES | - |
+| `competitor_advantage` | text | YES | - |
+| `feature_comparison` | jsonb | YES | '{}'::jsonb |
+| `price_comparison` | jsonb | YES | '{}'::jsonb |
+| `market_position` | character varying(50) | YES | - |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_config.option_groups
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `group_name` | VARCHAR(100) NOT NULL |
-| `group_description` | TEXT |
-| `display_order` | INTEGER DEFAULT 0 |
-| `is_required` | BOOLEAN DEFAULT false |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `manufacturer_id` | uuid | NO | - |
+| `group_name` | character varying(100) | NO | - |
+| `group_description` | text | YES | - |
+| `display_order` | int4 | YES | 0 |
+| `is_required` | bool | YES | false |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_config.product_compatibility
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `base_product_id` | UUID NOT NULL → krai_core.products |
-| `option_product_id` | UUID NOT NULL → krai_core.products |
-| `compatibility_type` | VARCHAR(50) DEFAULT 'compatible' |
-| `compatibility_notes` | TEXT |
-| `validated_date` | DATE |
-| `validation_status` | VARCHAR(20) DEFAULT 'pending' |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `base_product_id` | uuid | NO | - |
+| `option_product_id` | uuid | NO | - |
+| `compatibility_type` | character varying(50) | YES | 'compatible'::character varying |
+| `compatibility_notes` | text | YES | - |
+| `validated_date` | date | YES | - |
+| `validation_status` | character varying(20) | YES | 'pending'::character varying |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_config.product_features
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `product_id` | UUID NOT NULL → krai_core.products |
-| `feature_id` | UUID NOT NULL → krai_config.option_groups |
-| `feature_value` | TEXT |
-| `is_standard` | BOOLEAN DEFAULT true |
-| `additional_cost_usd` | DECIMAL(10,2) DEFAULT 0.00 |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `product_id` | uuid | NO | - |
+| `feature_id` | uuid | NO | - |
+| `feature_value` | text | YES | - |
+| `is_standard` | bool | YES | true |
+| `additional_cost_usd` | numeric | YES | 0.00 |
+| `created_at` | timestamptz | YES | now() |
 
 ## krai_content
 
-### krai_content.chunks
-
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID NOT NULL → krai_core.documents |
-| `content` | TEXT NOT NULL |
-| `chunk_type` | VARCHAR(50) DEFAULT 'text' |
-| `chunk_index` | INTEGER NOT NULL |
-| `page_number` | INTEGER |
-| `section_title` | VARCHAR(255) |
-| `confidence_score` | DECIMAL(3,2) |
-| `language` | VARCHAR(10) DEFAULT 'en' |
-| `processing_notes` | TEXT |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
-
 ### krai_content.images
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID → krai_core.documents |
-| `chunk_id` | UUID → krai_content.chunks |
-| `filename` | VARCHAR(255) |
-| `original_filename` | VARCHAR(255) |
-| `storage_path` | TEXT |
-| `storage_url` | TEXT NOT NULL |
-| `file_size` | INTEGER |
-| `image_format` | VARCHAR(10) |
-| `width_px` | INTEGER |
-| `height_px` | INTEGER |
-| `page_number` | INTEGER |
-| `image_index` | INTEGER |
-| `image_type` | VARCHAR(50) |
-| `ai_description` | TEXT |
-| `ai_confidence` | DECIMAL(3,2) |
-| `contains_text` | BOOLEAN DEFAULT false |
-| `ocr_text` | TEXT |
-| `ocr_confidence` | DECIMAL(3,2) |
-| `manual_description` | TEXT |
-| `tags` | TEXT[] |
-| `file_hash` | VARCHAR(64) |
-| `figure_number` | VARCHAR(50) |
-| `figure_context` | TEXT |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
-
-### krai_content.instructional_videos
-
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `title` | VARCHAR(255) NOT NULL |
-| `description` | TEXT |
-| `video_url` | TEXT NOT NULL |
-| `thumbnail_url` | TEXT |
-| `duration_seconds` | INTEGER |
-| `file_size_mb` | INTEGER |
-| `video_format` | VARCHAR(20) |
-| `resolution` | VARCHAR(20) |
-| `language` | VARCHAR(10) DEFAULT 'en' |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `document_id` | uuid | YES | - |
+| `chunk_id` | uuid | YES | - |
+| `filename` | character varying(255) | YES | - |
+| `original_filename` | character varying(255) | YES | - |
+| `storage_path` | text | YES | - |
+| `storage_url` | text | NO | - |
+| `file_size` | int4 | YES | - |
+| `image_format` | character varying(10) | YES | - |
+| `width_px` | int4 | YES | - |
+| `height_px` | int4 | YES | - |
+| `page_number` | int4 | YES | - |
+| `image_index` | int4 | YES | - |
+| `image_type` | character varying(50) | YES | - |
+| `ai_description` | text | YES | - |
+| `ai_confidence` | numeric | YES | - |
+| `contains_text` | bool | YES | false |
+| `ocr_text` | text | YES | - |
+| `ocr_confidence` | numeric | YES | - |
+| `manual_description` | text | YES | - |
+| `tags` | _text | YES | - |
+| `file_hash` | character varying(64) | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `figure_number` | character varying(50) | YES | - |
+| `figure_context` | text | YES | - |
 
 ### krai_content.links
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID NOT NULL → krai_core.documents |
-| `url` | TEXT NOT NULL |
-| `link_type` | VARCHAR(50) NOT NULL DEFAULT 'external' |
-| `page_number` | INTEGER NOT NULL |
-| `description` | TEXT |
-| `position_data` | JSONB |
-| `is_active` | BOOLEAN DEFAULT true |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `document_id` | uuid | NO | - |
+| `url` | text | NO | - |
+| `link_type` | character varying(50) | NO | 'external'::character varying |
+| `page_number` | int4 | NO | - |
+| `description` | text | YES | - |
+| `position_data` | jsonb | YES | - |
+| `is_active` | bool | YES | true |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `video_id` | uuid | YES | - |
+| `metadata` | jsonb | YES | '{}'::jsonb |
+| `link_category` | character varying(50) | YES | - |
+| `confidence_score` | numeric | YES | 0.0 |
+| `manufacturer_id` | uuid | YES | - |
+| `series_id` | uuid | YES | - |
+| `related_error_codes` | _text | YES | - |
 
 ### krai_content.print_defects
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `product_id` | UUID → krai_core.products |
-| `original_image_id` | UUID → krai_content.images |
-| `defect_name` | VARCHAR(100) NOT NULL |
-| `defect_category` | VARCHAR(50) |
-| `defect_description` | TEXT |
-| `example_image_url` | TEXT |
-| `annotated_image_url` | TEXT |
-| `detection_confidence` | DECIMAL(3,2) |
-| `common_causes` | JSONB DEFAULT '[]' |
-| `recommended_solutions` | JSONB DEFAULT '[]' |
-| `related_error_codes` | TEXT[] |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `manufacturer_id` | uuid | NO | - |
+| `product_id` | uuid | YES | - |
+| `original_image_id` | uuid | YES | - |
+| `defect_name` | character varying(100) | NO | - |
+| `defect_category` | character varying(50) | YES | - |
+| `defect_description` | text | YES | - |
+| `example_image_url` | text | YES | - |
+| `annotated_image_url` | text | YES | - |
+| `detection_confidence` | numeric | YES | - |
+| `common_causes` | jsonb | YES | '[]'::jsonb |
+| `recommended_solutions` | jsonb | YES | '[]'::jsonb |
+| `related_error_codes` | _text | YES | - |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_content.video_products
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `video_id` | UUID NOT NULL → krai_content.videos |
-| `product_id` | UUID NOT NULL → krai_core.products |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `video_id` | uuid | NO | - |
+| `product_id` | uuid | NO | - |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_content.videos
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `link_id` | UUID → krai_content.links |
-| `youtube_id` | VARCHAR(20) |
-| `platform` | VARCHAR(20) |
-| `video_url` | TEXT |
-| `title` | VARCHAR(500) NOT NULL |
-| `description` | TEXT |
-| `thumbnail_url` | TEXT |
-| `duration` | INTEGER |
-| `view_count` | BIGINT |
-| `like_count` | INTEGER |
-| `comment_count` | INTEGER |
-| `channel_id` | VARCHAR(50) |
-| `channel_title` | VARCHAR(200) |
-| `published_at` | TIMESTAMP |
-| `manufacturer_id` | UUID → krai_core.manufacturers |
-| `series_id` | UUID → krai_core.product_series |
-| `document_id` | UUID → krai_core.documents |
-| `metadata` | JSONB |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
-| `enriched_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `link_id` | uuid | YES | - |
+| `youtube_id` | character varying(20) | YES | - |
+| `platform` | character varying(20) | YES | - |
+| `video_url` | text | YES | - |
+| `title` | character varying(500) | NO | - |
+| `description` | text | YES | - |
+| `thumbnail_url` | text | YES | - |
+| `duration` | int4 | YES | - |
+| `view_count` | int8 | YES | - |
+| `like_count` | int4 | YES | - |
+| `comment_count` | int4 | YES | - |
+| `channel_id` | character varying(50) | YES | - |
+| `channel_title` | character varying(200) | YES | - |
+| `published_at` | timestamptz | YES | - |
+| `manufacturer_id` | uuid | YES | - |
+| `series_id` | uuid | YES | - |
+| `document_id` | uuid | YES | - |
+| `metadata` | jsonb | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `enriched_at` | timestamptz | YES | now() |
 
 ## krai_core
 
 ### krai_core.document_products
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID NOT NULL → krai_core.documents |
-| `product_id` | UUID NOT NULL → krai_core.products |
-| `is_primary_product` | BOOLEAN DEFAULT false |
-| `confidence_score` | DECIMAL(3,2) DEFAULT 0.80 |
-| `extraction_method` | VARCHAR(50) |
-| `page_numbers` | INTEGER[] |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID NOT NULL → krai_core.documents |
-| `product_id` | UUID NOT NULL → krai_core.products |
-| `is_primary_product` | BOOLEAN DEFAULT false |
-| `confidence_score` | DECIMAL(3,2) DEFAULT 0.80 |
-| `extraction_method` | VARCHAR(50) |
-| `page_numbers` | INTEGER[] |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `document_id` | uuid | NO | - |
+| `product_id` | uuid | NO | - |
+| `is_primary_product` | bool | YES | false |
+| `confidence_score` | numeric | YES | 0.80 |
+| `extraction_method` | character varying(50) | YES | - |
+| `page_numbers` | _int4 | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
 
 ### krai_core.document_relationships
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `primary_document_id` | UUID NOT NULL → krai_core.documents |
-| `secondary_document_id` | UUID NOT NULL → krai_core.documents |
-| `relationship_type` | VARCHAR(50) NOT NULL |
-| `relationship_strength` | DECIMAL(3,2) DEFAULT 0.5 |
-| `auto_discovered` | BOOLEAN DEFAULT true |
-| `manual_verification` | BOOLEAN DEFAULT false |
-| `verification_date` | TIMESTAMP |
-| `verified_by` | VARCHAR(100) |
-| `notes` | TEXT |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `primary_document_id` | uuid | NO | - |
+| `secondary_document_id` | uuid | NO | - |
+| `relationship_type` | character varying(50) | NO | - |
+| `relationship_strength` | numeric | YES | 0.5 |
+| `auto_discovered` | bool | YES | true |
+| `manual_verification` | bool | YES | false |
+| `verification_date` | timestamptz | YES | - |
+| `verified_by` | character varying(100) | YES | - |
+| `notes` | text | YES | - |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_core.documents
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer_id` | UUID → krai_core.manufacturers |
-| `product_id` | UUID → krai_core.products |
-| `filename` | VARCHAR(255) NOT NULL |
-| `original_filename` | VARCHAR(255) |
-| `file_size` | BIGINT |
-| `file_hash` | VARCHAR(64) |
-| `storage_path` | TEXT |
-| `storage_url` | TEXT |
-| `document_type` | VARCHAR(100) |
-| `language` | VARCHAR(10) DEFAULT 'en' |
-| `version` | VARCHAR(50) |
-| `publish_date` | DATE |
-| `page_count` | INTEGER |
-| `word_count` | INTEGER |
-| `character_count` | INTEGER |
-| `content_text` | TEXT |
-| `content_summary` | TEXT |
-| `extracted_metadata` | JSONB DEFAULT '{}' |
-| `processing_status` | VARCHAR(50) DEFAULT 'pending' |
-| `confidence_score` | DECIMAL(3,2) |
-| `manual_review_required` | BOOLEAN DEFAULT false |
-| `manual_review_completed` | BOOLEAN DEFAULT false |
-| `manual_review_notes` | TEXT |
-| `ocr_confidence` | DECIMAL(3,2) |
-| `manufacturer` | VARCHAR(100) |
-| `series` | VARCHAR(100) |
-| `models` | TEXT[] |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `filename` | VARCHAR(255) NOT NULL |
-| `original_filename` | VARCHAR(255) |
-| `file_size` | BIGINT |
-| `file_hash` | VARCHAR(64) |
-| `storage_path` | TEXT |
-| `document_type` | VARCHAR(100) |
-| `language` | VARCHAR(10) DEFAULT 'en' |
-| `version` | VARCHAR(50) |
-| `publish_date` | DATE |
-| `page_count` | INTEGER |
-| `word_count` | INTEGER |
-| `character_count` | INTEGER |
-| `content_text` | TEXT |
-| `content_summary` | TEXT |
-| `extracted_metadata` | JSONB DEFAULT '{}' |
-| `processing_status` | VARCHAR(50) DEFAULT 'pending' |
-| `processing_results` | JSONB DEFAULT NULL |
-| `processing_error` | TEXT DEFAULT NULL |
-| `confidence_score` | DECIMAL(3,2) |
-| `manual_review_completed` | BOOLEAN DEFAULT false |
-| `manual_review_notes` | TEXT |
-| `ocr_confidence` | DECIMAL(3,2) |
-| `manufacturer` | VARCHAR(100) |
-| `series` | VARCHAR(100) |
-| `models` | TEXT[] |
-| `stage_status` | JSONB DEFAULT '{}' |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `filename` | VARCHAR(255) NOT NULL |
-| `original_filename` | VARCHAR(255) |
-| `file_size` | BIGINT |
-| `file_hash` | VARCHAR(64) |
-| `storage_path` | TEXT |
-| `document_type` | VARCHAR(100) |
-| `language` | VARCHAR(10) DEFAULT 'en' |
-| `version` | VARCHAR(50) |
-| `publish_date` | DATE |
-| `page_count` | INTEGER |
-| `word_count` | INTEGER |
-| `character_count` | INTEGER |
-| `content_text` | TEXT |
-| `content_summary` | TEXT |
-| `extracted_metadata` | JSONB DEFAULT '{}' |
-| `processing_status` | VARCHAR(50) DEFAULT 'pending' |
-| `processing_results` | JSONB DEFAULT NULL |
-| `processing_error` | TEXT DEFAULT NULL |
-| `stage_status` | JSONB DEFAULT '{}' |
-| `confidence_score` | DECIMAL(3,2) |
-| `ocr_confidence` | DECIMAL(3,2) |
-| `manual_review_required` | BOOLEAN DEFAULT false |
-| `manual_review_completed` | BOOLEAN DEFAULT false |
-| `manual_review_notes` | TEXT |
-| `manufacturer` | VARCHAR(100) |
-| `series` | VARCHAR(100) |
-| `models` | TEXT[] |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `filename` | character varying(255) | NO | - |
+| `original_filename` | character varying(255) | YES | - |
+| `file_size` | int8 | YES | - |
+| `file_hash` | character varying(64) | YES | - |
+| `storage_path` | text | YES | - |
+| `document_type` | character varying(100) | YES | - |
+| `language` | character varying(10) | YES | 'en'::character varying |
+| `version` | character varying(50) | YES | - |
+| `publish_date` | date | YES | - |
+| `page_count` | int4 | YES | - |
+| `word_count` | int4 | YES | - |
+| `character_count` | int4 | YES | - |
+| `content_text` | text | YES | - |
+| `content_summary` | text | YES | - |
+| `extracted_metadata` | jsonb | YES | '{}'::jsonb |
+| `processing_status` | character varying(50) | YES | 'pending'::character varying |
+| `processing_results` | jsonb | YES | - |
+| `processing_error` | text | YES | - |
+| `stage_status` | jsonb | YES | '{}'::jsonb |
+| `confidence_score` | numeric | YES | - |
+| `ocr_confidence` | numeric | YES | - |
+| `manual_review_required` | bool | YES | false |
+| `manual_review_completed` | bool | YES | false |
+| `manual_review_notes` | text | YES | - |
+| `manufacturer` | character varying(100) | YES | - |
+| `series` | character varying(100) | YES | - |
+| `models` | _text | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `priority_level` | int4 | YES | 5 |
+| `manufacturer_id` | uuid | YES | - |
 
 ### krai_core.manufacturers
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `name` | VARCHAR(100) NOT NULL UNIQUE |
-| `short_name` | VARCHAR(10) |
-| `country` | VARCHAR(50) |
-| `founded_year` | INTEGER |
-| `website` | VARCHAR(255) |
-| `support_email` | VARCHAR(255) |
-| `support_phone` | VARCHAR(50) |
-| `logo_url` | TEXT |
-| `is_competitor` | BOOLEAN DEFAULT false |
-| `market_share_percent` | DECIMAL(5,2) |
-| `annual_revenue_usd` | BIGINT |
-| `employee_count` | INTEGER |
-| `headquarters_address` | TEXT |
-| `stock_symbol` | VARCHAR(10) |
-| `primary_business_segment` | VARCHAR(100) |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `name` | character varying(100) | NO | - |
+| `short_name` | character varying(10) | YES | - |
+| `country` | character varying(50) | YES | - |
+| `founded_year` | int4 | YES | - |
+| `website` | character varying(255) | YES | - |
+| `support_email` | character varying(255) | YES | - |
+| `support_phone` | character varying(50) | YES | - |
+| `logo_url` | text | YES | - |
+| `is_competitor` | bool | YES | false |
+| `market_share_percent` | numeric | YES | - |
+| `annual_revenue_usd` | int8 | YES | - |
+| `employee_count` | int4 | YES | - |
+| `headquarters_address` | text | YES | - |
+| `stock_symbol` | character varying(10) | YES | - |
+| `primary_business_segment` | character varying(100) | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
 
 ### krai_core.oem_relationships
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `brand_manufacturer` | VARCHAR(100) NOT NULL |
-| `brand_series_pattern` | VARCHAR(200) NOT NULL |
-| `oem_manufacturer` | VARCHAR(100) NOT NULL |
-| `relationship_type` | VARCHAR(50) DEFAULT 'engine' |
-| `applies_to` | TEXT[] DEFAULT ARRAY['error_codes' |
-| `notes` | TEXT |
-| `confidence` | FLOAT DEFAULT 1.0 |
-| `source` | VARCHAR(100) DEFAULT 'manual' |
-| `verified` | BOOLEAN DEFAULT false |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `brand_manufacturer` | character varying(100) | NO | - |
+| `brand_series_pattern` | character varying(200) | NO | - |
+| `oem_manufacturer` | character varying(100) | NO | - |
+| `relationship_type` | character varying(50) | YES | 'engine'::character varying |
+| `applies_to` | _text | YES | ARRAY['error_codes'::text, 'parts'::t... |
+| `notes` | text | YES | - |
+| `confidence` | float8 | YES | 1.0 |
+| `source` | character varying(100) | YES | 'manual'::character varying |
+| `verified` | bool | YES | false |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
 
 ### krai_core.product_accessories
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `product_id` | UUID NOT NULL → krai_core.products |
-| `accessory_id` | UUID NOT NULL → krai_core.products |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `product_id` | uuid | NO | - |
+| `accessory_id` | uuid | NO | - |
+| `compatibility_type` | character varying(50) | NO | - |
+| `installation_required` | bool | YES | false |
+| `quantity_min` | int4 | YES | 1 |
+| `quantity_max` | int4 | YES | 1 |
+| `notes` | text | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `priority` | int4 | YES | 0 |
+| `compatibility_notes` | text | YES | - |
+| `is_standard` | bool | YES | false |
+
+### krai_core.product_configurations
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `configuration_name` | character varying(200) | YES | - |
+| `base_product_id` | uuid | NO | - |
+| `accessories` | jsonb | YES | '[]'::jsonb |
+| `is_valid` | bool | YES | true |
+| `validation_errors` | jsonb | YES | '[]'::jsonb |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `created_by` | character varying(100) | YES | - |
 
 ### krai_core.product_series
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `series_name` | VARCHAR(100) NOT NULL |
-| `series_code` | VARCHAR(50) |
-| `launch_date` | DATE |
-| `end_of_life_date` | DATE |
-| `target_market` | VARCHAR(100) |
-| `price_range` | VARCHAR(50) |
-| `key_features` | JSONB DEFAULT '{}' |
-| `series_description` | TEXT |
-| `marketing_name` | VARCHAR(150) |
-| `successor_series_id` | UUID → krai_core.product_series |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `manufacturer_id` | uuid | NO | - |
+| `series_name` | character varying(100) | NO | - |
+| `series_code` | character varying(50) | YES | - |
+| `launch_date` | date | YES | - |
+| `end_of_life_date` | date | YES | - |
+| `target_market` | character varying(100) | YES | - |
+| `price_range` | character varying(50) | YES | - |
+| `key_features` | jsonb | YES | '{}'::jsonb |
+| `series_description` | text | YES | - |
+| `marketing_name` | character varying(150) | YES | - |
+| `successor_series_id` | uuid | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `model_pattern` | text | YES | - |
 
 ### krai_core.products
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `parent_id` | UUID → krai_core.products |
-| `manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `series_id` | UUID → krai_core.product_series |
-| `model_number` | VARCHAR(100) NOT NULL |
-| `model_name` | VARCHAR(200) |
-| `product_type` | VARCHAR(50) NOT NULL DEFAULT 'printer' |
-| `launch_date` | DATE |
-| `end_of_life_date` | DATE |
-| `msrp_usd` | DECIMAL(10,2) |
-| `weight_kg` | DECIMAL(8,2) |
-| `dimensions_mm` | JSONB |
-| `color_options` | TEXT[] |
-| `connectivity_options` | TEXT[] |
-| `print_technology` | VARCHAR(50) |
-| `max_print_speed_ppm` | INTEGER |
-| `max_resolution_dpi` | INTEGER |
-| `max_paper_size` | VARCHAR(20) |
-| `duplex_capable` | BOOLEAN DEFAULT false |
-| `network_capable` | BOOLEAN DEFAULT false |
-| `mobile_print_support` | BOOLEAN DEFAULT false |
-| `supported_languages` | TEXT[] |
-| `energy_star_certified` | BOOLEAN DEFAULT false |
-| `warranty_months` | INTEGER DEFAULT 12 |
-| `service_manual_url` | TEXT |
-| `parts_catalog_url` | TEXT |
-| `driver_download_url` | TEXT |
-| `firmware_version` | VARCHAR(50) |
-| `option_dependencies` | JSONB DEFAULT '{}' |
-| `replacement_parts` | JSONB DEFAULT '{}' |
-| `common_issues` | JSONB DEFAULT '{}' |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `manufacturer_id` | uuid | YES | - |
+| `series_id` | uuid | YES | - |
+| `model_number` | character varying(100) | NO | - |
+| `product_type` | character varying(50) | NO | 'printer'::character varying |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `specifications` | jsonb | YES | '{}'::jsonb |
+| `pricing` | jsonb | YES | '{}'::jsonb |
+| `lifecycle` | jsonb | YES | '{}'::jsonb |
+| `urls` | jsonb | YES | '{}'::jsonb |
+| `metadata` | jsonb | YES | '{}'::jsonb |
+| `oem_manufacturer` | character varying(100) | YES | - |
+| `oem_relationship_type` | character varying(50) | YES | - |
+| `oem_notes` | text | YES | - |
+
+### krai_core.products_backup
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | YES | - |
+| `parent_id` | uuid | YES | - |
+| `manufacturer_id` | uuid | YES | - |
+| `series_id` | uuid | YES | - |
+| `model_number` | character varying(100) | YES | - |
+| `model_name` | character varying(200) | YES | - |
+| `product_type` | character varying(50) | YES | - |
+| `launch_date` | date | YES | - |
+| `end_of_life_date` | date | YES | - |
+| `msrp_usd` | numeric | YES | - |
+| `weight_kg` | numeric | YES | - |
+| `dimensions_mm` | jsonb | YES | - |
+| `color_options` | _text | YES | - |
+| `connectivity_options` | _text | YES | - |
+| `print_technology` | character varying(50) | YES | - |
+| `max_print_speed_ppm` | int4 | YES | - |
+| `max_resolution_dpi` | int4 | YES | - |
+| `max_paper_size` | character varying(20) | YES | - |
+| `duplex_capable` | bool | YES | - |
+| `network_capable` | bool | YES | - |
+| `mobile_print_support` | bool | YES | - |
+| `supported_languages` | _text | YES | - |
+| `energy_star_certified` | bool | YES | - |
+| `warranty_months` | int4 | YES | - |
+| `service_manual_url` | text | YES | - |
+| `parts_catalog_url` | text | YES | - |
+| `driver_download_url` | text | YES | - |
+| `firmware_version` | character varying(50) | YES | - |
+| `option_dependencies` | jsonb | YES | - |
+| `replacement_parts` | jsonb | YES | - |
+| `common_issues` | jsonb | YES | - |
+| `created_at` | timestamptz | YES | - |
+| `updated_at` | timestamptz | YES | - |
+
+### krai_core.products_with_names
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | YES | - |
+| `manufacturer_id` | uuid | YES | - |
+| `series_id` | uuid | YES | - |
+| `model_number` | character varying(100) | YES | - |
+| `product_type` | character varying(50) | YES | - |
+| `created_at` | timestamptz | YES | - |
+| `updated_at` | timestamptz | YES | - |
+| `specifications` | jsonb | YES | - |
+| `pricing` | jsonb | YES | - |
+| `lifecycle` | jsonb | YES | - |
+| `urls` | jsonb | YES | - |
+| `metadata` | jsonb | YES | - |
+| `manufacturer_name` | character varying(100) | YES | - |
+| `series_name` | character varying(100) | YES | - |
+
+### krai_core.public_products
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | YES | - |
+| `manufacturer_id` | uuid | YES | - |
+| `series_id` | uuid | YES | - |
+| `model_number` | character varying(100) | YES | - |
+| `product_type` | character varying(50) | YES | - |
+| `created_at` | timestamptz | YES | - |
+| `updated_at` | timestamptz | YES | - |
+| `specifications` | jsonb | YES | - |
+| `pricing` | jsonb | YES | - |
+| `lifecycle` | jsonb | YES | - |
+| `urls` | jsonb | YES | - |
+| `metadata` | jsonb | YES | - |
+| `manufacturer_name` | character varying(100) | YES | - |
+| `series_name` | character varying(100) | YES | - |
 
 ## krai_integrations
 
 ### krai_integrations.api_keys
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `service_name` | VARCHAR(100) NOT NULL |
-| `api_key_encrypted` | TEXT NOT NULL |
-| `is_active` | BOOLEAN DEFAULT true |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `service_name` | character varying(100) | NO | - |
+| `api_key_encrypted` | text | NO | - |
+| `is_active` | bool | YES | true |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_integrations.webhook_logs
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `webhook_url` | TEXT NOT NULL |
-| `request_payload` | JSONB |
-| `response_status` | INTEGER |
-| `response_body` | TEXT |
-| `processed_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `webhook_url` | text | NO | - |
+| `request_payload` | jsonb | YES | - |
+| `response_status` | int4 | YES | - |
+| `response_body` | text | YES | - |
+| `processed_at` | timestamptz | YES | now() |
 
 ## krai_intelligence
 
+### krai_intelligence.agent_performance
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `date` | date | YES | - |
+| `tool_name` | text | YES | - |
+| `total_calls` | int8 | YES | - |
+| `successful_calls` | int8 | YES | - |
+| `failed_calls` | int8 | YES | - |
+| `avg_response_time_ms` | numeric | YES | - |
+| `p95_response_time_ms` | float8 | YES | - |
+| `avg_results_count` | numeric | YES | - |
+
 ### krai_intelligence.chunks
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID NOT NULL → krai_core.documents |
-| `text_chunk` | TEXT NOT NULL |
-| `chunk_index` | INTEGER NOT NULL |
-| `page_start` | INTEGER |
-| `page_end` | INTEGER |
-| `processing_status` | VARCHAR(20) DEFAULT 'pending' CHECK (processing_status IN ('pending' |
-| `fingerprint` | VARCHAR(32) NOT NULL |
-| `metadata` | JSONB DEFAULT '{}' |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
-
-### krai_intelligence.embeddings
-
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `chunk_id` | UUID NOT NULL → krai_intelligence.chunks |
-| `embedding` | extensions.vector(768) |
-| `model_name` | VARCHAR(100) NOT NULL |
-| `model_version` | VARCHAR(50) DEFAULT 'latest' |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `document_id` | uuid | NO | - |
+| `text_chunk` | text | NO | - |
+| `chunk_index` | int4 | NO | - |
+| `page_start` | int4 | YES | - |
+| `page_end` | int4 | YES | - |
+| `processing_status` | character varying(20) | YES | 'pending'::character varying |
+| `fingerprint` | character varying(64) | NO | - |
+| `metadata` | jsonb | YES | '{}'::jsonb |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
+| `embedding` | vector | YES | - |
 
 ### krai_intelligence.error_code_images
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT gen_random_uuid() |
-| `error_code_id` | UUID NOT NULL → krai_intelligence.error_codes |
-| `image_id` | UUID NOT NULL → krai_content.images |
-| `match_method` | TEXT |
-| `match_confidence` | FLOAT DEFAULT 0.5 |
-| `display_order` | INTEGER DEFAULT 0 |
-| `created_at` | TIMESTAMPTZ DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | gen_random_uuid() |
+| `error_code_id` | uuid | NO | - |
+| `image_id` | uuid | NO | - |
+| `match_method` | text | YES | - |
+| `match_confidence` | float8 | YES | 0.5 |
+| `display_order` | int4 | YES | 0 |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_intelligence.error_code_parts
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `error_code_id` | UUID NOT NULL → krai_intelligence.error_codes |
-| `part_id` | UUID NOT NULL → krai_parts.parts_catalog |
-| `relevance_score` | FLOAT DEFAULT 1.0 |
-| `extraction_source` | TEXT |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `error_code_id` | uuid | NO | - |
+| `part_id` | uuid | NO | - |
+| `relevance_score` | float8 | YES | 1.0 |
+| `extraction_source` | text | YES | - |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_intelligence.error_codes
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `chunk_id` | UUID → krai_intelligence.chunks |
-| `document_id` | UUID → krai_core.documents |
-| `manufacturer_id` | UUID → krai_core.manufacturers |
-| `error_code` | VARCHAR(20) NOT NULL |
-| `error_description` | TEXT |
-| `solution_text` | TEXT |
-| `page_number` | INTEGER |
-| `confidence_score` | DECIMAL(3,2) |
-| `extraction_method` | VARCHAR(50) |
-| `requires_technician` | BOOLEAN DEFAULT false |
-| `requires_parts` | BOOLEAN DEFAULT false |
-| `estimated_fix_time_minutes` | INTEGER |
-| `severity_level` | VARCHAR(20) |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `chunk_id` | uuid | YES | - |
+| `document_id` | uuid | YES | - |
+| `manufacturer_id` | uuid | YES | - |
+| `error_code` | character varying(20) | NO | - |
+| `error_description` | text | YES | - |
+| `solution_text` | text | YES | - |
+| `page_number` | int4 | YES | - |
+| `confidence_score` | numeric | YES | - |
+| `extraction_method` | character varying(50) | YES | - |
+| `requires_technician` | bool | YES | false |
+| `requires_parts` | bool | YES | false |
+| `estimated_fix_time_minutes` | int4 | YES | - |
+| `severity_level` | character varying(20) | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `image_id` | uuid | YES | - |
+| `context_text` | text | YES | - |
+| `metadata` | jsonb | YES | '{}'::jsonb |
+| `product_id` | uuid | YES | - |
+| `video_id` | uuid | YES | - |
+
+### krai_intelligence.feedback
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `session_id` | text | NO | - |
+| `message_id` | text | YES | - |
+| `rating` | int4 | YES | - |
+| `feedback_type` | text | YES | - |
+| `comment` | text | YES | - |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_intelligence.product_research_cache
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer` | VARCHAR(100) NOT NULL |
-| `model_number` | VARCHAR(100) NOT NULL |
-| `series_name` | VARCHAR(200) |
-| `series_description` | TEXT |
-| `specifications` | JSONB DEFAULT '{}'::jsonb |
-| `physical_specs` | JSONB DEFAULT '{}'::jsonb |
-| `oem_manufacturer` | VARCHAR(100) |
-| `oem_relationship_type` | VARCHAR(50) |
-| `oem_notes` | TEXT |
-| `launch_date` | DATE |
-| `eol_date` | DATE |
-| `pricing` | JSONB DEFAULT '{}'::jsonb |
-| `product_type` | VARCHAR(100) |
-| `confidence` | FLOAT DEFAULT 0.0 |
-| `source_urls` | TEXT[] |
-| `research_date` | TIMESTAMP DEFAULT NOW() |
-| `cache_valid_until` | TIMESTAMP |
-| `verified` | BOOLEAN DEFAULT false |
-| `verified_by` | VARCHAR(100) |
-| `verified_at` | TIMESTAMP |
-| `notes` | TEXT |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `manufacturer` | character varying(100) | NO | - |
+| `model_number` | character varying(100) | NO | - |
+| `series_name` | character varying(200) | YES | - |
+| `series_description` | text | YES | - |
+| `specifications` | jsonb | YES | '{}'::jsonb |
+| `physical_specs` | jsonb | YES | '{}'::jsonb |
+| `oem_manufacturer` | character varying(100) | YES | - |
+| `oem_relationship_type` | character varying(50) | YES | - |
+| `oem_notes` | text | YES | - |
+| `launch_date` | date | YES | - |
+| `eol_date` | date | YES | - |
+| `pricing` | jsonb | YES | '{}'::jsonb |
+| `product_type` | character varying(100) | YES | - |
+| `confidence` | float8 | YES | 0.0 |
+| `source_urls` | _text | YES | - |
+| `research_date` | timestamptz | YES | now() |
+| `cache_valid_until` | timestamptz | YES | - |
+| `verified` | bool | YES | false |
+| `verified_by` | character varying(100) | YES | - |
+| `verified_at` | timestamptz | YES | - |
+| `notes` | text | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
 
 ### krai_intelligence.search_analytics
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `search_query` | TEXT NOT NULL |
-| `search_type` | VARCHAR(50) |
-| `results_count` | INTEGER |
-| `click_through_rate` | DECIMAL(5,4) |
-| `user_satisfaction_rating` | INTEGER |
-| `search_duration_ms` | INTEGER |
-| `result_relevance_scores` | JSONB |
-| `user_session_id` | VARCHAR(100) |
-| `user_id` | UUID |
-| `manufacturer_filter` | UUID → krai_core.manufacturers |
-| `product_filter` | UUID → krai_core.products |
-| `document_type_filter` | VARCHAR(100) |
-| `language_filter` | VARCHAR(10) |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `search_query` | text | NO | - |
+| `search_type` | character varying(50) | YES | - |
+| `results_count` | int4 | YES | - |
+| `click_through_rate` | numeric | YES | - |
+| `user_satisfaction_rating` | int4 | YES | - |
+| `search_duration_ms` | int4 | YES | - |
+| `result_relevance_scores` | jsonb | YES | - |
+| `user_session_id` | character varying(100) | YES | - |
+| `user_id` | uuid | YES | - |
+| `manufacturer_filter` | uuid | YES | - |
+| `product_filter` | uuid | YES | - |
+| `document_type_filter` | character varying(100) | YES | - |
+| `language_filter` | character varying(10) | YES | - |
+| `created_at` | timestamptz | YES | now() |
+
+### krai_intelligence.session_context
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `session_id` | text | NO | - |
+| `context_type` | text | NO | - |
+| `context_value` | text | NO | - |
+| `confidence` | float8 | YES | 1.0 |
+| `first_mentioned_at` | timestamptz | YES | now() |
+| `last_used_at` | timestamptz | YES | now() |
+| `use_count` | int4 | YES | 1 |
+
+### krai_intelligence.tool_usage
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `session_id` | text | NO | - |
+| `tool_name` | text | NO | - |
+| `query_params` | jsonb | YES | - |
+| `results_count` | int4 | YES | - |
+| `response_time_ms` | int4 | YES | - |
+| `success` | bool | YES | true |
+| `error_message` | text | YES | - |
+| `created_at` | timestamptz | YES | now() |
+
+### krai_intelligence.user_satisfaction
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `date` | date | YES | - |
+| `total_feedback` | int8 | YES | - |
+| `avg_rating` | numeric | YES | - |
+| `positive_feedback` | int8 | YES | - |
+| `negative_feedback` | int8 | YES | - |
+| `helpful_count` | int8 | YES | - |
+| `not_helpful_count` | int8 | YES | - |
+| `incorrect_count` | int8 | YES | - |
 
 ## krai_ml
 
 ### krai_ml.model_performance_history
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `model_id` | UUID NOT NULL → krai_ml.model_registry |
-| `accuracy_score` | DECIMAL(5,4) |
-| `precision_score` | DECIMAL(5,4) |
-| `recall_score` | DECIMAL(5,4) |
-| `f1_score` | DECIMAL(5,4) |
-| `evaluated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `model_id` | uuid | NO | - |
+| `accuracy_score` | numeric | YES | - |
+| `precision_score` | numeric | YES | - |
+| `recall_score` | numeric | YES | - |
+| `f1_score` | numeric | YES | - |
+| `evaluated_at` | timestamptz | YES | now() |
 
 ### krai_ml.model_registry
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `model_name` | VARCHAR(100) NOT NULL UNIQUE |
-| `model_version` | VARCHAR(50) NOT NULL |
-| `model_type` | VARCHAR(50) NOT NULL |
-| `framework` | VARCHAR(50) |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `model_name` | character varying(100) | NO | - |
+| `model_version` | character varying(50) | NO | - |
+| `model_type` | character varying(50) | NO | - |
+| `framework` | character varying(50) | YES | - |
+| `created_at` | timestamptz | YES | now() |
 
 ## krai_parts
 
 ### krai_parts.inventory_levels
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `part_id` | UUID NOT NULL → krai_parts.parts_catalog |
-| `warehouse_location` | VARCHAR(100) |
-| `current_stock` | INTEGER DEFAULT 0 |
-| `minimum_stock_level` | INTEGER DEFAULT 0 |
-| `maximum_stock_level` | INTEGER DEFAULT 1000 |
-| `last_updated` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `part_id` | uuid | NO | - |
+| `warehouse_location` | character varying(100) | YES | - |
+| `current_stock` | int4 | YES | 0 |
+| `minimum_stock_level` | int4 | YES | 0 |
+| `maximum_stock_level` | int4 | YES | 1000 |
+| `last_updated` | timestamptz | YES | now() |
 
 ### krai_parts.parts_catalog
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `part_number` | VARCHAR(100) NOT NULL |
-| `part_name` | VARCHAR(255) |
-| `part_description` | TEXT |
-| `part_category` | VARCHAR(100) |
-| `unit_price_usd` | DECIMAL(10,2) |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `manufacturer_id` | uuid | NO | - |
+| `part_number` | character varying(100) | NO | - |
+| `part_name` | character varying(255) | YES | - |
+| `part_description` | text | YES | - |
+| `part_category` | character varying(100) | YES | - |
+| `unit_price_usd` | numeric | YES | - |
+| `created_at` | timestamptz | YES | now() |
 
 ## krai_service
 
 ### krai_service.service_calls
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `manufacturer_id` | UUID NOT NULL → krai_core.manufacturers |
-| `product_id` | UUID → krai_core.products |
-| `assigned_technician_id` | UUID → krai_service.technicians |
-| `call_status` | VARCHAR(50) DEFAULT 'open' |
-| `priority_level` | INTEGER DEFAULT 3 |
-| `customer_name` | VARCHAR(255) |
-| `customer_contact` | TEXT |
-| `issue_description` | TEXT |
-| `scheduled_date` | TIMESTAMP |
-| `completed_date` | TIMESTAMP |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `manufacturer_id` | uuid | NO | - |
+| `product_id` | uuid | YES | - |
+| `assigned_technician_id` | uuid | YES | - |
+| `call_status` | character varying(50) | YES | 'open'::character varying |
+| `priority_level` | int4 | YES | 3 |
+| `created_at` | timestamptz | YES | now() |
+| `customer_name` | character varying(255) | YES | - |
+| `customer_contact` | text | YES | - |
+| `issue_description` | text | YES | - |
+| `scheduled_date` | timestamptz | YES | - |
+| `completed_date` | timestamptz | YES | - |
+| `updated_at` | timestamptz | YES | now() |
 
 ### krai_service.service_history
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `service_call_id` | UUID → krai_service.service_calls |
-| `performed_by` | UUID → krai_service.technicians |
-| `service_date` | TIMESTAMP DEFAULT NOW() |
-| `service_notes` | TEXT |
-| `parts_used` | JSONB DEFAULT '[]' |
-| `labor_hours` | DECIMAL(4,2) |
-| `service_type` | VARCHAR(50) |
-| `outcome` | VARCHAR(100) |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `service_call_id` | uuid | YES | - |
+| `performed_by` | uuid | YES | - |
+| `service_date` | timestamptz | YES | - |
+| `service_notes` | text | YES | - |
+| `parts_used` | jsonb | YES | '[]'::jsonb |
+| `labor_hours` | numeric | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `service_type` | character varying(50) | YES | - |
+| `outcome` | character varying(100) | YES | - |
+| `updated_at` | timestamptz | YES | now() |
 
 ### krai_service.technicians
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `user_id` | UUID |
-| `technician_name` | VARCHAR(255) NOT NULL |
-| `employee_id` | VARCHAR(50) UNIQUE |
-| `email` | VARCHAR(255) |
-| `phone` | VARCHAR(50) |
-| `certification_level` | VARCHAR(50) |
-| `specializations` | TEXT[] |
-| `is_active` | BOOLEAN DEFAULT true |
-| `hired_date` | DATE |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
-| `updated_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `user_id` | uuid | YES | - |
+| `technician_name` | character varying(255) | NO | - |
+| `employee_id` | character varying(50) | YES | - |
+| `email` | character varying(255) | YES | - |
+| `phone` | character varying(50) | YES | - |
+| `certification_level` | character varying(50) | YES | - |
+| `specializations` | _text | YES | - |
+| `is_active` | bool | YES | true |
+| `hired_date` | date | YES | - |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
 
 ## krai_system
 
 ### krai_system.audit_log
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `table_name` | VARCHAR(100) NOT NULL |
-| `record_id` | UUID NOT NULL |
-| `operation` | VARCHAR(10) NOT NULL |
-| `old_values` | JSONB |
-| `new_values` | JSONB |
-| `changed_by` | VARCHAR(100) |
-| `changed_at` | TIMESTAMP DEFAULT NOW() |
-| `session_id` | VARCHAR(100) |
-| `ip_address` | INET |
-| `user_agent` | TEXT |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `table_name` | character varying(100) | NO | - |
+| `record_id` | uuid | NO | - |
+| `operation` | character varying(10) | NO | - |
+| `old_values` | jsonb | YES | - |
+| `new_values` | jsonb | YES | - |
+| `changed_by` | character varying(100) | YES | - |
+| `changed_at` | timestamptz | YES | now() |
+| `session_id` | character varying(100) | YES | - |
+| `ip_address` | inet | YES | - |
+| `user_agent` | text | YES | - |
 
 ### krai_system.health_checks
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `service_name` | VARCHAR(100) NOT NULL |
-| `check_type` | VARCHAR(50) NOT NULL |
-| `status` | VARCHAR(20) NOT NULL |
-| `response_time_ms` | INTEGER |
-| `error_message` | TEXT |
-| `details` | JSONB DEFAULT '{}' |
-| `checked_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `service_name` | character varying(100) | NO | - |
+| `check_type` | character varying(50) | NO | - |
+| `status` | character varying(20) | NO | - |
+| `response_time_ms` | int4 | YES | - |
+| `error_message` | text | YES | - |
+| `details` | jsonb | YES | '{}'::jsonb |
+| `checked_at` | timestamptz | YES | now() |
 
 ### krai_system.processing_queue
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID → krai_core.documents |
-| `chunk_id` | UUID → krai_intelligence.chunks |
-| `image_id` | UUID → krai_content.images |
-| `video_id` | UUID → krai_content.instructional_videos |
-| `task_type` | VARCHAR(50) NOT NULL |
-| `priority` | INTEGER DEFAULT 5 |
-| `status` | VARCHAR(20) DEFAULT 'pending' |
-| `scheduled_at` | TIMESTAMP DEFAULT NOW() |
-| `started_at` | TIMESTAMP |
-| `completed_at` | TIMESTAMP |
-| `error_message` | TEXT |
-| `retry_count` | INTEGER DEFAULT 0 |
-| `max_retries` | INTEGER DEFAULT 3 |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `document_id` | uuid | YES | - |
+| `chunk_id` | uuid | YES | - |
+| `image_id` | uuid | YES | - |
+| `video_id` | uuid | YES | - |
+| `task_type` | character varying(50) | NO | - |
+| `priority` | int4 | YES | 5 |
+| `status` | character varying(20) | YES | 'pending'::character varying |
+| `scheduled_at` | timestamptz | YES | now() |
+| `started_at` | timestamptz | YES | - |
+| `completed_at` | timestamptz | YES | - |
+| `error_message` | text | YES | - |
+| `retry_count` | int4 | YES | 0 |
+| `max_retries` | int4 | YES | 3 |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_system.stage_tracking
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `document_id` | UUID → krai_core.documents |
-| `stage_name` | VARCHAR(100) NOT NULL |
-| `status` | VARCHAR(50) NOT NULL |
-| `started_at` | TIMESTAMPTZ DEFAULT NOW() |
-| `completed_at` | TIMESTAMPTZ |
-| `error_message` | TEXT |
-| `metadata` | JSONB DEFAULT '{}'::jsonb |
-| `created_at` | TIMESTAMPTZ DEFAULT NOW() |
-| `updated_at` | TIMESTAMPTZ DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `document_id` | uuid | YES | - |
+| `stage_name` | character varying(100) | NO | - |
+| `status` | character varying(50) | NO | - |
+| `started_at` | timestamptz | YES | now() |
+| `completed_at` | timestamptz | YES | - |
+| `error_message` | text | YES | - |
+| `metadata` | jsonb | YES | '{}'::jsonb |
+| `created_at` | timestamptz | YES | now() |
+| `updated_at` | timestamptz | YES | now() |
 
 ### krai_system.system_metrics
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `metric_name` | VARCHAR(100) NOT NULL |
-| `metric_value` | DECIMAL(15,6) |
-| `metric_unit` | VARCHAR(20) |
-| `metric_category` | VARCHAR(50) |
-| `collection_timestamp` | TIMESTAMP DEFAULT NOW() |
-| `server_instance` | VARCHAR(100) |
-| `additional_context` | JSONB DEFAULT '{}' |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `metric_name` | character varying(100) | NO | - |
+| `metric_value` | numeric | YES | - |
+| `metric_unit` | character varying(20) | YES | - |
+| `metric_category` | character varying(50) | YES | - |
+| `collection_timestamp` | timestamptz | YES | now() |
+| `server_instance` | character varying(100) | YES | - |
+| `additional_context` | jsonb | YES | '{}'::jsonb |
 
 ## krai_users
 
 ### krai_users.user_sessions
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `user_id` | UUID NOT NULL → krai_users.users |
-| `session_token` | VARCHAR(255) NOT NULL |
-| `expires_at` | TIMESTAMP NOT NULL |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `user_id` | uuid | NO | - |
+| `session_token` | character varying(255) | NO | - |
+| `expires_at` | timestamptz | NO | - |
+| `created_at` | timestamptz | YES | now() |
 
 ### krai_users.users
 
-| Spalte | Typ & Constraints |
-|--------|-------------------|
-| `id` | UUID PRIMARY KEY DEFAULT uuid_generate_v4() |
-| `preferred_manufacturer_id` | UUID → krai_core.manufacturers |
-| `username` | VARCHAR(100) NOT NULL UNIQUE |
-| `email` | VARCHAR(255) NOT NULL UNIQUE |
-| `role` | VARCHAR(50) DEFAULT 'user' |
-| `created_at` | TIMESTAMP DEFAULT NOW() |
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | uuid_generate_v4() |
+| `preferred_manufacturer_id` | uuid | YES | - |
+| `username` | character varying(100) | NO | - |
+| `email` | character varying(255) | NO | - |
+| `role` | character varying(50) | YES | 'user'::character varying |
+| `created_at` | timestamptz | YES | now() |
 
 ---
 
@@ -918,5 +935,5 @@ Alle Views nutzen `vw_` Prefix und zeigen auf Tabellen in krai_* Schemas:
 ## Statistik
 
 - **Schemas:** 11
-- **Tabellen:** 46
-- **Migration Files:** 79
+- **Tabellen:** 50
+- **Spalten:** 583
