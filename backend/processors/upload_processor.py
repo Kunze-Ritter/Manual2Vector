@@ -329,7 +329,7 @@ class UploadProcessor:
         }
         
         try:
-            self.supabase.table("processing_queue").insert(queue_record).execute()
+            self.supabase.table("vw_processing_queue").insert(queue_record).execute()
             self.logger.debug(f"Added to queue: {document_id}")
             
         except Exception as e:
