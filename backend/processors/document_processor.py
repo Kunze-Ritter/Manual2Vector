@@ -394,81 +394,60 @@ class DocumentProcessor:
             if regex_count > 0:
                 self.logger.success(f"Regex extracted {regex_count} products from {len(page_texts)} pages")
             
-            # Step 2b: LLM extraction from ALL pages (not just spec sections)
+            # Step 2b: LLM extraction - BATCH MODE (much faster!)
             if self.use_llm and self.llm_extractor:
-                self.logger.info("Running LLM extraction on all pages...")
+                self.logger.info("Running LLM extraction (batch mode)...")
                 
-                # CONFIGURABLE: Scan first N pages (default: 20)
-                # Why limit? LLM is slow (~8s/page). For 278 pages = 37 minutes!
-                # Product info is usually in first 20 pages (specs, features, models)
-                # Pages 21+ are mostly error codes, maintenance, parts (no new products)
+                # BATCH MODE: Combine pages and send once to LLM
+                # Much faster: 1 LLM call (~10-20s) instead of N calls (N×8s)
                 # 
-                # To scan ALL pages: Set LLM_MAX_PAGES=0 in environment
-                # To scan more: Set LLM_MAX_PAGES=50 (or any number)
+                # CONFIGURABLE: Scan first N pages (default: 50)
+                # Product info is usually in first 50 pages (specs, features, models)
+                # Pages 51+ are mostly error codes, maintenance, parts (no new products)
                 import os
-                llm_max_pages_env = os.getenv('LLM_MAX_PAGES', '20')
-                self.logger.debug(f"🔍 DEBUG: LLM_MAX_PAGES env var = '{llm_max_pages_env}'")
+                llm_max_pages_env = os.getenv('LLM_MAX_PAGES', '50')
                 max_pages = int(llm_max_pages_env)
-                self.logger.debug(f"🔍 DEBUG: max_pages parsed = {max_pages}")
                 pages_to_scan = len(page_texts) if max_pages == 0 else min(max_pages, len(page_texts))
-                self.logger.debug(f"🔍 DEBUG: pages_to_scan = {pages_to_scan}, total pages = {len(page_texts)}")
                 
                 if pages_to_scan < len(page_texts):
                     self.logger.info(f"   → Scanning first {pages_to_scan} pages (set LLM_MAX_PAGES=0 to scan all {len(page_texts)} pages)")
                 else:
                     self.logger.info(f"   → Scanning all {pages_to_scan} pages")
                 
-                # Progress tracking for LLM extraction
-                from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
-                
+                # Combine text from selected pages
                 pages_to_process = sorted(page_texts.keys())[:pages_to_scan]
+                combined_text = "\n\n".join([
+                    f"=== PAGE {page_num} ===\n{page_texts[page_num]}"
+                    for page_num in pages_to_process
+                    if len(page_texts[page_num]) >= 500  # Skip very short pages
+                ])
                 
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    BarColumn(),
-                    TaskProgressColumn(),
-                    TimeRemainingColumn(),
-                    console=None
-                ) as progress:
-                    task = progress.add_task(
-                        f"[cyan]LLM scanning pages...",
-                        total=len(pages_to_process)
+                # Single LLM call with all text
+                if combined_text:
+                    self.logger.info(f"   → Sending {len(combined_text):,} characters to LLM...")
+                    
+                    # Get detected manufacturer for LLM
+                    detected_mfr = next(
+                        (p.manufacturer_name for p in products if p.extraction_method.startswith("regex")),
+                        self.manufacturer if self.manufacturer != "AUTO" else "KONICA MINOLTA"
                     )
                     
-                    for page_num in pages_to_process:
-                        # Skip if too short (likely not product info)
-                        if len(page_texts[page_num]) < 500:
-                            progress.update(task, advance=1)
-                            continue
+                    llm_products = self.llm_extractor.extract_from_specification_section(
+                        combined_text,
+                        detected_mfr,
+                        page_number=1  # Not relevant in batch mode
+                    )
+                    
+                    # Fix manufacturer for AUTO detection
+                    if llm_products:
+                        for prod in llm_products:
+                            if prod.manufacturer_name == "AUTO" or self.manufacturer == "AUTO":
+                                prod.manufacturer_name = detected_mfr
                         
-                        llm_products = self.llm_extractor.extract_from_specification_section(
-                            page_texts[page_num],
-                            self.manufacturer if self.manufacturer != "AUTO" else "KONICA MINOLTA",
-                            page_num
-                        )
-                        
-                        # Fix manufacturer for AUTO detection
-                        if llm_products:
-                            # Get detected manufacturer from first regex product
-                            detected_mfr = next(
-                                (p.manufacturer_name for p in products if p.extraction_method.startswith("regex")),
-                                "KONICA MINOLTA"
-                            )
-                            for prod in llm_products:
-                                if prod.manufacturer_name == "AUTO" or self.manufacturer == "AUTO":
-                                    prod.manufacturer_name = detected_mfr
-                        
-                        if llm_products:
-                            if self.debug:
-                                self.logger.debug(f"  Page {page_num}: Found {len(llm_products)} products")
-                            products.extend(llm_products)
-                        
-                        progress.update(task, advance=1)
-                
-                llm_count = sum(1 for p in products if p.extraction_method == "llm")
-                if llm_count > 0:
-                    self.logger.success(f"LLM extracted {llm_count} products with specifications")
+                        products.extend(llm_products)
+                        self.logger.success(f"LLM extracted {len(llm_products)} products with specifications")
+                    else:
+                        self.logger.info("   → No additional products found by LLM")
             
             # Global deduplication across all pages
             if products:
