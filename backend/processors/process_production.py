@@ -56,10 +56,10 @@ sys.path.insert(0, str(backend_dir))
 original_dir = os.getcwd()
 os.chdir(backend_dir)
 
-# Now import with full paths
-from backend.processors.imports import get_supabase_client, get_logger
-from backend.processors.master_pipeline import MasterPipeline
-from backend.processors.__version__ import __version__, __commit__, __date__
+# Now import with relative paths (we're in backend dir)
+from processors.imports import get_supabase_client, get_logger
+from processors.master_pipeline import MasterPipeline
+from processors.__version__ import __version__, __commit__, __date__
 from supabase import create_client
 
 # Import GPU utils from API directory
