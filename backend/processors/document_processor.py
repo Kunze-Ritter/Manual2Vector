@@ -380,7 +380,16 @@ class DocumentProcessor:
                 document_title=document_title
             )
             
-            # Scan ALL pages for products (regex extraction)
+            # Step 2a: Extract from filename as fallback (for files like "AccurioPress_C4080_C4070_...")
+            filename_products = product_extractor.extract_from_text(
+                pdf_path.stem.replace('_', ' '),  # Convert underscores to spaces
+                page_number=0  # Mark as filename extraction
+            )
+            if filename_products:
+                self.logger.success(f"Extracted {len(filename_products)} products from filename")
+                products.extend(filename_products)
+            
+            # Step 2b: Scan ALL pages for products (regex extraction)
             self.logger.info(f"Running regex extraction on all {len(page_texts)} pages...")
             regex_count = 0
             for page_num in sorted(page_texts.keys()):
@@ -394,7 +403,7 @@ class DocumentProcessor:
             if regex_count > 0:
                 self.logger.success(f"Regex extracted {regex_count} products from {len(page_texts)} pages")
             
-            # Step 2b: LLM extraction - BATCH MODE (much faster!)
+            # Step 2c: LLM extraction - BATCH MODE (much faster!)
             if self.use_llm and self.llm_extractor:
                 self.logger.info("Running LLM extraction (batch mode)...")
                 
