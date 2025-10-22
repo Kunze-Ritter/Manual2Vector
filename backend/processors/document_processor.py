@@ -639,7 +639,7 @@ class DocumentProcessor:
                         
                         # Get chunks from database for this document
                         chunks_response = self.supabase.table('vw_intelligence_chunks').select(
-                            'id, text_chunk, page_start, page_number'
+                            'id, text_chunk, page_start, page_end'
                         ).eq('document_id', str(document_id)).execute()
                         
                         if chunks_response.data:
