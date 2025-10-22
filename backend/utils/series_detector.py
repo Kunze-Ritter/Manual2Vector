@@ -82,7 +82,7 @@ def detect_series(model_number: str, manufacturer_name: str, context: str = None
     manufacturer_lower = manufacturer_name.lower()
     
     # HP Series Detection
-    if 'hp' in manufacturer_lower:
+    if 'hp' in manufacturer_lower or 'hewlett' in manufacturer_lower or 'packard' in manufacturer_lower:
         result = _detect_hp_series(model_number)
         if result and context:
             result['confidence'] = _calculate_confidence(result, context)
