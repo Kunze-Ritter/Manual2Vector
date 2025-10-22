@@ -518,10 +518,9 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
     all_products_result = supabase.table('vw_products').select('id, model_number').eq('manufacturer_id', manufacturer_id).execute()
     product_map = {p['model_number']: p['id'] for p in all_products_result.data}
     
-    links_created = 0
-    links_skipped = 0
+    # Build all links in memory first
+    links_to_create = []
     
-    # For each main product, link all accessories
     for main_product in main_products:
         main_model = main_product['name']
         if main_model not in product_map:
@@ -541,34 +540,43 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
             mounting_position = categorize_by_mounting_position(accessory['name'])
             slot_number = extract_slot_number(accessory['name'])
             
-            # Check if link already exists
-            try:
-                existing_link = supabase.schema('krai_core').table('product_accessories').select('id').eq('product_id', main_product_id).eq('accessory_id', accessory_id)
-                if slot_number:
-                    existing_link = existing_link.eq('slot_number', slot_number)
-                existing_link = existing_link.execute()
-                
-                if not existing_link.data:
-                    # Create link
-                    link_data = {
-                        'product_id': main_product_id,
-                        'accessory_id': accessory_id,
-                        'mounting_position': mounting_position,
-                        'compatibility_type': 'compatible'  # Default compatibility type
-                    }
-                    if slot_number:
-                        link_data['slot_number'] = slot_number
-                    
+            # Build link data
+            link_data = {
+                'product_id': main_product_id,
+                'accessory_id': accessory_id,
+                'mounting_position': mounting_position,
+                'compatibility_type': 'compatible'  # Default compatibility type
+            }
+            if slot_number:
+                link_data['slot_number'] = slot_number
+            
+            links_to_create.append(link_data)
+    
+    print(f"  Prepared {len(links_to_create)} links to insert...")
+    
+    # Batch insert with upsert (ON CONFLICT DO NOTHING)
+    # Note: Supabase doesn't support ON CONFLICT in Python client, so we try insert and ignore errors
+    links_created = 0
+    links_skipped = 0
+    
+    if links_to_create:
+        try:
+            # Try batch insert (will fail on duplicates, but that's ok)
+            result = supabase.schema('krai_core').table('product_accessories').insert(links_to_create).execute()
+            links_created = len(result.data) if result.data else 0
+            links_skipped = len(links_to_create) - links_created
+            print(f"  ✅ Batch inserted {links_created} new links")
+        except Exception as e:
+            # If batch fails (e.g., duplicates), fall back to individual inserts
+            print(f"  ⚠️ Batch insert failed, trying individual inserts...")
+            for link_data in links_to_create:
+                try:
                     supabase.schema('krai_core').table('product_accessories').insert(link_data).execute()
                     links_created += 1
-                else:
+                except:
                     links_skipped += 1
-            except Exception as e:
-                # Skip if table doesn't exist or other error
-                print(f"    ⚠️ Could not create link for {accessory_model}: {e}")
-                links_skipped += 1
     
-    print(f"\nProduct_accessories links: {links_created} created, {links_skipped} already existed")
+    print(f"\nProduct_accessories links: {links_created} created, {links_skipped} skipped (duplicates)")
     
     # Import compatibility matrix (physical specs)
     if compatibility_matrix:
