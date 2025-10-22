@@ -542,11 +542,10 @@ class DocumentProcessor:
                     progress.update(task, advance=1, description=f"Parts found: {parts_count}")
             
             if parts:
-                # TODO: Vision AI enrichment for parts (requires analyze_page method in image_processor)
-                # For now, rely on improved pattern matching
+                # Vision AI enrichment happens in PartsExtractor via image_processor
                 parts_without_names = sum(1 for p in parts if not p.part_name)
                 if parts_without_names > 0:
-                    self.logger.info(f"ℹ️  {parts_without_names} parts without names (Vision AI not yet implemented)")
+                    self.logger.info(f"ℹ️  {parts_without_names} parts without names (may need Vision AI analysis)")
                 
                 self.logger.success(f"✅ Extracted {len(parts)} spare parts")
                 # Save parts immediately (like error codes)
@@ -2218,7 +2217,7 @@ class DocumentProcessor:
                 return
             
             saved_count = 0
-            duplicate_count = 0
+            updated_count = 0
             
             for part in parts:
                 # Convert ExtractedPart to dict if needed
@@ -2244,7 +2243,7 @@ class DocumentProcessor:
                 existing = supabase.table('vw_parts') \
                     .select('id') \
                     .eq('part_number', record['part_number']) \
-                    .eq('manufacturer_id', manufacturer_id) \
+                    .eq('manufacturer_id', str(manufacturer_id)) \
                     .limit(1) \
                     .execute()
                 
@@ -2252,11 +2251,13 @@ class DocumentProcessor:
                     supabase.table('vw_parts').insert(record).execute()
                     saved_count += 1
                 else:
-                    duplicate_count += 1
+                    # Update existing part with new info
+                    supabase.table('vw_parts').update(record).eq('id', existing.data[0]['id']).execute()
+                    updated_count += 1
             
-            if duplicate_count > 0:
-                self.logger.info(f"⏭️  Skipped {duplicate_count} duplicate parts")
-            self.logger.success(f"💾 Saved {saved_count} parts to DB")
+            if updated_count > 0:
+                self.logger.info(f"🔄 Updated {updated_count} existing parts")
+            self.logger.success(f"💾 Saved {saved_count} new parts, updated {updated_count} existing")
             
         except Exception as e:
             self.logger.error(f"Failed to save parts: {e}")
