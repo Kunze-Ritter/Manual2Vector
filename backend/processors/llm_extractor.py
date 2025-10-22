@@ -144,7 +144,7 @@ JSON:"""
         }
         
         try:
-            response = requests.post(url_chat, json=payload_chat, timeout=120)
+            response = requests.post(url_chat, json=payload_chat, timeout=300)
             response.raise_for_status()
             result = response.json()
             llm_response = result.get("message", {}).get("content", "")
@@ -172,7 +172,7 @@ JSON:"""
                     }
                 }
                 
-                response = requests.post(url_generate, json=payload_generate, timeout=120)
+                response = requests.post(url_generate, json=payload_generate, timeout=300)
                 response.raise_for_status()
                 result = response.json()
                 llm_response = result.get("response", "")

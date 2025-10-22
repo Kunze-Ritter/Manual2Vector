@@ -1376,7 +1376,8 @@ class DocumentProcessor:
                         'manufacturer_name': getattr(product, 'manufacturer_name', ''),
                         'product_name': getattr(product, 'product_name', None),
                         'series_name': getattr(product, 'series_name', None),
-                        'confidence': getattr(product, 'confidence', 0.0)
+                        'confidence': getattr(product, 'confidence', 0.0),
+                        'specifications': getattr(product, 'specifications', {})
                     }
                 
                 # Get manufacturer_id (inherit from document if not specified)
@@ -1405,6 +1406,10 @@ class DocumentProcessor:
                     update_data = {
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                     }
+                    
+                    # Add specifications if available (from LLM extraction)
+                    if product_data.get('specifications'):
+                        update_data['specifications'] = product_data['specifications']
                     
                     # Detect product_type (always try to improve)
                     from utils.product_type_mapper import get_product_type
@@ -1463,6 +1468,10 @@ class DocumentProcessor:
                         'manufacturer_id': str(manufacturer_id) if manufacturer_id else None,
                         'product_type': product_type
                     }
+                    
+                    # Add specifications if available (from LLM extraction)
+                    if product_data.get('specifications'):
+                        insert_data['specifications'] = product_data['specifications']
                     result = supabase.table('vw_products').insert(insert_data).execute()
                     if result.data:
                         product_ids.append(result.data[0]['id'])
