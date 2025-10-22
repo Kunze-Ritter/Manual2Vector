@@ -194,14 +194,15 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     
     if not articles:
         print("No articles to import")
-        return
+        return False
     
     supabase_url = os.getenv('SUPABASE_URL')
     supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
     
     if not supabase_url or not supabase_key:
         print("ERROR: Supabase credentials not found in .env")
-        return
+        print("Please configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env file")
+        return False
     
     supabase = create_client(supabase_url, supabase_key)
     
@@ -341,6 +342,8 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     print(f"Accessories: {imported_accessories} new, {updated_accessories} updated")
     print(f"Compatibility links: {compat_stats['links_created']} created, {compat_stats['links_updated']} updated")
     print(f"Total processed: {len(articles)}")
+    
+    return True  # Success!
 
 if __name__ == "__main__":
     import sys
@@ -393,14 +396,19 @@ if __name__ == "__main__":
             
             if data and data.get('articles'):
                 # Import to database
-                import_to_database(data)
-                total_articles += len(data['articles'])
-                successful += 1
+                success = import_to_database(data)
                 
-                # Move to processed directory
-                dest_path = processed_dir / Path(pdf_file).name
-                shutil.move(str(pdf_file), str(dest_path))
-                print(f"\n✅ Moved to: {dest_path.relative_to(input_dir.parent)}")
+                if success:
+                    total_articles += len(data['articles'])
+                    successful += 1
+                    
+                    # Move to processed directory
+                    dest_path = processed_dir / Path(pdf_file).name
+                    shutil.move(str(pdf_file), str(dest_path))
+                    print(f"\n✅ Moved to: {dest_path.relative_to(input_dir.parent)}")
+                else:
+                    print("\n❌ Import failed - PDF not moved")
+                    failed += 1
             else:
                 print("No data extracted!")
                 failed += 1
