@@ -608,25 +608,28 @@ class DocumentProcessor:
                 self.logger.success(f"Enriched error codes with detailed solutions")
                 
                 # Link error codes to chunks for image support
-                try:
-                    from .chunk_linker import link_error_codes_to_chunks
-                    
-                    # Get chunks from database for this document
-                    chunks_response = self.supabase.table('vw_intelligence_chunks').select(
-                        'id, text_chunk, page_start, page_number'
-                    ).eq('document_id', str(document_id)).execute()
-                    
-                    if chunks_response.data:
-                        linked_count = link_error_codes_to_chunks(
-                            error_codes=error_codes,
-                            chunks=chunks_response.data,
-                            verbose=True
-                        )
-                        self.logger.success(f"Linked {linked_count}/{len(error_codes)} error codes to chunks (for images)")
-                    else:
-                        self.logger.warning("No chunks found for chunk linking")
-                except Exception as e:
-                    self.logger.warning(f"Chunk linking failed: {e}")
+                if self.supabase:
+                    try:
+                        from .chunk_linker import link_error_codes_to_chunks
+                        
+                        # Get chunks from database for this document
+                        chunks_response = self.supabase.table('vw_intelligence_chunks').select(
+                            'id, text_chunk, page_start, page_number'
+                        ).eq('document_id', str(document_id)).execute()
+                        
+                        if chunks_response.data:
+                            linked_count = link_error_codes_to_chunks(
+                                error_codes=error_codes,
+                                chunks=chunks_response.data,
+                                verbose=True
+                            )
+                            self.logger.success(f"Linked {linked_count}/{len(error_codes)} error codes to chunks (for images)")
+                        else:
+                            self.logger.warning("No chunks found for chunk linking")
+                    except Exception as e:
+                        self.logger.warning(f"Chunk linking failed: {e}")
+                else:
+                    self.logger.debug("Skipping chunk linking (no supabase client)")
             
             # Validate error codes
             for error_code in error_codes:
