@@ -11,7 +11,10 @@ import os
 from dotenv import load_dotenv
 from uuid import uuid4
 
-load_dotenv()
+# Load environment variables from multiple .env files
+load_dotenv()  # Load .env
+load_dotenv('.env.database')  # Load .env.database
+load_dotenv('.env.ai')  # Load .env.ai if exists
 
 def extract_foliant_data(pdf_path):
     """Extract compatibility data from Foliant PDF"""
