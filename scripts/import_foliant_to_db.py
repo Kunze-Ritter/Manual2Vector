@@ -472,6 +472,22 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
         elif name_upper.startswith('MK-'):
             return 'mount_kit'
         
+        # Toner Cartridges (TN-*, TNP-*)
+        elif name_upper.startswith(('TN-', 'TN', 'TNP-')) and not name_upper.startswith('TNU-'):
+            return 'toner_cartridge'
+        
+        # Developer Units (DV-*, DVP-*)
+        elif name_upper.startswith(('DV-', 'DV', 'DVP-')):
+            return 'developer_unit'
+        
+        # Drum Units (DR-*, DRP-*)
+        elif name_upper.startswith(('DR-', 'DR', 'DRP-')):
+            return 'drum_unit'
+        
+        # Imaging Units (IU-*, IUP-*)
+        elif name_upper.startswith(('IU-', 'IU', 'IUP-')):
+            return 'drum_unit'  # Imaging unit = drum unit
+        
         # Generic units
         elif 'unit' in name_lower:
             return 'accessory'

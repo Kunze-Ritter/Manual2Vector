@@ -424,7 +424,9 @@ If you cannot find the part number, return {{"found": false}}"""
         if pattern_name:
             if "toner" in pattern_name:
                 return "toner_cartridge"
-            elif "drum" in pattern_name:
+            elif "developer" in pattern_name:
+                return "developer_unit"
+            elif "drum" in pattern_name or "imaging" in pattern_name:
                 return "drum_unit"
             elif "fuser" in pattern_name:
                 return "fuser_assembly"
@@ -432,6 +434,8 @@ If you cannot find the part number, return {{"found": false}}"""
                 return "maintenance_kit"
             elif "ink" in pattern_name:
                 return "ink_cartridge"
+            elif "waste" in pattern_name and "toner" in pattern_name:
+                return "waste_toner_box"
         
         # Check consumable types in context
         consumable_types = self.extraction_rules.get("consumable_types", [])
