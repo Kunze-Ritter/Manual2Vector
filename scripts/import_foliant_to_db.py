@@ -282,6 +282,16 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
     manufacturer_id = mfr_result.data[0]['id']
     print(f"Manufacturer: {manufacturer_name} ({manufacturer_id})")
     
+    # Check if article_code column exists (Migration 112)
+    has_article_code_column = False
+    try:
+        test_query = supabase.table('vw_products').select('article_code').limit(1).execute()
+        has_article_code_column = True
+        print("✅ article_code column available (Migration 112 applied)")
+    except:
+        print("⚠️ article_code column not found - will store in specifications JSON")
+        print("   Run Migration 112 to add dedicated article_code column")
+    
     # Classify products vs accessories
     main_products = []
     accessories = []
@@ -307,15 +317,15 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
         print(f"\nDetected series: {series_name}")
         
         # Check if series exists
-        series_result = supabase.table('product_series').select('id').eq('name', series_name).eq('manufacturer_id', manufacturer_id).execute()
+        series_result = supabase.table('vw_product_series').select('id').eq('series_name', series_name).eq('manufacturer_id', manufacturer_id).execute()
         
         if series_result.data:
             series_id = series_result.data[0]['id']
             print(f"  Series exists: {series_id}")
         else:
             # Create series
-            series_insert = supabase.table('product_series').insert({
-                'name': series_name,
+            series_insert = supabase.table('vw_product_series').insert({
+                'series_name': series_name,
                 'manufacturer_id': manufacturer_id
             }).execute()
             series_id = series_insert.data[0]['id']
@@ -339,7 +349,11 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
         if existing.data:
             # Update with article code and series
             product_id = existing.data[0]['id']
-            update_data = {'article_code': article_code}
+            update_data = {}
+            if has_article_code_column:
+                update_data['article_code'] = article_code
+            else:
+                update_data['specifications'] = {'article_code': article_code}
             if series_id:
                 update_data['series_id'] = series_id
             supabase.table('vw_products').update(update_data).eq('id', product_id).execute()
@@ -350,9 +364,12 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
             insert_data = {
                 'model_number': model_number,
                 'manufacturer_id': manufacturer_id,
-                'product_type': 'laser_multifunction',  # Default for bizhub
-                'article_code': article_code
+                'product_type': 'laser_multifunction'  # Default for bizhub
             }
+            if has_article_code_column:
+                insert_data['article_code'] = article_code
+            else:
+                insert_data['specifications'] = {'article_code': article_code}
             if series_id:
                 insert_data['series_id'] = series_id
             supabase.table('vw_products').insert(insert_data).execute()
@@ -525,24 +542,29 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
             slot_number = extract_slot_number(accessory['name'])
             
             # Check if link already exists
-            existing_link = supabase.table('product_accessories').select('id').eq('product_id', main_product_id).eq('accessory_id', accessory_id)
-            if slot_number:
-                existing_link = existing_link.eq('slot_number', slot_number)
-            existing_link = existing_link.execute()
-            
-            if not existing_link.data:
-                # Create link
-                link_data = {
-                    'product_id': main_product_id,
-                    'accessory_id': accessory_id,
-                    'mounting_position': mounting_position
-                }
+            try:
+                existing_link = supabase.schema('krai_core').table('product_accessories').select('id').eq('product_id', main_product_id).eq('accessory_id', accessory_id)
                 if slot_number:
-                    link_data['slot_number'] = slot_number
+                    existing_link = existing_link.eq('slot_number', slot_number)
+                existing_link = existing_link.execute()
                 
-                supabase.table('product_accessories').insert(link_data).execute()
-                links_created += 1
-            else:
+                if not existing_link.data:
+                    # Create link
+                    link_data = {
+                        'product_id': main_product_id,
+                        'accessory_id': accessory_id,
+                        'mounting_position': mounting_position
+                    }
+                    if slot_number:
+                        link_data['slot_number'] = slot_number
+                    
+                    supabase.schema('krai_core').table('product_accessories').insert(link_data).execute()
+                    links_created += 1
+                else:
+                    links_skipped += 1
+            except Exception as e:
+                # Skip if table doesn't exist or other error
+                print(f"    ⚠️ Could not create link for {accessory_model}: {e}")
                 links_skipped += 1
     
     print(f"\nProduct_accessories links: {links_created} created, {links_skipped} already existed")
