@@ -1,0 +1,443 @@
+[
+  {
+    "main_product": "C227i",
+    "compatible_options": {
+      "top": {
+        "options": [
+          "DF-633"
+        ],
+        "max_quantity": 1,
+        "mutually_exclusive": true,
+        "description": "Document feeder mounted on top"
+      },
+      "side": {
+        "options": [
+          "FS-533",
+          "FS-539",
+          "FS-539SD",
+          "JS-506",
+          "RU-514"
+        ],
+        "max_quantity": 3,
+        "mutually_exclusive": false,
+        "description": "Finishers and units mounted on side"
+      },
+      "bottom": {
+        "options": [
+          "DK-518",
+          "PC-118",
+          "PC-218",
+          "PC-418",
+          "WT-515"
+        ],
+        "max_quantity": 1,
+        "mutually_exclusive": true,
+        "description": "Cabinet or desk under the device"
+      },
+      "internal": {
+        "options": [
+          "AU-102",
+          "CU-101",
+          "EK-608",
+          "EK-609",
+          "FK-513_1",
+          "FK-513_2",
+          "IC-READER",
+          "SX-BR-300AN",
+          "UK-221"
+        ],
+        "max_quantity": 5,
+        "mutually_exclusive": false,
+        "description": "Internal controllers and interfaces"
+      },
+      "accessories": {
+        "options": [
+          "EM-907",
+          "HT-509",
+          "KP-101",
+          "MK-602",
+          "MK-603",
+          "MK-734",
+          "MK-735",
+          "MK-748",
+          "OC-513",
+          "PK-519",
+          "PK-524"
+        ],
+        "max_quantity": 10,
+        "mutually_exclusive": false,
+        "description": "Mount kits, punch kits, and other accessories"
+      }
+    },
+    "mounting_positions": {
+      "main_products": [
+        "C227i",
+        "C257i",
+        "C287i"
+      ],
+      "top": [
+        "DF-633"
+      ],
+      "side": [
+        "FS-533",
+        "FS-539",
+        "FS-539SD",
+        "JS-506",
+        "RU-514"
+      ],
+      "bottom": [
+        "DK-518",
+        "PC-118",
+        "PC-218",
+        "PC-418",
+        "WT-515"
+      ],
+      "internal": [
+        "AU-102",
+        "CU-101",
+        "EK-608",
+        "EK-609",
+        "FK-513_1",
+        "FK-513_2",
+        "IC-READER",
+        "SX-BR-300AN",
+        "UK-221"
+      ],
+      "accessories": [
+        "EM-907",
+        "HT-509",
+        "KP-101",
+        "MK-602",
+        "MK-603",
+        "MK-734",
+        "MK-735",
+        "MK-748",
+        "OC-513",
+        "PK-519",
+        "PK-524"
+      ]
+    },
+    "example_configurations": [
+      [
+        "FS-533",
+        "PK-519",
+        "FS-539",
+        "FS-539SD",
+        "OT-506",
+        "WT-515"
+      ],
+      [
+        "LU-301",
+        "LU-204",
+        "BT-C1e",
+        "FS-533",
+        "PK-519",
+        "FS-539",
+        "FS-539SD",
+        "OT-506"
+      ],
+      [
+        "DF-633",
+        "OC-513",
+        "PC-118",
+        "PC-218",
+        "PC-418",
+        "DK-518"
+      ]
+    ]
+  },
+  {
+    "main_product": "C257i",
+    "compatible_options": {
+      "top": {
+        "options": [
+          "DF-633"
+        ],
+        "max_quantity": 1,
+        "mutually_exclusive": true,
+        "description": "Document feeder mounted on top"
+      },
+      "side": {
+        "options": [
+          "FS-533",
+          "FS-539",
+          "FS-539SD",
+          "JS-506",
+          "RU-514"
+        ],
+        "max_quantity": 3,
+        "mutually_exclusive": false,
+        "description": "Finishers and units mounted on side"
+      },
+      "bottom": {
+        "options": [
+          "DK-518",
+          "PC-118",
+          "PC-218",
+          "PC-418",
+          "WT-515"
+        ],
+        "max_quantity": 1,
+        "mutually_exclusive": true,
+        "description": "Cabinet or desk under the device"
+      },
+      "internal": {
+        "options": [
+          "AU-102",
+          "CU-101",
+          "EK-608",
+          "EK-609",
+          "FK-513_1",
+          "FK-513_2",
+          "IC-READER",
+          "SX-BR-300AN",
+          "UK-221"
+        ],
+        "max_quantity": 5,
+        "mutually_exclusive": false,
+        "description": "Internal controllers and interfaces"
+      },
+      "accessories": {
+        "options": [
+          "EM-907",
+          "HT-509",
+          "KP-101",
+          "MK-602",
+          "MK-603",
+          "MK-734",
+          "MK-735",
+          "MK-748",
+          "OC-513",
+          "PK-519",
+          "PK-524"
+        ],
+        "max_quantity": 10,
+        "mutually_exclusive": false,
+        "description": "Mount kits, punch kits, and other accessories"
+      }
+    },
+    "mounting_positions": {
+      "main_products": [
+        "C227i",
+        "C257i",
+        "C287i"
+      ],
+      "top": [
+        "DF-633"
+      ],
+      "side": [
+        "FS-533",
+        "FS-539",
+        "FS-539SD",
+        "JS-506",
+        "RU-514"
+      ],
+      "bottom": [
+        "DK-518",
+        "PC-118",
+        "PC-218",
+        "PC-418",
+        "WT-515"
+      ],
+      "internal": [
+        "AU-102",
+        "CU-101",
+        "EK-608",
+        "EK-609",
+        "FK-513_1",
+        "FK-513_2",
+        "IC-READER",
+        "SX-BR-300AN",
+        "UK-221"
+      ],
+      "accessories": [
+        "EM-907",
+        "HT-509",
+        "KP-101",
+        "MK-602",
+        "MK-603",
+        "MK-734",
+        "MK-735",
+        "MK-748",
+        "OC-513",
+        "PK-519",
+        "PK-524"
+      ]
+    },
+    "example_configurations": [
+      [
+        "FS-533",
+        "PK-519",
+        "FS-539",
+        "FS-539SD",
+        "OT-506",
+        "WT-515"
+      ],
+      [
+        "LU-301",
+        "LU-204",
+        "BT-C1e",
+        "FS-533",
+        "PK-519",
+        "FS-539",
+        "FS-539SD",
+        "OT-506"
+      ],
+      [
+        "DF-633",
+        "OC-513",
+        "PC-118",
+        "PC-218",
+        "PC-418",
+        "DK-518"
+      ]
+    ]
+  },
+  {
+    "main_product": "C287i",
+    "compatible_options": {
+      "top": {
+        "options": [
+          "DF-633"
+        ],
+        "max_quantity": 1,
+        "mutually_exclusive": true,
+        "description": "Document feeder mounted on top"
+      },
+      "side": {
+        "options": [
+          "FS-533",
+          "FS-539",
+          "FS-539SD",
+          "JS-506",
+          "RU-514"
+        ],
+        "max_quantity": 3,
+        "mutually_exclusive": false,
+        "description": "Finishers and units mounted on side"
+      },
+      "bottom": {
+        "options": [
+          "DK-518",
+          "PC-118",
+          "PC-218",
+          "PC-418",
+          "WT-515"
+        ],
+        "max_quantity": 1,
+        "mutually_exclusive": true,
+        "description": "Cabinet or desk under the device"
+      },
+      "internal": {
+        "options": [
+          "AU-102",
+          "CU-101",
+          "EK-608",
+          "EK-609",
+          "FK-513_1",
+          "FK-513_2",
+          "IC-READER",
+          "SX-BR-300AN",
+          "UK-221"
+        ],
+        "max_quantity": 5,
+        "mutually_exclusive": false,
+        "description": "Internal controllers and interfaces"
+      },
+      "accessories": {
+        "options": [
+          "EM-907",
+          "HT-509",
+          "KP-101",
+          "MK-602",
+          "MK-603",
+          "MK-734",
+          "MK-735",
+          "MK-748",
+          "OC-513",
+          "PK-519",
+          "PK-524"
+        ],
+        "max_quantity": 10,
+        "mutually_exclusive": false,
+        "description": "Mount kits, punch kits, and other accessories"
+      }
+    },
+    "mounting_positions": {
+      "main_products": [
+        "C227i",
+        "C257i",
+        "C287i"
+      ],
+      "top": [
+        "DF-633"
+      ],
+      "side": [
+        "FS-533",
+        "FS-539",
+        "FS-539SD",
+        "JS-506",
+        "RU-514"
+      ],
+      "bottom": [
+        "DK-518",
+        "PC-118",
+        "PC-218",
+        "PC-418",
+        "WT-515"
+      ],
+      "internal": [
+        "AU-102",
+        "CU-101",
+        "EK-608",
+        "EK-609",
+        "FK-513_1",
+        "FK-513_2",
+        "IC-READER",
+        "SX-BR-300AN",
+        "UK-221"
+      ],
+      "accessories": [
+        "EM-907",
+        "HT-509",
+        "KP-101",
+        "MK-602",
+        "MK-603",
+        "MK-734",
+        "MK-735",
+        "MK-748",
+        "OC-513",
+        "PK-519",
+        "PK-524"
+      ]
+    },
+    "example_configurations": [
+      [
+        "FS-533",
+        "PK-519",
+        "FS-539",
+        "FS-539SD",
+        "OT-506",
+        "WT-515"
+      ],
+      [
+        "LU-301",
+        "LU-204",
+        "BT-C1e",
+        "FS-533",
+        "PK-519",
+        "FS-539",
+        "FS-539SD",
+        "OT-506"
+      ],
+      [
+        "DF-633",
+        "OC-513",
+        "PC-118",
+        "PC-218",
+        "PC-418",
+        "DK-518"
+      ]
+    ]
+  }
+]
