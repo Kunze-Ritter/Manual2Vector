@@ -288,18 +288,68 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     # Detect accessory type from name
     def detect_accessory_type(name):
         name_lower = name.lower()
-        if 'finisher' in name_lower or 'fs-' in name_lower:
+        name_upper = name.upper()
+        
+        # Finishers
+        if 'finisher' in name_lower or name_upper.startswith('FS-'):
             return 'finisher'
-        elif 'feeder' in name_lower or 'df-' in name_lower:
+        
+        # Feeders
+        elif 'feeder' in name_lower or name_upper.startswith('DF-'):
             return 'feeder'
-        elif 'tray' in name_lower or 'pk-' in name_lower:
+        
+        # Output Trays
+        elif 'tray' in name_lower or name_upper.startswith(('PK-', 'OT-')):
             return 'output_tray'
-        elif 'cabinet' in name_lower or 'pc-' in name_lower:
+        
+        # Cabinets/Desks
+        elif 'cabinet' in name_lower or 'desk' in name_lower or name_upper.startswith(('PC-', 'DK-')):
             return 'cabinet'
-        elif 'desk' in name_lower or 'dk-' in name_lower:
-            return 'cabinet'
-        elif 'unit' in name_lower or 'au-' in name_lower or 'cu-' in name_lower:
+        
+        # Hole Punch Units
+        elif 'punch' in name_lower or name_upper.startswith('HT-'):
+            return 'punch_unit'
+        
+        # Staplers/Saddle Stitchers
+        elif 'stapl' in name_lower or 'stitch' in name_lower or name_upper.startswith(('SD-', 'JS-')):
+            return 'stapler'
+        
+        # Paper Feeders
+        elif name_upper.startswith('PF-'):
+            return 'paper_feeder'
+        
+        # Large Capacity Units
+        elif name_upper.startswith(('LU-', 'LK-')):
+            return 'large_capacity_unit'
+        
+        # Relay Units
+        elif name_upper.startswith('RU-'):
+            return 'relay_unit'
+        
+        # Crease/Fold Units
+        elif name_upper.startswith(('CR-', 'FD-')):
+            return 'fold_unit'
+        
+        # Authentication Units
+        elif name_upper.startswith(('AU-', 'IC-', 'UK-')):
+            return 'authentication_unit'
+        
+        # Controller/Interface Units
+        elif name_upper.startswith(('CU-', 'EK-', 'IQ-')):
+            return 'controller_unit'
+        
+        # Waste Toner
+        elif name_upper.startswith('WT-'):
+            return 'waste_toner_box'
+        
+        # Modules
+        elif 'module' in name_lower or name_upper.startswith('MK-'):
             return 'accessory'
+        
+        # Generic units
+        elif 'unit' in name_lower:
+            return 'accessory'
+        
         else:
             return 'accessory'
     
