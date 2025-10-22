@@ -70,9 +70,10 @@ class LLMProductExtractor:
     def _build_extraction_prompt(self, text: str, manufacturer: str) -> str:
         """Build universal extraction prompt for LLM"""
         
-        # NOTE: Chunking is done by document_processor, so we use the full text here
-        # Each chunk is already limited to ~100K chars
-        text_sample = text
+        # Limit text to reasonable size for LLM (32K tokens ≈ 128K chars)
+        # Use first 100K chars to capture product info from beginning
+        max_chars = 100000
+        text_sample = text[:max_chars] if len(text) > max_chars else text
         
         prompt = f"""Extract ALL products (printers, accessories, options) from this {manufacturer} technical document.
 
