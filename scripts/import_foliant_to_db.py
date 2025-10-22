@@ -286,65 +286,90 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     updated_accessories = 0
     
     # Detect accessory type from name
+    # Based on Migration 107 & 110 product_type_check constraint
     def detect_accessory_type(name):
         name_lower = name.lower()
         name_upper = name.upper()
         
-        # Finishers
+        # Finishers (Migration 107)
         if 'finisher' in name_lower or name_upper.startswith('FS-'):
             return 'finisher'
         
-        # Feeders
-        elif 'feeder' in name_lower or name_upper.startswith('DF-'):
-            return 'feeder'
+        # Saddle Finishers (Migration 107: SD-*)
+        elif name_upper.startswith('SD-'):
+            return 'saddle_finisher'
         
-        # Output Trays
-        elif 'tray' in name_lower or name_upper.startswith(('PK-', 'OT-')):
-            return 'output_tray'
-        
-        # Cabinets/Desks
-        elif 'cabinet' in name_lower or 'desk' in name_lower or name_upper.startswith(('PC-', 'DK-')):
-            return 'cabinet'
-        
-        # Hole Punch Units
-        elif 'punch' in name_lower or name_upper.startswith('HT-'):
-            return 'punch_unit'
-        
-        # Staplers/Saddle Stitchers
-        elif 'stapl' in name_lower or 'stitch' in name_lower or name_upper.startswith(('SD-', 'JS-')):
+        # Staplers (Migration 110: JS-* standalone staplers)
+        elif name_upper.startswith('JS-'):
             return 'stapler'
         
-        # Paper Feeders
-        elif name_upper.startswith('PF-'):
-            return 'paper_feeder'
+        # Finisher Accessories (Migration 107: RU, PK, SK, TR)
+        elif name_upper.startswith(('PK-', 'SK-', 'TR-')):
+            return 'finisher_accessory'
         
-        # Large Capacity Units
-        elif name_upper.startswith(('LU-', 'LK-')):
-            return 'large_capacity_unit'
-        
-        # Relay Units
+        # Relay Units (Migration 110: RU-*)
         elif name_upper.startswith('RU-'):
             return 'relay_unit'
         
-        # Crease/Fold Units
+        # Feeders (Migration 107)
+        elif 'feeder' in name_lower or name_upper.startswith('DF-'):
+            return 'document_feeder'
+        
+        # Paper Feeders (Migration 107: PF-*)
+        elif name_upper.startswith('PF-'):
+            return 'paper_feeder'
+        
+        # Large Capacity Units (Migration 110: LU-*, LK-*)
+        elif name_upper.startswith(('LU-', 'LK-')):
+            return 'large_capacity_unit'
+        
+        # Output Trays (Migration 107: OT-*)
+        elif name_upper.startswith('OT-'):
+            return 'output_tray'
+        
+        # Cabinets/Desks (Migration 107: PC-*, DK-*)
+        elif 'cabinet' in name_lower or 'desk' in name_lower or name_upper.startswith(('PC-', 'DK-')):
+            return 'cabinet'
+        
+        # Hole Punch Units (Migration 110: HT-*)
+        elif name_upper.startswith('HT-'):
+            return 'punch_unit'
+        
+        # Fold/Crease Units (Migration 110: CR-*, FD-*)
         elif name_upper.startswith(('CR-', 'FD-')):
             return 'fold_unit'
         
-        # Authentication Units
-        elif name_upper.startswith(('AU-', 'IC-', 'UK-')):
-            return 'authentication_unit'
+        # Post Inserters (Migration 107: PI-*)
+        elif name_upper.startswith('PI-'):
+            return 'post_inserter'
         
-        # Controller/Interface Units
+        # Z-Fold Units (Migration 107: ZU-*)
+        elif name_upper.startswith('ZU-'):
+            return 'z_fold_unit'
+        
+        # Image Controllers (Migration 107: IC-*, MIC-*)
+        elif name_upper.startswith(('IC-', 'MIC-')):
+            return 'image_controller'
+        
+        # Controller Accessories (Migration 107: VI-*)
+        elif name_upper.startswith('VI-'):
+            return 'controller_accessory'
+        
+        # Controller Units (Migration 110: CU-*, EK-*, IQ-*)
         elif name_upper.startswith(('CU-', 'EK-', 'IQ-')):
             return 'controller_unit'
         
-        # Waste Toner
+        # Authentication Units (Migration 110: AU-*, UK-*)
+        elif name_upper.startswith(('AU-', 'UK-')):
+            return 'authentication_unit'
+        
+        # Waste Toner (Migration 107)
         elif name_upper.startswith('WT-'):
             return 'waste_toner_box'
         
-        # Modules
-        elif 'module' in name_lower or name_upper.startswith('MK-'):
-            return 'accessory'
+        # Mount Kits (Migration 107: MK-*)
+        elif name_upper.startswith('MK-'):
+            return 'mount_kit'
         
         # Generic units
         elif 'unit' in name_lower:

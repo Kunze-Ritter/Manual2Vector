@@ -313,56 +313,65 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
         model_upper = model_number.upper()
         
         # Accessory detection by prefix
+        # Updated to match Migration 107 & 110 product_type_check constraints
         accessory_prefixes = {
-            # Finishers & Finisher Accessories
-            'FS-': 'finisher',                  # Finisher (FS-533, FS-534, FS-534SD with integrated saddle stitcher)
-            'SD-': 'finisher_accessory',        # Saddle Stitcher Module (SD-511, SD-512, SD-513 - upgrade modules)
-            'RU-': 'finisher_accessory',        # Relay Unit (required bridge: RU-513, RU-514, RU-519)
-            'PK-': 'finisher_accessory',        # Punch Kit (hole punching: PK-519, PK-520, PK-523, PK-524, PK-526)
+            # Finishers & Finisher Accessories (Migration 107)
+            'FS-': 'finisher',                  # Finisher (FS-533, FS-534, FS-539, FS-541)
+            'SD-': 'saddle_finisher',           # Saddle Finisher (SD-511, SD-512, SD-513) - Migration 107
+            'JS-': 'stapler',                   # Stapler (JS-506, JS-602) - Migration 110
+            'PK-': 'finisher_accessory',        # Punch Kit (PK-519, PK-520, PK-523, PK-524, PK-526)
             'SK-': 'finisher_accessory',        # Staple Cartridge (staples for finisher)
             'TR-': 'finisher_accessory',        # Trimmer (cutting unit for finisher)
             'TU-': 'trimmer',                   # Trimmer Unit (TU-503)
-            'PI-': 'post_inserter',             # Post Inserter (PI-507)
-            'JS-': 'job_separator',             # Job Separator (JS-602)
-            'ZU-': 'z_fold_unit',               # Z-Fold Unit (ZU-609)
-            'CR-': 'creaser',                   # Creaser (CR-101)
-            'FD-': 'folding_unit',              # Folding Unit (FD-503, FD-504)
+            'PI-': 'post_inserter',             # Post Inserter (PI-507) - Migration 107
+            'ZU-': 'z_fold_unit',               # Z-Fold Unit (ZU-606, ZU-609) - Migration 107
+            'CR-': 'creaser',                   # Creaser (CR-101, CR-102, CR-103) - Migration 107
+            'FD-': 'folding_unit',              # Folding Unit (FD-503, FD-504) - Migration 107
+            'RU-': 'relay_unit',                # Relay Unit (RU-513, RU-514, RU-519) - Migration 110
+            'HT-': 'punch_unit',                # Hole Punch Unit (HT-506, HT-509) - Migration 110
             
             # Paper Handling
-            'PF-': 'paper_feeder',              # Paper Feeder
-            'PC-': 'paper_feeder',              # Paper Feed Unit/Cassette
+            'PF-': 'paper_feeder',              # Paper Feeder (PF-709, PF-710)
+            'PC-': 'cabinet',                   # Paper Cabinet (PC-118, PC-218, PC-418)
+            'DK-': 'cabinet',                   # Desk/Cabinet (DK-518)
             'MB-': 'paper_feeder',              # Multi Bypass Tray (250 sheets, banner formats)
-            'LU-': 'large_capacity_feeder',     # Large Capacity Feeder (high capacity)
-            'DF-': 'document_feeder',           # Document Feeder (for scanning)
-            'EF-': 'envelope_feeder',           # Envelope Feeder
+            'LU-': 'large_capacity_unit',       # Large Capacity Unit (LU-204, LU-208, LU-301) - Migration 110
+            'LK-': 'large_capacity_unit',       # Large Capacity Unit (LK-102, LK-105, LK-110) - Migration 110
+            'DF-': 'document_feeder',           # Document Feeder (DF-633) - for scanning
+            'EF-': 'envelope_feeder',           # Envelope Feeder (EF-106, EF-107, EF-108, EF-109)
+            'OT-': 'output_tray',               # Output Tray (OT-506, OT-512)
             
             # Output & Sorting
             'MT-': 'mailbox',                   # Mailbox/Sorter
             
-            # Image Controllers & Accessories
-            'IC-': 'image_controller',          # Image Controller / Digital Front End (DFE)
-            'MIC-': 'image_controller',         # Image Controller (Fiery for B/W systems)
-            'VI-': 'controller_accessory',      # Video Interface Kit (required bridge for controller)
+            # Image Controllers & Accessories (Migration 107)
+            'IC-': 'image_controller',          # Image Controller / Digital Front End (IC-320, IC-414)
+            'MIC-': 'image_controller',         # Image Controller (MIC-4160, MIC-4170 - Fiery)
+            'VI-': 'controller_accessory',      # Video Interface Kit (VI-506 - required bridge)
+            
+            # Controller Units (Migration 110)
+            'CU-': 'controller_unit',           # Controller Unit (CU-101, CU-104) - Migration 110
+            'EK-': 'controller_unit',           # Interface Kit (EK-608, EK-609, EK-612) - Migration 110
+            'IQ-': 'controller_unit',           # IQ Controller (IQ-501) - Migration 110
+            
+            # Authentication Units (Migration 110)
+            'AU-': 'authentication_unit',       # Authentication Unit (AU-102) - Migration 110
+            'UK-': 'authentication_unit',       # Card Reader (UK-209, UK-221, UK-301) - Migration 110
             
             # Connectivity & Interface
             'FK-': 'fax_kit',                   # Fax Kit
-            'EK-': 'interface_kit',             # Local Interface Kit (USB, keyboard, Bluetooth)
-            'UK-': 'interface_kit',             # USB Kit
             
-            # Storage & Authentication
+            # Storage
             'HD-': 'hard_drive',                # Hard Disk Drive
-            'AU-': 'card_reader',               # Authentication Unit (card reader)
             
             # Furniture & Support
-            'HT-': 'cabinet',                   # Hard Disk Table/Cabinet
-            'MK-': 'mount_kit',                 # Mount Kit (for installing finishers, fax, etc.)
+            'MK-': 'mount_kit',                 # Mount Kit (MK-602, MK-603, MK-734, MK-735, MK-748)
             
             # Consumables & Maintenance
-            'WT-': 'waste_toner_box',           # Waste Toner Box
-            'CU-': 'maintenance_kit',           # Cleaning Unit
+            'WT-': 'waste_toner_box',           # Waste Toner Box (WT-515) - Migration 107
             
             # Sensors
-            'IM-': 'media_sensor',              # Intelligent Media Sensor (paper weight/thickness)
+            'IM-': 'media_sensor',              # Intelligent Media Sensor (IM-101 - paper weight/thickness)
         }
         
         for prefix, accessory_type in accessory_prefixes.items():
