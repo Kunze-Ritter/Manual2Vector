@@ -553,7 +553,7 @@ class DocumentProcessor:
             self.logger.info("Step 2d/5: Linking accessories to products...")
             if products:
                 try:
-                    from backend.processors.accessory_linker import AccessoryLinker
+                    from .accessory_linker import AccessoryLinker
                     linker = AccessoryLinker(self.supabase)
                     link_stats = linker.link_accessories_for_document(document_id)
                     
@@ -629,7 +629,7 @@ class DocumentProcessor:
                 
                 # Link error codes to chunks for image support
                 try:
-                    from backend.processors.chunk_linker import link_error_codes_to_chunks
+                    from .chunk_linker import link_error_codes_to_chunks
                     
                     # Get chunks from database for this document
                     chunks_response = self.supabase.table('vw_intelligence_chunks').select(
@@ -663,7 +663,7 @@ class DocumentProcessor:
             # Link parts to error codes (if parts were extracted)
             if error_codes and parts:
                 try:
-                    from backend.processors.parts_linker import link_parts_to_error_codes
+                    from .parts_linker import link_parts_to_error_codes
                     
                     links = link_parts_to_error_codes(
                         error_codes=error_codes,

@@ -1,18 +1,20 @@
-# TODO: Product Configuration Dashboard
+# TODO: KRAI Admin Dashboard & Configuration System
 
 ## Current Status: Phase 1 & 2 Complete, Phase 3 Ready to Build! 🚀
 
-**Last Updated:** 2025-10-22 (10:15)
+**Last Updated:** 2025-10-22 (10:38)
 
 ---
 
 ## 🎯 Vision
 
-Ein interaktives Dashboard zum:
-1. **Verwalten** von Product Dependencies (requires, excludes, alternatives)
+Ein vollständiges Admin Dashboard zum:
+1. **Verwalten** von Products, Documents, Videos, Links
 2. **Konfigurieren** von Produkten mit Accessories/Options
 3. **Validieren** von Konfigurationen (Konflikte erkennen)
 4. **Visualisieren** von Kompatibilitäten und Abhängigkeiten
+5. **Monitoring** von System Status und Processing Queue
+6. **CRUD Operations** für alle Entities (Create, Read, Update, Delete)
 
 ---
 
@@ -37,7 +39,287 @@ Ein interaktives Dashboard zum:
 
 ## 📋 Phase 3: Dashboard & UI
 
-### 3.1 Product Configuration Builder ⭐ HIGH PRIORITY
+### 3.0 Dashboard Core & Navigation ⭐ HIGHEST PRIORITY
+
+**Goal:** Base dashboard structure with navigation and overview
+
+**Features:**
+- [ ] **Main Layout**
+  - Sidebar navigation
+  - Header with user info
+  - Main content area
+  - Responsive design (Desktop-first, mobile-friendly)
+  
+- [ ] **Dashboard Overview (Home)**
+  - Statistics cards (Products, Documents, Videos, Chunks count)
+  - Recent activity feed
+  - System status indicators
+  - Quick actions
+  
+- [ ] **Navigation Menu**
+  - 📊 Overview (Dashboard home)
+  - 📦 Products Management
+  - 📄 Documents Management
+  - 🎬 Videos Management
+  - 🔗 Links Management
+  - 🔧 Configuration Builder
+  - ⚙️ Dependencies Management
+  - ⚙️ Settings
+
+**API Endpoints needed:**
+```python
+# GET /api/dashboard/stats
+# Returns: { products_count, documents_count, videos_count, chunks_count }
+
+# GET /api/dashboard/activity
+# Returns: Recent activity feed (last 10 actions)
+
+# GET /api/dashboard/status
+# Returns: System status (DB connection, queue length, last backup)
+```
+
+**UI Framework:** React + TailwindCSS + shadcn/ui
+**Priority:** 🔥 HIGHEST (Foundation for everything)
+**Effort:** 6-8 hours
+**Blockers:** None
+
+---
+
+### 3.1 Products Management ⭐ HIGH PRIORITY
+
+**Goal:** CRUD interface for products with filtering and search
+
+**Features:**
+- [ ] **Product List View**
+  - Table with model_number, type, manufacturer, actions
+  - Search by model number or name
+  - Filter by product_type, manufacturer
+  - Pagination (50 per page)
+  - Sort by columns
+  
+- [ ] **Product Details View**
+  - Show all product information
+  - Show linked accessories
+  - Show linked documents
+  - Show linked videos
+  
+- [ ] **Create/Edit Product**
+  - Form with all fields
+  - Validation
+  - Save to database
+  
+- [ ] **Delete Product**
+  - Confirmation dialog
+  - Cascade delete or prevent if linked
+
+**API Endpoints needed:**
+```python
+# GET /api/products
+# Query params: search, type, manufacturer, page, per_page
+# Returns: Paginated product list
+
+# GET /api/products/{id}
+# Returns: Product details with accessories, documents, videos
+
+# POST /api/products
+# Body: Product data
+# Returns: Created product
+
+# PUT /api/products/{id}
+# Body: Updated product data
+# Returns: Updated product
+
+# DELETE /api/products/{id}
+# Returns: Success message
+```
+
+**UI Framework:** React + TailwindCSS + shadcn/ui + TanStack Table
+**Priority:** 🔥 HIGH
+**Effort:** 8-10 hours
+**Blockers:** 3.0 (Dashboard Core)
+
+---
+
+### 3.2 Documents Management ⭐ HIGH PRIORITY
+
+**Goal:** View, upload, delete, and reprocess documents
+
+**Features:**
+- [ ] **Document List View**
+  - Table with filename, type, status, upload_date, actions
+  - Search by filename
+  - Filter by document_type, status
+  - Status indicators: ✅ Done, ⏳ Processing, ❌ Error
+  - Pagination
+  
+- [ ] **Upload Document**
+  - Drag & drop or file picker
+  - Progress indicator
+  - Auto-start processing
+  
+- [ ] **Document Details View**
+  - Show metadata
+  - Show linked products
+  - Show chunks count
+  - Preview (if possible)
+  
+- [ ] **Delete Document**
+  - Confirmation dialog
+  - Delete document + chunks + embeddings
+  
+- [ ] **Reprocess Document**
+  - Re-run processing pipeline
+  - Update status
+
+**API Endpoints needed:**
+```python
+# GET /api/documents
+# Query params: search, type, status, page, per_page
+# Returns: Paginated document list
+
+# POST /api/documents/upload
+# Body: FormData with file
+# Returns: Document ID + processing status
+
+# GET /api/documents/{id}
+# Returns: Document details
+
+# DELETE /api/documents/{id}
+# Returns: Success message
+
+# POST /api/documents/{id}/reprocess
+# Returns: Processing job ID
+```
+
+**UI Framework:** React + TailwindCSS + shadcn/ui + React Dropzone
+**Priority:** 🔥 HIGH
+**Effort:** 8-10 hours
+**Blockers:** 3.0 (Dashboard Core)
+
+---
+
+### 3.3 Videos Management ⭐ HIGH PRIORITY
+
+**Goal:** Add, view, link, and manage videos
+
+**Features:**
+- [ ] **Video List View**
+  - Table with title, platform, product, status, actions
+  - Search by title or video_id
+  - Filter by platform (YouTube, Vimeo, etc.), status
+  - Status indicators: ✅ Linked, ⚠️ Needs Review, ❌ Error
+  - Pagination
+  
+- [ ] **Add Video**
+  - Form: video_url, platform, title (optional)
+  - Auto-extract metadata from URL
+  - Auto-enrich with AI
+  
+- [ ] **Video Details View**
+  - Show metadata (title, description, duration, etc.)
+  - Show linked products
+  - Embedded video player
+  - Transcript (if available)
+  
+- [ ] **Link Video to Product**
+  - Search and select product
+  - Save link
+  
+- [ ] **Delete Video**
+  - Confirmation dialog
+  - Remove from database
+  
+- [ ] **Re-enrich Video**
+  - Re-run AI enrichment
+  - Update metadata
+
+**API Endpoints needed:**
+```python
+# GET /api/videos
+# Query params: search, platform, status, product_id, page, per_page
+# Returns: Paginated video list
+
+# POST /api/videos
+# Body: { video_url, platform, title }
+# Returns: Created video + enrichment job ID
+
+# GET /api/videos/{id}
+# Returns: Video details with linked products
+
+# POST /api/videos/{id}/link-product
+# Body: { product_id }
+# Returns: Success message
+
+# DELETE /api/videos/{id}
+# Returns: Success message
+
+# POST /api/videos/{id}/re-enrich
+# Returns: Enrichment job ID
+```
+
+**UI Framework:** React + TailwindCSS + shadcn/ui + React Player
+**Priority:** 🔥 HIGH
+**Effort:** 8-10 hours
+**Blockers:** 3.0 (Dashboard Core)
+
+---
+
+### 3.4 Links Management ⭐ HIGH PRIORITY
+
+**Goal:** Add, view, and manage external links (manuals, support pages, etc.)
+
+**Features:**
+- [ ] **Links List View**
+  - Table with url, title, type, linked_product, actions
+  - Search by url or title
+  - Filter by link_type (manual, support, video, etc.)
+  - Pagination
+  
+- [ ] **Add Link**
+  - Form: url, title, link_type, product_id (optional)
+  - Auto-fetch title from URL (if possible)
+  - Validate URL
+  
+- [ ] **Link Details View**
+  - Show metadata
+  - Show linked product
+  - Preview (iframe or screenshot)
+  
+- [ ] **Edit Link**
+  - Update url, title, type, product
+  
+- [ ] **Delete Link**
+  - Confirmation dialog
+
+**API Endpoints needed:**
+```python
+# GET /api/links
+# Query params: search, type, product_id, page, per_page
+# Returns: Paginated links list
+
+# POST /api/links
+# Body: { url, title, link_type, product_id }
+# Returns: Created link
+
+# GET /api/links/{id}
+# Returns: Link details
+
+# PUT /api/links/{id}
+# Body: Updated link data
+# Returns: Updated link
+
+# DELETE /api/links/{id}
+# Returns: Success message
+```
+
+**UI Framework:** React + TailwindCSS + shadcn/ui
+**Priority:** 🔥 HIGH
+**Effort:** 6-8 hours
+**Blockers:** 3.0 (Dashboard Core)
+
+---
+
+### 3.5 Product Configuration Builder ⭐ HIGH PRIORITY
 
 **Goal:** Interactive UI to configure a product with accessories
 
@@ -244,21 +526,83 @@ Ein interaktives Dashboard zum:
 
 ---
 
-## 📊 Implementation Priority
+## 📊 Implementation Roadmap
 
-### 🔥 Phase 3.1 (HIGH - Start First)
-1. Create API endpoints for configuration validation
-2. Build Product Configuration Builder UI
-3. Test with existing sample data
+### 🔥 Week 1: Dashboard Foundation (3.0)
+**Goal:** Get the base dashboard running
+1. ✅ Set up React project (Vite + TypeScript)
+2. ✅ Install dependencies (TailwindCSS, shadcn/ui, React Router, React Query)
+3. ✅ Create base layout (Sidebar, Header, Main content)
+4. ✅ Implement navigation
+5. ✅ Build Dashboard Overview (Stats, Activity, Status)
+6. ✅ Create API endpoints for dashboard stats
 
-### 🔍 Phase 3.2 (MEDIUM - After 3.1)
-1. Create API endpoints for dependency management
-2. Build Dependency Management Dashboard
-3. Add dependency graph visualization
+**Deliverable:** Working dashboard with navigation and overview page
+**Effort:** 6-8 hours
 
-### 📌 Phase 3.3 & 3.4 (LOW - Nice to Have)
-1. Build Compatibility Matrix
-2. Build Product Accessories Overview
+---
+
+### 🔥 Week 2: Core Management Pages (3.1, 3.2, 3.3, 3.4)
+**Goal:** CRUD for Products, Documents, Videos, Links
+1. ✅ Products Management (List, Create, Edit, Delete)
+2. ✅ Documents Management (List, Upload, Delete, Reprocess)
+3. ✅ Videos Management (List, Add, Link, Delete, Re-enrich)
+4. ✅ Links Management (List, Add, Edit, Delete)
+5. ✅ Create all API endpoints
+6. ✅ Implement filtering, search, pagination
+
+**Deliverable:** Full CRUD for all main entities
+**Effort:** 30-36 hours (3-4 days)
+
+---
+
+### 🔥 Week 3: Configuration Builder (3.5)
+**Goal:** Multi-step product configuration with validation
+1. ✅ Step 1: Product Selection
+2. ✅ Step 2: Accessory Selection (with auto-add dependencies)
+3. ✅ Step 3: Review & Validation
+4. ✅ Real-time validation display
+5. ✅ Save & export configurations
+
+**Deliverable:** Working configuration builder
+**Effort:** 12-16 hours (2 days)
+
+---
+
+### 🔍 Week 4: Dependencies & Advanced Features (3.6, 3.7)
+**Goal:** Dependency management and visualization
+1. ✅ Dependencies Management (CRUD)
+2. ✅ Dependency Graph Visualization (React Flow)
+3. ✅ Compatibility Matrix
+4. ✅ Bulk operations
+
+**Deliverable:** Complete dependency management system
+**Effort:** 12-16 hours (2 days)
+
+---
+
+### 📌 Week 5: Polish & Nice-to-Haves
+**Goal:** Improve UX and add advanced features
+1. ✅ Drag & Drop for configuration builder
+2. ✅ Export as PDF
+3. ✅ Share configurations via link
+4. ✅ Configuration templates
+5. ✅ Mobile optimization
+6. ✅ Performance optimization
+
+**Deliverable:** Production-ready dashboard
+**Effort:** 8-12 hours (1-2 days)
+
+---
+
+## 🎯 Total Effort Estimate
+- **Week 1 (Foundation):** 6-8 hours
+- **Week 2 (CRUD):** 30-36 hours
+- **Week 3 (Configuration):** 12-16 hours
+- **Week 4 (Dependencies):** 12-16 hours
+- **Week 5 (Polish):** 8-12 hours
+
+**Total:** 68-88 hours (2-3 weeks full-time, 4-6 weeks part-time)
 
 ---
 

@@ -7,7 +7,7 @@ from typing import List, Dict, Optional, Set
 from uuid import UUID
 from supabase import Client
 
-from backend.utils.accessory_detector import detect_konica_minolta_accessory
+from utils.accessory_detector import detect_konica_minolta_accessory
 
 logger = logging.getLogger(__name__)
 
