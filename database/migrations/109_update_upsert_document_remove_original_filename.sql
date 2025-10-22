@@ -2,23 +2,8 @@
 -- Date: 2025-10-22
 -- Reason: original_filename column was removed in migration 105, but RPC function still expects it
 
--- Drop old function
-DROP FUNCTION IF EXISTS public.upsert_document(
-    p_document_id UUID,
-    p_filename TEXT,
-    p_original_filename TEXT,
-    p_file_size BIGINT,
-    p_storage_path TEXT,
-    p_document_type VARCHAR(50),
-    p_language VARCHAR(10),
-    p_page_count INTEGER,
-    p_word_count INTEGER,
-    p_character_count INTEGER,
-    p_processing_status VARCHAR(50),
-    p_processing_results JSONB,
-    p_manufacturer VARCHAR(100),
-    p_manufacturer_id UUID
-);
+-- Drop ALL versions of the function (there might be multiple)
+DROP FUNCTION IF EXISTS public.upsert_document CASCADE;
 
 -- Create new function WITHOUT p_original_filename
 CREATE OR REPLACE FUNCTION public.upsert_document(
