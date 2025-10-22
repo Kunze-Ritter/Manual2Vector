@@ -202,7 +202,54 @@ def import_compatibility_links(compatibility_matrix, supabase, manufacturer_id):
         'links_updated': links_updated
     }
 
-def import_to_database(data, manufacturer_name="Konica Minolta"):
+def detect_series_name(main_products):
+    """Detect series name from product list"""
+    if not main_products:
+        return None
+    
+    # Check for bizhub patterns
+    first_product = main_products[0]['name']
+    
+    if re.match(r'C[2-7]\d{2}i', first_product):
+        # bizhub C-Series (C227i, C257i, C287i, C251i, etc.)
+        return 'bizhub C-Series'
+    elif first_product.startswith('AP'):
+        # AccurioPress
+        return 'AccurioPress'
+    elif re.match(r'\d{3}i', first_product):
+        # bizhub monochrome (301i, 361i, etc.)
+        return 'bizhub'
+    
+    return 'bizhub'  # Default
+
+def categorize_by_mounting_position(sprite_name):
+    """Categorize accessory by mounting position"""
+    if sprite_name.startswith('DF-'):
+        return 'top'
+    elif sprite_name.startswith(('FS-', 'LU-', 'JS-', 'RU-', 'SD-')):
+        return 'side'
+    elif sprite_name.startswith(('PC-', 'DK-', 'WT-')):
+        return 'bottom'
+    elif sprite_name.startswith(('CU-', 'EK-', 'IC-', 'AU-', 'UK-', 'FK-', 'SX-', 'IQ-', 'MIC-')):
+        return 'internal'
+    else:
+        return 'accessory'
+
+def extract_slot_number(sprite_name):
+    """Extract slot number from sprite name (e.g., FK-513_1 -> 1)"""
+    if '_' in sprite_name and sprite_name[-1].isdigit():
+        parts = sprite_name.rsplit('_', 1)
+        if len(parts) == 2 and parts[1].isdigit():
+            return int(parts[1])
+    return None
+
+def get_base_model(sprite_name):
+    """Get base model without slot suffix (e.g., FK-513_1 -> FK-513)"""
+    if '_' in sprite_name and sprite_name[-1].isdigit():
+        return sprite_name.rsplit('_', 1)[0]
+    return sprite_name
+
+def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=None):
     """Import articles and compatibility to KRAI database"""
     
     articles = data.get('articles', [])
@@ -242,8 +289,8 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     for article in articles:
         name = article['name']
         
-        # Main products: C###i, C###e pattern
-        if re.match(r'C\d{3}[ie]', name):
+        # Main products: C###i, C###e, AP#### pattern
+        if re.match(r'C\d{3}[ie]', name) or name.startswith('AP'):
             main_products.append(article)
         else:
             accessories.append(article)
@@ -251,6 +298,28 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     print(f"\nClassified:")
     print(f"  Main products: {len(main_products)}")
     print(f"  Accessories: {len(accessories)}")
+    
+    # Detect and create/get series
+    series_name = detect_series_name(main_products)
+    series_id = None
+    
+    if series_name:
+        print(f"\nDetected series: {series_name}")
+        
+        # Check if series exists
+        series_result = supabase.table('product_series').select('id').eq('name', series_name).eq('manufacturer_id', manufacturer_id).execute()
+        
+        if series_result.data:
+            series_id = series_result.data[0]['id']
+            print(f"  Series exists: {series_id}")
+        else:
+            # Create series
+            series_insert = supabase.table('product_series').insert({
+                'name': series_name,
+                'manufacturer_id': manufacturer_id
+            }).execute()
+            series_id = series_insert.data[0]['id']
+            print(f"  Created series: {series_id}")
     
     # Import main products
     print(f"\n{'=' * 80}")
@@ -268,23 +337,27 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
         existing = supabase.table('vw_products').select('id').eq('model_number', model_number).execute()
         
         if existing.data:
-            # Update with article code
+            # Update with article code and series
             product_id = existing.data[0]['id']
-            supabase.table('vw_products').update({
-                'article_code': article_code
-            }).eq('id', product_id).execute()
+            update_data = {'article_code': article_code}
+            if series_id:
+                update_data['series_id'] = series_id
+            supabase.table('vw_products').update(update_data).eq('id', product_id).execute()
             updated_products += 1
-            print(f"  Updated: {model_number} (article_code: {article_code})")
+            print(f"  Updated: {model_number} (article_code: {article_code}, series: {series_name})")
         else:
             # Insert new product
-            supabase.table('vw_products').insert({
+            insert_data = {
                 'model_number': model_number,
                 'manufacturer_id': manufacturer_id,
                 'product_type': 'laser_multifunction',  # Default for bizhub
                 'article_code': article_code
-            }).execute()
+            }
+            if series_id:
+                insert_data['series_id'] = series_id
+            supabase.table('vw_products').insert(insert_data).execute()
             imported_products += 1
-            print(f"  Imported: {model_number} (article_code: {article_code})")
+            print(f"  Imported: {model_number} (article_code: {article_code}, series: {series_name})")
     
     print(f"\nMain products: {imported_products} new, {updated_products} updated")
     
@@ -419,7 +492,62 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     
     print(f"\nAccessories: {imported_accessories} new, {updated_accessories} updated")
     
-    # Import compatibility matrix (physical specs + links)
+    # Import product_accessories links (compatibility)
+    print(f"\n{'=' * 80}")
+    print("Creating product_accessories links...")
+    print("=" * 80)
+    
+    # Get all products from DB
+    all_products_result = supabase.table('vw_products').select('id, model_number').eq('manufacturer_id', manufacturer_id).execute()
+    product_map = {p['model_number']: p['id'] for p in all_products_result.data}
+    
+    links_created = 0
+    links_skipped = 0
+    
+    # For each main product, link all accessories
+    for main_product in main_products:
+        main_model = main_product['name']
+        if main_model not in product_map:
+            continue
+        
+        main_product_id = product_map[main_model]
+        
+        for accessory in accessories:
+            accessory_model = get_base_model(accessory['name'])  # Remove _1, _2 suffix
+            
+            if accessory_model not in product_map:
+                continue
+            
+            accessory_id = product_map[accessory_model]
+            
+            # Get mounting position and slot number
+            mounting_position = categorize_by_mounting_position(accessory['name'])
+            slot_number = extract_slot_number(accessory['name'])
+            
+            # Check if link already exists
+            existing_link = supabase.table('product_accessories').select('id').eq('product_id', main_product_id).eq('accessory_id', accessory_id)
+            if slot_number:
+                existing_link = existing_link.eq('slot_number', slot_number)
+            existing_link = existing_link.execute()
+            
+            if not existing_link.data:
+                # Create link
+                link_data = {
+                    'product_id': main_product_id,
+                    'accessory_id': accessory_id,
+                    'mounting_position': mounting_position
+                }
+                if slot_number:
+                    link_data['slot_number'] = slot_number
+                
+                supabase.table('product_accessories').insert(link_data).execute()
+                links_created += 1
+            else:
+                links_skipped += 1
+    
+    print(f"\nProduct_accessories links: {links_created} created, {links_skipped} already existed")
+    
+    # Import compatibility matrix (physical specs)
     if compatibility_matrix:
         compat_stats = import_compatibility_links(compatibility_matrix, supabase, manufacturer_id)
     else:
@@ -429,9 +557,12 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
     print(f"\n{'=' * 80}")
     print("IMPORT SUMMARY")
     print("=" * 80)
+    if series_name:
+        print(f"📚 Series: {series_name} ({'created' if series_id else 'existing'})")
     print(f"📦 Products: {imported_products} new, {updated_products} updated")
     print(f"🔧 Accessories: {imported_accessories} new, {updated_accessories} updated")
-    print(f"🔗 Compatibility links: {compat_stats['links_created']} created, {compat_stats['links_updated']} updated")
+    print(f"🔗 Product_accessories links: {links_created} created, {links_skipped} skipped")
+    print(f"📏 Physical specs: {compat_stats['links_created']} created, {compat_stats['links_updated']} updated")
     print(f"📊 Total articles processed: {len(articles)}")
     
     # Log what was saved to DB
