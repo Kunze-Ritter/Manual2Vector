@@ -107,6 +107,17 @@ def extract_foliant_data(pdf_path):
                         
                         print(f"  Parsed specs for {len(compatibility_matrix)} items")
                 
+                # Log summary
+                print(f"\n{'=' * 80}")
+                print("EXTRACTION SUMMARY")
+                print("=" * 80)
+                print(f"Articles: {len(articles)}")
+                print(f"Compatibility Matrix Items: {len(compatibility_matrix)}")
+                if compatibility_matrix:
+                    # Count items with specs
+                    items_with_specs = sum(1 for specs in compatibility_matrix.values() if specs)
+                    print(f"Items with physical specs: {items_with_specs}")
+                
                 return {
                     'articles': articles,
                     'compatibility_matrix': compatibility_matrix
@@ -416,12 +427,28 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
         compat_stats = {'links_created': 0, 'links_updated': 0}
     
     print(f"\n{'=' * 80}")
-    print("SUMMARY")
+    print("IMPORT SUMMARY")
     print("=" * 80)
-    print(f"Products: {imported_products} new, {updated_products} updated")
-    print(f"Accessories: {imported_accessories} new, {updated_accessories} updated")
-    print(f"Compatibility links: {compat_stats['links_created']} created, {compat_stats['links_updated']} updated")
-    print(f"Total processed: {len(articles)}")
+    print(f"📦 Products: {imported_products} new, {updated_products} updated")
+    print(f"🔧 Accessories: {imported_accessories} new, {updated_accessories} updated")
+    print(f"🔗 Compatibility links: {compat_stats['links_created']} created, {compat_stats['links_updated']} updated")
+    print(f"📊 Total articles processed: {len(articles)}")
+    
+    # Log what was saved to DB
+    print(f"\n{'=' * 80}")
+    print("DATABASE CHANGES")
+    print("=" * 80)
+    if imported_products > 0:
+        print(f"✅ {imported_products} new products added to database")
+    if updated_products > 0:
+        print(f"🔄 {updated_products} products updated (article codes, types)")
+    if imported_accessories > 0:
+        print(f"✅ {imported_accessories} new accessories added to database")
+    if updated_accessories > 0:
+        print(f"🔄 {updated_accessories} accessories updated (article codes, types)")
+    if compatibility_matrix:
+        specs_count = sum(1 for specs in compatibility_matrix.values() if specs)
+        print(f"📏 Physical specs updated for {specs_count} items")
     
     return True  # Success!
 
