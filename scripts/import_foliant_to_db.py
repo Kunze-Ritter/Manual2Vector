@@ -79,7 +79,9 @@ def extract_foliant_data(pdf_path):
                 phys_match = re.search(r'<Physicals>(.*?)</Physicals>', data_str, re.DOTALL)
                 if phys_match:
                     phys_text = phys_match.group(1)
-                    lines = phys_text.split('\\r')
+                    # Split on various line endings (\r\n, \n, \r, or escaped \r)
+                    lines = re.split(r'\\r|\\n|\r\n|\n|\r', phys_text)
+                    lines = [line for line in lines if line.strip()]  # Remove empty lines
                     
                     if lines:
                         # Parse header (product/option names)
