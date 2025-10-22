@@ -345,9 +345,14 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
 if __name__ == "__main__":
     import sys
     from glob import glob
+    import shutil
     
     # Check for input_foliant directory
     input_dir = Path(__file__).parent.parent / "input_foliant"
+    processed_dir = input_dir / "processed"
+    
+    # Create processed directory if it doesn't exist
+    processed_dir.mkdir(exist_ok=True)
     
     if len(sys.argv) > 1:
         # Single file mode
@@ -391,6 +396,11 @@ if __name__ == "__main__":
                 import_to_database(data)
                 total_articles += len(data['articles'])
                 successful += 1
+                
+                # Move to processed directory
+                dest_path = processed_dir / Path(pdf_file).name
+                shutil.move(str(pdf_file), str(dest_path))
+                print(f"\n✅ Moved to: {dest_path.relative_to(input_dir.parent)}")
             else:
                 print("No data extracted!")
                 failed += 1
