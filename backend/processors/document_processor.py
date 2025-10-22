@@ -155,10 +155,42 @@ class DocumentProcessor:
         
         validation_errors = []
         
+        # Helper function to update processing status
+        def update_stage_status(stage: str, status: str = "in_progress"):
+            """Update stage_status in database"""
+            try:
+                from supabase import create_client
+                import os
+                from dotenv import load_dotenv
+                
+                load_dotenv()
+                supabase_url = os.getenv('SUPABASE_URL')
+                supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+                
+                if supabase_url and supabase_key:
+                    supabase = create_client(supabase_url, supabase_key)
+                    
+                    # Get current stage_status
+                    current = supabase.table('vw_documents').select('stage_status').eq('id', str(document_id)).single().execute()
+                    stage_status = current.data.get('stage_status', {}) if current.data else {}
+                    
+                    # Update stage
+                    stage_status[stage] = status
+                    
+                    # Update in DB
+                    supabase.table('vw_documents').update({
+                        'stage_status': stage_status,
+                        'processing_status': 'processing' if status == 'in_progress' else 'completed'
+                    }).eq('id', str(document_id)).execute()
+            except Exception as e:
+                self.logger.debug(f"Could not update stage status: {e}")
+        
         try:
             # Step 1: Extract text
             self.logger.info("Step 1/5: Extracting text from PDF...")
+            update_stage_status("text_extraction", "in_progress")
             page_texts, metadata = self.text_extractor.extract_text(working_pdf, document_id)
+            update_stage_status("text_extraction", "completed")
             
             # CRITICAL: Detect manufacturer EARLY from 3 sources (filename, metadata, document text)
             # This ensures _save_error_codes_to_db can find the manufacturer
@@ -371,6 +403,7 @@ class DocumentProcessor:
             
             # Extract products (from first page primarily)
             self.logger.info("Step 2/5: Extracting product models...")
+            update_stage_status("product_extraction", "in_progress")
             products = []
             
             # Re-initialize product extractor with document title for context-based series detection
@@ -486,6 +519,7 @@ class DocumentProcessor:
                     validation_errors.extend([str(e) for e in errors])
             
             self.logger.success(f"Extracted {len(products)} products")
+            update_stage_status("product_extraction", "completed")
             
             # Save products to database
             if products:
@@ -595,6 +629,7 @@ class DocumentProcessor:
             
             # Step 3: Extract error codes
             self.logger.info("Step 3/5: Extracting error codes...")
+            update_stage_status("error_code_extraction", "in_progress")
             error_codes = []
             
             # Get manufacturer for error code patterns
@@ -676,6 +711,7 @@ class DocumentProcessor:
                     validation_errors.extend([str(e) for e in errors])
             
             self.logger.success(f"Extracted {len(error_codes)} error codes")
+            update_stage_status("error_code_extraction", "completed")
             
             # Save error codes immediately (don't wait until end)
             if error_codes:
@@ -810,7 +846,9 @@ class DocumentProcessor:
             
             # Step 4: Create chunks
             self.logger.info("Step 4/8: Chunking text...")
+            update_stage_status("chunking", "in_progress")
             chunks = self.chunker.chunk_document(page_texts, document_id)
+            update_stage_status("chunking", "completed")
             
             # Deduplicate
             chunks = self.chunker.deduplicate_chunks(chunks)
