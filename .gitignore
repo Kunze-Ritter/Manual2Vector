@@ -32,14 +32,19 @@ venv.bak/
 .venv/
 
 # Environment Variables
-# Modular .env files are tracked (contain real config for private repo)
-# .env.local files can override for local development (not tracked)
+# All .env files are local-only (contain secrets)
+# Use .env.*.example files as templates
+.env
+.env.ai
+.env.database
+.env.external
+.env.pipeline
+.env.storage
 .env.local
 .env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.ai  # Local AI config - don't overwrite user's settings!
 credentials.txt
 
 # IDE
