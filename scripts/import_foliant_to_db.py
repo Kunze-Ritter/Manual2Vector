@@ -268,10 +268,10 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
         existing = supabase.table('vw_products').select('id').eq('model_number', model_number).execute()
         
         if existing.data:
-            # Update with article code in specifications
+            # Update with article code
             product_id = existing.data[0]['id']
             supabase.table('vw_products').update({
-                'specifications': {'article_code': article_code}
+                'article_code': article_code
             }).eq('id', product_id).execute()
             updated_products += 1
             print(f"  Updated: {model_number} (article_code: {article_code})")
@@ -281,7 +281,7 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
                 'model_number': model_number,
                 'manufacturer_id': manufacturer_id,
                 'product_type': 'laser_multifunction',  # Default for bizhub
-                'specifications': {'article_code': article_code}
+                'article_code': article_code
             }).execute()
             imported_products += 1
             print(f"  Imported: {model_number} (article_code: {article_code})")
@@ -402,7 +402,7 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
             product_id = existing.data[0]['id']
             supabase.table('vw_products').update({
                 'product_type': product_type,
-                'specifications': {'article_code': article_code}
+                'article_code': article_code
             }).eq('id', product_id).execute()
             updated_accessories += 1
             print(f"  Updated: {model_number:15} ({product_type:15}) -> {article_code}")
@@ -412,7 +412,7 @@ def import_to_database(data, manufacturer_name="Konica Minolta"):
                 'model_number': model_number,
                 'manufacturer_id': manufacturer_id,
                 'product_type': product_type,
-                'specifications': {'article_code': article_code}
+                'article_code': article_code
             }).execute()
             imported_accessories += 1
             print(f"  Imported: {model_number:15} ({product_type:15}) -> {article_code}")

@@ -23,6 +23,24 @@
   - Use slot_number instead of duplicate products
   - **Result:** Only 1x FK-513 in DB, 2x entries in product_accessories
 
+- [x] **Analyze all Foliant PDFs** ✅ (16:50)
+  - Analyzed 13 PDFs from input_foliant/
+  - Extracted 414 unique sprites across all series
+  - **Files:** `scripts/analyze_all_foliants.py`, `foliant_all_pdfs_analysis.json`
+  - **Result:** Complete overview of all products and accessories
+
+- [x] **Understand slot system** ✅ (17:00)
+  - Confirmed: _1, _2, _3 suffixes are installation positions, not different products
+  - Example: WT-511_1 to WT-511_7 = 7 positions for same product
+  - Reason: WT-511 mounts on right side, position depends on other options
+  - **Result:** Slot system design validated
+
+- [x] **Add article_code column** ✅ (17:03)
+  - Created Migration 112 for article_code
+  - Updated import_foliant_to_db.py to use dedicated column
+  - **Files:** `database/migrations/112_add_article_codes.sql`, `scripts/import_foliant_to_db.py`
+  - **Result:** Article codes will be stored in dedicated column
+
 ## 🔥 HIGH PRIORITY
 
 - [ ] **Add requires_accessory_id for dependencies** 🔥
@@ -128,20 +146,25 @@
 
 ## 📊 Statistics
 
-**Session:** 2025-10-22 (14:00-16:35)
-**Time:** ~2.5 hours
-**Commits:** 5+ commits
-**Files Created:** 18+ files
-**Migrations:** 2 (110, 111)
+**Session:** 2025-10-22 (14:00-17:05)
+**Time:** ~3 hours
+**Commits:** 8+ commits
+**Files Created:** 25+ files
+**Migrations:** 3 (110, 111, 112)
 
 **Key Achievements:**
-1. ✅ Complete Foliant compatibility matrix extracted
-2. ✅ Mounting position system implemented
-3. ✅ Slot system for duplicate accessories (FK-513_1/_2)
-4. ✅ 38 options categorized and documented
-5. ✅ Foundation for Agent compatibility checks
+1. ✅ Complete Foliant compatibility matrix extracted (414 unique sprites!)
+2. ✅ Mounting position system implemented (top/side/bottom/internal/accessory)
+3. ✅ Slot system validated (WT-511_1-7 = 7 installation positions)
+4. ✅ Analyzed ALL 13 Foliant PDFs (bizhub + AccurioPress)
+5. ✅ Article codes added to database (Migration 112)
+6. ✅ Corrected mutual exclusivity logic (positions are compatible!)
+7. ✅ Dependencies identified (Finisher needs PK-519, LU needs BT-C1e)
 
 **Next Focus:**
+- Run Migrations 110, 111, 112 in Supabase 🎯
+- Import all Foliant data to database 🎯
 - Dashboard upload endpoint 🎯
 - Agent compatibility validation 🎯
-- Dependencies parsing 🎯
+
+**Last Updated:** 2025-10-22 (17:05)
