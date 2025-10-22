@@ -54,7 +54,8 @@ class MasterPipeline:
         upload_images_to_r2: bool = False,  # Images to R2
         upload_documents_to_r2: bool = False,  # PDFs to R2
         enable_embeddings: bool = True,
-        max_retries: int = 2
+        max_retries: int = 2,
+        youtube_api_key: Optional[str] = None
     ):
         """
         Initialize master pipeline
@@ -92,7 +93,8 @@ class MasterPipeline:
         
         self.document_processor = DocumentProcessor(
             manufacturer=manufacturer,
-            supabase_client=supabase_client
+            supabase_client=supabase_client,
+            youtube_api_key=youtube_api_key
         )
         
         self.image_storage = ImageStorageProcessor(
@@ -462,7 +464,8 @@ class MasterPipeline:
                     'context_text': getattr(error_code, 'context_text', None),
                     'severity_level': getattr(error_code, 'severity_level', 'medium'),
                     'requires_technician': getattr(error_code, 'requires_technician', False),
-                    'requires_parts': getattr(error_code, 'requires_parts', False)
+                    'requires_parts': getattr(error_code, 'requires_parts', False),
+                    'chunk_id': getattr(error_code, 'chunk_id', None)  # For image linking
                 }
                 
                 # Build metadata with smart matching info
@@ -488,6 +491,7 @@ class MasterPipeline:
                     'p_requires_technician': ec_data.get('requires_technician', False),
                     'p_requires_parts': ec_data.get('requires_parts', False),
                     'p_context_text': ec_data.get('context_text'),
+                    'p_chunk_id': ec_data.get('chunk_id'),  # For image linking
                     'p_metadata': metadata
                 }).execute()
                 

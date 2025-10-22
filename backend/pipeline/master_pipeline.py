@@ -26,27 +26,27 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 
 # Import services
-from services.database_service_production import DatabaseService
-from services.object_storage_service import ObjectStorageService
-from services.ai_service import AIService
-from services.config_service import ConfigService
-from services.features_service import FeaturesService
-from services.quality_check_service import QualityCheckService
-from services.file_locator_service import FileLocatorService
-from utils.colored_logging import apply_colored_logging_globally
+from backend.services.database_service_production import DatabaseService
+from backend.services.object_storage_service import ObjectStorageService
+from backend.services.ai_service import AIService
+from backend.services.config_service import ConfigService
+from backend.services.features_service import FeaturesService
+from backend.services.quality_check_service import QualityCheckService
+from backend.services.file_locator_service import FileLocatorService
+from backend.utils.colored_logging import apply_colored_logging_globally
 
-from processors.upload_processor import UploadProcessor
-from processors.text_processor_optimized import OptimizedTextProcessor
-from processors.image_processor import ImageProcessor
-from processors.classification_processor import ClassificationProcessor
-from processors.chunk_preprocessor import ChunkPreprocessor
-from processors.metadata_processor_ai import MetadataProcessorAI
-from processors.link_extraction_processor_ai import LinkExtractionProcessorAI
-from processors.storage_processor import StorageProcessor
-from processors.embedding_processor import EmbeddingProcessor
-from processors.search_processor import SearchProcessor
+from backend.processors.upload_processor import UploadProcessor
+from backend.processors.text_processor_optimized import OptimizedTextProcessor
+from backend.processors.image_processor import ImageProcessor
+from backend.processors.classification_processor import ClassificationProcessor
+from backend.processors.chunk_preprocessor import ChunkPreprocessor
+from backend.processors.metadata_processor_ai import MetadataProcessorAI
+from backend.processors.link_extraction_processor_ai import LinkExtractionProcessorAI
+from backend.processors.storage_processor import StorageProcessor
+from backend.processors.embedding_processor import EmbeddingProcessor
+from backend.processors.search_processor import SearchProcessor
 
-from core.base_processor import ProcessingContext
+from backend.core.base_processor import ProcessingContext
 
 class KRMasterPipeline:
     """

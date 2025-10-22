@@ -156,3 +156,13 @@ cd supabase && supabase db reset
 *Erstellt: September 2025*  
 *Status: ✅ Production Ready*  
 *Empfehlung: 🚀 Verwende diese Version für alle neuen Installationen*
+
+---
+
+## 🔧 **AKTUELLE FIXES (Oktober 2025):**
+
+### **Neue Migrations:**
+- `100_update_rpc_function_add_chunk_id.sql` - Fügt chunk_id zu insert_error_code hinzu
+- `101_fix_links_manufacturer_id.sql` - Setzt manufacturer_id für alle Links
+
+**Siehe:** `DB_FIXES_CHECKLIST.md` im Root für Details!

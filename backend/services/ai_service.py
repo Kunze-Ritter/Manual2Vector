@@ -11,8 +11,8 @@ from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 import httpx
 
-from config.ai_config import get_ai_config, get_ollama_models, get_model_requirements
-from utils.gpu_detector import get_gpu_info, get_recommended_vision_model
+from backend.config.ai_config import get_ai_config, get_ollama_models, get_model_requirements
+from backend.utils.gpu_detector import get_gpu_info, get_recommended_vision_model
 
 class AIService:
     """

@@ -21,9 +21,9 @@ from multiprocessing import Pool, cpu_count
 from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
 from .exceptions import ManufacturerPatternNotFoundError
-from utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
-from config.oem_mappings import get_effective_manufacturer
-
+from backend.utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
+from backend.config.oem_mappings import get_effective_manufacturer
+from backend.processors.chunk_linker import link_error_codes_to_chunks
 
 logger = get_logger()
 
@@ -86,6 +86,7 @@ class ErrorCodeExtractor:
         """Initialize error code extractor with configuration"""
 
         self.logger = get_logger()
+        self._chunk_cache = {}  # Cache chunks to avoid repeated queries
         
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "error_code_patterns.json"
@@ -911,3 +912,55 @@ def extract_error_codes_from_text(
     """
     extractor = ErrorCodeExtractor()
     return extractor.extract_from_text(text, page_number)
+
+
+def find_chunk_for_error_code(
+    error_code: str,
+    page_number: int,
+    chunks: List[Dict],
+    logger=None
+) -> Optional[str]:
+    """
+    Find the intelligence chunk that contains this error code
+    
+    Strategy:
+    1. Prefer chunks on same page that contain the error code
+    2. Fallback to any chunk containing the error code
+    3. Return None if not found
+    
+    Args:
+        error_code: The error code to find (e.g., "66.60.32")
+        page_number: Page where error code was found
+        chunks: List of chunk dicts from database
+        logger: Optional logger
+        
+    Returns:
+        chunk_id (UUID as string) or None
+    """
+    if not chunks:
+        return None
+    
+    # Strategy 1: Same page + contains error code
+    for chunk in chunks:
+        chunk_page = chunk.get('page_start') or chunk.get('page_number')
+        chunk_text = chunk.get('text_chunk', '')
+        chunk_id = chunk.get('id')
+        
+        if chunk_page == page_number and error_code in chunk_text and chunk_id:
+            if logger:
+                logger.debug(f"Found chunk for {error_code} on page {page_number}")
+            return str(chunk_id)
+    
+    # Strategy 2: Any chunk containing error code
+    for chunk in chunks:
+        chunk_text = chunk.get('text_chunk', '')
+        chunk_id = chunk.get('id')
+        
+        if error_code in chunk_text and chunk_id:
+            if logger:
+                logger.debug(f"Found chunk for {error_code} (different page)")
+            return str(chunk_id)
+    
+    if logger:
+        logger.debug(f"No chunk found for {error_code}")
+    return None

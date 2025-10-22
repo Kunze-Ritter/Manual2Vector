@@ -16,7 +16,7 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 import logging
 
-from config.oem_mappings import OEM_MAPPINGS, get_oem_manufacturer, get_oem_info
+from backend.config.oem_mappings import OEM_MAPPINGS, get_oem_manufacturer, get_oem_info
 
 logger = logging.getLogger(__name__)
 
@@ -108,22 +108,15 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
             # No OEM relationship
             return False
         
-        # TEMPORARY WORKAROUND: Skip OEM sync due to PostgREST schema cache issue
-        # The columns exist in DB but PostgREST doesn't see them yet
-        # TODO: Remove this once schema cache is properly refreshed
-        logger.debug(f"OEM sync skipped for {product_id} (PostgREST PGRST204 - columns exist but not in cache)")
-        logger.debug(f"  Would set: {oem_info['oem_manufacturer']} (engine)")
-        return False
+        # Update product with OEM info
+        supabase.schema('krai_core').table('products').update({
+            'oem_manufacturer': oem_info['oem_manufacturer'],
+            'oem_relationship_type': 'engine',
+            'oem_notes': oem_info['notes']
+        }).eq('id', str(product_id)).execute()
         
-        # Original code (will be re-enabled once cache is fixed):
-        # supabase.table('vw_products').update({
-        #     'oem_manufacturer': oem_info['oem_manufacturer'],
-        #     'oem_relationship_type': 'engine',
-        #     'oem_notes': oem_info['notes']
-        # }).eq('id', str(product_id)).execute()
-        # 
-        # logger.info(f"Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
-        # return True
+        logger.info(f"✅ Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
+        return True
     
     except Exception as e:
         logger.error(f"Error updating product {product_id} OEM info: {e}")

@@ -11,7 +11,7 @@ from uuid import uuid4
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.image_processor import ImageProcessor
+from backend.processors.image_processor import ImageProcessor
 
 
 def test_image_extraction():

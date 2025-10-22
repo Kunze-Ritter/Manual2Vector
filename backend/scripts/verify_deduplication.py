@@ -17,7 +17,7 @@ from collections import defaultdict
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.database_service_production import DatabaseService
+from backend.services.database_service_production import DatabaseService
 
 # Load environment variables
 load_dotenv()

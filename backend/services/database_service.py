@@ -26,7 +26,7 @@ except ImportError:
     asyncpg = None
     ASYNCPG_AVAILABLE = False
 
-from core.data_models import (
+from backend.core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
     ErrorCodeModel, SearchAnalyticsModel, ProcessingQueueModel,
@@ -615,11 +615,11 @@ class DatabaseService:
             
             # Use pgvector for similarity search
             result = self.client.rpc(
-                "match_documents",
+                "match_chunks",
                 {
-                    "query_embedding": query_embedding,
-                    "match_threshold": threshold,
-                    "match_count": limit
+                    "filter": {},
+                    "match_count": limit,
+                    "query_embedding": query_embedding
                 }
             ).execute()
             

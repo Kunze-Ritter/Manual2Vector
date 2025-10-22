@@ -10,8 +10,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.version_extractor import VersionExtractor
-from processors.document_processor import DocumentProcessor
+from backend.processors.version_extractor import VersionExtractor
+from backend.processors.document_processor import DocumentProcessor
 
 
 def test_version_extractor():

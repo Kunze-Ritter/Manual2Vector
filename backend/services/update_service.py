@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from services.database_service import DatabaseService
+from backend.services.database_service import DatabaseService
 
 class UpdateService:
     """

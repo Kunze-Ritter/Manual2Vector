@@ -81,27 +81,41 @@ def detect_konica_minolta_accessory(model_number: str) -> Optional[AccessoryMatc
             compatible_series=['bizhub']
         )
     
-    # SD-* : Saddle Stitch Unit (Booklet)
+    # SD-* : Saddle Stitcher Module (Upgrade Module for Finishers)
+    # SD-511 → FS-534, FS-536
+    # SD-512 → FS-537
+    # SD-513 → AccurioPress (standalone)
     match = re.match(r'^SD-(\d{3})$', model_clean)
     if match:
+        # Determine compatible finishers based on model
+        sd_number = match.group(1)
+        if sd_number == '511':
+            compat_note = 'Compatible with FS-534, FS-536'
+        elif sd_number == '512':
+            compat_note = 'Compatible with FS-537'
+        elif sd_number == '513':
+            compat_note = 'For AccurioPress (standalone system)'
+        else:
+            compat_note = 'Saddle Stitcher upgrade module'
+        
         return AccessoryMatch(
             model_number=model_clean,
-            accessory_type='booklet_finisher',
-            product_type='booklet_finisher',
+            accessory_type='saddle_stitcher',
+            product_type='finisher_accessory',
             series_name='SD Series',
-            description=f'Konica Minolta {model_clean} Saddle Stitch/Booklet Unit',
-            compatible_series=['bizhub']
+            description=f'Konica Minolta {model_clean} Saddle Stitcher Module - {compat_note}',
+            compatible_series=['bizhub', 'AccurioPress']
         )
     
-    # PK-* : Punch Kit
+    # PK-* : Punch Kit (Finisher Accessory)
     match = re.match(r'^PK-(\d{3})$', model_clean)
     if match:
         return AccessoryMatch(
             model_number=model_clean,
-            accessory_type='punch_finisher',
-            product_type='punch_finisher',
+            accessory_type='punch_kit',
+            product_type='finisher_accessory',
             series_name='PK Series',
-            description=f'Konica Minolta {model_clean} Hole Punch Kit',
+            description=f'Konica Minolta {model_clean} Hole Punch Kit (Finisher Accessory)',
             compatible_series=['bizhub']
         )
     
@@ -117,16 +131,88 @@ def detect_konica_minolta_accessory(model_number: str) -> Optional[AccessoryMatc
             compatible_series=['bizhub']
         )
     
-    # ZF-* : Z-Fold Unit
+    # ZU-* : Z-Fold Unit (ZU-609)
+    match = re.match(r'^ZU-(\d{3})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='z_fold_unit',
+            product_type='z_fold_unit',
+            series_name='ZU Series',
+            description=f'Konica Minolta {model_clean} Z-Fold Unit',
+            compatible_series=['bizhub', 'AccurioPress']
+        )
+    
+    # ZF-* : Z-Fold Unit (legacy)
     match = re.match(r'^ZF-(\d{3,4})$', model_clean)
     if match:
         return AccessoryMatch(
             model_number=model_clean,
-            accessory_type='fold_unit',
-            product_type='fold_unit',
+            accessory_type='z_fold_unit',
+            product_type='z_fold_unit',
             series_name='ZF Series',
             description=f'Konica Minolta {model_clean} Z-Fold Unit',
             compatible_series=['bizhub']
+        )
+    
+    # TU-* : Trimmer Unit (TU-503)
+    match = re.match(r'^TU-(\d{3})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='trimmer',
+            product_type='trimmer',
+            series_name='TU Series',
+            description=f'Konica Minolta {model_clean} Trimmer Unit',
+            compatible_series=['bizhub', 'AccurioPress']
+        )
+    
+    # PI-* : Post Inserter (PI-507)
+    match = re.match(r'^PI-(\d{3})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='post_inserter',
+            product_type='post_inserter',
+            series_name='PI Series',
+            description=f'Konica Minolta {model_clean} Post Inserter',
+            compatible_series=['bizhub', 'AccurioPress']
+        )
+    
+    # JS-* : Job Separator (JS-602)
+    match = re.match(r'^JS-(\d{3})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='job_separator',
+            product_type='job_separator',
+            series_name='JS Series',
+            description=f'Konica Minolta {model_clean} Job Separator',
+            compatible_series=['bizhub', 'AccurioPress']
+        )
+    
+    # CR-* : Creaser (CR-101)
+    match = re.match(r'^CR-(\d{3})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='creaser',
+            product_type='creaser',
+            series_name='CR Series',
+            description=f'Konica Minolta {model_clean} Creaser',
+            compatible_series=['bizhub', 'AccurioPress']
+        )
+    
+    # FD-* : Folding Unit (FD-503, FD-504)
+    match = re.match(r'^FD-(\d{3})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='folding_unit',
+            product_type='folding_unit',
+            series_name='FD Series',
+            description=f'Konica Minolta {model_clean} Folding Unit',
+            compatible_series=['bizhub', 'AccurioPress']
         )
     
     # BF-* : Banner Feeder
@@ -253,15 +339,15 @@ def detect_konica_minolta_accessory(model_number: str) -> Optional[AccessoryMatc
             compatible_series=['bizhub']
         )
     
-    # RU-* : Relay Unit
+    # RU-* : Relay Unit (Finisher Accessory - Required Bridge)
     match = re.match(r'^RU-(\d{3})$', model_clean)
     if match:
         return AccessoryMatch(
             model_number=model_clean,
-            accessory_type='accessory',
-            product_type='accessory',
+            accessory_type='relay_unit',
+            product_type='finisher_accessory',
             series_name='RU Series',
-            description=f'Konica Minolta {model_clean} Relay Unit (Bypass/Separator)',
+            description=f'Konica Minolta {model_clean} Relay Unit (Required Bridge for Finisher)',
             compatible_series=['bizhub']
         )
     
@@ -302,6 +388,46 @@ def detect_konica_minolta_accessory(model_number: str) -> Optional[AccessoryMatc
             description=f'Konica Minolta {model_clean} Card Reader/Authentication Kit',
             compatible_series=['bizhub']
         )
+    
+    # ===== IMAGE CONTROLLERS & VIDEO INTERFACE =====
+    
+    # IC-* : Image Controller / Digital Front End (DFE)
+    match = re.match(r'^IC-(\d{3}[A-Z]?)$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='image_controller',
+            product_type='image_controller',
+            series_name='IC Series',
+            description=f'Konica Minolta {model_clean} Image Controller / Digital Front End (DFE)',
+            compatible_series=['AccurioPress', 'bizhub PRESS', 'bizhub']
+        )
+    
+    # MIC-* : Image Controller (Fiery for B/W systems)
+    match = re.match(r'^MIC-(\d{4})$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='image_controller',
+            product_type='image_controller',
+            series_name='MIC Series',
+            description=f'Konica Minolta {model_clean} Image Controller (Fiery for B/W Production)',
+            compatible_series=['AccurioPress']
+        )
+    
+    # VI-* : Video Interface Kit (Controller Accessory)
+    match = re.match(r'^VI-(\d{3}[A-Z]?)$', model_clean)
+    if match:
+        return AccessoryMatch(
+            model_number=model_clean,
+            accessory_type='video_interface',
+            product_type='controller_accessory',
+            series_name='VI Series',
+            description=f'Konica Minolta {model_clean} Video Interface Kit (Required Bridge for Image Controller)',
+            compatible_series=['AccurioPress', 'bizhub PRESS']
+        )
+    
+    # ===== CONSUMABLES =====
     
     # WT-* : Waste Toner Box
     match = re.match(r'^WT-(\d{3})$', model_clean)
@@ -365,15 +491,15 @@ def detect_konica_minolta_accessory(model_number: str) -> Optional[AccessoryMatc
             compatible_series=['bizhub']
         )
     
-    # SK-* : Staples
+    # SK-* : Staples (Finisher Accessory - Consumable)
     match = re.match(r'^SK-(\d{3})$', model_clean)
     if match:
         return AccessoryMatch(
             model_number=model_clean,
             accessory_type='staple_cartridge',
-            product_type='staple_cartridge',
+            product_type='finisher_accessory',
             series_name='SK Series',
-            description=f'Konica Minolta {model_clean} Staple Cartridge',
+            description=f'Konica Minolta {model_clean} Staple Cartridge (Finisher Accessory)',
             compatible_series=['bizhub']
         )
     

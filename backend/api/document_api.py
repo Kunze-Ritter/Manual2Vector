@@ -9,12 +9,12 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import JSONResponse
 from datetime import datetime
 
-from core.data_models import DocumentUploadRequest, DocumentUploadResponse, DocumentType
-from services.database_service import DatabaseService
-from services.object_storage_service import ObjectStorageService
-from services.ai_service import AIService
-from processors.upload_processor import UploadProcessor
-from processors.master_pipeline import MasterPipeline
+from backend.core.data_models import DocumentUploadRequest, DocumentUploadResponse, DocumentType
+from backend.services.database_service import DatabaseService
+from backend.services.object_storage_service import ObjectStorageService
+from backend.services.ai_service import AIService
+from backend.processors.upload_processor import UploadProcessor
+from backend.processors.master_pipeline import MasterPipeline
 
 class DocumentAPI:
     """

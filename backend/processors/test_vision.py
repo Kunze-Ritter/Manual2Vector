@@ -9,8 +9,8 @@ import json
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.vision_extractor import VisionProductExtractor
-from processors.logger import get_logger
+from backend.processors.vision_extractor import VisionProductExtractor
+from backend.processors.logger import get_logger
 
 logger = get_logger()
 

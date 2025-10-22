@@ -23,7 +23,7 @@ except ImportError:
     asyncpg = None
     ASYNCPG_AVAILABLE = False
 
-from core.data_models import (
+from backend.core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
     ErrorCodeModel, SearchAnalyticsModel, ProcessingQueueModel,

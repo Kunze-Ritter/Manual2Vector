@@ -13,8 +13,8 @@ load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.upload_processor import UploadProcessor, BatchUploadProcessor
-from processors.logger import get_logger
+from backend.processors.upload_processor import UploadProcessor, BatchUploadProcessor
+from backend.processors.logger import get_logger
 
 logger = get_logger()
 

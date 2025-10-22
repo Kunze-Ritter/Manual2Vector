@@ -9,8 +9,8 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from datetime import datetime
 
-from services.database_service import DatabaseService
-from services.features_service import FeaturesService
+from backend.services.database_service import DatabaseService
+from backend.services.features_service import FeaturesService
 
 class FeaturesAPI:
     """

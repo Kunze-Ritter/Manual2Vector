@@ -15,8 +15,8 @@ from dotenv import load_dotenv
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.database_service_production import DatabaseService
-from core.data_models import ImageModel
+from backend.services.database_service_production import DatabaseService
+from backend.core.data_models import ImageModel
 
 # Load environment variables
 load_dotenv()

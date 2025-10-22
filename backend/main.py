@@ -51,20 +51,21 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 
 # Import services
-from services.database_service import DatabaseService
-from services.object_storage_service import ObjectStorageService
-from services.ai_service import AIService
-from services.config_service import ConfigService
-from services.features_service import FeaturesService
-from services.video_enrichment_service import VideoEnrichmentService
-from services.link_checker_service import LinkCheckerService
+from backend.services.database_service import DatabaseService
+from backend.services.object_storage_service import ObjectStorageService
+from backend.services.ai_service import AIService
+from backend.services.config_service import ConfigService
+from backend.services.features_service import FeaturesService
+from backend.services.video_enrichment_service import VideoEnrichmentService
+from backend.services.link_checker_service import LinkCheckerService
 
 # Import APIs
-from api.document_api import DocumentAPI
-from api.search_api import SearchAPI
-from api.defect_detection_api import DefectDetectionAPI
-from api.features_api import FeaturesAPI
-from api.content_management_api import ContentManagementAPI
+from backend.api.document_api import DocumentAPI
+from backend.api.search_api import SearchAPI
+from backend.api.defect_detection_api import DefectDetectionAPI
+from backend.api.features_api import FeaturesAPI
+from backend.api.content_management_api import ContentManagementAPI
+from backend.api.openai_compatible_api import OpenAICompatibleAPI
 
 # Global services
 database_service = None
@@ -81,13 +82,14 @@ search_api = None
 defect_detection_api = None
 features_api = None
 content_management_api = None
+openai_api = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup event handler"""
     global database_service, storage_service, ai_service, config_service, features_service
     global video_enrichment_service, link_checker_service
-    global document_api, search_api, defect_detection_api, features_api, content_management_api
+    global document_api, search_api, defect_detection_api, features_api, content_management_api, openai_api
     
     # Startup
     print("🚀 Starting KR-AI-Engine...")
@@ -149,6 +151,7 @@ async def lifespan(app: FastAPI):
             video_enrichment_service=video_enrichment_service,
             link_checker_service=link_checker_service
         )
+        openai_api = OpenAICompatibleAPI(database_service, ai_service)
         
         # Include routers
         app.include_router(document_api.router)
@@ -156,7 +159,8 @@ async def lifespan(app: FastAPI):
         app.include_router(defect_detection_api.router)
         app.include_router(features_api.router)
         app.include_router(content_management_api.router)
-        print("✅ API routers registered")
+        app.include_router(openai_api.router)
+        print("✅ API routers registered (including OpenAI-compatible)")
         
         print("🎯 KR-AI-Engine ready!")
         
@@ -209,6 +213,7 @@ async def root():
             "defect_detection": "/defect-detection",
             "features": "/features",
             "content_management": "/content",
+            "openai_compatible": "/v1/chat/completions",
             "health": "/health"
         }
     }

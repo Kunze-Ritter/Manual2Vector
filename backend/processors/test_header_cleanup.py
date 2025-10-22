@@ -8,7 +8,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.chunker import SmartChunker
+from backend.processors.chunker import SmartChunker
 from uuid import uuid4
 
 

@@ -314,27 +314,55 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
         
         # Accessory detection by prefix
         accessory_prefixes = {
-            'HT-': 'cabinet',           # Hard Disk Table
-            'IM-': 'media_sensor',      # Intelligent Media Sensor (paper weight/thickness)
-            'PF-': 'paper_feeder',      # Paper Feeder
-            'MK-': 'mount_kit',         # Mount Kit (for installing finishers, fax, etc.)
-            'MB-': 'paper_feeder',      # Multi Bypass Tray (250 sheets, banner formats)
-            'EF-': 'envelope_feeder',   # Envelope Feeder
-            'SD-': 'finisher',          # Saddle Stitch Finisher
-            'FS-': 'finisher',          # Finisher
-            'DF-': 'document_feeder',   # Document Feeder
-            'LU-': 'large_capacity_feeder',  # Large Capacity Feeder
-            'PC-': 'paper_feeder',      # Paper Feed Unit
-            'MT-': 'mailbox',           # Mailbox/Sorter
-            'FK-': 'fax_kit',           # Fax Kit
-            'RU-': 'accessory',         # Relay Unit
-            'CU-': 'accessory',         # Cleaning Unit
-            'HD-': 'hard_drive',        # Hard Disk Drive
-            'EK-': 'interface_kit',     # Local Interface Kit (USB, keyboard, Bluetooth)
-            'VI-': 'interface_kit',     # Video/Controller Interface Kit (Fiery, IC-420)
-            'AU-': 'card_reader',       # Authentication Unit (card reader)
-            'UK-': 'accessory',         # USB Kit
-            'WT-': 'waste_toner_box',   # Waste Toner Box
+            # Finishers & Finisher Accessories
+            'FS-': 'finisher',                  # Finisher (FS-533, FS-534, FS-534SD with integrated saddle stitcher)
+            'SD-': 'finisher_accessory',        # Saddle Stitcher Module (SD-511, SD-512, SD-513 - upgrade modules)
+            'RU-': 'finisher_accessory',        # Relay Unit (required bridge: RU-513, RU-514, RU-519)
+            'PK-': 'finisher_accessory',        # Punch Kit (hole punching: PK-519, PK-520, PK-523, PK-524, PK-526)
+            'SK-': 'finisher_accessory',        # Staple Cartridge (staples for finisher)
+            'TR-': 'finisher_accessory',        # Trimmer (cutting unit for finisher)
+            'TU-': 'trimmer',                   # Trimmer Unit (TU-503)
+            'PI-': 'post_inserter',             # Post Inserter (PI-507)
+            'JS-': 'job_separator',             # Job Separator (JS-602)
+            'ZU-': 'z_fold_unit',               # Z-Fold Unit (ZU-609)
+            'CR-': 'creaser',                   # Creaser (CR-101)
+            'FD-': 'folding_unit',              # Folding Unit (FD-503, FD-504)
+            
+            # Paper Handling
+            'PF-': 'paper_feeder',              # Paper Feeder
+            'PC-': 'paper_feeder',              # Paper Feed Unit/Cassette
+            'MB-': 'paper_feeder',              # Multi Bypass Tray (250 sheets, banner formats)
+            'LU-': 'large_capacity_feeder',     # Large Capacity Feeder (high capacity)
+            'DF-': 'document_feeder',           # Document Feeder (for scanning)
+            'EF-': 'envelope_feeder',           # Envelope Feeder
+            
+            # Output & Sorting
+            'MT-': 'mailbox',                   # Mailbox/Sorter
+            
+            # Image Controllers & Accessories
+            'IC-': 'image_controller',          # Image Controller / Digital Front End (DFE)
+            'MIC-': 'image_controller',         # Image Controller (Fiery for B/W systems)
+            'VI-': 'controller_accessory',      # Video Interface Kit (required bridge for controller)
+            
+            # Connectivity & Interface
+            'FK-': 'fax_kit',                   # Fax Kit
+            'EK-': 'interface_kit',             # Local Interface Kit (USB, keyboard, Bluetooth)
+            'UK-': 'interface_kit',             # USB Kit
+            
+            # Storage & Authentication
+            'HD-': 'hard_drive',                # Hard Disk Drive
+            'AU-': 'card_reader',               # Authentication Unit (card reader)
+            
+            # Furniture & Support
+            'HT-': 'cabinet',                   # Hard Disk Table/Cabinet
+            'MK-': 'mount_kit',                 # Mount Kit (for installing finishers, fax, etc.)
+            
+            # Consumables & Maintenance
+            'WT-': 'waste_toner_box',           # Waste Toner Box
+            'CU-': 'maintenance_kit',           # Cleaning Unit
+            
+            # Sensors
+            'IM-': 'media_sensor',              # Intelligent Media Sensor (paper weight/thickness)
         }
         
         for prefix, accessory_type in accessory_prefixes.items():

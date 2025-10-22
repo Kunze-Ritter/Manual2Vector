@@ -9,9 +9,9 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from datetime import datetime
 
-from core.data_models import SearchRequest, SearchResponse
-from services.database_service import DatabaseService
-from services.ai_service import AIService
+from backend.core.data_models import SearchRequest, SearchResponse
+from backend.services.database_service import DatabaseService
+from backend.services.ai_service import AIService
 
 class SearchAPI:
     """

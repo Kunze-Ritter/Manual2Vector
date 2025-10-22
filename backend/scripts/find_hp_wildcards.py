@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.text_extractor import extract_text_from_pdf
+from backend.processors.text_extractor import extract_text_from_pdf
 from uuid import uuid4
 import re
 

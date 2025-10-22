@@ -19,12 +19,12 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.upload_processor import UploadProcessor, BatchUploadProcessor
-from processors.document_processor import DocumentProcessor
-from processors.stage_tracker import StageTracker
+from backend.processors.upload_processor import UploadProcessor, BatchUploadProcessor
+from backend.processors.document_processor import DocumentProcessor
+from backend.processors.stage_tracker import StageTracker
 
 # Import API routers
-from api.agent_api import create_agent_api
+from backend.api.agent_api import create_agent_api
 
 # Load ALL environment files (they are in project root)
 project_root = Path(__file__).parent.parent.parent

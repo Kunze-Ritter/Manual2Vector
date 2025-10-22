@@ -17,8 +17,8 @@ from dotenv import load_dotenv
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.embedding_processor import EmbeddingProcessor
-from processors.logger import get_logger
+from backend.processors.embedding_processor import EmbeddingProcessor
+from backend.processors.logger import get_logger
 
 
 def main():

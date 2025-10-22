@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from .logger import get_logger
-from utils.series_detector import detect_series
+from backend.utils.series_detector import detect_series
 
 logger = get_logger()
 

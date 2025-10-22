@@ -57,9 +57,9 @@ original_dir = os.getcwd()
 os.chdir(backend_dir)
 
 # Now import with full paths
-from processors.imports import get_supabase_client, get_logger
-from processors.master_pipeline import MasterPipeline
-from processors.__version__ import __version__, __commit__, __date__
+from backend.processors.imports import get_supabase_client, get_logger
+from backend.processors.master_pipeline import MasterPipeline
+from backend.processors.__version__ import __version__, __commit__, __date__
 from supabase import create_client
 
 # Import GPU utils from API directory
@@ -240,6 +240,7 @@ def main():
     # Read R2 upload settings from .env
     upload_images = os.getenv('UPLOAD_IMAGES_TO_R2', 'false').lower() == 'true'
     upload_documents = os.getenv('UPLOAD_DOCUMENTS_TO_R2', 'false').lower() == 'true'
+    youtube_api_key = os.getenv('YOUTUBE_API_KEY')  # Load YouTube API key from .env.external
     
     pipeline = MasterPipeline(
         supabase_client=supabase,
@@ -250,7 +251,8 @@ def main():
         upload_images_to_r2=upload_images,      # Upload images to R2 (from .env)
         upload_documents_to_r2=upload_documents,  # Upload PDFs to R2 (from .env)
         enable_embeddings=True,       # Generate embeddings
-        max_retries=2
+        max_retries=2,
+        youtube_api_key=youtube_api_key  # Pass YouTube API key for video metadata
     )
     
     # Process each PDF

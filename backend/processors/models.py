@@ -74,6 +74,11 @@ class ExtractedPart(BaseModel):
     page_number: Optional[int] = None
     context: Optional[str] = Field(None, max_length=500, description="Surrounding text context")
     
+    # NEW: Linking to error codes and products
+    related_error_codes: List[str] = Field(default_factory=list, description="Error codes that mention this part")
+    related_products: List[str] = Field(default_factory=list, description="Products this part is compatible with")
+    chunk_id: Optional[str] = None  # Link to chunk for images (like error codes)
+    
     @validator('part_number')
     def validate_part_number(cls, v):
         """Ensure part number is valid"""
@@ -103,6 +108,7 @@ class ExtractedErrorCode(BaseModel):
     # NEW: Product and video linking
     product_id: Optional[str] = None
     video_id: Optional[str] = None
+    chunk_id: Optional[str] = None  # Link to intelligence chunk for images
     
     @validator('error_description')
     def validate_description(cls, v):

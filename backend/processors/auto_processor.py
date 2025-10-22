@@ -19,10 +19,10 @@ original_dir = os.getcwd()
 os.chdir(backend_dir)
 
 # Now import with full paths
-from processors.document_processor import DocumentProcessor
-from processors.pipeline_processor import PipelineProcessor
-from processors.logger import get_logger
-from processors.__version__ import __version__, __commit__, __date__
+from backend.processors.document_processor import DocumentProcessor
+from backend.processors.pipeline_processor import PipelineProcessor
+from backend.processors.logger import get_logger
+from backend.processors.__version__ import __version__, __commit__, __date__
 
 # Change back
 os.chdir(original_dir)

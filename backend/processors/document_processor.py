@@ -13,6 +13,8 @@ from .logger import get_logger, log_processing_summary
 from .models import ProcessingResult, DocumentMetadata
 from .text_extractor import TextExtractor
 from .product_extractor import ProductExtractor
+from .product_code_extractor import ProductCodeExtractor
+from .document_type_detector import DocumentTypeDetector
 from .parts_extractor import PartsExtractor
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
@@ -55,6 +57,8 @@ class DocumentProcessor:
         # Initialize extractors
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
         self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
+        self.product_code_extractor = ProductCodeExtractor(debug=debug)
+        self.document_type_detector = DocumentTypeDetector(debug=debug)
         
         # Use existing image_processor for Vision AI (initialized below)
         # We'll pass it to parts_extractor after initialization
@@ -545,6 +549,32 @@ class DocumentProcessor:
             else:
                 self.logger.info(f">> No parts found (document type: {doc_type})")
             
+            # Step 2d: Link accessories to products
+            self.logger.info("Step 2d/5: Linking accessories to products...")
+            if products:
+                try:
+                    from backend.processors.accessory_linker import AccessoryLinker
+                    linker = AccessoryLinker(self.supabase)
+                    link_stats = linker.link_accessories_for_document(document_id)
+                    
+                    if link_stats['links_created'] > 0:
+                        self.logger.success(
+                            f"✅ Linked {link_stats['accessories']} accessories to "
+                            f"{link_stats['main_products']} products "
+                            f"({link_stats['links_created']} new links)"
+                        )
+                    elif link_stats['accessories'] > 0:
+                        self.logger.info(
+                            f"ℹ️  Found {link_stats['accessories']} accessories, "
+                            f"but all links already exist"
+                        )
+                    else:
+                        self.logger.info(">> No accessories detected in this document")
+                except Exception as e:
+                    self.logger.error(f"Error linking accessories: {e}")
+            else:
+                self.logger.debug("   ⏭️  Skipped accessory linking (no products)")
+            
             # Step 3: Extract error codes
             self.logger.info("Step 3/5: Extracting error codes...")
             error_codes = []
@@ -596,6 +626,27 @@ class DocumentProcessor:
                     product_series=product_series
                 )
                 self.logger.success(f"Enriched error codes with detailed solutions")
+                
+                # Link error codes to chunks for image support
+                try:
+                    from backend.processors.chunk_linker import link_error_codes_to_chunks
+                    
+                    # Get chunks from database for this document
+                    chunks_response = self.supabase.table('vw_intelligence_chunks').select(
+                        'id, text_chunk, page_start, page_number'
+                    ).eq('document_id', str(document_id)).execute()
+                    
+                    if chunks_response.data:
+                        linked_count = link_error_codes_to_chunks(
+                            error_codes=error_codes,
+                            chunks=chunks_response.data,
+                            verbose=True
+                        )
+                        self.logger.success(f"Linked {linked_count}/{len(error_codes)} error codes to chunks (for images)")
+                    else:
+                        self.logger.warning("No chunks found for chunk linking")
+                except Exception as e:
+                    self.logger.warning(f"Chunk linking failed: {e}")
             
             # Validate error codes
             for error_code in error_codes:
@@ -608,6 +659,31 @@ class DocumentProcessor:
             # Save error codes immediately (don't wait until end)
             if error_codes:
                 self._save_error_codes_to_db(document_id, error_codes)
+            
+            # Link parts to error codes (if parts were extracted)
+            if error_codes and parts:
+                try:
+                    from backend.processors.parts_linker import link_parts_to_error_codes
+                    
+                    links = link_parts_to_error_codes(
+                        error_codes=error_codes,
+                        parts=parts,
+                        strategy="both",  # solution + proximity
+                        verbose=True
+                    )
+                    
+                    # Update parts with related_error_codes
+                    for error_code, part_numbers in links.items():
+                        for part in parts:
+                            if part.part_number in part_numbers:
+                                if not hasattr(part, 'related_error_codes'):
+                                    part.related_error_codes = []
+                                if error_code not in part.related_error_codes:
+                                    part.related_error_codes.append(error_code)
+                    
+                    self.logger.success(f"🔗 Linked {len(links)} error codes to parts")
+                except Exception as e:
+                    self.logger.warning(f"Parts linking failed: {e}")
             
             # Step 3b: Extract versions
             self.logger.info("Step 3b/7: Extracting document versions...")
@@ -1142,25 +1218,36 @@ class DocumentProcessor:
                             self.logger.debug(f"Skipping video {video.get('youtube_id')} - link_id not found")
                             continue
                     
+                    # Get document_id from link BEFORE inserting video
+                    document_id = None
+                    if video.get('link_id'):
+                        try:
+                            link_result = supabase.table('vw_links').select('document_id').eq('id', video['link_id']).single().execute()
+                            if link_result.data:
+                                document_id = link_result.data['document_id']
+                        except Exception as e:
+                            self.logger.debug(f"Could not get document_id from link: {e}")
+                    
                     # Only insert fields that exist in videos table
                     # Remove thumbnail analysis fields if they don't exist in schema
                     video_data = {k: v for k, v in video.items() 
-                                  if k not in ['thumbnail_ocr_text', 'thumbnail_ai_description']}
+                                  if k not in ['thumbnail_ocr_text', 'thumbnail_ai_description', 'url']}
+                    
+                    # Add document_id to video data
+                    if document_id:
+                        video_data['document_id'] = document_id
                     
                     result = supabase.table('vw_videos').insert(video_data).execute()
                     
-                    # Auto-link manufacturer/series via link_id (videos → links → document)
-                    if result.data and len(result.data) > 0 and video.get('link_id'):
+                    # Auto-link manufacturer/series via RPC (if document_id exists)
+                    if result.data and len(result.data) > 0 and document_id:
                         video_id = result.data[0]['id']
                         try:
-                            # Get document_id from link
-                            link_result = supabase.table('vw_links').select('document_id').eq('id', video['link_id']).single().execute()
-                            if link_result.data:
-                                supabase.rpc('auto_link_resource_to_document', {
-                                    'p_resource_table': 'krai_content.videos',
-                                    'p_resource_id': video_id,
-                                    'p_document_id': link_result.data['document_id']
-                                }).execute()
+                            supabase.rpc('auto_link_resource_to_document', {
+                                'p_resource_table': 'krai_content.videos',
+                                'p_resource_id': video_id,
+                                'p_document_id': document_id
+                            }).execute()
                         except Exception as video_error:
                             self.logger.debug(f"Could not auto-link manufacturer/series: {video_error}")
                         
@@ -1415,6 +1502,26 @@ class DocumentProcessor:
                         self.logger.info(f"🔄 Updated {oem_updated} products with OEM information")
                 except Exception as e:
                     self.logger.debug(f"Could not update OEM info: {e}")
+            
+            # Create document-product links
+            if product_ids:
+                try:
+                    for product_id in product_ids:
+                        # Check if link already exists
+                        existing_link = supabase.schema('krai_core').table('document_products').select('id').eq(
+                            'document_id', str(document_id)
+                        ).eq('product_id', product_id).execute()
+                        
+                        if not existing_link.data:
+                            # Create link
+                            supabase.schema('krai_core').table('document_products').insert({
+                                'document_id': str(document_id),
+                                'product_id': product_id
+                            }).execute()
+                    
+                    self.logger.success(f"🔗 Linked {len(product_ids)} products to document")
+                except Exception as e:
+                    self.logger.warning(f"Could not create document-product links: {e}")
             
             return product_ids
         except Exception as e:
@@ -1985,8 +2092,11 @@ class DocumentProcessor:
         
         return {
             'total_pages': len(page_texts),
+            'page_count': len(page_texts),  # Add for document metadata
             'total_characters': total_chars,
+            'character_count': total_chars,  # Add for document metadata
             'total_words': total_words,
+            'word_count': total_words,  # Add for document metadata
             'total_chunks': len(chunks),
             'total_products': len(products),
             'total_error_codes': len(error_codes),

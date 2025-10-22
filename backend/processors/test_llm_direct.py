@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.llm_extractor import LLMProductExtractor
-from processors.logger import get_logger
+from backend.processors.llm_extractor import LLMProductExtractor
+from backend.processors.logger import get_logger
 
 logger = get_logger()
 

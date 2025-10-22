@@ -14,8 +14,8 @@ import json
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from processors.document_processor import DocumentProcessor
-from processors.logger import get_logger
+from backend.processors.document_processor import DocumentProcessor
+from backend.processors.logger import get_logger
 
 def main():
     parser = argparse.ArgumentParser(

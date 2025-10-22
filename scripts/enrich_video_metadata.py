@@ -34,20 +34,25 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import httpx
 from supabase import create_client, Client
 
-# Load environment variables (optional)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    # dotenv not available, use system environment
-    pass
-
-# Setup logging
+# Setup logging first
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Load environment variables (optional)
+try:
+    from dotenv import load_dotenv
+    # Load all .env files in root directory
+    root_dir = Path(__file__).parent.parent
+    for env_file in root_dir.glob('.env*'):
+        if env_file.is_file() and not env_file.name.endswith('.example'):
+            load_dotenv(env_file)
+            logger.info(f"Loaded environment from: {env_file.name}")
+except ImportError:
+    # dotenv not available, use system environment
+    pass
 
 # Configuration (lazy loaded)
 def get_youtube_api_key():
@@ -190,7 +195,7 @@ class VideoEnricher:
             url: Video URL
             
         Returns:
-            Manufacturer ID (UUID) or None
+            manufacturer_id (UUID) or None
         """
         try:
             from urllib.parse import urlparse
@@ -206,6 +211,42 @@ class VideoEnricher:
             
         except Exception as e:
             logger.error(f"Error detecting manufacturer: {e}")
+            return None
+    
+    async def detect_manufacturer_from_title(self, title: str) -> Optional[str]:
+        """
+        Detect manufacturer from video title
+        
+        Args:
+            title: Video title
+            
+        Returns:
+            manufacturer_id (UUID) or None
+        """
+        if not title:
+            return None
+        
+        try:
+            supabase = self._get_supabase()
+            
+            # Get all manufacturers
+            manufacturers = supabase.table('vw_manufacturers').select('id, name').execute()
+            
+            if not manufacturers.data:
+                return None
+            
+            # Check if manufacturer name is in title
+            title_upper = title.upper()
+            for mfr in manufacturers.data:
+                mfr_name = mfr.get('name', '').upper()
+                if mfr_name and mfr_name in title_upper:
+                    logger.debug(f"✅ Detected manufacturer '{mfr['name']}' from title")
+                    return mfr['id']
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting manufacturer from title: {e}")
             return None
     
     async def extract_direct_video_metadata(self, url: str) -> Dict[str, Any]:
@@ -594,13 +635,17 @@ class VideoEnricher:
             if not data:
                 return None
             
+            # Extract description from oEmbed or use title as fallback
+            description = data.get('description') or data.get('title', '')
+            
             return {
                 'title': data.get('title', f'Vimeo Video {video_id}'),
-                'description': data.get('description', 'No description available'),
+                'description': description,
                 'thumbnail_url': data.get('thumbnail_url'),
                 'duration': data.get('duration', 0),
                 'view_count': 0,  # Not available via oEmbed
-                'channel_title': data.get('author_name', 'Unknown')
+                'channel_title': data.get('author_name', 'Unknown'),
+                'vimeo_id': video_id  # Store for deduplication
             }
             
         except httpx.HTTPStatusError as e:
@@ -617,12 +662,32 @@ class VideoEnricher:
         """
         Extract manufacturer, series, and error codes from link context
         Returns dict with manufacturer_id, series_id, related_error_codes
+        
+        Priority:
+        1. From link directly (if set)
+        2. From document (via document_id)
+        3. None (will be detected from title/domain later)
         """
-        return {
+        context = {
             'manufacturer_id': link.get('manufacturer_id'),
             'series_id': link.get('series_id'),
             'related_error_codes': link.get('related_error_codes', [])
         }
+        
+        # If no manufacturer_id, try to get from document
+        if not context['manufacturer_id'] and link.get('document_id'):
+            try:
+                doc = self._get_supabase().table('vw_documents').select(
+                    'manufacturer_id, manufacturer'
+                ).eq('id', link['document_id']).limit(1).execute()
+                
+                if doc.data and doc.data[0].get('manufacturer_id'):
+                    context['manufacturer_id'] = doc.data[0]['manufacturer_id']
+                    logger.debug(f"✅ Got manufacturer_id from document: {doc.data[0].get('manufacturer')}")
+            except Exception as e:
+                logger.debug(f"Could not get manufacturer from document: {e}")
+        
+        return context
     
     async def enrich_youtube_link(self, link: Dict[str, Any]) -> bool:
         """Enrich a YouTube link with metadata"""
@@ -637,7 +702,7 @@ class VideoEnricher:
         
         try:
             # DEDUPLICATION: Check if video already exists by youtube_id (from ANY link)
-            existing = self._get_supabase().table('videos').select('id').eq('youtube_id', metadata['youtube_id']).limit(1).execute()
+            existing = self._get_supabase().schema('krai_content').table('videos').select('id').eq('youtube_id', metadata['youtube_id']).limit(1).execute()
             
             # Get contextual information from link
             context = self.get_link_context(link)
@@ -646,13 +711,17 @@ class VideoEnricher:
             if not context['manufacturer_id']:
                 context['manufacturer_id'] = await self.detect_manufacturer_from_url(link['url'])
             
+            # Try to detect from video title if still not found
+            if not context['manufacturer_id'] and metadata.get('title'):
+                context['manufacturer_id'] = await self.detect_manufacturer_from_title(metadata['title'])
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().table('videos').insert({
+                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': metadata['youtube_id'],
                     'platform': 'youtube',
@@ -681,7 +750,7 @@ class VideoEnricher:
                 video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
-            self._get_supabase().table('links').update({
+            self._get_supabase().schema('krai_content').table('links').update({
                 'video_id': video_id_to_link
             }).eq('id', link['id']).execute()
             
@@ -708,7 +777,7 @@ class VideoEnricher:
         try:
             # DEDUPLICATION: Check if video already exists by vimeo_id (from ANY link)
             # Vimeo ID is stored in metadata JSON
-            existing = self._get_supabase().table('videos').select('id').filter('metadata->>vimeo_id', 'eq', video_id).limit(1).execute()
+            existing = self._get_supabase().schema('krai_content').table('videos').select('id').filter('metadata->>vimeo_id', 'eq', video_id).limit(1).execute()
             
             # Get contextual information from link
             context = self.get_link_context(link)
@@ -717,13 +786,17 @@ class VideoEnricher:
             if not context['manufacturer_id']:
                 context['manufacturer_id'] = await self.detect_manufacturer_from_url(link['url'])
             
+            # Try to detect from video title if still not found
+            if not context['manufacturer_id'] and metadata.get('title'):
+                context['manufacturer_id'] = await self.detect_manufacturer_from_title(metadata['title'])
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().table('videos').insert({
+                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': None,  # Vimeo doesn't use youtube_id
                     'platform': 'vimeo',
@@ -750,7 +823,7 @@ class VideoEnricher:
                 video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
-            self._get_supabase().table('links').update({
+            self._get_supabase().schema('krai_content').table('links').update({
                 'video_id': video_id_to_link
             }).eq('id', link['id']).execute()
             
@@ -779,7 +852,7 @@ class VideoEnricher:
         try:
             # DEDUPLICATION: Check if video already exists by brightcove_id (from ANY link)
             # Brightcove ID is stored in metadata JSON
-            existing = self._get_supabase().table('videos').select('id').filter('metadata->>brightcove_id', 'eq', metadata['brightcove_id']).limit(1).execute()
+            existing = self._get_supabase().schema('krai_content').table('videos').select('id').filter('metadata->>brightcove_id', 'eq', metadata['brightcove_id']).limit(1).execute()
             
             # Get contextual information from link
             context = self.get_link_context(link)
@@ -788,13 +861,17 @@ class VideoEnricher:
             if not context['manufacturer_id']:
                 context['manufacturer_id'] = await self.detect_manufacturer_from_url(link['url'])
             
+            # Try to detect from video title if still not found
+            if not context['manufacturer_id'] and metadata.get('title'):
+                context['manufacturer_id'] = await self.detect_manufacturer_from_title(metadata['title'])
+            
             if existing.data:
                 # Video exists from another link! Reuse it
                 video_id_to_link = existing.data[0]['id']
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().table('videos').insert({
+                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': None,  # Brightcove doesn't use youtube_id
                     'platform': 'brightcove',
@@ -820,7 +897,7 @@ class VideoEnricher:
                 video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
-            self._get_supabase().table('links').update({
+            self._get_supabase().schema('krai_content').table('links').update({
                 'video_id': video_id_to_link
             }).eq('id', link['id']).execute()
             
@@ -863,14 +940,14 @@ class VideoEnricher:
                 manufacturer_id = context['manufacturer_id']
             
             # Check for existing video by URL
-            existing = self._get_supabase().table('videos').select('id').eq('video_url', url).limit(1).execute()
+            existing = self._get_supabase().schema('krai_content').table('videos').select('id').eq('video_url', url).limit(1).execute()
             
             if existing.data:
                 video_id_to_link = existing.data[0]['id']
                 logger.info(f"🔗 Video exists, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().table('videos').insert({
+                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
                     'link_id': link['id'],
                     'youtube_id': None,
                     'platform': 'direct',
@@ -899,7 +976,7 @@ class VideoEnricher:
                 video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
-            self._get_supabase().table('links').update({
+            self._get_supabase().schema('krai_content').table('links').update({
                 'video_id': video_id_to_link
             }).eq('id', link['id']).execute()
             
@@ -933,7 +1010,7 @@ class VideoEnricher:
         
         try:
             # Query for video links without video_id
-            query = self._get_supabase().table('links').select('*')
+            query = self._get_supabase().schema('krai_content').table('links').select('*')
             
             if not force:
                 query = query.is_('video_id', 'null')
@@ -1128,6 +1205,7 @@ async def main():
     args = parser.parse_args()
     
     # Check API key
+    YOUTUBE_API_KEY = get_youtube_api_key()
     if not YOUTUBE_API_KEY or YOUTUBE_API_KEY == 'your_youtube_api_key_here':
         logger.warning("⚠️  YouTube API key not configured!")
         logger.warning("   Set YOUTUBE_API_KEY in .env file")

@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Load environment variables
 load_dotenv()
 
-from processors.master_pipeline import MasterPipeline
+from backend.processors.master_pipeline import MasterPipeline
 from supabase import create_client
 
 
