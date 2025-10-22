@@ -224,7 +224,6 @@ class ImageStorageProcessor:
             image_record = {
                 'document_id': str(document_id),
                 'filename': storage_path,
-                'original_filename': image_path.name,
                 'storage_path': storage_path,
                 'storage_url': storage_url,
                 'file_hash': file_hash,

@@ -259,7 +259,6 @@ class UploadProcessor:
         record = {
             'id': document_id,
             'filename': file_path.name,
-            'original_filename': file_path.name,
             'storage_path': str(file_path),  # Use storage_path instead of file_path
             'file_hash': file_hash,
             'file_size': metadata['file_size_bytes'],  # Use file_size not file_size_bytes

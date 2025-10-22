@@ -2290,7 +2290,6 @@ class DocumentProcessor:
             document_data = {
                 'id': str(document_id),
                 'filename': pdf_path.name,
-                'original_filename': pdf_path.name,
                 'file_size': pdf_path.stat().st_size if pdf_path.exists() else 0,
                 'storage_path': str(pdf_path),
                 'document_type': 'service_manual',  # Default
@@ -2309,7 +2308,6 @@ class DocumentProcessor:
                 result = supabase.rpc('upsert_document', {
                     'p_document_id': str(document_id),
                     'p_filename': document_data['filename'],
-                    'p_original_filename': document_data['original_filename'],
                     'p_file_size': document_data['file_size'],
                     'p_storage_path': document_data['storage_path'],
                     'p_document_type': document_data['document_type'],

@@ -1,7 +1,7 @@
 # KRAI Database Schema Documentation
 ================================================================================
 
-**Zuletzt aktualisiert:** 17.10.2025 um 10:53 Uhr
+**Zuletzt aktualisiert:** 22.10.2025 um 10:45 Uhr
 
 **Quelle:** Direkt aus Supabase (ECHTE Struktur)
 
@@ -273,7 +273,6 @@
 |--------|-----|----------|---------|
 | `id` | uuid | NO | uuid_generate_v4() |
 | `filename` | character varying(255) | NO | - |
-| `original_filename` | character varying(255) | YES | - |
 | `file_size` | int8 | YES | - |
 | `file_hash` | character varying(64) | YES | - |
 | `storage_path` | text | YES | - |
@@ -284,8 +283,6 @@
 | `page_count` | int4 | YES | - |
 | `word_count` | int4 | YES | - |
 | `character_count` | int4 | YES | - |
-| `content_text` | text | YES | - |
-| `content_summary` | text | YES | - |
 | `extracted_metadata` | jsonb | YES | '{}'::jsonb |
 | `processing_status` | character varying(50) | YES | 'pending'::character varying |
 | `processing_results` | jsonb | YES | - |
@@ -303,6 +300,8 @@
 | `updated_at` | timestamptz | YES | now() |
 | `priority_level` | int4 | YES | 5 |
 | `manufacturer_id` | uuid | YES | - |
+
+**Note:** Spalten `original_filename`, `content_text`, und `content_summary` wurden in Migration 104 entfernt.
 
 ### krai_core.manufacturers
 
