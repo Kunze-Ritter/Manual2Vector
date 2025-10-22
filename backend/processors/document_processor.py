@@ -431,9 +431,14 @@ class DocumentProcessor:
                     if len(page_texts[page_num]) >= 500  # Skip very short pages
                 ])
                 
-                # Single LLM call with all text
+                # Split into chunks and process all (100K chars per chunk = ~25K tokens)
                 if combined_text:
-                    self.logger.info(f"   → Sending {len(combined_text):,} characters to LLM...")
+                    chunk_size = 100000
+                    text_chunks = []
+                    for i in range(0, len(combined_text), chunk_size):
+                        text_chunks.append(combined_text[i:i + chunk_size])
+                    
+                    self.logger.info(f"   → Processing {len(combined_text):,} characters in {len(text_chunks)} chunks...")
                     
                     # Get detected manufacturer for LLM
                     detected_mfr = next(
@@ -441,20 +446,31 @@ class DocumentProcessor:
                         self.manufacturer if self.manufacturer != "AUTO" else "KONICA MINOLTA"
                     )
                     
-                    llm_products = self.llm_extractor.extract_from_specification_section(
-                        combined_text,
-                        detected_mfr,
-                        page_number=1  # Not relevant in batch mode
-                    )
-                    
-                    # Fix manufacturer for AUTO detection
-                    if llm_products:
-                        for prod in llm_products:
-                            if prod.manufacturer_name == "AUTO" or self.manufacturer == "AUTO":
-                                prod.manufacturer_name = detected_mfr
+                    # Process each chunk
+                    all_llm_products = []
+                    for chunk_idx, text_chunk in enumerate(text_chunks, 1):
+                        self.logger.info(f"   → Processing chunk {chunk_idx}/{len(text_chunks)}...")
                         
-                        products.extend(llm_products)
-                        self.logger.success(f"LLM extracted {len(llm_products)} products with specifications")
+                        llm_products = self.llm_extractor.extract_from_specification_section(
+                            text_chunk,
+                            detected_mfr,
+                            page_number=chunk_idx
+                        )
+                        
+                        # Fix manufacturer for AUTO detection
+                        if llm_products:
+                            for prod in llm_products:
+                                if prod.manufacturer_name == "AUTO" or self.manufacturer == "AUTO":
+                                    prod.manufacturer_name = detected_mfr
+                            
+                            all_llm_products.extend(llm_products)
+                            self.logger.info(f"      → Found {len(llm_products)} products in chunk {chunk_idx}")
+                    
+                    if all_llm_products:
+                        # Deduplicate across chunks
+                        unique_llm_products = product_extractor._deduplicate(all_llm_products)
+                        products.extend(unique_llm_products)
+                        self.logger.success(f"LLM extracted {len(unique_llm_products)} unique products from {len(text_chunks)} chunks")
                     else:
                         self.logger.info("   → No additional products found by LLM")
             
