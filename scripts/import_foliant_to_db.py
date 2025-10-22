@@ -48,10 +48,10 @@ def extract_foliant_data(pdf_path):
                 data_str = str(value)
                 
                 # Extract article codes (products and accessories)
+                articles = []
                 article_match = re.search(r'name;code\r(.*?)\r</', data_str, re.DOTALL)
                 if article_match:
                     articles_text = article_match.group(1)
-                    articles = []
                     
                     for line in articles_text.split('\r'):
                         if ';' in line:
@@ -70,13 +70,131 @@ def extract_foliant_data(pdf_path):
                         print(f"  {article['name']:20} -> {article['code']}")
                     if len(articles) > 10:
                         print(f"  ... and {len(articles) - 10} more")
+                
+                # Extract Physicals matrix (compatibility + specs)
+                compatibility_matrix = {}
+                phys_match = re.search(r'<Physicals>(.*?)</Physicals>', data_str, re.DOTALL)
+                if phys_match:
+                    phys_text = phys_match.group(1)
+                    lines = phys_text.split('\\r')
                     
-                    return articles
+                    if lines:
+                        # Parse header (product/option names)
+                        header = lines[0].split(';')
+                        print(f"\nFound compatibility matrix:")
+                        print(f"  Products/Options: {len(header) - 1}")
+                        print(f"  Properties: {len(lines) - 1}")
+                        
+                        # Parse each property row
+                        for line in lines[1:]:
+                            if line.strip():
+                                parts = line.split(';')
+                                if parts:
+                                    prop_name = parts[0]
+                                    # Store values for each product/option
+                                    for i, value in enumerate(parts[1:], 1):
+                                        if i < len(header):
+                                            product_name = header[i]
+                                            if product_name not in compatibility_matrix:
+                                                compatibility_matrix[product_name] = {}
+                                            if value.strip():
+                                                compatibility_matrix[product_name][prop_name] = value.strip()
+                        
+                        print(f"  Parsed specs for {len(compatibility_matrix)} items")
+                
+                return {
+                    'articles': articles,
+                    'compatibility_matrix': compatibility_matrix
+                }
     
-    return []
+    return {'articles': [], 'compatibility_matrix': {}}
 
-def import_to_database(articles, manufacturer_name="Konica Minolta"):
-    """Import articles to KRAI database"""
+def import_compatibility_links(compatibility_matrix, supabase, manufacturer_id):
+    """Import compatibility links from Physicals matrix"""
+    
+    print(f"\n{'=' * 80}")
+    print("Importing compatibility links...")
+    print("=" * 80)
+    
+    # Get all products from DB
+    products_result = supabase.table('vw_products').select('id, model_number').eq('manufacturer_id', manufacturer_id).execute()
+    product_map = {p['model_number']: p['id'] for p in products_result.data}
+    
+    print(f"Found {len(product_map)} products in database")
+    
+    links_created = 0
+    links_updated = 0
+    
+    # Parse compatibility from matrix
+    # Look for properties that indicate compatibility
+    for product_name, specs in compatibility_matrix.items():
+        if product_name not in product_map:
+            continue
+        
+        product_id = product_map[product_name]
+        
+        # Check for quantity limits (maxQty, minQty, etc.)
+        quantity_max = 1
+        quantity_min = 0
+        
+        for prop_name, value in specs.items():
+            prop_lower = prop_name.lower()
+            
+            # Look for max quantity
+            if 'maxqty' in prop_lower or 'max_qty' in prop_lower:
+                try:
+                    quantity_max = int(value)
+                except:
+                    pass
+            
+            # Look for min quantity
+            if 'minqty' in prop_lower or 'min_qty' in prop_lower:
+                try:
+                    quantity_min = int(value)
+                except:
+                    pass
+        
+        # Update product specifications with physical specs
+        physical_specs = {}
+        for prop_name, value in specs.items():
+            prop_lower = prop_name.lower()
+            
+            # Store physical properties
+            if prop_lower in ['width', 'depth', 'height', 'weight']:
+                try:
+                    physical_specs[prop_lower] = float(value)
+                except:
+                    physical_specs[prop_lower] = value
+            elif 'power' in prop_lower:
+                physical_specs[prop_name] = value
+        
+        if physical_specs:
+            # Update product with physical specs
+            current = supabase.table('vw_products').select('specifications').eq('id', product_id).single().execute()
+            current_specs = current.data.get('specifications', {}) if current.data else {}
+            current_specs.update(physical_specs)
+            
+            supabase.table('vw_products').update({
+                'specifications': current_specs
+            }).eq('id', product_id).execute()
+    
+    print(f"\nCompatibility links: {links_created} created, {links_updated} updated")
+    print(f"Physical specs updated for products")
+    
+    return {
+        'links_created': links_created,
+        'links_updated': links_updated
+    }
+
+def import_to_database(data, manufacturer_name="Konica Minolta"):
+    """Import articles and compatibility to KRAI database"""
+    
+    articles = data.get('articles', [])
+    compatibility_matrix = data.get('compatibility_matrix', {})
+    
+    if not articles:
+        print("No articles to import")
+        return
     
     supabase_url = os.getenv('SUPABASE_URL')
     supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
@@ -209,11 +327,19 @@ def import_to_database(articles, manufacturer_name="Konica Minolta"):
     
     print(f"\nAccessories: {imported_accessories} new, {updated_accessories} updated")
     
+    # Import compatibility matrix (physical specs + links)
+    if compatibility_matrix:
+        compat_stats = import_compatibility_links(compatibility_matrix, supabase, manufacturer_id)
+    else:
+        print("\nNo compatibility matrix found - skipping physical specs")
+        compat_stats = {'links_created': 0, 'links_updated': 0}
+    
     print(f"\n{'=' * 80}")
     print("SUMMARY")
     print("=" * 80)
-    print(f"Total imported: {imported_products + imported_accessories}")
-    print(f"Total updated: {updated_products + updated_accessories}")
+    print(f"Products: {imported_products} new, {updated_products} updated")
+    print(f"Accessories: {imported_accessories} new, {updated_accessories} updated")
+    print(f"Compatibility links: {compat_stats['links_created']} created, {compat_stats['links_updated']} updated")
     print(f"Total processed: {len(articles)}")
 
 if __name__ == "__main__":
@@ -258,12 +384,12 @@ if __name__ == "__main__":
             print("=" * 80)
             
             # Extract data
-            articles = extract_foliant_data(pdf_file)
+            data = extract_foliant_data(pdf_file)
             
-            if articles:
+            if data and data.get('articles'):
                 # Import to database
-                import_to_database(articles)
-                total_articles += len(articles)
+                import_to_database(data)
+                total_articles += len(data['articles'])
                 successful += 1
             else:
                 print("No data extracted!")
