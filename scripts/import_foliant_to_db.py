@@ -218,20 +218,68 @@ def import_to_database(articles, manufacturer_name="Konica Minolta"):
 
 if __name__ == "__main__":
     import sys
+    from glob import glob
+    
+    # Check for input_foliant directory
+    input_dir = Path(__file__).parent.parent / "input_foliant"
     
     if len(sys.argv) > 1:
+        # Single file mode
         pdf_path = sys.argv[1]
+        pdf_files = [pdf_path]
+    elif input_dir.exists():
+        # Batch mode - process all PDFs in input_foliant/
+        pdf_files = list(input_dir.glob("*.pdf"))
+        if not pdf_files:
+            print(f"No PDF files found in: {input_dir}")
+            print("\nPlace Foliant PDFs in the input_foliant/ directory")
+            sys.exit(1)
+        
+        print(f"Found {len(pdf_files)} PDF(s) in {input_dir}")
+        print("=" * 80)
     else:
-        print("Usage: python import_foliant_to_db.py <path_to_foliant_pdf>")
-        print("\nExample:")
-        print('  python import_foliant_to_db.py "C:\\Downloads\\Foliant bizhub C257i.pdf"')
+        print("Usage: python import_foliant_to_db.py [path_to_foliant_pdf]")
+        print("\nBatch mode:")
+        print(f"  Place Foliant PDFs in: {input_dir}")
+        print("  Then run: python import_foliant_to_db.py")
+        print("\nSingle file mode:")
+        print('  python import_foliant_to_db.py "C:\\Downloads\\Foliant.pdf"')
         sys.exit(1)
     
-    # Extract data
-    articles = extract_foliant_data(pdf_path)
+    # Process all PDFs
+    total_articles = 0
+    successful = 0
+    failed = 0
     
-    if articles:
-        # Import to database
-        import_to_database(articles)
-    else:
-        print("No data extracted!")
+    for pdf_file in pdf_files:
+        try:
+            print(f"\n{'=' * 80}")
+            print(f"Processing: {Path(pdf_file).name}")
+            print("=" * 80)
+            
+            # Extract data
+            articles = extract_foliant_data(pdf_file)
+            
+            if articles:
+                # Import to database
+                import_to_database(articles)
+                total_articles += len(articles)
+                successful += 1
+            else:
+                print("No data extracted!")
+                failed += 1
+        
+        except Exception as e:
+            print(f"ERROR processing {Path(pdf_file).name}: {e}")
+            import traceback
+            traceback.print_exc()
+            failed += 1
+    
+    # Summary
+    print(f"\n{'=' * 80}")
+    print("BATCH SUMMARY")
+    print("=" * 80)
+    print(f"Files processed: {len(pdf_files)}")
+    print(f"  Successful: {successful}")
+    print(f"  Failed: {failed}")
+    print(f"Total articles imported: {total_articles}")
