@@ -1379,106 +1379,106 @@ class DocumentProcessor:
                         'confidence': getattr(product, 'confidence', 0.0),
                         'specifications': getattr(product, 'specifications', {})
                     }
-                
-                # Get manufacturer_id (inherit from document if not specified)
-                manufacturer_name = product_data.get('manufacturer_name') or self.manufacturer
-                manufacturer_id = None
-                
-                if manufacturer_name and manufacturer_name != "AUTO":
-                    try:
-                        manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
-                    except Exception as e:
-                        self.logger.debug(f"Could not get manufacturer_id: {e}")
-                
-                # Check if product already exists
-                existing = supabase.table('vw_products').select('id').eq(
-                    'model_number', product_data['model_number']
-                ).limit(1).execute()
-                
-                if existing.data:
-                    # Update existing product
-                    product_id = existing.data[0]['id']
                     
-                    # Get current product_type to check if we should update
-                    current_result = supabase.table('vw_products').select('product_type').eq('id', product_id).single().execute()
-                    current_type = current_result.data.get('product_type') if current_result.data else None
+                    # Get manufacturer_id (inherit from document if not specified)
+                    manufacturer_name = product_data.get('manufacturer_name') or self.manufacturer
+                    manufacturer_id = None
                     
-                    update_data = {
-                        'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
-                    }
+                    if manufacturer_name and manufacturer_name != "AUTO":
+                        try:
+                            manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
+                        except Exception as e:
+                            self.logger.debug(f"Could not get manufacturer_id: {e}")
                     
-                    # Add specifications if available (from LLM extraction)
-                    if product_data.get('specifications'):
-                        update_data['specifications'] = product_data['specifications']
+                    # Check if product already exists
+                    existing = supabase.table('vw_products').select('id').eq(
+                        'model_number', product_data['model_number']
+                    ).limit(1).execute()
                     
-                    # Detect product_type (always try to improve)
-                    from utils.product_type_mapper import get_product_type
-                    detected_type = get_product_type(
-                        series_name=product_data.get('series_name', ''),
-                        model_number=product_data['model_number']
-                    )
-                    
-                    # Log detection result
-                    self.logger.debug(f"Product Type Detection for {product_data['model_number']}:")
-                    self.logger.debug(f"  Current: {current_type or 'NULL'}")
-                    self.logger.debug(f"  Detected: {detected_type or 'None'}")
-                    self.logger.debug(f"  Series: {product_data.get('series_name', 'None')}")
-                    
-                    # Update if we have a better type
-                    if detected_type:
-                        # Always update if NULL or generic fallback types
-                        should_update = (
-                            not current_type or 
-                            current_type in ['multifunction', 'laser_multifunction', 'printer']
+                    if existing.data:
+                        # Update existing product
+                        product_id = existing.data[0]['id']
+                        
+                        # Get current product_type to check if we should update
+                        current_result = supabase.table('vw_products').select('product_type').eq('id', product_id).single().execute()
+                        current_type = current_result.data.get('product_type') if current_result.data else None
+                        
+                        update_data = {
+                            'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
+                        }
+                        
+                        # Add specifications if available (from LLM extraction)
+                        if product_data.get('specifications'):
+                            update_data['specifications'] = product_data['specifications']
+                        
+                        # Detect product_type (always try to improve)
+                        from utils.product_type_mapper import get_product_type
+                        detected_type = get_product_type(
+                            series_name=product_data.get('series_name', ''),
+                            model_number=product_data['model_number']
                         )
                         
-                        # Or if detected type is more specific (e.g., production_printer vs laser_multifunction)
-                        if should_update or (detected_type != current_type and detected_type != 'laser_multifunction'):
-                            update_data['product_type'] = detected_type
-                            if current_type and current_type != detected_type:
-                                self.logger.info(f"✓ Updated product_type: {current_type} → {detected_type} for {product_data['model_number']}")
+                        # Log detection result
+                        self.logger.debug(f"Product Type Detection for {product_data['model_number']}:")
+                        self.logger.debug(f"  Current: {current_type or 'NULL'}")
+                        self.logger.debug(f"  Detected: {detected_type or 'None'}")
+                        self.logger.debug(f"  Series: {product_data.get('series_name', 'None')}")
+                        
+                        # Update if we have a better type
+                        if detected_type:
+                            # Always update if NULL or generic fallback types
+                            should_update = (
+                                not current_type or 
+                                current_type in ['multifunction', 'laser_multifunction', 'printer']
+                            )
+                            
+                            # Or if detected type is more specific (e.g., production_printer vs laser_multifunction)
+                            if should_update or (detected_type != current_type and detected_type != 'laser_multifunction'):
+                                update_data['product_type'] = detected_type
+                                if current_type and current_type != detected_type:
+                                    self.logger.info(f"✓ Updated product_type: {current_type} → {detected_type} for {product_data['model_number']}")
+                                else:
+                                    self.logger.info(f"✓ Set product_type: {detected_type} for {product_data['model_number']}")
                             else:
-                                self.logger.info(f"✓ Set product_type: {detected_type} for {product_data['model_number']}")
-                        else:
-                            self.logger.debug(f"  Skipped: Already correct or not better")
-                    
-                    supabase.table('vw_products').update(update_data).eq('id', product_id).execute()
-                    updated_count += 1
-                    product_ids.append(product_id)
-                else:
-                    # Create new product
-                    # Determine product_type from series_name + model_number
-                    product_type = 'laser_multifunction'  # Default fallback
-                    
-                    # Try to detect product_type (works even without series_name)
-                    from utils.product_type_mapper import get_product_type
-                    detected_type = get_product_type(
-                        series_name=product_data.get('series_name', ''),
-                        model_number=product_data['model_number']
-                    )
-                    
-                    if detected_type:
-                        product_type = detected_type
-                        self.logger.info(f"✓ New product type: {product_type} for {product_data['model_number']}")
+                                self.logger.debug(f"  Skipped: Already correct or not better")
+                        
+                        supabase.table('vw_products').update(update_data).eq('id', product_id).execute()
+                        updated_count += 1
+                        product_ids.append(product_id)
                     else:
-                        self.logger.debug(f"Using default product_type: {product_type} for {product_data['model_number']}")
-                    
-                    insert_data = {
-                        'model_number': product_data['model_number'],
-                        'manufacturer_id': str(manufacturer_id) if manufacturer_id else None,
-                        'product_type': product_type
-                    }
-                    
-                    # Add specifications if available (from LLM extraction)
-                    if product_data.get('specifications'):
-                        insert_data['specifications'] = product_data['specifications']
-                    result = supabase.table('vw_products').insert(insert_data).execute()
-                    if result.data:
-                        product_ids.append(result.data[0]['id'])
-                    saved_count += 1
-                    
-                    # Update progress
-                    progress.update(task, advance=1, description=f"Saved: {saved_count}, Updated: {updated_count}")
+                        # Create new product
+                        # Determine product_type from series_name + model_number
+                        product_type = 'laser_multifunction'  # Default fallback
+                        
+                        # Try to detect product_type (works even without series_name)
+                        from utils.product_type_mapper import get_product_type
+                        detected_type = get_product_type(
+                            series_name=product_data.get('series_name', ''),
+                            model_number=product_data['model_number']
+                        )
+                        
+                        if detected_type:
+                            product_type = detected_type
+                            self.logger.info(f"✓ New product type: {product_type} for {product_data['model_number']}")
+                        else:
+                            self.logger.debug(f"Using default product_type: {product_type} for {product_data['model_number']}")
+                        
+                        insert_data = {
+                            'model_number': product_data['model_number'],
+                            'manufacturer_id': str(manufacturer_id) if manufacturer_id else None,
+                            'product_type': product_type
+                        }
+                        
+                        # Add specifications if available (from LLM extraction)
+                        if product_data.get('specifications'):
+                            insert_data['specifications'] = product_data['specifications']
+                        result = supabase.table('vw_products').insert(insert_data).execute()
+                        if result.data:
+                            product_ids.append(result.data[0]['id'])
+                        saved_count += 1
+                        
+                        # Update progress
+                        progress.update(task, advance=1, description=f"Saved: {saved_count}, Updated: {updated_count}")
             
             self.logger.success(f"💾 Saved {saved_count} new products, updated {updated_count} existing")
             
