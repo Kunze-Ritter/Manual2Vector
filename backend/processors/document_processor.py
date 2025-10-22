@@ -53,6 +53,7 @@ class DocumentProcessor:
         self.manufacturer = manufacturer
         self.debug = debug
         self.logger = get_logger()
+        self.supabase = supabase_client  # Store supabase client for accessory linker
         
         # Initialize extractors
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
