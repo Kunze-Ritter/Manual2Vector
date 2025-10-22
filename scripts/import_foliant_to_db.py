@@ -553,7 +553,8 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
                     link_data = {
                         'product_id': main_product_id,
                         'accessory_id': accessory_id,
-                        'mounting_position': mounting_position
+                        'mounting_position': mounting_position,
+                        'compatibility_type': 'compatible'  # Default compatibility type
                     }
                     if slot_number:
                         link_data['slot_number'] = slot_number
