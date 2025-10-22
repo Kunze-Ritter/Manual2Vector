@@ -885,8 +885,7 @@ class DatabaseService:
     async def create_video(self, link_id: str, youtube_id: Optional[str] = None,
                           title: Optional[str] = None, description: Optional[str] = None,
                           thumbnail_url: Optional[str] = None, duration: Optional[int] = None,
-                          view_count: Optional[int] = None, like_count: Optional[int] = None,
-                          comment_count: Optional[int] = None, channel_id: Optional[str] = None,
+                          channel_id: Optional[str] = None,
                           channel_title: Optional[str] = None, published_at: Optional[str] = None,
                           metadata: Optional[Dict] = None) -> Optional[str]:
         """
@@ -904,9 +903,6 @@ class DatabaseService:
                 'p_description': description,
                 'p_thumbnail_url': thumbnail_url,
                 'p_duration': duration,
-                'p_view_count': view_count,
-                'p_like_count': like_count,
-                'p_comment_count': comment_count,
                 'p_channel_id': channel_id,
                 'p_channel_title': channel_title,
                 'p_published_at': published_at,

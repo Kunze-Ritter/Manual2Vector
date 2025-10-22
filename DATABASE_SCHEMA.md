@@ -221,9 +221,6 @@
 | `description` | text | YES | - |
 | `thumbnail_url` | text | YES | - |
 | `duration` | int4 | YES | - |
-| `view_count` | int8 | YES | - |
-| `like_count` | int4 | YES | - |
-| `comment_count` | int4 | YES | - |
 | `channel_id` | character varying(50) | YES | - |
 | `channel_title` | character varying(200) | YES | - |
 | `published_at` | timestamptz | YES | - |
@@ -234,6 +231,8 @@
 | `created_at` | timestamptz | YES | now() |
 | `updated_at` | timestamptz | YES | now() |
 | `enriched_at` | timestamptz | YES | now() |
+
+**Note:** Spalten `view_count`, `like_count`, und `comment_count` wurden in Migration 105 entfernt.
 
 ## krai_core
 

@@ -177,8 +177,6 @@ class ContentManagementAPI:
                     "title": result.get("title"),
                     "platform": result.get("platform"),
                     "duration": result.get("duration"),
-                    "view_count": result.get("view_count"),
-                    "like_count": result.get("like_count"),
                     "channel_title": result.get("channel_title"),
                     "description": result.get("description"),
                     "thumbnail_url": result.get("thumbnail_url"),

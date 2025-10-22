@@ -335,7 +335,6 @@ class SearchAPI:
                     v.description,
                     v.url,
                     v.duration,
-                    v.view_count,
                     v.published_at,
                     v.channel_title,
                     m.name as manufacturer
@@ -352,7 +351,7 @@ class SearchAPI:
                     query += " AND m.name ILIKE %s"
                     params.append(f"%{manufacturer}%")
                 
-                query += " ORDER BY v.view_count DESC NULLS LAST LIMIT %s"
+                query += " ORDER BY v.published_at DESC NULLS LAST LIMIT %s"
                 params.append(limit)
                 
                 # Execute query
@@ -367,7 +366,6 @@ class SearchAPI:
                         'description': row['description'],
                         'url': row['url'],
                         'duration': row['duration'],
-                        'view_count': row['view_count'],
                         'published_at': row['published_at'].isoformat() if row['published_at'] else None,
                         'channel': row['channel_title'],
                         'manufacturer': row['manufacturer']

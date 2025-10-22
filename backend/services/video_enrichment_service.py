@@ -144,8 +144,6 @@ class VideoEnrichmentService:
                     'description': metadata.get('description'),
                     'thumbnail_url': metadata.get('thumbnail_url'),
                     'duration': metadata.get('duration'),
-                    'view_count': metadata.get('view_count'),
-                    'like_count': metadata.get('like_count'),
                     'channel_title': metadata.get('channel_title'),
                     'manufacturer_id': final_manufacturer_id,
                     'document_id': document_id,
