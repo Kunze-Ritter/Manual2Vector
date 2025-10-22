@@ -299,6 +299,10 @@ def import_to_database(data, manufacturer_name="Konica Minolta", pdf_filename=No
     for article in articles:
         name = article['name']
         
+        # Skip internal sprite codes (APCM_* = AccurioPress Configuration Modules)
+        if name.startswith('APCM_'):
+            continue
+        
         # Main products: C###i, C###e, AP#### pattern
         if re.match(r'C\d{3}[ie]', name) or name.startswith('AP'):
             main_products.append(article)
