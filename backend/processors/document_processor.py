@@ -414,7 +414,8 @@ class DocumentProcessor:
                 document_title=document_title
             )
             
-            # Step 2a: Extract from filename as fallback (for files like "AccurioPress_C4080_C4070_...")
+            # Step 2a: Extract from filename and title (highest priority!)
+            # Filename extraction
             filename_products = product_extractor.extract_from_text(
                 pdf_path.stem.replace('_', ' '),  # Convert underscores to spaces
                 page_number=0  # Mark as filename extraction
@@ -422,6 +423,16 @@ class DocumentProcessor:
             if filename_products:
                 self.logger.success(f"Extracted {len(filename_products)} products from filename")
                 products.extend(filename_products)
+            
+            # Title extraction (CRITICAL for documents like "HP E87740, E87750, E87760 - CPMD")
+            if document_title:
+                title_products = product_extractor.extract_from_text(
+                    document_title,
+                    page_number=-1  # Mark as title extraction
+                )
+                if title_products:
+                    self.logger.success(f"Extracted {len(title_products)} products from document title")
+                    products.extend(title_products)
             
             # Step 2b: Scan ALL pages for products (regex extraction)
             self.logger.info(f"Running regex extraction on all {len(page_texts)} pages...")
