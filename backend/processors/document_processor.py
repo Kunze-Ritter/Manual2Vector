@@ -61,12 +61,13 @@ class DocumentProcessor:
         self.product_code_extractor = ProductCodeExtractor(debug=debug)
         self.document_type_detector = DocumentTypeDetector(debug=debug)
         
-        # Use existing image_processor for Vision AI (initialized below)
-        # We'll pass it to parts_extractor after initialization
-        self.parts_extractor = PartsExtractor()
+        # Initialize image_processor first (needed by parts_extractor)
+        self.image_processor = ImageProcessor(supabase_client=supabase_client)
+        
+        # Pass image_processor to parts_extractor for Vision AI enrichment
+        self.parts_extractor = PartsExtractor(vision_processor=self.image_processor)
         self.error_code_extractor = ErrorCodeExtractor()
         self.version_extractor = VersionExtractor()
-        self.image_processor = ImageProcessor(supabase_client=supabase_client)
         self.image_storage = ImageStorageProcessor(supabase_client=supabase_client)
         self.embedding_processor = EmbeddingProcessor(supabase_client=supabase_client)  # FIXED: Pass supabase client!
         self.chunker = SmartChunker(chunk_size=chunk_size, overlap_size=chunk_overlap)
@@ -542,10 +543,23 @@ class DocumentProcessor:
                     progress.update(task, advance=1, description=f"Parts found: {parts_count}")
             
             if parts:
-                # Vision AI enrichment happens in PartsExtractor via image_processor
+                # Vision AI enrichment for parts without names
                 parts_without_names = sum(1 for p in parts if not p.part_name)
                 if parts_without_names > 0:
-                    self.logger.info(f"ℹ️  {parts_without_names} parts without names (may need Vision AI analysis)")
+                    self.logger.info(f"ℹ️  {parts_without_names} parts without names - enriching with Vision AI...")
+                    try:
+                        parts = self.parts_extractor.enrich_parts_with_vision(
+                            parts=parts,
+                            pdf_path=pdf_path,
+                            manufacturer_name=detected_manufacturer
+                        )
+                        # Count how many were enriched
+                        parts_with_names_after = sum(1 for p in parts if p.part_name)
+                        enriched_count = parts_with_names_after - (len(parts) - parts_without_names)
+                        if enriched_count > 0:
+                            self.logger.success(f"✅ Vision AI enriched {enriched_count} parts with names")
+                    except Exception as e:
+                        self.logger.warning(f"Vision AI enrichment failed: {e}")
                 
                 self.logger.success(f"✅ Extracted {len(parts)} spare parts")
                 # Save parts immediately (like error codes)
