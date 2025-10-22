@@ -121,8 +121,18 @@ class SeriesProcessor:
         try:
             mfr_result = self.supabase.table('vw_manufacturers').select('name').eq('id', manufacturer_id).single().execute()
             manufacturer_name = mfr_result.data.get('name', '') if mfr_result.data else ''
-        except:
+        except Exception as e:
+            self.logger.warning(f"Could not get manufacturer name for {manufacturer_id}: {e}")
             manufacturer_name = ''
+        
+        # Don't detect series if manufacturer is unknown (prevents false matches)
+        if not manufacturer_name:
+            self.logger.warning(f"Skipping series detection for {model_number} - manufacturer unknown")
+            return {
+                'series_detected': False,
+                'series_created': False,
+                'product_linked': False
+            }
         
         # Detect series
         series_data = detect_series(model_number, manufacturer_name)
