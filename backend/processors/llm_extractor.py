@@ -246,7 +246,13 @@ JSON:"""
             for item in data:
                 try:
                     # Determine product type
-                    product_type_raw = item.get("product_type", "laser_printer").lower()
+                    product_type_raw = item.get("product_type", "laser_printer")
+                    
+                    # Handle case where LLM returns array instead of string
+                    if isinstance(product_type_raw, list):
+                        product_type_raw = product_type_raw[0] if product_type_raw else "laser_printer"
+                    
+                    product_type_raw = str(product_type_raw).lower()
                     
                     # Map LLM types to DB-valid types
                     # First, map generic types to specific types
