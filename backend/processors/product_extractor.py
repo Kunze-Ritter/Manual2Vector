@@ -306,8 +306,8 @@ class ProductExtractor:
         
         # Use config patterns if available
         if self.config and self.compiled_patterns:
-            if self.debug:
-                self.logger.debug(f"Using {len(self.compiled_patterns)} patterns from {self.config.canonical_name} config")
+            # ALWAYS log for debugging (not just when debug=True)
+            self.logger.info(f"🔍 Using {len(self.compiled_patterns)} patterns from {self.config.canonical_name} config")
             # Use manufacturer-specific config patterns
             for series_name, pattern, product_type in self.compiled_patterns:
                 matches = pattern.finditer(text)
@@ -319,16 +319,14 @@ class ProductExtractor:
                     rejected = False
                     for reject_pattern in self.reject_patterns:
                         if reject_pattern.match(model):
-                            if self.debug:
-                                self.logger.debug(f"✗ Rejected by pattern: '{model}'")
+                            self.logger.info(f"✗ Rejected by pattern: '{model}'")
                             rejected = True
                             break
                     
                     if rejected:
                         continue
                     
-                    if self.debug:
-                        self.logger.debug(f"Pattern '{series_name}' matched: '{model}'")
+                    self.logger.info(f"✓ Pattern '{series_name}' matched: '{model}'")
                     
                     # Validate
                     if self._validate_model(model):
@@ -337,8 +335,7 @@ class ProductExtractor:
                             model, text, match.start(), series_name
                         )
                         
-                        if self.debug:
-                            self.logger.debug(f"  ✓ Validated! Confidence: {confidence:.2f}")
+                        self.logger.info(f"  ✓ Validated! Confidence: {confidence:.2f}")
                         
                         # Use product_type from config
                         try:
@@ -352,12 +349,11 @@ class ProductExtractor:
                                 extraction_method=f"regex_config_{series_name}"
                             )
                             found_models.append(product)
+                            self.logger.success(f"  ✅ Added: {model}")
                         except Exception as e:
-                            if self.debug:
-                                self.logger.debug(f"  ✗ Pydantic validation failed: {e}")
+                            self.logger.error(f"  ✗ Pydantic validation failed: {e}")
                     else:
-                        if self.debug:
-                            self.logger.debug(f"  ✗ Rejected by validation")
+                        self.logger.warning(f"  ✗ Rejected by validation: {model}")
         else:
             # Fallback to legacy patterns if no config
             if self.debug:
