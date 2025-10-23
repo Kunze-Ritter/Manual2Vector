@@ -441,9 +441,11 @@ class KRAIAgent:
         self.chat_histories = {}
         
         # Initialize LLM
-        ollama_model = os.getenv("OLLAMA_MODEL_TEXT", "llama3.2:latest")
+        # Use OLLAMA_MODEL_CHAT for agent (better at conversation)
+        # Fallback to OLLAMA_MODEL_TEXT for backwards compatibility
+        ollama_model = os.getenv("OLLAMA_MODEL_CHAT") or os.getenv("OLLAMA_MODEL_TEXT", "llama3.2:latest")
         self.logger.info(f"Connecting to Ollama at: {ollama_base_url}")
-        self.logger.info(f"Using Ollama model: {ollama_model}")
+        self.logger.info(f"Using Ollama model for chat: {ollama_model}")
         
         self.llm = ChatOllama(
             model=ollama_model,
