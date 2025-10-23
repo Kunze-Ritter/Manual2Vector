@@ -501,6 +501,15 @@ def _detect_konica_series(model_number: str) -> Optional[Dict]:
             'series_description': 'Konica Minolta AccurioPrint production color printers'
         }
     
+    # C10500, C12010, C14010 (5-digit models with optional suffix)
+    # AccurioPrint C10500, C12010, C14010 series
+    if re.match(r'^C(10500|12010|14010)[SWOX]{0,2}$', model_clean):
+        return {
+            'series_name': 'AccurioPrint',
+            'model_pattern': 'Cxxxxx',
+            'series_description': 'Konica Minolta AccurioPrint production color printers'
+        }
+    
     # ===== PRIORITY 3: AccurioPress (High-end production) =====
     # C + 4-5 digits (C1060, C3070, C3080, C4070, C4080, C6085, C6100, C7090, C7100, C12000, C14000, C16000)
     # Also includes C74hc, C84hc (high capacity models)

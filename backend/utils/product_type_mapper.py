@@ -369,10 +369,18 @@ def get_product_type(series_name: str, model_pattern: Optional[str] = None, mode
             
             # Consumables & Maintenance
             'WT-': 'waste_toner_box',           # Waste Toner Box (WT-515) - Migration 107
+            'TN': 'toner_cartridge',            # Toner Cartridge (TN328K, TN626C, TN715Y)
+            'DR': 'drum_unit',                  # Drum Unit (DR012, DR316K, DR618C)
+            'DV': 'developer_unit',             # Developer Unit (DV012, DV315C, DV621K)
             
             # Sensors
             'IM-': 'media_sensor',              # Intelligent Media Sensor (IM-101 - paper weight/thickness)
         }
+        
+        # Special case: Cxxxxx pattern for Konica Minolta AccurioPrint (C10500, C12010, C14010)
+        # These are production printers (AccurioPrint series)
+        if re.match(r'^C\d{5}[A-Z]{0,2}$', model_upper):
+            return 'laser_production_printer'
         
         for prefix, accessory_type in accessory_prefixes.items():
             if model_upper.startswith(prefix):

@@ -1443,8 +1443,13 @@ class DocumentProcessor:
                     }
                     
                     # Clean model number (remove suffixes like "(1st device)")
-                    from utils.model_number_cleaner import clean_model_number
+                    from utils.model_number_cleaner import clean_model_number, is_valid_model_number
                     product_data['model_number'] = clean_model_number(product_data['model_number'])
+                    
+                    # Validate model number (filter out HP part numbers, descriptions, etc.)
+                    if not is_valid_model_number(product_data['model_number']):
+                        self.logger.debug(f"Skipping invalid model number: {product_data['model_number']}")
+                        continue
                     
                     # Get manufacturer_id (inherit from document if not specified)
                     # ALWAYS use document manufacturer to ensure correct manufacturer_id

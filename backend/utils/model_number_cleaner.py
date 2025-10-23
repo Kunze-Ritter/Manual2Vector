@@ -2,6 +2,7 @@
 Model Number Cleaner
 
 Cleans up model numbers extracted from documents to remove noise and duplicates.
+Also validates that model numbers are actually valid product models.
 """
 
 import re
@@ -82,6 +83,66 @@ def is_duplicate_model(model1: str, model2: str) -> bool:
     clean2 = clean_model_number(model2)
     
     return clean1.lower() == clean2.lower()
+
+
+def is_valid_model_number(model_number: str) -> bool:
+    """
+    Validate if a model number is actually a valid product model
+    
+    Filters out:
+    - HP part numbers (F2A72-67901, B5L46-67912)
+    - Descriptions (Business card tray only...)
+    - Too long strings (>50 chars)
+    - Contains "must be installed", "only", etc.
+    
+    Args:
+        model_number: Model number to validate
+        
+    Returns:
+        True if valid, False if should be filtered out
+        
+    Examples:
+        >>> is_valid_model_number("C4080")
+        True
+        >>> is_valid_model_number("F2A72-67901")
+        False
+        >>> is_valid_model_number("Business card tray only")
+        False
+    """
+    if not model_number or len(model_number) > 50:
+        return False
+    
+    model_lower = model_number.lower()
+    
+    # Filter out descriptions
+    invalid_phrases = [
+        'must be installed',
+        'only',
+        'required',
+        'optional',
+        'standard equipment',
+        'the ',
+        'with ',
+        'for ',
+    ]
+    
+    for phrase in invalid_phrases:
+        if phrase in model_lower:
+            return False
+    
+    # Filter out HP part numbers (pattern: Letter+Digit+Letter+Digits-Digits)
+    # Examples: F2A72-67901, B5L46-67912, 1PV95A
+    if re.match(r'^[A-Z]\d[A-Z]\d{2,3}-\d{5}$', model_number.upper()):
+        return False
+    
+    if re.match(r'^\d[A-Z]{2}\d{2,3}[A-Z]?$', model_number.upper()):
+        return False
+    
+    # Filter out RM/RK part numbers (HP/Konica internal parts)
+    if re.match(r'^R[MK]\d-\d{4}-\d{3}[A-Z]{2}$', model_number.upper()):
+        return False
+    
+    return True
 
 
 if __name__ == "__main__":
