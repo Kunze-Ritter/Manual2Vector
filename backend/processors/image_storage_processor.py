@@ -180,7 +180,7 @@ class ImageStorageProcessor:
             
             if existing:
                 # Image already exists - just create new mapping
-                self.logger.info(f"Image deduplicated: {file_hash[:8]}... (already exists)")
+                self.logger.debug(f"Image deduplicated: {file_hash[:8]}... (already exists)")
                 
                 # Create new document_image mapping if needed
                 return {
@@ -337,8 +337,8 @@ class ImageStorageProcessor:
             else:
                 failed_count += 1
             
-            # Progress logging
-            if (idx + 1) % 50 == 0:
+            # Progress logging every 500 images
+            if (idx + 1) % 500 == 0:
                 self.logger.info(
                     f"Progress: {idx + 1}/{len(images)} "
                     f"(Uploaded: {uploaded_count}, Deduplicated: {deduplicated_count})"

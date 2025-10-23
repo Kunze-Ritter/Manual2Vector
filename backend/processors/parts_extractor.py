@@ -93,7 +93,7 @@ class PartsExtractor:
         # Extract parts
         extracted_parts = []
         seen_part_numbers = set()
-        
+
         for mfr_key, mfr_config in patterns_to_use:
             patterns = mfr_config.get("patterns", [])
             
@@ -106,6 +106,8 @@ class PartsExtractor:
                 )
                 
                 for part in parts:
+                    part.part_name = self._clean_part_text(part.part_name, True)
+                    part.part_description = self._clean_part_text(part.part_description, False)
                     # Deduplicate by part number
                     if part.part_number not in seen_part_numbers:
                         seen_part_numbers.add(part.part_number)
@@ -124,6 +126,88 @@ class PartsExtractor:
         pass
             
         return extracted_parts
+    
+    def _clean_part_text(self, text: Optional[str], is_name: bool = True) -> Optional[str]:
+        if not text:
+            return None
+        cleaned = text.replace('\u2013', '-').replace('\u2014', '-').strip()
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        cleaned = cleaned.strip('"\'`“”‘’|•·-:;()[]{}')
+        if is_name:
+            sentence_split = cleaned.split('.')
+            if sentence_split and len(sentence_split[0]) >= 3:
+                cleaned = sentence_split[0]
+            if len(cleaned) > 80:
+                cleaned = cleaned[:80].rstrip(' ,;:-')
+        else:
+            if len(cleaned) > 300:
+                cleaned = cleaned[:300].rstrip()
+        cleaned = cleaned.strip('"\'`“”‘’|•·-:;()[]{}')
+        return cleaned or None
+
+    def enrich_parts_with_vision(
+        self,
+        parts: List[ExtractedPart],
+        pdf_path: Path,
+        manufacturer_name: str
+    ) -> List[ExtractedPart]:
+        """
+        Enrich parts with missing names/descriptions using Vision AI
+        
+        Args:
+            parts: List of extracted parts (some may have None for part_name)
+            pdf_path: Path to PDF file
+            manufacturer_name: Manufacturer name for context
+            
+        Returns:
+            Enriched parts list with Vision AI data
+        """
+        if not self.vision_processor:
+            logger.warning("Vision processor not available, skipping Vision AI enrichment")
+            return parts
+        
+        # Find parts that need enrichment (no name or description)
+        parts_needing_vision = [
+            p for p in parts 
+            if not p.part_name or (not p.part_description and len(p.context) < 50)
+        ]
+        
+        if not self.vision_processor.vision_available:
+            logger.warning("Vision AI reported unavailable, skipping enrichment")
+            return parts
+
+        if not parts_needing_vision:
+            logger.info("All parts have names, skipping Vision AI enrichment")
+            return parts
+        
+        logger.info(f"Enriching {len(parts_needing_vision)} parts with Vision AI...")
+        
+        # Group by page number for efficient processing
+        pages_to_process = list(set(p.page_number for p in parts_needing_vision))
+        
+        enriched_parts = []
+        for part in parts:
+            if part.page_number in pages_to_process and not part.part_name:
+                # Use Vision AI to extract part info from page image
+                vision_result = self._extract_part_with_vision(
+                    pdf_path=pdf_path,
+                    page_number=part.page_number,
+                    part_number=part.part_number,
+                    manufacturer_name=manufacturer_name
+                )
+                
+                if vision_result:
+                    # Update part with Vision AI data
+                    enriched_name = self._clean_part_text(vision_result.get('part_name'), True)
+                    enriched_desc = self._clean_part_text(vision_result.get('part_description'), False)
+                    part.part_name = enriched_name or part.part_name
+                    part.part_description = enriched_desc or part.part_description
+                    part.confidence = max(part.confidence, vision_result.get('confidence', 0.5))
+                    logger.debug(f"✅ Vision AI enriched {part.part_number}: {part.part_name}")
+            
+            enriched_parts.append(part)
+        
+        return enriched_parts
     
     def _get_manufacturer_key(self, manufacturer_name: Optional[str]) -> Optional[str]:
         """Convert manufacturer name to config key"""
@@ -232,68 +316,6 @@ class PartsExtractor:
             parts.append(part)
         
         return parts
-    
-    def enrich_parts_with_vision(
-        self,
-        parts: List[ExtractedPart],
-        pdf_path: Path,
-        manufacturer_name: str
-    ) -> List[ExtractedPart]:
-        """
-        Enrich parts with missing names/descriptions using Vision AI
-        
-        Args:
-            parts: List of extracted parts (some may have None for part_name)
-            pdf_path: Path to PDF file
-            manufacturer_name: Manufacturer name for context
-            
-        Returns:
-            Enriched parts list with Vision AI data
-        """
-        if not self.vision_processor:
-            logger.warning("Vision processor not available, skipping Vision AI enrichment")
-            return parts
-        
-        # Find parts that need enrichment (no name or description)
-        parts_needing_vision = [
-            p for p in parts 
-            if not p.part_name or (not p.part_description and len(p.context) < 50)
-        ]
-        
-        if not self.vision_processor.vision_available:
-            logger.warning("Vision AI reported unavailable, skipping enrichment")
-            return parts
-
-        if not parts_needing_vision:
-            logger.info("All parts have names, skipping Vision AI enrichment")
-            return parts
-        
-        logger.info(f"Enriching {len(parts_needing_vision)} parts with Vision AI...")
-        
-        # Group by page number for efficient processing
-        pages_to_process = list(set(p.page_number for p in parts_needing_vision))
-        
-        enriched_parts = []
-        for part in parts:
-            if part.page_number in pages_to_process and not part.part_name:
-                # Use Vision AI to extract part info from page image
-                vision_result = self._extract_part_with_vision(
-                    pdf_path=pdf_path,
-                    page_number=part.page_number,
-                    part_number=part.part_number,
-                    manufacturer_name=manufacturer_name
-                )
-                
-                if vision_result:
-                    # Update part with Vision AI data
-                    part.part_name = vision_result.get('part_name') or part.part_name
-                    part.part_description = vision_result.get('part_description') or part.part_description
-                    part.confidence = max(part.confidence, vision_result.get('confidence', 0.5))
-                    logger.debug(f"✅ Vision AI enriched {part.part_number}: {part.part_name}")
-            
-            enriched_parts.append(part)
-        
-        return enriched_parts
     
     def _extract_part_with_vision(
         self,

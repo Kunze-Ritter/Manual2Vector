@@ -1311,6 +1311,18 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **File:** `backend/processors/process_production.py`
   - **Result:** Cleaner CLI output with consistent version info and flexible prompts
 
+- [x] **Parts text cleanup** ✅ (17:45)
+  - Normalized extracted/enriched part names and trimmed noisy sentences from Vision AI
+  - Ensured parts without meaningful labels remain blank instead of saving junk strings
+  - **File:** `backend/processors/parts_extractor.py`
+  - **Result:** Saved parts now carry concise names/descriptions without boilerplate text
+
+- [x] **Image deduplication logging cleanup** ✅ (00:06)
+  - Changed per-image dedup messages from INFO to DEBUG to reduce console noise
+  - Kept progress summaries at 500-image intervals for large batches
+  - **File:** `backend/processors/image_storage_processor.py`
+  - **Result:** Cleaner logs during multi-thousand image uploads
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)
