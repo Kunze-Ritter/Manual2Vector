@@ -1305,6 +1305,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **File:** `database/migrations/115_add_parts_catalog_unique_constraint.sql`
   - **Result:** Parts saving now aligns with Supabase conflict target
 
+- [x] **Production processor UX polish** ✅ (16:48)
+  - Unified banner to use shared version metadata and trimmed duplicate headers
+  - Added reusable section printer and dynamic yes/no confirmation helper
+  - **File:** `backend/processors/process_production.py`
+  - **Result:** Cleaner CLI output with consistent version info and flexible prompts
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)

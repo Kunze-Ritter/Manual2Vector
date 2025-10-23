@@ -1,6 +1,5 @@
 """
 PRODUCTION MODE - Process Document with ALL Features
-VERSION: 2.1.0 (OEM Sync Fixed - 2025-10-10 23:12)
 
 This script processes a document in FULL PRODUCTION MODE:
 - All stages enabled
@@ -9,6 +8,7 @@ This script processes a document in FULL PRODUCTION MODE:
 - Live Supabase connection
 - No mocks, all real processing
 - OEM sync via standard Supabase API (no psycopg2)
+- Interactive confirmation with dynamic yes/no defaults
 """
 
 import os
@@ -38,16 +38,6 @@ for env_file in env_files:
     else:
         print(f"⚠️  Not found: {env_file}")
 
-# Version and Debug Info
-import os
-PROCESSOR_VERSION = "2.1.0"
-PROCESSOR_DATE = "2025-10-10 23:12"
-print(f"\n{'='*80}")
-print(f"  🚀 PRODUCTION PROCESSOR v{PROCESSOR_VERSION} ({PROCESSOR_DATE})")
-print(f"  📋 OEM Sync: Standard Supabase API (no psycopg2)")
-print(f"{'='*80}")
-print(f"\n🔍 DEBUG: LLM_MAX_PAGES = {os.getenv('LLM_MAX_PAGES', 'NOT SET')}\n")
-
 # Add project root and backend directory to path for absolute imports
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -76,18 +66,40 @@ except ImportError:
 os.chdir(original_dir)
 
 
+def print_section(title: str) -> None:
+    """Print a divider section with a centered title."""
+    print("\n" + "=" * 80)
+    print(f"  {title}")
+    print("=" * 80)
+
+
+def print_banner() -> None:
+    """Show unified processor banner using shared version metadata."""
+    print_section(f"🚀 PRODUCTION PROCESSOR v{__version__}")
+    print(f"  Commit: {__commit__} | Date: {__date__}")
+    print("  📋 OEM Sync: Standard Supabase API (no psycopg2)")
+    print(f"\n🔍 DEBUG: LLM_MAX_PAGES = {os.getenv('LLM_MAX_PAGES', 'NOT SET')}")
+
+
+def confirm(prompt: str, default: bool = False) -> bool:
+    """Interactive yes/no confirmation with sensible defaults."""
+    choices = "Y/n" if default else "y/N"
+    while True:
+        response = input(f"{prompt} [{choices}]: ").strip().lower()
+        if not response:
+            return default
+        if response in {"y", "yes"}:
+            return True
+        if response in {"n", "no"}:
+            return False
+        print("Please enter 'y' or 'n'.")
+
+
 def main():
     """Process document in FULL PRODUCTION MODE"""
     
-    # Show version info
-    print("\n" + "=" * 80)
-    print(f"  KRAI PROCESSING PIPELINE v{__version__}")
-    print(f"  Commit: {__commit__} | Date: {__date__}")
-    print("=" * 80 + "\n")
-    
-    print("\n" + "="*80)
-    print("  PRODUCTION MODE - FULL PROCESSING")
-    print("="*80)
+    print_banner()
+    print_section("PRODUCTION MODE - FULL PROCESSING")
     
     print("\n🔧 Configuration:")
     print("   - Supabase: LIVE")
@@ -210,9 +222,7 @@ def main():
         print(f"   {i}. {pdf.name} ({size_mb:.1f} MB)")
     
     # Confirm production mode
-    print("\n" + "="*80)
-    print("  READY TO PROCESS IN PRODUCTION MODE")
-    print("="*80)
+    print_section("READY TO PROCESS IN PRODUCTION MODE")
     print(f"\n⚠️  This will process {len(pdf_files)} PDF(s):")
     print("   1. Process each complete PDF")
     print("   2. Extract all text, products, error codes, versions, links")
@@ -226,17 +236,12 @@ def main():
     print("   7. Move processed PDFs to processed/ folder")
     
     # Ask for confirmation
-    print("\n❓ Continue with FULL PRODUCTION processing?")
-    response = input("   Type 'YES' to proceed: ").strip()
-    
-    if response != 'YES':
+    if not confirm("Continue with FULL PRODUCTION processing?", default=False):
         print("\n❌ Aborted by user")
         return
     
     # Initialize Pipeline with ALL FEATURES
-    print("\n" + "="*80)
-    print("  🚀 STARTING PRODUCTION PROCESSING")
-    print("="*80)
+    print_section("🚀 STARTING PRODUCTION PROCESSING")
     
     # Read R2 upload settings from .env
     upload_images = os.getenv('UPLOAD_IMAGES_TO_R2', 'false').lower() == 'true'
