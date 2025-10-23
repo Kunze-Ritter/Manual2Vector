@@ -16,56 +16,56 @@ product_patterns:
     flags: IGNORECASE
     examples: ["CX833", "CX961", "CX962", "CX963"]
     series: "CX Series"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # XC Series (Color MFP - High Volume)
   - pattern: '\bXC\d{4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["XC8355", "XC9635", "XC9645"]
     series: "XC Series"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # MX Series (Mono MFP)
   - pattern: '\bMX\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["MX321", "MX421", "MX521", "MX622"]
     series: "MX Series"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # MS Series (Mono Printer)
   - pattern: '\bMS\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["MS321", "MS421", "MS521", "MS622"]
     series: "MS Series"
-    type: "laser_printer"
+    type: "printer"
   
   # MB Series (Mono MFP)
   - pattern: '\bMB\d{4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["MB2236", "MB2338", "MB2442", "MB2546"]
     series: "MB Series"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # B Series (Mono Printer)
   - pattern: '\bB\d{4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["B2236", "B2338", "B2442", "B2546"]
     series: "B Series"
-    type: "laser_printer"
+    type: "printer"
   
   # CS Series (Color Printer)
   - pattern: '\bCS\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["CS331", "CS431", "CS521", "CS622", "CS943"]
     series: "CS Series"
-    type: "laser_printer"
+    type: "printer"
   
   # C Series (Color MFP - Legacy)
   - pattern: '\bC\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["C734", "C746", "C792", "C925", "C950"]
     series: "C Series"
-    type: "laser_printer"
+    type: "printer"
     note: "Legacy series - be careful with false positives"
 
 # Series Detection
