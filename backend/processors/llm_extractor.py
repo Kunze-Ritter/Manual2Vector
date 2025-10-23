@@ -18,7 +18,7 @@ class LLMProductExtractor:
     
     def __init__(
         self, 
-        model_name: str = "qwen2.5:7b",
+        model_name: str = None,
         ollama_url: str = "http://localhost:11434",
         debug: bool = False
     ):
@@ -26,10 +26,14 @@ class LLMProductExtractor:
         Initialize LLM extractor
         
         Args:
-            model_name: Ollama model to use (qwen2.5:7b, llama3.2, etc.)
+            model_name: Ollama model to use (default: from OLLAMA_MODEL_TEXT env)
             ollama_url: Ollama API endpoint
             debug: Enable debug logging
         """
+        import os
+        # Use env variable if model_name not provided
+        if model_name is None:
+            model_name = os.getenv('OLLAMA_MODEL_TEXT', 'llama3.2:3b')
         self.model_name = model_name
         self.ollama_url = ollama_url
         self.debug = debug
