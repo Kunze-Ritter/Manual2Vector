@@ -74,14 +74,20 @@ class DocumentProcessor:
         self.link_extractor = LinkExtractor(youtube_api_key=youtube_api_key)
         
         # LLM extractor (optional, for specification sections)
-        try:
-            from .llm_extractor import LLMProductExtractor
-            self.llm_extractor = LLMProductExtractor(debug=debug)
-            self.use_llm = True
-        except Exception as e:
-            self.logger.warning(f"LLM extractor not available: {e}")
-            self.llm_extractor = None
-            self.use_llm = False
+        # DISABLED: LLM extraction is slower and less reliable than regex
+        # Use regex-only extraction for better performance
+        self.llm_extractor = None
+        self.use_llm = False
+        self.logger.info("LLM extraction: DISABLED (using regex-only mode for better performance)")
+        
+        # try:
+        #     from .llm_extractor import LLMProductExtractor
+        #     self.llm_extractor = LLMProductExtractor(debug=debug)
+        #     self.use_llm = True
+        # except Exception as e:
+        #     self.logger.warning(f"LLM extractor not available: {e}")
+        #     self.llm_extractor = None
+        #     self.use_llm = False
         
         if manufacturer == "AUTO":
             self.logger.info("Initialized processor with AUTO manufacturer detection")
