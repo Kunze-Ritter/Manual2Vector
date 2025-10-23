@@ -306,6 +306,8 @@ class ProductExtractor:
         
         # Use config patterns if available
         if self.config and self.compiled_patterns:
+            if self.debug:
+                self.logger.debug(f"Using {len(self.compiled_patterns)} patterns from {self.config.canonical_name} config")
             # Use manufacturer-specific config patterns
             for series_name, pattern, product_type in self.compiled_patterns:
                 matches = pattern.finditer(text)

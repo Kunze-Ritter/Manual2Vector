@@ -428,13 +428,17 @@ class DocumentProcessor:
             
             # Step 2a: Extract from filename and title (highest priority!)
             # Filename extraction
+            filename_text = pdf_path.stem.replace('_', ' ')
+            self.logger.info(f"🔍 Extracting from filename: '{filename_text}'")
             filename_products = product_extractor.extract_from_text(
-                pdf_path.stem.replace('_', ' '),  # Convert underscores to spaces
+                filename_text,
                 page_number=0  # Mark as filename extraction
             )
             if filename_products:
-                self.logger.success(f"Extracted {len(filename_products)} products from filename")
+                self.logger.success(f"✅ Extracted {len(filename_products)} products from filename")
                 products.extend(filename_products)
+            else:
+                self.logger.warning(f"⚠️  No products found in filename")
             
             # Title extraction (CRITICAL for documents like "HP E87740, E87750, E87760 - CPMD")
             if document_title:
