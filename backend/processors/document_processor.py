@@ -1276,6 +1276,7 @@ class DocumentProcessor:
                 return
             
             supabase = create_client(supabase_url, supabase_key)
+            from utils.product_type_mapper import get_product_type
             
             for video in videos:
                 # Check for duplicate by youtube_id
@@ -1439,6 +1440,11 @@ class DocumentProcessor:
                 return []
 
             supabase = create_client(supabase_url, supabase_key)
+            try:
+                from utils.product_type_mapper import get_product_type
+            except ImportError as mapper_error:
+                self.logger.error(f"product_type_mapper import failed: {mapper_error}")
+                get_product_type = lambda series_name, model_number: None
 
             saved_count = 0
             updated_count = 0
@@ -1524,7 +1530,6 @@ class DocumentProcessor:
                                 manufacturer_updates.append(model_number)
                         progress.update(task, advance=1, description=f"Saved: {saved_count}, Updated: {updated_count}")
                     else:
-                        from utils.product_type_mapper import get_product_type
                         detected_type = get_product_type(
                             series_name=product_data.get('series_name', ''),
                             model_number=model_number
