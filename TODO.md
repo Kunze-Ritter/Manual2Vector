@@ -1293,6 +1293,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **File:** `backend/processors/document_processor.py`
   - **Result:** Multiple enriched parts persist correctly in Supabase
 
+- [x] **Product logging consolidation** ✅ (15:45)
+  - Throttled per-pattern model logging and summarized product updates
+  - Keeps progress output readable on large manuals without losing insight
+  - **Files:** `backend/processors/product_extractor.py`, `backend/processors/document_processor.py`
+  - **Result:** Reduced noise while preserving key product extraction signals
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)

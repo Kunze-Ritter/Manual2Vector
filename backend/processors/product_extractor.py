@@ -326,14 +326,16 @@ class ProductExtractor:
                     rejected = False
                     for reject_pattern in self.reject_patterns:
                         if reject_pattern.match(model):
-                            self.logger.info(f"✗ Rejected by pattern: '{model}'")
+                            if self.debug:
+                                self.logger.info(f"✗ Rejected by pattern: '{model}'")
                             rejected = True
                             break
                     
                     if rejected:
                         continue
                     
-                    self.logger.info(f"✓ Pattern '{series_name}' matched: '{model}'")
+                    if self.debug:
+                        self.logger.info(f"✓ Pattern '{series_name}' matched: '{model}'")
                     
                     # Validate
                     if self._validate_model(model):
@@ -342,7 +344,8 @@ class ProductExtractor:
                             model, text, match.start(), series_name
                         )
                         
-                        self.logger.info(f"  ✓ Validated! Confidence: {confidence:.2f}")
+                        if self.debug:
+                            self.logger.info(f"  ✓ Validated! Confidence: {confidence:.2f}")
                         
                         # Use product_type from config
                         try:
@@ -356,11 +359,14 @@ class ProductExtractor:
                                 extraction_method=f"regex_config_{series_name}"
                             )
                             found_models.append(product)
-                            self.logger.success(f"  ✅ Added: {model}")
+                            if self.debug:
+                                self.logger.success(f"  ✅ Added: {model}")
                         except Exception as e:
-                            self.logger.error(f"  ✗ Pydantic validation failed: {e}")
+                            if self.debug:
+                                self.logger.error(f"  ✗ Pydantic validation failed: {e}")
                     else:
-                        self.logger.warning(f"  ✗ Rejected by validation: {model}")
+                        if self.debug:
+                            self.logger.warning(f"  ✗ Rejected by validation: {model}")
         else:
             # Fallback to legacy patterns if no config
             if self.debug:
@@ -373,7 +379,7 @@ class ProductExtractor:
         
         if unique_models:
             self.logger.info(
-                f"Extracted {len(unique_models)} products from page {page_number}"
+                f"Extracted {len(unique_models)} unique products from page {page_number}"
             )
         
         return unique_models
