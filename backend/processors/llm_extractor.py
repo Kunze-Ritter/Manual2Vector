@@ -32,8 +32,10 @@ class LLMProductExtractor:
         """
         import os
         # Use env variable if model_name not provided
+        # Prefer OLLAMA_MODEL_EXTRACTION (specialized for JSON/structured output)
+        # Fallback to OLLAMA_MODEL_TEXT for backwards compatibility
         if model_name is None:
-            model_name = os.getenv('OLLAMA_MODEL_TEXT', 'llama3.2:3b')
+            model_name = os.getenv('OLLAMA_MODEL_EXTRACTION') or os.getenv('OLLAMA_MODEL_TEXT', 'qwen2.5:3b')
         self.model_name = model_name
         self.ollama_url = ollama_url
         self.debug = debug

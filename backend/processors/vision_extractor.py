@@ -20,8 +20,8 @@ class VisionProductExtractor:
     
     def __init__(
         self,
-        vision_model: str = "llava:13b",
-        text_model: str = "qwen2.5:7b",
+        vision_model: str = None,
+        text_model: str = None,
         ollama_url: str = "http://localhost:11434",
         debug: bool = False
     ):
@@ -29,13 +29,15 @@ class VisionProductExtractor:
         Initialize Vision extractor
         
         Args:
-            vision_model: Ollama vision model (llava:7b, llava:13b, llava:34b)
-            text_model: Ollama text model for refinement
+            vision_model: Ollama vision model (default: from OLLAMA_MODEL_VISION env)
+            text_model: Ollama text model for refinement (default: from OLLAMA_MODEL_EXTRACTION env)
             ollama_url: Ollama API endpoint
             debug: Enable debug logging
         """
-        self.vision_model = vision_model
-        self.text_model = text_model
+        import os
+        # Use env variables if not provided
+        self.vision_model = vision_model or os.getenv('OLLAMA_MODEL_VISION', 'llava:7b')
+        self.text_model = text_model or os.getenv('OLLAMA_MODEL_EXTRACTION') or os.getenv('OLLAMA_MODEL_TEXT', 'qwen2.5:3b')
         self.ollama_url = ollama_url
         self.debug = debug
         self.logger = get_logger()
