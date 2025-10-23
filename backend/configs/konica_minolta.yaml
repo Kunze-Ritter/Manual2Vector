@@ -1,0 +1,191 @@
+# Konica Minolta Product Configuration
+# Used when manufacturer is detected as "Konica Minolta"
+
+manufacturer:
+  canonical_name: "Konica Minolta"
+  aliases:
+    - "konica minolta"
+    - "Konica Minolta"
+    - "KONICA MINOLTA"
+    - "Konica-Minolta"
+    - "bizhub"
+    - "Bizhub"
+    - "BIZHUB"
+    - "accuriopress"
+    - "AccurioPress"
+    - "ACCURIOPRESS"
+    - "accurioprint"
+    - "AccurioPrint"
+    - "ACCURIOPRINT"
+
+# Product Model Patterns (Regex)
+product_patterns:
+  # bizhub Series (MFP)
+  - pattern: '\bbizhub\s+(?:PRESS\s+)?(?:C|i-)?(\d{3,4}[a-z]{0,3})\b'
+    flags: IGNORECASE
+    examples: ["bizhub C454e", "bizhub 454e", "bizhub PRESS C1070"]
+    series: "bizhub"
+    type: "laser_multifunction"
+  
+  # AccurioPress Series (Production Printer)
+  - pattern: '\bC(4080|4070|3080|3070|2070|1060|6100|6085|7100|7090|12000|14000|16000)[LNPX]?\b'
+    flags: IGNORECASE
+    examples: ["C4080", "C4070", "C3080", "C6100", "C12000"]
+    series: "AccurioPress"
+    type: "laser_production_printer"
+  
+  # AccurioPrint Series (Production Printer)
+  - pattern: '\bC(10500|12010|14010|2060|2070|4065|659|759)[SWOX]{0,2}\b'
+    flags: IGNORECASE
+    examples: ["C10500", "C12010", "C14010", "C2060", "C659"]
+    series: "AccurioPrint"
+    type: "laser_production_printer"
+  
+  # Standalone C-Series (without bizhub prefix)
+  - pattern: '\bC(\d{3,4})[a-z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["C224", "C284", "C364", "C454", "C554"]
+    series: "bizhub C Series"
+    type: "laser_multifunction"
+    note: "Only match if NOT AccurioPress/AccurioPrint"
+
+# Series Detection
+series:
+  - name: "bizhub"
+    patterns: ["bizhub\\s+(?:C|i-)?\\d{3,4}"]
+    type: "laser_multifunction"
+    description: "Konica Minolta bizhub Multifunction Printers"
+  
+  - name: "bizhub PRESS"
+    patterns: ["bizhub\\s+PRESS\\s+C\\d{4}"]
+    type: "laser_production_printer"
+    description: "Konica Minolta bizhub PRESS Production Printers"
+  
+  - name: "AccurioPress"
+    patterns: ["AccurioPress", "C(4080|4070|3080|3070|6100|12000|14000|16000)"]
+    type: "laser_production_printer"
+    description: "Konica Minolta AccurioPress High-End Production Printers"
+  
+  - name: "AccurioPrint"
+    patterns: ["AccurioPrint", "C(10500|12010|14010|2060|659|759)"]
+    type: "laser_production_printer"
+    description: "Konica Minolta AccurioPrint Production Color Printers"
+
+# Accessory/Part Prefixes
+part_prefixes:
+  # Toner Cartridges
+  - prefix: "TN"
+    type: "toner_cartridge"
+    pattern: "^TN\\d{3}[KCMY]?$"
+    examples: ["TN328K", "TN626C", "TN715Y", "TN328M"]
+  
+  # Drum Units
+  - prefix: "DR"
+    type: "drum_unit"
+    pattern: "^DR\\d{3}[KCMY]?$"
+    examples: ["DR012", "DR316K", "DR618C"]
+  
+  # Developer Units
+  - prefix: "DV"
+    type: "developer_unit"
+    pattern: "^DV\\d{3}[KCMY]?$"
+    examples: ["DV012", "DV315C", "DV621K"]
+  
+  # Waste Toner Box
+  - prefix: "WT"
+    type: "waste_toner_box"
+    pattern: "^WT-\\d{3}$"
+    examples: ["WT-515", "WT-506"]
+  
+  # Fuser Units
+  - prefix: "FU"
+    type: "fuser_unit"
+    pattern: "^FU-\\d{3}$"
+    examples: ["FU-515", "FU-506"]
+  
+  # Transfer Units
+  - prefix: "TU"
+    type: "transfer_unit"
+    pattern: "^TU-\\d{3}$"
+    examples: ["TU-515", "TU-506"]
+  
+  # Finishers
+  - prefix: "FS"
+    type: "finisher"
+    pattern: "^FS-\\d{3}$"
+    examples: ["FS-533", "FS-534"]
+  
+  - prefix: "SD"
+    type: "saddle_finisher"
+    pattern: "^SD-\\d{3}$"
+    examples: ["SD-506", "SD-513"]
+  
+  # Paper Trays
+  - prefix: "PC"
+    type: "paper_tray"
+    pattern: "^PC-\\d{3}$"
+    examples: ["PC-410", "PC-414"]
+  
+  - prefix: "PF"
+    type: "paper_feed_unit"
+    pattern: "^PF-\\d{3}$"
+    examples: ["PF-707", "PF-708"]
+  
+  # Punch Units
+  - prefix: "PK"
+    type: "punch_unit"
+    pattern: "^PK-\\d{3}$"
+    examples: ["PK-520", "PK-521"]
+  
+  # Relay Units
+  - prefix: "RU"
+    type: "relay_unit"
+    pattern: "^RU-\\d{3}[a-z]?$"
+    examples: ["RU-702", "RU-703", "RU-518m"]
+  
+  # Large Capacity Units
+  - prefix: "LU"
+    type: "large_capacity_unit"
+    pattern: "^LU-\\d{3}$"
+    examples: ["LU-301", "LU-302"]
+  
+  # Booklet Makers
+  - prefix: "JS"
+    type: "booklet_maker"
+    pattern: "^JS-\\d{3}$"
+    examples: ["JS-506", "JS-507"]
+  
+  # Mount Kits
+  - prefix: "MK"
+    type: "mount_kit"
+    pattern: "^MK-\\d{3}$"
+    examples: ["MK-602", "MK-734", "MK-748"]
+  
+  # Fax Kits
+  - prefix: "FK"
+    type: "fax_kit"
+    pattern: "^FK-\\d{3}$"
+    examples: ["FK-515", "FK-516"]
+  
+  # Hard Drives
+  - prefix: "HD"
+    type: "hard_drive"
+    pattern: "^HD-\\d{3}$"
+    examples: ["HD-524", "HD-525"]
+  
+  # Media Sensors
+  - prefix: "IM"
+    type: "media_sensor"
+    pattern: "^IM-\\d{3}$"
+    examples: ["IM-101"]
+
+# Reject Patterns (NOT products)
+reject_patterns:
+  - pattern: "^[A-Z]\\d[A-Z]\\d{2,3}-\\d{5}$"
+    reason: "HP part number format"
+  - pattern: "^\\d[A-Z]{2}\\d{2,3}[A-Z]?$"
+    reason: "HP part number format"
+  - pattern: ".*must be installed.*"
+    reason: "Description text"
+  - pattern: ".*only.*\\(.*\\).*"
+    reason: "Description text"

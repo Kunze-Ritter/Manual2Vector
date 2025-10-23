@@ -190,11 +190,31 @@ SHARP_PATTERNS = {
 # Lexmark Patterns
 LEXMARK_PATTERNS = {
     'cx': re.compile(
-        r'\bCX\d{3}[a-z]{0,3}\b',
+        r'\bCX\d{3,4}[a-z]{0,3}\b',  # CX833, CX961, CX962, CX963
+        re.IGNORECASE
+    ),
+    'xc': re.compile(
+        r'\bXC\d{4}[a-z]{0,3}\b',  # XC8355, XC9635, XC9645
         re.IGNORECASE
     ),
     'mx': re.compile(
-        r'\bMX\d{3}[a-z]{0,3}\b',
+        r'\bMX\d{3,4}[a-z]{0,3}\b',  # MX321, MX421, MX521, MX622
+        re.IGNORECASE
+    ),
+    'ms': re.compile(
+        r'\bMS\d{3,4}[a-z]{0,3}\b',  # MS321, MS421, MS521, MS622
+        re.IGNORECASE
+    ),
+    'mb': re.compile(
+        r'\bMB\d{4}[a-z]{0,3}\b',  # MB2236, MB2338, MB2442, MB2546
+        re.IGNORECASE
+    ),
+    'b': re.compile(
+        r'\bB\d{4}[a-z]{0,3}\b',  # B2236, B2338, B2442, B2546
+        re.IGNORECASE
+    ),
+    'c': re.compile(
+        r'\bC\d{4}[a-z]{0,3}\b',  # C2132, C2240, C2325, C2425
         re.IGNORECASE
     ),
 }
