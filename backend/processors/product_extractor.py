@@ -3,6 +3,8 @@ Product Model Extraction Module
 
 Extracts product model numbers from PDFs with strict validation.
 NO filenames, ONLY real product models!
+
+Now uses manufacturer-specific YAML configs for patterns.
 """
 
 import re
@@ -11,6 +13,7 @@ from pathlib import Path
 
 from .logger import get_logger
 from .models import ExtractedProduct, ValidationError as ValError
+from utils.manufacturer_config import get_manufacturer_config
 
 
 logger = get_logger()
@@ -262,6 +265,22 @@ class ProductExtractor:
         self.context_series = self._extract_series_from_title(document_title) if document_title else []
         self.logger = get_logger()
         
+        # Load manufacturer-specific config
+        self.config = None
+        self.compiled_patterns = []
+        self.reject_patterns = []
+        
+        if manufacturer_name and manufacturer_name != "AUTO":
+            self.config = get_manufacturer_config(manufacturer_name)
+            if self.config:
+                self.compiled_patterns = self.config.get_compiled_patterns()
+                self.reject_patterns = self.config.get_reject_patterns()
+                if self.debug:
+                    self.logger.info(f"✓ Loaded config for {self.config.canonical_name}: {len(self.compiled_patterns)} patterns")
+            else:
+                if self.debug:
+                    self.logger.warning(f"⚠️  No config found for {manufacturer_name}, using legacy patterns")
+        
         if self.context_series and self.debug:
             self.logger.debug(f"Detected series from title: {self.context_series}")
     
@@ -283,67 +302,66 @@ class ProductExtractor:
         if not text or len(text) < 10:
             return []
         
-        # Select patterns based on manufacturer
-        manufacturer_upper = self.manufacturer_name.upper()
-        
-        # If "AUTO", try all manufacturers
-        if manufacturer_upper == "AUTO":
-            all_patterns = []
-            for mfr_name, mfr_patterns in ALL_MANUFACTURER_PATTERNS.items():
-                for pattern_name, pattern in mfr_patterns.items():
-                    all_patterns.append((mfr_name, pattern_name, pattern))
-            # Use all patterns
-            patterns_to_use = all_patterns
-        elif manufacturer_upper in ALL_MANUFACTURER_PATTERNS:
-            patterns = ALL_MANUFACTURER_PATTERNS[manufacturer_upper]
-            patterns_to_use = [(manufacturer_upper, pn, p) for pn, p in patterns.items()]
-        else:
-            # Default to HP
-            patterns = HP_PATTERNS
-            patterns_to_use = [("HP", pn, p) for pn, p in patterns.items()]
-        
         found_models = []
         
-        for mfr_name, pattern_name, pattern in patterns_to_use:
-            matches = pattern.finditer(text)
-            
-            for match in matches:
-                model = match.group(0).strip()
+        # Use config patterns if available
+        if self.config and self.compiled_patterns:
+            # Use manufacturer-specific config patterns
+            for series_name, pattern, product_type in self.compiled_patterns:
+                matches = pattern.finditer(text)
                 
-                if self.debug:
-                    self.logger.debug(f"Pattern '{pattern_name}' matched: '{model}'")
-                
-                # Validate
-                if self._validate_model(model):
-                    # Calculate confidence
-                    confidence = self._calculate_confidence(
-                        model, text, match.start(), pattern_name
-                    )
+                for match in matches:
+                    model = match.group(0).strip()
+                    
+                    # Check reject patterns first
+                    rejected = False
+                    for reject_pattern in self.reject_patterns:
+                        if reject_pattern.match(model):
+                            if self.debug:
+                                self.logger.debug(f"✗ Rejected by pattern: '{model}'")
+                            rejected = True
+                            break
+                    
+                    if rejected:
+                        continue
                     
                     if self.debug:
-                        self.logger.debug(f"  ✓ Validated! Confidence: {confidence:.2f}")
+                        self.logger.debug(f"Pattern '{series_name}' matched: '{model}'")
                     
-                    # Determine product type and series
-                    product_type = self._determine_product_type(model, pattern_name)
-                    product_series = self._determine_product_series(model, pattern_name)
-                    
-                    try:
-                        product = ExtractedProduct(
-                            model_number=model,
-                            product_series=product_series,
-                            product_type=product_type,
-                            manufacturer_name=mfr_name,  # Use detected manufacturer
-                            confidence=confidence,
-                            source_page=page_number,
-                            extraction_method=f"regex_{pattern_name}"
+                    # Validate
+                    if self._validate_model(model):
+                        # Calculate confidence
+                        confidence = self._calculate_confidence(
+                            model, text, match.start(), series_name
                         )
-                        found_models.append(product)
-                    except Exception as e:
+                        
                         if self.debug:
-                            self.logger.debug(f"  ✗ Pydantic validation failed: {e}")
-                else:
-                    if self.debug:
-                        self.logger.debug(f"  ✗ Rejected by validation")
+                            self.logger.debug(f"  ✓ Validated! Confidence: {confidence:.2f}")
+                        
+                        # Use product_type from config
+                        try:
+                            product = ExtractedProduct(
+                                model_number=model,
+                                product_series=series_name,
+                                product_type=product_type,
+                                manufacturer_name=self.config.canonical_name,
+                                confidence=confidence,
+                                source_page=page_number,
+                                extraction_method=f"regex_config_{series_name}"
+                            )
+                            found_models.append(product)
+                        except Exception as e:
+                            if self.debug:
+                                self.logger.debug(f"  ✗ Pydantic validation failed: {e}")
+                    else:
+                        if self.debug:
+                            self.logger.debug(f"  ✗ Rejected by validation")
+        else:
+            # Fallback to legacy patterns if no config
+            if self.debug:
+                self.logger.warning("⚠️  Using legacy pattern extraction (no config loaded)")
+            # Keep old code as fallback
+            pass
         
         # Deduplicate
         unique_models = self._deduplicate(found_models)
