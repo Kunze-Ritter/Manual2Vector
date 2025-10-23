@@ -1214,11 +1214,44 @@ UPLOAD_DOCUMENTS_TO_R2=false
 
 ---
 
-**Last Updated:** 2025-10-22 (09:20)
-**Current Focus:** Product Accessories Phase 1 & 2 COMPLETE! 🎉
-**Next Session:** Apply Migration 106, test complete system, Agent OEM integration
+**Last Updated:** 2025-10-23 (13:20)
+**Current Focus:** Product type alignment across configs, models, and database
+**Next Session:** Test updated Konica config extraction; evaluate vw_products type change
 
 **Production Ready:** ⚠️ NEEDS TESTING (3 critical bugs to verify)
+
+---
+
+## 🔧 CURRENT SESSION (2025-10-23)
+
+### ✅ COMPLETED TODAY (2025-10-23 12:00-13:20)
+
+- [x] **Product type allow-list centralised** ✅ (12:35)
+  - Added shared constants covering all DB-approved product types
+  - Updated `ExtractedProduct` validator to consume expanded set
+  - **File:** `backend/constants/product_types.py`
+  - **Result:** Pydantic validation now matches Supabase constraint values
+
+- [x] **Konica Minolta config synchronised** ✅ (12:50)
+  - Normalised part `type` values (e.g., `trimmer_unit`, `upgrade_kit`, `inline_finisher`)
+  - Corrected regex formatting and examples for TU series
+  - **File:** `backend/configs/konica_minolta.yaml`
+  - **Result:** Config aligns with validator + DB constraint without mismatches
+
+- [x] **Supabase product_type constraint refreshed** ✅ (13:05)
+  - Recreated `products_product_type_check` with new allow-list
+  - Verified existing rows comply (resolved legacy `paper_feeder` entries)
+  - **File:** Supabase migration (ran via MCP)
+  - **Result:** Database enforces updated product type taxonomy
+
+### 📋 TODO - NEXT PRIORITIES
+
+- [ ] **Regenerate DATABASE_SCHEMA.md** 🔍 MEDIUM PRIORITY
+  - **Task:** Export latest columns via Supabase and rerun `scripts/generate_db_doc_from_csv.py`
+  - **Files to modify:** `DATABASE_SCHEMA.md`
+  - **Priority:** MEDIUM
+  - **Effort:** 0.5 hours
+  - **Status:** TODO
 
 ---
 
@@ -1399,6 +1432,24 @@ UPLOAD_DOCUMENTS_TO_R2=false
 - [x] Migration 104: Cleanup unused columns ✅ Applied
 - [x] Migration 105: Cleanup video statistics ✅ Applied
 - [x] Migration 106: Option dependencies table ✅ Applied (09:21)
+
+### 📊 Session Statistics (2025-10-23)
+
+**Time:** 12:00-13:20 (1 hour 20 minutes)
+**Commits:** 0 (pending push)
+**Files Changed:** 2 files + Supabase constraint
+**Migrations Created:** 0 (constraint updated via SQL)
+**Bugs Fixed:** 0 (validation alignment)
+**Features Added:** 1 (product type alignment)
+
+**Key Achievements:**
+1. ✅ Pydantic + configs share single product type source of truth
+2. ✅ Konica-specific accessory mapping synced with new taxonomy
+3. ✅ Supabase constraint enforces expanded product types
+
+**Next Focus:** Regenerate schema docs; run extraction tests 🎯
+
+---
 
 ### 📊 Session Statistics (2025-10-22)
 

@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from uuid import UUID, uuid4
+from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
 
 
 class ExtractedProduct(BaseModel):
@@ -15,9 +16,8 @@ class ExtractedProduct(BaseModel):
     model_number: str = Field(..., min_length=3, max_length=100)
     product_series: Optional[str] = Field(None, description="Product series/family (e.g., LaserJet, AccurioPress)")
     product_type: str = Field(
-        ..., 
-        pattern="^(printer|scanner|multifunction|copier|plotter|finisher|feeder|tray|cabinet|accessory|consumable)$",
-        description="Product type: printer, scanner, multifunction, copier, plotter, finisher, feeder, tray, cabinet, accessory, consumable"
+        ...,
+        description="Product type identifier, must match allowed list in backend.constants.product_types"
     )
     manufacturer_name: str
     confidence: float = Field(..., ge=0.0, le=1.0)
@@ -58,6 +58,15 @@ class ExtractedProduct(BaseModel):
             raise ValueError("Model number appears to be a filename")
         if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
             raise ValueError("Model number must contain both letters and numbers")
+        return v
+
+    @validator('product_type')
+    def validate_product_type(cls, v: str) -> str:
+        """Ensure product_type matches shared allow-list"""
+        if v not in ALLOWED_PRODUCT_TYPES:
+            raise ValueError(
+                f"Unsupported product_type '{v}'. Must be one of: {sorted(ALLOWED_PRODUCT_TYPES)}"
+            )
         return v
 
 
