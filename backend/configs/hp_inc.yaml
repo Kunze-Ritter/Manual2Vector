@@ -1,0 +1,158 @@
+# HP Inc. Product Configuration
+# Used when manufacturer is detected as "HP Inc." or "Hewlett Packard"
+
+manufacturer:
+  canonical_name: "HP Inc."
+  aliases:
+    - "hp"
+    - "HP"
+    - "HP Inc"
+    - "HP Inc."
+    - "Hewlett Packard"
+    - "Hewlett-Packard"
+    - "laserjet"
+    - "LaserJet"
+    - "officejet"
+    - "OfficeJet"
+    - "pagewide"
+    - "PageWide"
+
+# Product Model Patterns (Regex)
+product_patterns:
+  # LaserJet Series
+  - pattern: '\b(?:Color\s+)?LaserJet\s+(?:Pro\s+|Enterprise\s+|Managed\s+|Flow\s+)?(?:MFP\s+)?[A-Z]?\d{3,5}[a-z]{0,3}(?:\s*[a-z]{1,3})?\b'
+    flags: IGNORECASE
+    examples: ["LaserJet Pro M404dn", "Color LaserJet Enterprise M455dn", "LaserJet MFP M428fdn"]
+    series: "LaserJet"
+    type: "laser_printer"
+  
+  # Simple Model Numbers (E/M Series)
+  - pattern: '\b[EM]\d{3,5}[a-z]{0,2}\b'
+    flags: NONE
+    examples: ["E877", "E87740", "M455", "M428"]
+    series: "LaserJet"
+    type: "laser_printer"
+  
+  # OfficeJet Series
+  - pattern: '\bOfficeJet\s+(?:Pro\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["OfficeJet Pro 9015", "OfficeJet 8015"]
+    series: "OfficeJet"
+    type: "inkjet_multifunction"
+  
+  # PageWide Series
+  - pattern: '\bPageWide\s+(?:Pro\s+|Enterprise\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["PageWide Pro 477dw", "PageWide Enterprise 586"]
+    series: "PageWide"
+    type: "inkjet_multifunction"
+  
+  # DesignJet Series
+  - pattern: '\bDesignJet\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["DesignJet T730", "DesignJet Z6"]
+    series: "DesignJet"
+    type: "large_format_printer"
+
+# Series Detection
+series:
+  - name: "LaserJet"
+    patterns: ["LaserJet", "[EM]\\d{3,5}"]
+    type: "laser_printer"
+    description: "HP LaserJet Laser Printers"
+  
+  - name: "LaserJet Pro"
+    patterns: ["LaserJet\\s+Pro"]
+    type: "laser_printer"
+    description: "HP LaserJet Pro Series"
+  
+  - name: "LaserJet Enterprise"
+    patterns: ["LaserJet\\s+Enterprise"]
+    type: "laser_printer"
+    description: "HP LaserJet Enterprise Series"
+  
+  - name: "OfficeJet"
+    patterns: ["OfficeJet"]
+    type: "inkjet_multifunction"
+    description: "HP OfficeJet Inkjet Multifunction Printers"
+  
+  - name: "PageWide"
+    patterns: ["PageWide"]
+    type: "inkjet_multifunction"
+    description: "HP PageWide Inkjet Printers"
+  
+  - name: "DesignJet"
+    patterns: ["DesignJet"]
+    type: "large_format_printer"
+    description: "HP DesignJet Large Format Printers"
+
+# Accessory/Part Prefixes
+part_prefixes:
+  # Toner Cartridges
+  - prefix: "CF"
+    type: "toner_cartridge"
+    pattern: "^CF\\d{3}[A-Z]$"
+    examples: ["CF410A", "CF411A", "CF412A", "CF413A"]
+  
+  - prefix: "CE"
+    type: "toner_cartridge"
+    pattern: "^CE\\d{3}[A-Z]$"
+    examples: ["CE285A", "CE505A", "CE505X"]
+  
+  - prefix: "CC"
+    type: "toner_cartridge"
+    pattern: "^CC\\d{3}[A-Z]$"
+    examples: ["CC364A", "CC364X"]
+  
+  - prefix: "W"
+    type: "toner_cartridge"
+    pattern: "^W\\d{4}[A-Z]{1,2}$"
+    examples: ["W1470A", "W1470X", "W2070A"]
+  
+  # Maintenance Kits
+  - prefix: "CF"
+    type: "maintenance_kit"
+    pattern: "^CF\\d{3}[A-Z]$"
+    examples: ["CF254A", "CF257A"]
+  
+  # Fuser Units
+  - prefix: "RM"
+    type: "fuser_unit"
+    pattern: "^RM\\d-\\d{4}-\\d{3}[A-Z]{2}$"
+    examples: ["RM2-5583-000CN", "RM2-5692-000CN"]
+  
+  # Transfer Units
+  - prefix: "RM"
+    type: "transfer_unit"
+    pattern: "^RM\\d-\\d{4}-\\d{3}[A-Z]{2}$"
+    examples: ["RM2-5796-000CN"]
+  
+  # Paper Trays
+  - prefix: "CF"
+    type: "paper_tray"
+    pattern: "^CF\\d{3}[A-Z]$"
+    examples: ["CF404A", "CF405A"]
+  
+  - prefix: "L"
+    type: "paper_tray"
+    pattern: "^L\\d{4}[A-Z]$"
+    examples: ["L0H17A", "L0H18A"]
+  
+  # Duplex Units
+  - prefix: "CF"
+    type: "duplex_unit"
+    pattern: "^CF\\d{3}[A-Z]$"
+    examples: ["CF062A", "CF084A"]
+
+# Reject Patterns (NOT products)
+reject_patterns:
+  - pattern: "^[A-Z]\\d[A-Z]\\d{2,3}-\\d{5}$"
+    reason: "HP internal part number"
+  - pattern: "^\\d[A-Z]{2}\\d{2,3}[A-Z]?$"
+    reason: "HP internal part number"
+  - pattern: "^R[MK]\\d-\\d{4}-\\d{3}[A-Z]{2}$"
+    reason: "HP internal part number"
+  - pattern: ".*must be installed.*"
+    reason: "Description text"
+  - pattern: ".*only.*\\(.*\\).*"
+    reason: "Description text"

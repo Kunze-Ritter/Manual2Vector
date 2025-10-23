@@ -1,0 +1,28 @@
+# Sharp Product Configuration
+
+manufacturer:
+  canonical_name: "Sharp"
+  aliases: ["sharp", "Sharp", "SHARP", "Sharp Corporation"]
+
+product_patterns:
+  - pattern: '\bMX-[A-Z]?\d{3,4}[A-Z]{0,2}\b'
+    flags: IGNORECASE
+    examples: ["MX-3071", "MX-4071", "MX-5071"]
+    series: "MX Series"
+    type: "laser_multifunction"
+
+series:
+  - name: "MX Series"
+    patterns: ["MX-"]
+    type: "laser_multifunction"
+    description: "Sharp MX Series Multifunction Printers"
+
+part_prefixes:
+  - prefix: "MX"
+    type: "toner_cartridge"
+    pattern: "^MX-\\d{2}[A-Z]{2}[A-Z]?$"
+    examples: ["MX-51GTBA", "MX-51GTCA"]
+
+reject_patterns:
+  - pattern: ".*must be installed.*"
+    reason: "Description text"

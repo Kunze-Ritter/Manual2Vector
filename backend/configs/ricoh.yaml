@@ -1,0 +1,132 @@
+# Ricoh Product Configuration
+# Used when manufacturer is detected as "Ricoh"
+
+manufacturer:
+  canonical_name: "Ricoh"
+  aliases:
+    - "ricoh"
+    - "Ricoh"
+    - "RICOH"
+    - "Ricoh Company"
+
+# Product Model Patterns (Regex)
+product_patterns:
+  # Aficio MP Series
+  - pattern: '\bAficio\s+MP\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["Aficio MP 4002", "Aficio MP C3003"]
+    series: "Aficio MP"
+    type: "laser_multifunction"
+  
+  # MP Series (without Aficio)
+  - pattern: '\bMP\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["MP 4002", "MP C3003", "MP C6004"]
+    series: "MP Series"
+    type: "laser_multifunction"
+  
+  # IM C Series
+  - pattern: '\bIM\s+C\d{3,4}[A-Z]?\b'
+    flags: IGNORECASE
+    examples: ["IM C2000", "IM C3000", "IM C6000"]
+    series: "IM C Series"
+    type: "laser_multifunction"
+  
+  # Pro C Series
+  - pattern: '\bPro\s+C\d{3,5}[A-Z]?\b'
+    flags: IGNORECASE
+    examples: ["Pro C5300S", "Pro C7200S", "Pro C9200"]
+    series: "Pro C Series"
+    type: "laser_production_printer"
+  
+  # SP Series
+  - pattern: '\bSP\s+\d{3,4}[A-Z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["SP 4510DN", "SP C840DN"]
+    series: "SP Series"
+    type: "laser_printer"
+
+# Series Detection
+series:
+  - name: "Aficio MP"
+    patterns: ["Aficio\\s+MP"]
+    type: "laser_multifunction"
+    description: "Ricoh Aficio MP Multifunction Printers"
+  
+  - name: "MP Series"
+    patterns: ["MP\\s+[A-Z]?\\d{3,4}"]
+    type: "laser_multifunction"
+    description: "Ricoh MP Series Multifunction Printers"
+  
+  - name: "IM C Series"
+    patterns: ["IM\\s+C\\d{3,4}"]
+    type: "laser_multifunction"
+    description: "Ricoh IM C Series Intelligent Multifunction Printers"
+  
+  - name: "Pro C Series"
+    patterns: ["Pro\\s+C\\d{3,5}"]
+    type: "laser_production_printer"
+    description: "Ricoh Pro C Series Production Printers"
+  
+  - name: "SP Series"
+    patterns: ["SP\\s+\\d{3,4}"]
+    type: "laser_printer"
+    description: "Ricoh SP Series Laser Printers"
+
+# Accessory/Part Prefixes
+part_prefixes:
+  # Toner Cartridges
+  - prefix: "841"
+    type: "toner_cartridge"
+    pattern: "^841\\d{3}$"
+    examples: ["841817", "841818", "841819", "841820"]
+  
+  - prefix: "842"
+    type: "toner_cartridge"
+    pattern: "^842\\d{3}$"
+    examples: ["842255", "842256", "842257", "842258"]
+  
+  # Drum Units
+  - prefix: "D"
+    type: "drum_unit"
+    pattern: "^D\\d{3}-\\d{4}$"
+    examples: ["D009-9510", "D009-9511"]
+  
+  # Developer Units
+  - prefix: "D"
+    type: "developer_unit"
+    pattern: "^D\\d{3}-\\d{4}$"
+    examples: ["D009-3010", "D009-3011"]
+  
+  # Waste Toner Bottle
+  - prefix: "D"
+    type: "waste_toner_box"
+    pattern: "^D\\d{3}-\\d{4}$"
+    examples: ["D009-1090"]
+  
+  # Finishers
+  - prefix: "SR"
+    type: "finisher"
+    pattern: "^SR\\d{3,4}$"
+    examples: ["SR3090", "SR3100", "SR4090"]
+  
+  # Paper Trays
+  - prefix: "PB"
+    type: "paper_tray"
+    pattern: "^PB\\d{3,4}$"
+    examples: ["PB3090", "PB3100"]
+  
+  # Staple Cartridges
+  - prefix: "Type"
+    type: "staple_cartridge"
+    pattern: "^Type\\s+[A-Z]$"
+    examples: ["Type K", "Type M", "Type N"]
+
+# Reject Patterns (NOT products)
+reject_patterns:
+  - pattern: "^[A-Z]\\d[A-Z]\\d{2,3}-\\d{5}$"
+    reason: "HP part number format"
+  - pattern: ".*must be installed.*"
+    reason: "Description text"
+  - pattern: ".*only.*\\(.*\\).*"
+    reason: "Description text"

@@ -1,0 +1,37 @@
+# Brother Product Configuration
+
+manufacturer:
+  canonical_name: "Brother"
+  aliases: ["brother", "Brother", "BROTHER", "Brother Industries"]
+
+product_patterns:
+  - pattern: '\b(?:MFC|DCP|HL)-[A-Z]?\d{4}[A-Z]{0,3}\b'
+    flags: IGNORECASE
+    examples: ["MFC-L8900CDW", "DCP-L5500DN", "HL-L6400DW"]
+    series: "Brother"
+    type: "laser_multifunction"
+
+series:
+  - name: "MFC Series"
+    patterns: ["MFC-"]
+    type: "laser_multifunction"
+  - name: "DCP Series"
+    patterns: ["DCP-"]
+    type: "laser_multifunction"
+  - name: "HL Series"
+    patterns: ["HL-"]
+    type: "laser_printer"
+
+part_prefixes:
+  - prefix: "TN"
+    type: "toner_cartridge"
+    pattern: "^TN-\\d{3,4}[A-Z]?$"
+    examples: ["TN-3430", "TN-3480"]
+  - prefix: "DR"
+    type: "drum_unit"
+    pattern: "^DR-\\d{3,4}$"
+    examples: ["DR-3400", "DR-3440"]
+
+reject_patterns:
+  - pattern: ".*must be installed.*"
+    reason: "Description text"
