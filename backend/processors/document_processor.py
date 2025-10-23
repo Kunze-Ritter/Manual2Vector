@@ -1443,6 +1443,7 @@ class DocumentProcessor:
                     }
                     
                     # Get manufacturer_id (inherit from document if not specified)
+                    # ALWAYS use document manufacturer to ensure correct manufacturer_id
                     manufacturer_name = product_data.get('manufacturer_name') or self.manufacturer
                     manufacturer_id = None
                     
@@ -1451,6 +1452,14 @@ class DocumentProcessor:
                             manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
                         except Exception as e:
                             self.logger.debug(f"Could not get manufacturer_id: {e}")
+                    
+                    # If still no manufacturer_id, try to get from document
+                    if not manufacturer_id and self.manufacturer:
+                        try:
+                            manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
+                            self.logger.debug(f"Using document manufacturer: {self.manufacturer}")
+                        except Exception as e:
+                            self.logger.debug(f"Could not get document manufacturer_id: {e}")
                     
                     # Check if product already exists
                     existing = supabase.table('vw_products').select('id').eq(
