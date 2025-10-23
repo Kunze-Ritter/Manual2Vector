@@ -48,8 +48,9 @@ print(f"  📋 OEM Sync: Standard Supabase API (no psycopg2)")
 print(f"{'='*80}")
 print(f"\n🔍 DEBUG: LLM_MAX_PAGES = {os.getenv('LLM_MAX_PAGES', 'NOT SET')}\n")
 
-# Add backend directory to path FIRST
+# Add project root and backend directory to path for absolute imports
 backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(backend_dir))
 
 # Change to backend directory for imports to work

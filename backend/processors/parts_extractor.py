@@ -251,7 +251,7 @@ class PartsExtractor:
             Enriched parts list with Vision AI data
         """
         if not self.vision_processor:
-            logger.warning("Vision processor not available, skipping enrichment")
+            logger.warning("Vision processor not available, skipping Vision AI enrichment")
             return parts
         
         # Find parts that need enrichment (no name or description)
@@ -260,6 +260,10 @@ class PartsExtractor:
             if not p.part_name or (not p.part_description and len(p.context) < 50)
         ]
         
+        if not self.vision_processor.vision_available:
+            logger.warning("Vision AI reported unavailable, skipping enrichment")
+            return parts
+
         if not parts_needing_vision:
             logger.info("All parts have names, skipping Vision AI enrichment")
             return parts

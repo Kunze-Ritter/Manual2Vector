@@ -16,93 +16,93 @@ product_patterns:
     flags: IGNORECASE
     examples: ["CX833", "CX961", "CX962", "CX963"]
     series: "CX Series"
-    type: "multifunction"
+    type: "laser_multifunction"
   
   # XC Series (Color MFP - High Volume)
   - pattern: '\bXC\d{4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["XC8355", "XC9635", "XC9645"]
     series: "XC Series"
-    type: "multifunction"
+    type: "laser_multifunction"
   
   # MX Series (Mono MFP)
   - pattern: '\bMX\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["MX321", "MX421", "MX521", "MX622"]
     series: "MX Series"
-    type: "multifunction"
+    type: "laser_multifunction"
   
   # MS Series (Mono Printer)
   - pattern: '\bMS\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["MS321", "MS421", "MS521", "MS622"]
     series: "MS Series"
-    type: "printer"
+    type: "laser_printer"
   
   # MB Series (Mono MFP)
   - pattern: '\bMB\d{4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["MB2236", "MB2338", "MB2442", "MB2546"]
     series: "MB Series"
-    type: "multifunction"
+    type: "laser_multifunction"
   
   # B Series (Mono Printer)
   - pattern: '\bB\d{4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["B2236", "B2338", "B2442", "B2546"]
     series: "B Series"
-    type: "printer"
+    type: "laser_printer"
   
   # CS Series (Color Printer)
   - pattern: '\bCS\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["CS331", "CS431", "CS521", "CS622", "CS943"]
     series: "CS Series"
-    type: "printer"
+    type: "laser_printer"
   
   # C Series (Color MFP - Legacy)
   - pattern: '\bC\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["C734", "C746", "C792", "C925", "C950"]
     series: "C Series"
-    type: "printer"
+    type: "laser_multifunction"
     note: "Legacy series - be careful with false positives"
 
 # Series Detection
 series:
   - name: "CX Series"
     patterns: ["CX\\d{3,4}"]
-    type: "multifunction"
+    type: "laser_multifunction"
     description: "Lexmark CX Series Color Multifunction Printers"
   
   - name: "XC Series"
     patterns: ["XC\\d{4}"]
-    type: "multifunction"
+    type: "laser_multifunction"
     description: "Lexmark XC Series High-Volume Color Multifunction Printers"
   
   - name: "MX Series"
     patterns: ["MX\\d{3,4}"]
-    type: "multifunction"
+    type: "laser_multifunction"
     description: "Lexmark MX Series Monochrome Multifunction Printers"
   
   - name: "MS Series"
     patterns: ["MS\\d{3,4}"]
-    type: "printer"
+    type: "laser_printer"
     description: "Lexmark MS Series Monochrome Printers"
   
   - name: "MB Series"
     patterns: ["MB\\d{4}"]
-    type: "multifunction"
+    type: "laser_multifunction"
     description: "Lexmark MB Series Monochrome Multifunction Printers"
   
   - name: "B Series"
     patterns: ["B\\d{4}"]
-    type: "printer"
+    type: "laser_printer"
     description: "Lexmark B Series Monochrome Printers"
   
   - name: "CS Series"
     patterns: ["CS\\d{3,4}"]
-    type: "printer"
+    type: "laser_printer"
     description: "Lexmark CS Series Color Printers"
   
   - name: "C Series"

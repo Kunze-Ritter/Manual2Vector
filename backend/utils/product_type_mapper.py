@@ -3,6 +3,7 @@
 Maps series names to product types.
 """
 
+import re
 from typing import Optional
 
 

@@ -31,59 +31,59 @@ product_patterns:
     flags: NONE
     examples: ["E877", "E87740", "M455", "M428"]
     series: "LaserJet"
-    type: "printer"
+    type: "laser_multifunction"
   
   # OfficeJet Series
   - pattern: '\bOfficeJet\s+(?:Pro\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["OfficeJet Pro 9015", "OfficeJet 8015"]
     series: "OfficeJet"
-    type: "multifunction"
+    type: "laser_multifunction"
   
   # PageWide Series
   - pattern: '\bPageWide\s+(?:Pro\s+|Enterprise\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["PageWide Pro 477dw", "PageWide Enterprise 586"]
     series: "PageWide"
-    type: "multifunction"
+    type: "laser_multifunction"
   
   # DesignJet Series
   - pattern: '\bDesignJet\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["DesignJet T730", "DesignJet Z6"]
     series: "DesignJet"
-    type: "plotter"
+    type: "inkjet_plotter"
 
 # Series Detection
 series:
   - name: "LaserJet"
     patterns: ["LaserJet", "[EM]\\d{3,5}"]
-    type: "printer"
+    type: "Inkjet"
     description: "HP LaserJet Laser Printers"
   
   - name: "LaserJet Pro"
     patterns: ["LaserJet\\s+Pro"]
-    type: "printer"
+    type: "laser_multifunction"
     description: "HP LaserJet Pro Series"
   
   - name: "LaserJet Enterprise"
     patterns: ["LaserJet\\s+Enterprise"]
-    type: "printer"
+    type: "laser_multifunction"
     description: "HP LaserJet Enterprise Series"
   
   - name: "OfficeJet"
     patterns: ["OfficeJet"]
-    type: "multifunction"
+    type: "laser_multifunction"
     description: "HP OfficeJet Inkjet Multifunction Printers"
   
   - name: "PageWide"
     patterns: ["PageWide"]
-    type: "multifunction"
+    type: "Inkjetmultifunction"
     description: "HP PageWide Inkjet Printers"
   
   - name: "DesignJet"
     patterns: ["DesignJet"]
-    type: "plotter"
+    type: "inkjet_plotter"
     description: "HP DesignJet Large Format Printers"
 
 # Accessory/Part Prefixes

@@ -20,7 +20,15 @@ DROP FUNCTION IF EXISTS public.vw_products_delete();
 -- ======================================================================
 CREATE OR REPLACE FUNCTION public.vw_products_insert()
 RETURNS TRIGGER AS $$
+DECLARE
+    new_id uuid;
 BEGIN
+    IF NEW.product_type IS NULL THEN
+        RAISE EXCEPTION 'product_type must be provided when inserting via vw_products view.';
+    END IF;
+
+    new_id := COALESCE(NEW.id, uuid_generate_v4());
+
     INSERT INTO krai_core.products (
         id,
         manufacturer_id,
@@ -36,11 +44,11 @@ BEGIN
         oem_relationship_type,
         oem_notes
     ) VALUES (
-        COALESCE(NEW.id, uuid_generate_v4()),
+        new_id,
         NEW.manufacturer_id,
         NEW.series_id,
         NEW.model_number,
-        COALESCE(NEW.product_type, 'printer'),
+        NEW.product_type,
         COALESCE(NEW.specifications, '{}'::jsonb),
         COALESCE(NEW.pricing, '{}'::jsonb),
         COALESCE(NEW.lifecycle, '{}'::jsonb),
@@ -50,6 +58,7 @@ BEGIN
         NEW.oem_relationship_type,
         NEW.oem_notes
     );
+    NEW.id := new_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -59,13 +68,21 @@ $$ LANGUAGE plpgsql;
 -- ======================================================================
 CREATE OR REPLACE FUNCTION public.vw_products_update()
 RETURNS TRIGGER AS $$
+DECLARE
+    target_product_type text;
 BEGIN
+    target_product_type := COALESCE(NEW.product_type, OLD.product_type);
+
+    IF target_product_type IS NULL THEN
+        RAISE EXCEPTION 'product_type must be provided when updating via vw_products view.';
+    END IF;
+
     UPDATE krai_core.products
     SET
         manufacturer_id = NEW.manufacturer_id,
         series_id = NEW.series_id,
         model_number = NEW.model_number,
-        product_type = NEW.product_type,
+        product_type = target_product_type,
         specifications = NEW.specifications,
         pricing = NEW.pricing,
         lifecycle = NEW.lifecycle,
@@ -76,6 +93,8 @@ BEGIN
         oem_notes = NEW.oem_notes,
         updated_at = NOW()
     WHERE id = OLD.id;
+
+    NEW.product_type := target_product_type;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
