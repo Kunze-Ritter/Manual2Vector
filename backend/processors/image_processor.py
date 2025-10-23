@@ -13,6 +13,7 @@ Features:
 """
 
 import os
+import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from uuid import UUID
@@ -567,6 +568,79 @@ Keep it concise and technical."""
         except Exception as e:
             self.logger.error(f"Vision AI processing failed: {e}")
             return images
+    
+    def analyze_page(
+        self,
+        pdf_path: Path,
+        page_number: int,
+        prompt: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Analyze a specific PDF page with Vision AI
+        
+        Args:
+            pdf_path: Path to PDF file
+            page_number: Page number to analyze (0-indexed)
+            prompt: Custom prompt for Vision AI
+            
+        Returns:
+            Dict with analysis results or None if failed
+        """
+        try:
+            if not self.vision_available:
+                self.logger.warning("Vision AI not available")
+                return None
+            
+            # Extract page as image
+            doc = fitz.open(pdf_path)
+            if page_number >= len(doc):
+                self.logger.warning(f"Page {page_number} out of range (doc has {len(doc)} pages)")
+                return None
+            
+            page = doc[page_number]
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better quality
+            img_data = pix.tobytes("png")
+            doc.close()
+            
+            # Analyze with Vision AI
+            import requests
+            import base64
+            
+            img_base64 = base64.b64encode(img_data).decode('utf-8')
+            
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": "llava:latest",
+                    "prompt": prompt,
+                    "images": [img_base64],
+                    "stream": False
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                result_text = response.json().get('response', '')
+                
+                # Try to parse as JSON
+                try:
+                    # Extract JSON from response (might have extra text)
+                    import re
+                    json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
+                    if json_match:
+                        result = json.loads(json_match.group())
+                        return result
+                    else:
+                        return {"found": False, "raw_response": result_text}
+                except json.JSONDecodeError:
+                    return {"found": False, "raw_response": result_text}
+            else:
+                self.logger.warning(f"Vision API error: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"analyze_page failed: {e}")
+            return None
 
 
 # Example usage
