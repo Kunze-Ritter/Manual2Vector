@@ -1251,14 +1251,55 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **Files:** `scripts/generate_db_doc_from_csv.py`, `DATABASE_SCHEMA.md`
   - **Result:** Schema documentation matches live Supabase structure
 
+- [x] **Production processor import path fixed** ✅ (13:43)
+  - Added project root to `sys.path` before backend insertion
+  - Ensures `backend.constants.product_types` imports succeed when running script directly
+  - **File:** `backend/processors/process_production.py`
+  - **Result:** `process_production.py --reprocess-all` starts without ModuleNotFound errors
+
+- [x] **Product type mapper regex fix** ✅ (14:07)
+  - Added missing `re` import required for regex-based type detection
+  - Prevents `name 're' is not defined` during product save
+  - **File:** `backend/utils/product_type_mapper.py`
+  - **Result:** Product saving step resumes without runtime error
+
+- [x] **vw_products trigger ID propagation** ✅ (14:12)
+  - Assigned generated UUID to `NEW.id` within `vw_products_insert()`
+  - Redeployed triggers in Supabase to ensure view returns real IDs
+  - **Files:** `database/migrations/114_add_vw_products_triggers.sql`
+  - **Result:** INSERT via view yields concrete product IDs for downstream use
+
+- [x] **Document product linking safeguard** ✅ (14:14)
+  - Added fallbacks when resolving product IDs after insert/update operations
+  - Skips document link creation for missing IDs and logs warnings
+  - **File:** `backend/processors/document_processor.py`
+  - **Result:** Document-product linking and series detection receive valid UUIDs
+
+- [x] **Product extractor log throttle** ✅ (14:19)
+  - Limited pattern count logging to first page or debug mode
+  - Keeps pattern usage visibility without flooding per page
+  - **File:** `backend/processors/product_extractor.py`
+  - **Result:** Pipeline logs stay concise during large document runs
+
+- [x] **Vision enrichment availability logs** ✅ (14:45)
+  - Added explicit warnings when Vision AI is disabled or unavailable
+  - Prevents misleading status messages during parts enrichment
+  - **File:** `backend/processors/parts_extractor.py`
+  - **Result:** Operators see clear reason when GPU-backed Vision AI is skipped
+
+- [x] **Parts catalog upsert fix** ✅ (14:59)
+  - Deduplicated extracted parts and upserted directly into `krai_parts.parts_catalog`
+  - Prevents single-row overwrite and preserves unique part metadata
+  - **File:** `backend/processors/document_processor.py`
+  - **Result:** Multiple enriched parts persist correctly in Supabase
+
 ### 📋 TODO - NEXT PRIORITIES
 
-- [ ] **Verify vw_products compatibility** 🔍 MEDIUM PRIORITY
-  - **Task:** Ensure view definitions still match `product_type` constraint; adjust if column type change required
-  - **Files to modify:** `database/migrations/`, `database/views/`
-  - **Priority:** MEDIUM
-  - **Effort:** 1 hour
-  - **Status:** TODO
+- [x] **Verify vw_products compatibility** ✅ (13:48)
+  - Updated triggers to require explicit `product_type` and reuse existing values when omitted
+  - Redeployed functions/triggers directly in Supabase to prevent invalid defaults
+  - **Files:** `database/migrations/114_add_vw_products_triggers.sql`
+  - **Result:** View operations respect `products_product_type_check` without violating constraint
 
 ---
 

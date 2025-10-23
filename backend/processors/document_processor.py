@@ -1477,32 +1477,27 @@ class DocumentProcessor:
                             manufacturer_id = self._ensure_manufacturer_exists(manufacturer_name, supabase)
                         except Exception as e:
                             self.logger.debug(f"Could not get manufacturer_id: {e}")
-                    
-                    # If still no manufacturer_id, try to get from document
-                    if not manufacturer_id and self.manufacturer:
-                        try:
-                            manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
-                            self.logger.info(f"✓ Using document manufacturer: {self.manufacturer} (ID: {manufacturer_id})")
-                        except Exception as e:
-                            self.logger.warning(f"Could not get document manufacturer_id: {e}")
-                    
+
                     # Check if product already exists
                     existing = supabase.table('vw_products').select('id').eq(
                         'model_number', product_data['model_number']
                     ).limit(1).execute()
-                    
+
                     if existing.data:
                         # Update existing product
-                        product_id = existing.data[0]['id']
-                        
+                        product_id = existing.data[0].get('id')
+
                         # Get current product_type to check if we should update
                         current_result = supabase.table('vw_products').select('product_type').eq('id', product_id).single().execute()
-                        current_type = current_result.data.get('product_type') if current_result.data else None
-                        
+                        if current_result.data:
+                            current_type = current_result.data.get('product_type')
+                        else:
+                            current_type = None
+
                         update_data = {
                             'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                         }
-                        
+
                         # Log manufacturer update
                         if manufacturer_id:
                             self.logger.info(f"✓ Updating {product_data['model_number']} manufacturer_id to {manufacturer_id}")
@@ -1546,7 +1541,10 @@ class DocumentProcessor:
                         
                         supabase.table('vw_products').update(update_data).eq('id', product_id).execute()
                         updated_count += 1
-                        product_ids.append(product_id)
+                        if product_id:
+                            product_ids.append(product_id)
+                        else:
+                            self.logger.warning(f"⚠️  Missing product_id after update for {product_data['model_number']}")
                     else:
                         # Create new product
                         # Determine product_type from series_name + model_number
@@ -1575,8 +1573,21 @@ class DocumentProcessor:
                         if product_data.get('specifications'):
                             insert_data['specifications'] = product_data['specifications']
                         result = supabase.table('vw_products').insert(insert_data).execute()
-                        if result.data:
-                            product_ids.append(result.data[0]['id'])
+                        product_id = result.data[0].get('id') if result.data else None
+
+                        if not product_id:
+                            # Fallback: fetch by model number to get the generated ID
+                            lookup = supabase.schema('krai_core').table('products').select('id').eq(
+                                'model_number', product_data['model_number']
+                            ).order('updated_at', desc=True).limit(1).execute()
+                            if lookup.data:
+                                product_id = lookup.data[0].get('id')
+
+                        if product_id:
+                            product_ids.append(product_id)
+                        else:
+                            self.logger.warning(f"⚠️  Could not determine product_id for {product_data['model_number']} after insert")
+
                         saved_count += 1
                         
                         # Update progress
@@ -1626,6 +1637,9 @@ class DocumentProcessor:
             if product_ids:
                 try:
                     for product_id in product_ids:
+                        if not product_id:
+                            self.logger.warning("⚠️  Skipping document link for missing product_id")
+                            continue
                         # Check if link already exists
                         existing_link = supabase.schema('krai_core').table('document_products').select('id').eq(
                             'document_id', str(document_id)
@@ -1642,7 +1656,8 @@ class DocumentProcessor:
                 except Exception as e:
                     self.logger.warning(f"Could not create document-product links: {e}")
             
-            return product_ids
+            # Filter out any None values before returning
+            return [pid for pid in product_ids if pid]
         except Exception as e:
             error_msg = str(e)
             
@@ -2318,12 +2333,10 @@ class DocumentProcessor:
             if not manufacturer_id:
                 self.logger.warning(f"⏭️  Skipping parts save - no manufacturer_id")
                 return
-            
-            saved_count = 0
-            updated_count = 0
-            
+
+            # Deduplicate parts by part_number (keep first occurrence, merge details)
+            unique_parts: Dict[str, Dict[str, Any]] = {}
             for part in parts:
-                # Convert ExtractedPart to dict if needed
                 part_data = part if isinstance(part, dict) else {
                     'part_number': getattr(part, 'part_number', ''),
                     'part_name': getattr(part, 'part_name', None),
@@ -2331,37 +2344,80 @@ class DocumentProcessor:
                     'part_category': getattr(part, 'part_category', None),
                     'unit_price_usd': getattr(part, 'unit_price_usd', None),
                 }
-                
-                # Prepare record
-                record = {
-                    'manufacturer_id': str(manufacturer_id),
-                    'part_number': part_data.get('part_number'),
-                    'part_name': part_data.get('part_name'),
-                    'part_description': part_data.get('part_description'),
-                    'part_category': part_data.get('part_category'),
-                    'unit_price_usd': part_data.get('unit_price_usd')
-                }
-                
-                # Check for duplicates
-                existing = supabase.table('vw_parts') \
-                    .select('id') \
-                    .eq('part_number', record['part_number']) \
-                    .eq('manufacturer_id', str(manufacturer_id)) \
-                    .limit(1) \
-                    .execute()
-                
-                if not existing.data:
-                    supabase.table('vw_parts').insert(record).execute()
-                    saved_count += 1
+
+                part_number = (part_data.get('part_number') or '').strip()
+                if not part_number:
+                    continue
+
+                if part_number not in unique_parts:
+                    unique_parts[part_number] = part_data
                 else:
-                    # Update existing part with new info
-                    supabase.table('vw_parts').update(record).eq('id', existing.data[0]['id']).execute()
-                    updated_count += 1
-            
+                    existing_data = unique_parts[part_number]
+                    if not existing_data.get('part_name') and part_data.get('part_name'):
+                        existing_data['part_name'] = part_data['part_name']
+                    if not existing_data.get('part_description') and part_data.get('part_description'):
+                        existing_data['part_description'] = part_data['part_description']
+                    if not existing_data.get('part_category') and part_data.get('part_category'):
+                        existing_data['part_category'] = part_data['part_category']
+                    if existing_data.get('unit_price_usd') is None and part_data.get('unit_price_usd') is not None:
+                        existing_data['unit_price_usd'] = part_data['unit_price_usd']
+
+            if not unique_parts:
+                self.logger.info("No valid parts to save after deduplication")
+                return
+
+            part_numbers = list(unique_parts.keys())
+
+            existing_response = supabase.schema('krai_parts').table('parts_catalog') \
+                .select('part_number') \
+                .eq('manufacturer_id', str(manufacturer_id)) \
+                .in_('part_number', part_numbers) \
+                .execute()
+
+            existing_numbers = set()
+            if existing_response.data:
+                existing_numbers = {
+                    row['part_number']
+                    for row in existing_response.data
+                    if row.get('part_number')
+                }
+
+            records_to_upsert = []
+            for part_number, part_data in unique_parts.items():
+                record: Dict[str, Any] = {
+                    'manufacturer_id': str(manufacturer_id),
+                    'part_number': part_number
+                }
+
+                if part_data.get('part_name') is not None or part_number not in existing_numbers:
+                    record['part_name'] = part_data.get('part_name')
+                if part_data.get('part_description') is not None or part_number not in existing_numbers:
+                    record['part_description'] = part_data.get('part_description')
+                if part_data.get('part_category') is not None or part_number not in existing_numbers:
+                    record['part_category'] = part_data.get('part_category')
+                if part_data.get('unit_price_usd') is not None or part_number not in existing_numbers:
+                    record['unit_price_usd'] = part_data.get('unit_price_usd')
+
+                records_to_upsert.append(record)
+
+            if not records_to_upsert:
+                self.logger.info("No parts to upsert after filtering")
+                return
+
+            upsert_response = supabase.schema('krai_parts').table('parts_catalog') \
+                .upsert(records_to_upsert, on_conflict='manufacturer_id,part_number') \
+                .execute()
+
+            if getattr(upsert_response, 'error', None):
+                raise Exception(upsert_response.error)
+
+            saved_count = sum(1 for pn in part_numbers if pn not in existing_numbers)
+            updated_count = len(part_numbers) - saved_count
+
             if updated_count > 0:
                 self.logger.info(f"🔄 Updated {updated_count} existing parts")
             self.logger.success(f"💾 Saved {saved_count} new parts, updated {updated_count} existing")
-            
+
         except Exception as e:
             self.logger.error(f"Failed to save parts: {e}")
     
