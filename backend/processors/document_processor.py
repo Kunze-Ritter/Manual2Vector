@@ -1461,9 +1461,9 @@ class DocumentProcessor:
                     if not manufacturer_id and self.manufacturer:
                         try:
                             manufacturer_id = self._ensure_manufacturer_exists(self.manufacturer, supabase)
-                            self.logger.debug(f"Using document manufacturer: {self.manufacturer}")
+                            self.logger.info(f"✓ Using document manufacturer: {self.manufacturer} (ID: {manufacturer_id})")
                         except Exception as e:
-                            self.logger.debug(f"Could not get document manufacturer_id: {e}")
+                            self.logger.warning(f"Could not get document manufacturer_id: {e}")
                     
                     # Check if product already exists
                     existing = supabase.table('vw_products').select('id').eq(
@@ -1481,6 +1481,12 @@ class DocumentProcessor:
                         update_data = {
                             'manufacturer_id': str(manufacturer_id) if manufacturer_id else None
                         }
+                        
+                        # Log manufacturer update
+                        if manufacturer_id:
+                            self.logger.info(f"✓ Updating {product_data['model_number']} manufacturer_id to {manufacturer_id}")
+                        else:
+                            self.logger.warning(f"⚠️  No manufacturer_id for {product_data['model_number']} - will not update!")
                         
                         # Add specifications if available (from LLM extraction)
                         if product_data.get('specifications'):
