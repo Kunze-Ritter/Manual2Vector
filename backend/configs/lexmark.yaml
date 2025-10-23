@@ -72,42 +72,42 @@ product_patterns:
 series:
   - name: "CX Series"
     patterns: ["CX\\d{3,4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Lexmark CX Series Color Multifunction Printers"
   
   - name: "XC Series"
     patterns: ["XC\\d{4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Lexmark XC Series High-Volume Color Multifunction Printers"
   
   - name: "MX Series"
     patterns: ["MX\\d{3,4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Lexmark MX Series Monochrome Multifunction Printers"
   
   - name: "MS Series"
     patterns: ["MS\\d{3,4}"]
-    type: "laser_printer"
+    type: "printer"
     description: "Lexmark MS Series Monochrome Printers"
   
   - name: "MB Series"
     patterns: ["MB\\d{4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Lexmark MB Series Monochrome Multifunction Printers"
   
   - name: "B Series"
     patterns: ["B\\d{4}"]
-    type: "laser_printer"
+    type: "printer"
     description: "Lexmark B Series Monochrome Printers"
   
   - name: "CS Series"
     patterns: ["CS\\d{3,4}"]
-    type: "laser_printer"
+    type: "printer"
     description: "Lexmark CS Series Color Printers"
   
   - name: "C Series"
     patterns: ["C\\d{3,4}"]
-    type: "laser_printer"
+    type: "printer"
     description: "Lexmark C Series Color Printers (Legacy)"
 
 # Accessory/Part Prefixes

@@ -17,61 +17,61 @@ product_patterns:
     flags: IGNORECASE
     examples: ["imageRUNNER ADVANCE C5535i", "imageRUNNER ADVANCE DX C5760i"]
     series: "imageRUNNER ADVANCE"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # imageRUNNER Series (Legacy)
   - pattern: '\bimageRUNNER\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["imageRUNNER 2525", "imageRUNNER C3220"]
     series: "imageRUNNER"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # PIXMA Series
   - pattern: '\bPIXMA\s+[A-Z]{2}\d{3,4}\b'
     flags: IGNORECASE
     examples: ["PIXMA TR8620", "PIXMA G7020"]
     series: "PIXMA"
-    type: "inkjet_multifunction"
+    type: "multifunction"
   
   # imagePRESS Series
   - pattern: '\bimagePRESS\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["imagePRESS C910", "imagePRESS C10000VP"]
     series: "imagePRESS"
-    type: "laser_production_printer"
+    type: "printer"
   
   # i-SENSYS Series
   - pattern: '\bi-SENSYS\s+(?:MF|LBP)\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["i-SENSYS MF445dw", "i-SENSYS LBP623Cdw"]
     series: "i-SENSYS"
-    type: "laser_printer"
+    type: "printer"
 
 # Series Detection
 series:
   - name: "imageRUNNER ADVANCE"
     patterns: ["imageRUNNER\\s+ADVANCE"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Canon imageRUNNER ADVANCE Multifunction Printers"
   
   - name: "imageRUNNER"
     patterns: ["imageRUNNER"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Canon imageRUNNER Multifunction Printers"
   
   - name: "imagePRESS"
     patterns: ["imagePRESS"]
-    type: "laser_production_printer"
+    type: "printer"
     description: "Canon imagePRESS Production Printers"
   
   - name: "PIXMA"
     patterns: ["PIXMA"]
-    type: "inkjet_multifunction"
+    type: "multifunction"
     description: "Canon PIXMA Inkjet Printers"
   
   - name: "i-SENSYS"
     patterns: ["i-SENSYS"]
-    type: "laser_printer"
+    type: "printer"
     description: "Canon i-SENSYS Laser Printers"
 
 # Accessory/Part Prefixes

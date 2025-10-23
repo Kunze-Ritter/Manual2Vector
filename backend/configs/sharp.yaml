@@ -9,12 +9,12 @@ product_patterns:
     flags: IGNORECASE
     examples: ["MX-3071", "MX-4071", "MX-5071"]
     series: "MX Series"
-    type: "laser_multifunction"
+    type: "multifunction"
 
 series:
   - name: "MX Series"
     patterns: ["MX-"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Sharp MX Series Multifunction Printers"
 
 part_prefixes:

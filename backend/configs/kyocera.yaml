@@ -23,49 +23,49 @@ product_patterns:
     flags: IGNORECASE
     examples: ["ECOSYS M3145dn", "ECOSYS P3260dn"]
     series: "ECOSYS"
-    type: "laser_printer"
+    type: "printer"
   
   # TASKalfa Series
   - pattern: '\bTASKalfa\s+\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["TASKalfa 3252ci", "TASKalfa 6053ci"]
     series: "TASKalfa"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # FS Series (Legacy)
   - pattern: '\bFS-\d{4}[A-Z]{0,3}\b'
     flags: IGNORECASE
     examples: ["FS-2100DN", "FS-4200DN"]
     series: "FS Series"
-    type: "laser_printer"
+    type: "printer"
   
   # KM Series (Legacy)
   - pattern: '\bKM-\d{4}[A-Z]{0,3}\b'
     flags: IGNORECASE
     examples: ["KM-3050", "KM-5050"]
     series: "KM Series"
-    type: "laser_multifunction"
+    type: "multifunction"
 
 # Series Detection
 series:
   - name: "ECOSYS"
     patterns: ["ECOSYS"]
-    type: "laser_printer"
+    type: "printer"
     description: "Kyocera ECOSYS Laser Printers"
   
   - name: "TASKalfa"
     patterns: ["TASKalfa"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Kyocera TASKalfa Multifunction Printers"
   
   - name: "FS Series"
     patterns: ["FS-\\d{4}"]
-    type: "laser_printer"
+    type: "printer"
     description: "Kyocera FS Series Laser Printers (Legacy)"
   
   - name: "KM Series"
     patterns: ["KM-\\d{4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Kyocera KM Series Multifunction Printers (Legacy)"
 
 # Accessory/Part Prefixes

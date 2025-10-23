@@ -9,18 +9,18 @@ product_patterns:
     flags: IGNORECASE
     examples: ["MFC-L8900CDW", "DCP-L5500DN", "HL-L6400DW"]
     series: "Brother"
-    type: "laser_multifunction"
+    type: "multifunction"
 
 series:
   - name: "MFC Series"
     patterns: ["MFC-"]
-    type: "laser_multifunction"
+    type: "multifunction"
   - name: "DCP Series"
     patterns: ["DCP-"]
-    type: "laser_multifunction"
+    type: "multifunction"
   - name: "HL Series"
     patterns: ["HL-"]
-    type: "laser_printer"
+    type: "printer"
 
 part_prefixes:
   - prefix: "TN"

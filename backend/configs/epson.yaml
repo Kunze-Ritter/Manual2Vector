@@ -9,15 +9,15 @@ product_patterns:
     flags: IGNORECASE
     examples: ["WorkForce Pro WF-C5790", "EcoTank ET-4760"]
     series: "WorkForce"
-    type: "inkjet_multifunction"
+    type: "multifunction"
 
 series:
   - name: "WorkForce"
     patterns: ["WorkForce"]
-    type: "inkjet_multifunction"
+    type: "multifunction"
   - name: "EcoTank"
     patterns: ["EcoTank"]
-    type: "inkjet_multifunction"
+    type: "multifunction"
 
 part_prefixes:
   - prefix: "T"

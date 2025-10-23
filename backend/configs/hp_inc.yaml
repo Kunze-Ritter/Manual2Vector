@@ -24,66 +24,66 @@ product_patterns:
     flags: IGNORECASE
     examples: ["LaserJet Pro M404dn", "Color LaserJet Enterprise M455dn", "LaserJet MFP M428fdn"]
     series: "LaserJet"
-    type: "laser_printer"
+    type: "printer"
   
   # Simple Model Numbers (E/M Series)
   - pattern: '\b[EM]\d{3,5}[a-z]{0,2}\b'
     flags: NONE
     examples: ["E877", "E87740", "M455", "M428"]
     series: "LaserJet"
-    type: "laser_printer"
+    type: "printer"
   
   # OfficeJet Series
   - pattern: '\bOfficeJet\s+(?:Pro\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["OfficeJet Pro 9015", "OfficeJet 8015"]
     series: "OfficeJet"
-    type: "inkjet_multifunction"
+    type: "multifunction"
   
   # PageWide Series
   - pattern: '\bPageWide\s+(?:Pro\s+|Enterprise\s+)?[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["PageWide Pro 477dw", "PageWide Enterprise 586"]
     series: "PageWide"
-    type: "inkjet_multifunction"
+    type: "multifunction"
   
   # DesignJet Series
   - pattern: '\bDesignJet\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["DesignJet T730", "DesignJet Z6"]
     series: "DesignJet"
-    type: "large_format_printer"
+    type: "plotter"
 
 # Series Detection
 series:
   - name: "LaserJet"
     patterns: ["LaserJet", "[EM]\\d{3,5}"]
-    type: "laser_printer"
+    type: "printer"
     description: "HP LaserJet Laser Printers"
   
   - name: "LaserJet Pro"
     patterns: ["LaserJet\\s+Pro"]
-    type: "laser_printer"
+    type: "printer"
     description: "HP LaserJet Pro Series"
   
   - name: "LaserJet Enterprise"
     patterns: ["LaserJet\\s+Enterprise"]
-    type: "laser_printer"
+    type: "printer"
     description: "HP LaserJet Enterprise Series"
   
   - name: "OfficeJet"
     patterns: ["OfficeJet"]
-    type: "inkjet_multifunction"
+    type: "multifunction"
     description: "HP OfficeJet Inkjet Multifunction Printers"
   
   - name: "PageWide"
     patterns: ["PageWide"]
-    type: "inkjet_multifunction"
+    type: "multifunction"
     description: "HP PageWide Inkjet Printers"
   
   - name: "DesignJet"
     patterns: ["DesignJet"]
-    type: "large_format_printer"
+    type: "plotter"
     description: "HP DesignJet Large Format Printers"
 
 # Accessory/Part Prefixes

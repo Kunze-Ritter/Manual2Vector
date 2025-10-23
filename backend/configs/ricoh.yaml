@@ -16,61 +16,61 @@ product_patterns:
     flags: IGNORECASE
     examples: ["Aficio MP 4002", "Aficio MP C3003"]
     series: "Aficio MP"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # MP Series (without Aficio)
   - pattern: '\bMP\s+[A-Z]?\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["MP 4002", "MP C3003", "MP C6004"]
     series: "MP Series"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # IM C Series
   - pattern: '\bIM\s+C\d{3,4}[A-Z]?\b'
     flags: IGNORECASE
     examples: ["IM C2000", "IM C3000", "IM C6000"]
     series: "IM C Series"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # Pro C Series
   - pattern: '\bPro\s+C\d{3,5}[A-Z]?\b'
     flags: IGNORECASE
     examples: ["Pro C5300S", "Pro C7200S", "Pro C9200"]
     series: "Pro C Series"
-    type: "laser_production_printer"
+    type: "printer"
   
   # SP Series
   - pattern: '\bSP\s+\d{3,4}[A-Z]{0,3}\b'
     flags: IGNORECASE
     examples: ["SP 4510DN", "SP C840DN"]
     series: "SP Series"
-    type: "laser_printer"
+    type: "printer"
 
 # Series Detection
 series:
   - name: "Aficio MP"
     patterns: ["Aficio\\s+MP"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Ricoh Aficio MP Multifunction Printers"
   
   - name: "MP Series"
     patterns: ["MP\\s+[A-Z]?\\d{3,4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Ricoh MP Series Multifunction Printers"
   
   - name: "IM C Series"
     patterns: ["IM\\s+C\\d{3,4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Ricoh IM C Series Intelligent Multifunction Printers"
   
   - name: "Pro C Series"
     patterns: ["Pro\\s+C\\d{3,5}"]
-    type: "laser_production_printer"
+    type: "printer"
     description: "Ricoh Pro C Series Production Printers"
   
   - name: "SP Series"
     patterns: ["SP\\s+\\d{3,4}"]
-    type: "laser_printer"
+    type: "printer"
     description: "Ricoh SP Series Laser Printers"
 
 # Accessory/Part Prefixes

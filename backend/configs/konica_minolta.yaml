@@ -25,50 +25,50 @@ product_patterns:
     flags: IGNORECASE
     examples: ["bizhub C454e", "bizhub 454e", "bizhub PRESS C1070"]
     series: "bizhub"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # AccurioPress Series (Production Printer)
   - pattern: '\bC(4080|4070|3080|3070|2070|1060|6100|6085|7100|7090|12000|14000|16000)[LNPX]?\b'
     flags: IGNORECASE
     examples: ["C4080", "C4070", "C3080", "C6100", "C12000"]
     series: "AccurioPress"
-    type: "laser_production_printer"
+    type: "printer"
   
   # AccurioPrint Series (Production Printer)
   - pattern: '\bC(10500|12010|14010|2060|2070|4065|659|759)[SWOX]{0,2}\b'
     flags: IGNORECASE
     examples: ["C10500", "C12010", "C14010", "C2060", "C659"]
     series: "AccurioPrint"
-    type: "laser_production_printer"
+    type: "printer"
   
   # Standalone C-Series (without bizhub prefix)
   - pattern: '\bC(\d{3,4})[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["C224", "C284", "C364", "C454", "C554"]
     series: "bizhub C Series"
-    type: "laser_multifunction"
+    type: "multifunction"
     note: "Only match if NOT AccurioPress/AccurioPrint"
 
 # Series Detection
 series:
   - name: "bizhub"
     patterns: ["bizhub\\s+(?:C|i-)?\\d{3,4}"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Konica Minolta bizhub Multifunction Printers"
   
   - name: "bizhub PRESS"
     patterns: ["bizhub\\s+PRESS\\s+C\\d{4}"]
-    type: "laser_production_printer"
+    type: "printer"
     description: "Konica Minolta bizhub PRESS Production Printers"
   
   - name: "AccurioPress"
     patterns: ["AccurioPress", "C(4080|4070|3080|3070|6100|12000|14000|16000)"]
-    type: "laser_production_printer"
+    type: "printer"
     description: "Konica Minolta AccurioPress High-End Production Printers"
   
   - name: "AccurioPrint"
     patterns: ["AccurioPrint", "C(10500|12010|14010|2060|659|759)"]
-    type: "laser_production_printer"
+    type: "printer"
     description: "Konica Minolta AccurioPrint Production Color Printers"
 
 # Accessory/Part Prefixes

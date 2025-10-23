@@ -16,85 +16,85 @@ product_patterns:
     flags: IGNORECASE
     examples: ["VersaLink C405", "VersaLink B7035"]
     series: "VersaLink"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # AltaLink Series
   - pattern: '\bAltaLink\s+[BC]\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["AltaLink C8035", "AltaLink B8090"]
     series: "AltaLink"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # WorkCentre Series
   - pattern: '\bWorkCentre\s+\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["WorkCentre 3335", "WorkCentre 7845"]
     series: "WorkCentre"
-    type: "laser_multifunction"
+    type: "multifunction"
   
   # Phaser Series
   - pattern: '\bPhaser\s+\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["Phaser 3330", "Phaser 6510"]
     series: "Phaser"
-    type: "laser_printer"
+    type: "printer"
   
   # ColorQube Series
   - pattern: '\bColorQube\s+\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["ColorQube 8570", "ColorQube 8900"]
     series: "ColorQube"
-    type: "solid_ink_printer"
+    type: "printer"
   
   # Versant Series (Production)
   - pattern: '\bVersant\s+\d{3,4}[a-z]{0,3}\b'
     flags: IGNORECASE
     examples: ["Versant 180", "Versant 280", "Versant 4100"]
     series: "Versant"
-    type: "laser_production_printer"
+    type: "printer"
   
   # iGen Series (Production)
   - pattern: '\biGen\s+\d{1}\b'
     flags: IGNORECASE
     examples: ["iGen 5", "iGen 150"]
     series: "iGen"
-    type: "laser_production_printer"
+    type: "printer"
 
 # Series Detection
 series:
   - name: "VersaLink"
     patterns: ["VersaLink"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Xerox VersaLink Multifunction Printers"
   
   - name: "AltaLink"
     patterns: ["AltaLink"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Xerox AltaLink Multifunction Printers"
   
   - name: "WorkCentre"
     patterns: ["WorkCentre"]
-    type: "laser_multifunction"
+    type: "multifunction"
     description: "Xerox WorkCentre Multifunction Printers"
   
   - name: "Phaser"
     patterns: ["Phaser"]
-    type: "laser_printer"
+    type: "printer"
     description: "Xerox Phaser Laser Printers"
   
   - name: "ColorQube"
     patterns: ["ColorQube"]
-    type: "solid_ink_printer"
+    type: "printer"
     description: "Xerox ColorQube Solid Ink Printers"
   
   - name: "Versant"
     patterns: ["Versant"]
-    type: "laser_production_printer"
+    type: "printer"
     description: "Xerox Versant Production Printers"
   
   - name: "iGen"
     patterns: ["iGen"]
-    type: "laser_production_printer"
+    type: "printer"
     description: "Xerox iGen Production Printers"
 
 # Accessory/Part Prefixes
