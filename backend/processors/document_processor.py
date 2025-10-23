@@ -420,6 +420,12 @@ class DocumentProcessor:
                 document_title=document_title
             )
             
+            # Log which config was loaded
+            if product_extractor.config:
+                self.logger.success(f"📋 Loaded config: {product_extractor.config.canonical_name} ({len(product_extractor.compiled_patterns)} patterns)")
+            else:
+                self.logger.warning(f"⚠️  No config loaded for {detected_manufacturer} - using legacy patterns")
+            
             # Step 2a: Extract from filename and title (highest priority!)
             # Filename extraction
             filename_products = product_extractor.extract_from_text(
