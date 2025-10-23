@@ -1244,13 +1244,20 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **File:** Supabase migration (ran via MCP)
   - **Result:** Database enforces updated product type taxonomy
 
+- [x] **Database schema regenerated** ✅ (13:35)
+  - Imported Supabase CSV export (`Supabase Snippet Remove paper_feeder products Columns.csv`)
+  - Updated generator to pick latest CSV automatically
+  - Ran `scripts/generate_db_doc_from_csv.py` to refresh `DATABASE_SCHEMA.md`
+  - **Files:** `scripts/generate_db_doc_from_csv.py`, `DATABASE_SCHEMA.md`
+  - **Result:** Schema documentation matches live Supabase structure
+
 ### 📋 TODO - NEXT PRIORITIES
 
-- [ ] **Regenerate DATABASE_SCHEMA.md** 🔍 MEDIUM PRIORITY
-  - **Task:** Export latest columns via Supabase and rerun `scripts/generate_db_doc_from_csv.py`
-  - **Files to modify:** `DATABASE_SCHEMA.md`
+- [ ] **Verify vw_products compatibility** 🔍 MEDIUM PRIORITY
+  - **Task:** Ensure view definitions still match `product_type` constraint; adjust if column type change required
+  - **Files to modify:** `database/migrations/`, `database/views/`
   - **Priority:** MEDIUM
-  - **Effort:** 0.5 hours
+  - **Effort:** 1 hour
   - **Status:** TODO
 
 ---
@@ -1435,19 +1442,20 @@ UPLOAD_DOCUMENTS_TO_R2=false
 
 ### 📊 Session Statistics (2025-10-23)
 
-**Time:** 12:00-13:20 (1 hour 20 minutes)
-**Commits:** 0 (pending push)
-**Files Changed:** 2 files + Supabase constraint
+**Time:** 12:00-13:40 (1 hour 40 minutes)
+**Commits:** 1 commit
+**Files Changed:** 4 files + Supabase constraint
 **Migrations Created:** 0 (constraint updated via SQL)
 **Bugs Fixed:** 0 (validation alignment)
-**Features Added:** 1 (product type alignment)
+**Features Added:** 2 (product type alignment, schema doc refresh)
 
 **Key Achievements:**
 1. ✅ Pydantic + configs share single product type source of truth
 2. ✅ Konica-specific accessory mapping synced with new taxonomy
 3. ✅ Supabase constraint enforces expanded product types
+4. ✅ Schema documentation refreshed from latest Supabase export
 
-**Next Focus:** Regenerate schema docs; run extraction tests 🎯
+**Next Focus:** Verify vw_products compatibility; run extraction tests 🎯
 
 ---
 

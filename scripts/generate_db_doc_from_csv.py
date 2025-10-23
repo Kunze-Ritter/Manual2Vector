@@ -20,6 +20,7 @@ def generate_doc():
         print("Expected file like: 'Supabase Snippet Image Figure Metadata Columns.csv'")
         return
     
+    csv_files.sort(key=lambda path: path.stat().st_mtime, reverse=True)
     csv_file = csv_files[0]
     print(f"Reading: {csv_file.name}")
     

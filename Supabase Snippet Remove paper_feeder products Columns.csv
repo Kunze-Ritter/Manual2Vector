@@ -1,0 +1,101 @@
+table_schema,table_name,column_name,data_type,character_maximum_length,is_nullable,column_default,udt_name
+krai_agent,memory,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_agent,memory,session_id,character varying,255,NO,null,varchar
+krai_agent,memory,role,character varying,50,NO,'technician'::character varying,varchar
+krai_agent,memory,content,text,null,NO,null,text
+krai_agent,memory,metadata,jsonb,null,NO,'{}'::jsonb,jsonb
+krai_agent,memory,tokens_used,integer,null,NO,0,int4
+krai_agent,memory,created_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_agent,memory,updated_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_agent,memory,message,text,null,NO,''::text,text
+krai_agent,message,id,integer,null,NO,nextval('krai_agent.message_id_seq'::regclass),int4
+krai_agent,message,session_id,character varying,255,NO,null,varchar
+krai_agent,message,message,jsonb,null,NO,null,jsonb
+krai_config,competition_analysis,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_config,competition_analysis,our_product_id,uuid,null,NO,null,uuid
+krai_config,competition_analysis,competitor_manufacturer_id,uuid,null,NO,null,uuid
+krai_config,competition_analysis,competitor_model_name,character varying,200,YES,null,varchar
+krai_config,competition_analysis,comparison_category,character varying,100,YES,null,varchar
+krai_config,competition_analysis,our_advantage,text,null,YES,null,text
+krai_config,competition_analysis,competitor_advantage,text,null,YES,null,text
+krai_config,competition_analysis,feature_comparison,jsonb,null,YES,'{}'::jsonb,jsonb
+krai_config,competition_analysis,price_comparison,jsonb,null,YES,'{}'::jsonb,jsonb
+krai_config,competition_analysis,market_position,character varying,50,YES,null,varchar
+krai_config,competition_analysis,created_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_config,option_groups,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_config,option_groups,manufacturer_id,uuid,null,NO,null,uuid
+krai_config,option_groups,group_name,character varying,100,NO,null,varchar
+krai_config,option_groups,group_description,text,null,YES,null,text
+krai_config,option_groups,display_order,integer,null,YES,0,int4
+krai_config,option_groups,is_required,boolean,null,YES,false,bool
+krai_config,option_groups,created_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_config,product_compatibility,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_config,product_compatibility,base_product_id,uuid,null,NO,null,uuid
+krai_config,product_compatibility,option_product_id,uuid,null,NO,null,uuid
+krai_config,product_compatibility,compatibility_type,character varying,50,YES,'compatible'::character varying,varchar
+krai_config,product_compatibility,compatibility_notes,text,null,YES,null,text
+krai_config,product_compatibility,validated_date,date,null,YES,null,date
+krai_config,product_compatibility,validation_status,character varying,20,YES,'pending'::character varying,varchar
+krai_config,product_compatibility,created_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_config,product_features,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_config,product_features,product_id,uuid,null,NO,null,uuid
+krai_config,product_features,feature_id,uuid,null,NO,null,uuid
+krai_config,product_features,feature_value,text,null,YES,null,text
+krai_config,product_features,is_standard,boolean,null,YES,true,bool
+krai_config,product_features,additional_cost_usd,numeric,null,YES,0.00,numeric
+krai_config,product_features,created_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_content,images,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_content,images,document_id,uuid,null,YES,null,uuid
+krai_content,images,chunk_id,uuid,null,YES,null,uuid
+krai_content,images,filename,character varying,255,YES,null,varchar
+krai_content,images,original_filename,character varying,255,YES,null,varchar
+krai_content,images,storage_path,text,null,YES,null,text
+krai_content,images,storage_url,text,null,NO,null,text
+krai_content,images,file_size,integer,null,YES,null,int4
+krai_content,images,image_format,character varying,10,YES,null,varchar
+krai_content,images,width_px,integer,null,YES,null,int4
+krai_content,images,height_px,integer,null,YES,null,int4
+krai_content,images,page_number,integer,null,YES,null,int4
+krai_content,images,image_index,integer,null,YES,null,int4
+krai_content,images,image_type,character varying,50,YES,null,varchar
+krai_content,images,ai_description,text,null,YES,null,text
+krai_content,images,ai_confidence,numeric,null,YES,null,numeric
+krai_content,images,contains_text,boolean,null,YES,false,bool
+krai_content,images,ocr_text,text,null,YES,null,text
+krai_content,images,ocr_confidence,numeric,null,YES,null,numeric
+krai_content,images,manual_description,text,null,YES,null,text
+krai_content,images,tags,ARRAY,null,YES,null,_text
+krai_content,images,file_hash,character varying,64,YES,null,varchar
+krai_content,images,created_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_content,images,updated_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_content,images,figure_number,character varying,50,YES,null,varchar
+krai_content,images,figure_context,text,null,YES,null,text
+krai_content,links,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_content,links,document_id,uuid,null,NO,null,uuid
+krai_content,links,url,text,null,NO,null,text
+krai_content,links,link_type,character varying,50,NO,'external'::character varying,varchar
+krai_content,links,page_number,integer,null,NO,null,int4
+krai_content,links,description,text,null,YES,null,text
+krai_content,links,position_data,jsonb,null,YES,null,jsonb
+krai_content,links,is_active,boolean,null,YES,true,bool
+krai_content,links,created_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_content,links,updated_at,timestamp with time zone,null,YES,now(),timestamptz
+krai_content,links,video_id,uuid,null,YES,null,uuid
+krai_content,links,metadata,jsonb,null,YES,'{}'::jsonb,jsonb
+krai_content,links,link_category,character varying,50,YES,null,varchar
+krai_content,links,confidence_score,numeric,null,YES,0.0,numeric
+krai_content,links,manufacturer_id,uuid,null,YES,null,uuid
+krai_content,links,series_id,uuid,null,YES,null,uuid
+krai_content,links,related_error_codes,ARRAY,null,YES,null,_text
+krai_content,print_defects,id,uuid,null,NO,uuid_generate_v4(),uuid
+krai_content,print_defects,manufacturer_id,uuid,null,NO,null,uuid
+krai_content,print_defects,product_id,uuid,null,YES,null,uuid
+krai_content,print_defects,original_image_id,uuid,null,YES,null,uuid
+krai_content,print_defects,defect_name,character varying,100,NO,null,varchar
+krai_content,print_defects,defect_category,character varying,50,YES,null,varchar
+krai_content,print_defects,defect_description,text,null,YES,null,text
+krai_content,print_defects,example_image_url,text,null,YES,null,text
+krai_content,print_defects,annotated_image_url,text,null,YES,null,text
+krai_content,print_defects,detection_confidence,numeric,null,YES,null,numeric
+krai_content,print_defects,common_causes,jsonb,null,YES,'[]'::jsonb,jsonb
+krai_content,print_defects,recommended_solutions,jsonb,null,YES,'[]'::jsonb,jsonb
