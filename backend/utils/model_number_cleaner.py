@@ -53,11 +53,14 @@ def clean_model_number(model_number: str) -> str:
     # Remove extra whitespace
     model_number = ' '.join(model_number.split())
     
-    # Log if changed
+    # Log if changed (optional - only if logger available)
     if model_number != original:
-        from .logger import get_logger
-        logger = get_logger()
-        logger.debug(f"Cleaned model number: '{original}' -> '{model_number}'")
+        try:
+            from processors.logger import get_logger
+            logger = get_logger()
+            logger.debug(f"Cleaned model number: '{original}' -> '{model_number}'")
+        except:
+            pass  # Logger not available, skip logging
     
     return model_number
 
