@@ -203,6 +203,7 @@ class AccessoryLinker:
             link_data = {
                 'product_id': product_id,
                 'accessory_id': accessory_id,
+                'compatibility_type': 'compatible',  # Default: compatible (found together in document)
                 'is_standard': is_standard,
                 'compatibility_notes': compatibility_notes
             }
