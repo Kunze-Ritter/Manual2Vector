@@ -83,6 +83,8 @@ class LLMProductExtractor:
         
         prompt = f"""Extract ALL products (printers, accessories, options) from this {manufacturer} technical document.
 
+IMPORTANT: ALL products in this document are {manufacturer} products! Do NOT extract products from other manufacturers.
+
 TEXT:
 {text_sample}
 
@@ -92,6 +94,7 @@ INSTRUCTIONS:
 3. Extract specifications (speed, resolution, capacity, dimensions, etc.)
 4. Include accessories, options, finishers, feeders, trays
 5. Return ONLY valid JSON array (empty array if no products found)
+6. ALL products MUST be {manufacturer} products - ignore references to other brands
 
 JSON FORMAT:
 [
@@ -112,17 +115,12 @@ JSON FORMAT:
 ]
 
 RULES:
+- ALL products are {manufacturer} products
 - Extract numerical values WITHOUT units (80 ppm -> 80)
 - Use nested objects for complex specs
 - Use null if value unknown
 - Return [] if NO products found
 - Be flexible with spec names
-
-EXAMPLES:
-- Konica Minolta AccurioPress C4080: model_number="C4080", product_series="AccurioPress"
-- HP LaserJet Enterprise M607: model_number="M607", product_series="LaserJet Enterprise"
-- Kyocera TASKalfa 5053ci: model_number="5053ci", product_series="TASKalfa"
-- Canon imageRUNNER C5550i: model_number="C5550i", product_series="imageRUNNER"
 
 JSON:"""
         
