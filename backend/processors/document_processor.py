@@ -1462,7 +1462,7 @@ class DocumentProcessor:
                             self.logger.debug(f"Could not get document manufacturer_id: {e}")
                     
                     # Check if product already exists
-                    existing = supabase.table('vw_products').select('id').eq(
+                    existing = supabase.table('krai_core.products').select('id').eq(
                         'model_number', product_data['model_number']
                     ).limit(1).execute()
                     
@@ -1471,7 +1471,7 @@ class DocumentProcessor:
                         product_id = existing.data[0]['id']
                         
                         # Get current product_type to check if we should update
-                        current_result = supabase.table('vw_products').select('product_type').eq('id', product_id).single().execute()
+                        current_result = supabase.table('krai_core.products').select('product_type').eq('id', product_id).single().execute()
                         current_type = current_result.data.get('product_type') if current_result.data else None
                         
                         update_data = {
@@ -1513,7 +1513,7 @@ class DocumentProcessor:
                             else:
                                 self.logger.debug(f"  Skipped: Already correct or not better")
                         
-                        supabase.table('vw_products').update(update_data).eq('id', product_id).execute()
+                        supabase.table('krai_core.products').update(update_data).eq('id', product_id).execute()
                         updated_count += 1
                         product_ids.append(product_id)
                     else:
@@ -1543,7 +1543,7 @@ class DocumentProcessor:
                         # Add specifications if available (from LLM extraction)
                         if product_data.get('specifications'):
                             insert_data['specifications'] = product_data['specifications']
-                        result = supabase.table('vw_products').insert(insert_data).execute()
+                        result = supabase.table('krai_core.products').insert(insert_data).execute()
                         if result.data:
                             product_ids.append(result.data[0]['id'])
                         saved_count += 1
