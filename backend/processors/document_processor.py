@@ -1502,7 +1502,6 @@ class DocumentProcessor:
                         if product_data.get('specifications'):
                             update_data['specifications'] = product_data['specifications']
 
-                        from utils.product_type_mapper import get_product_type
                         detected_type = get_product_type(
                             series_name=product_data.get('series_name', ''),
                             model_number=model_number

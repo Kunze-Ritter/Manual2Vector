@@ -1299,6 +1299,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **Files:** `backend/processors/product_extractor.py`, `backend/processors/document_processor.py`
   - **Result:** Reduced noise while preserving key product extraction signals
 
+- [x] **Parts catalog unique constraint** ✅ (16:24)
+  - Added missing UNIQUE constraint for manufacturer/part_number combination
+  - Enables parts upserts without 42P10 conflict errors
+  - **File:** `database/migrations/115_add_parts_catalog_unique_constraint.sql`
+  - **Result:** Parts saving now aligns with Supabase conflict target
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)
