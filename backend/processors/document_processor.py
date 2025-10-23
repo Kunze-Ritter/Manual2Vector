@@ -1442,6 +1442,10 @@ class DocumentProcessor:
                         'specifications': getattr(product, 'specifications', {})
                     }
                     
+                    # Clean model number (remove suffixes like "(1st device)")
+                    from utils.model_number_cleaner import clean_model_number
+                    product_data['model_number'] = clean_model_number(product_data['model_number'])
+                    
                     # Get manufacturer_id (inherit from document if not specified)
                     # ALWAYS use document manufacturer to ensure correct manufacturer_id
                     manufacturer_name = product_data.get('manufacturer_name') or self.manufacturer
@@ -1799,9 +1803,8 @@ class DocumentProcessor:
                 current_type = result.data[0].get('product_type')
                 model_number = result.data[0].get('model_number')
                 
-                # Extract series_name from joined table
-                series_data = result.data[0].get('product_series')
-                series_name = series_data.get('series_name') if series_data else None
+                # series_name is now directly in vw_products (after migration 113)
+                series_name = result.data[0].get('series_name')
                 
                 # Detect product type with series_name
                 detected_type = get_product_type(
@@ -1813,7 +1816,8 @@ class DocumentProcessor:
                 if detected_type and detected_type != current_type:
                     # Only update if new type is more specific (not laser_multifunction fallback)
                     if detected_type != 'laser_multifunction' or not current_type:
-                        supabase.table('vw_products') \
+                        # Use base table for UPDATE (views with JOINs are not updatable)
+                        supabase.table('krai_core.products') \
                             .update({'product_type': detected_type}) \
                             .eq('id', product_id) \
                             .execute()
