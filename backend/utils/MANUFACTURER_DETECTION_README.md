@@ -79,7 +79,7 @@ Text: "HP LaserJet M479fdw..."
 Scoring:
 - HP: 10 (filename) + 5 (title) + 1 (text) = 16 points ✅
 
-Result: Hewlett Packard (score: 16, very high confidence)
+Result: HP Inc. (score: 16, very high confidence)
 ```
 
 ## Normalization Improvements
@@ -117,9 +117,9 @@ normalize_manufacturer("Lexmark", strict=True)  # → "Lexmark"
 - lexmark, Lexmark, LEXMARK
 - Lexmark International
 
-### Hewlett Packard
+### HP Inc.
 - hp, HP, HP Inc, HP Inc.
-- Hewlett Packard, Hewlett-Packard
+- Hewlett Packard, Hewlett-Packard (legacy name)
 - H-P, H P
 
 ### Konica Minolta

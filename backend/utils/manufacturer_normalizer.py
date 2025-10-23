@@ -11,7 +11,7 @@ from typing import Optional
 # Key: canonical name (what we store in DB)
 # Value: list of aliases/variations
 MANUFACTURER_MAP = {
-    'Hewlett Packard': [
+    'HP Inc.': [
         'hp', 'HP', 'HP Inc', 'HP Inc.', 'hp inc', 'hp inc.',
         'Hewlett Packard', 'Hewlett-Packard', 'hewlett packard',
         'hewlett-packard', 'HEWLETT PACKARD', 'HEWLETT-PACKARD',
