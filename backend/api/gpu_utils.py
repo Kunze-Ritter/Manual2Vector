@@ -20,7 +20,7 @@ class GPUManager:
         self._gpu_available = None
         self._opencv_cuda_available = None
         
-        logger.info(f"GPU Manager initialized: USE_GPU={self.use_gpu}")
+        logger.info(f"GPU Manager initialized: USE_GPU={self.use_gpu}, CUDA_VISIBLE_DEVICES={self.cuda_device}")
     
     def is_gpu_available(self) -> bool:
         """Check if GPU is available for general use"""
@@ -35,9 +35,43 @@ class GPUManager:
         # Try to detect CUDA
         try:
             import torch
+            cuda_visible = os.getenv("CUDA_VISIBLE_DEVICES", self.cuda_device)
+            logger.debug(f"Checking CUDA availability (CUDA_VISIBLE_DEVICES={cuda_visible})")
+
+            # Respect CUDA_VISIBLE_DEVICES by setting active device
+            try:
+                selected_index = int(cuda_visible.split(',')[0])
+            except ValueError:
+                selected_index = 0
+
+            if torch.cuda.device_count() == 0:
+                self._gpu_available = False
+                logger.warning("torch.cuda reports no devices. Falling back to CPU")
+                return False
+
+            if selected_index >= torch.cuda.device_count():
+                logger.warning(
+                    f"CUDA_VISIBLE_DEVICES index {selected_index} out of range (found {torch.cuda.device_count()} devices)"
+                )
+                selected_index = 0
+
+            torch.cuda.set_device(selected_index)
             self._gpu_available = torch.cuda.is_available()
+
             if self._gpu_available:
-                logger.info(f"CUDA GPU detected: {torch.cuda.get_device_name(0)}")
+                logger.info(
+                    "CUDA GPU ready -> device %s: %s (%s compute capability, %.1f GB total)",
+                    selected_index,
+                    torch.cuda.get_device_name(selected_index),
+                    getattr(torch.cuda.get_device_properties(selected_index), "major", "?"),
+                    torch.cuda.get_device_properties(selected_index).total_memory / (1024 ** 3),
+                )
+                logger.debug(
+                    "CUDA runtime: torch=%s, cuda_version=%s, driver=%s",
+                    torch.__version__,
+                    getattr(torch.version, "cuda", "unknown"),
+                    torch.cuda.driver_version(),
+                )
             else:
                 logger.warning("CUDA not available, falling back to CPU")
         except ImportError:
@@ -104,12 +138,17 @@ class GPUManager:
         if self.is_gpu_available():
             try:
                 import torch
-                info["cuda_device"] = self.cuda_device
-                info["cuda_device_name"] = torch.cuda.get_device_name(0)
+                active_index = torch.cuda.current_device()
+                info["cuda_visible_devices"] = os.getenv("CUDA_VISIBLE_DEVICES", self.cuda_device)
+                info["cuda_device_index"] = active_index
+                info["cuda_device_name"] = torch.cuda.get_device_name(active_index)
+                props = torch.cuda.get_device_properties(active_index)
+                info["cuda_memory_total_gb"] = round(props.total_memory / (1024 ** 3), 2)
+                info["cuda_compute_capability"] = f"{props.major}.{props.minor}"
                 info["cuda_version"] = torch.version.cuda
             except:
                 pass
-        
+
         return info
 
 

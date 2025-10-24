@@ -1335,6 +1335,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **Files:** `backend/processors/document_processor.py`, `backend/processors/product_extractor.py`
   - **Result:** Console output focuses on high-level progress while retaining detail in logs
 
+- [x] **GPU startup diagnostics** ✅ (09:04)
+  - Expanded GPUManager logs to show CUDA_VISIBLE_DEVICES, active device, and memory
+  - Printed GPU summary in the production banner so runs confirm NVIDIA vs Intel usage
+  - **Files:** `backend/api/gpu_utils.py`, `backend/processors/process_production.py`
+  - **Result:** Immediate visibility into which GPU backend is active when processing starts
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)

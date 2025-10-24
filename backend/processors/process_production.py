@@ -80,6 +80,22 @@ def print_banner() -> None:
     print("  📋 OEM Sync: Standard Supabase API (no psycopg2)")
     print(f"\n🔍 DEBUG: LLM_MAX_PAGES = {os.getenv('LLM_MAX_PAGES', 'NOT SET')}")
 
+    if gpu_manager:
+        gpu_info = gpu_manager.get_info()
+        print("\n🖥️  GPU Status:")
+        print(f"  • USE_GPU: {gpu_info.get('use_gpu')}")
+        print(f"  • Device backend: {gpu_info.get('device')} (OpenCV: {gpu_info.get('opencv_backend')})")
+
+        if gpu_info.get('gpu_available'):
+            print(f"  • Active CUDA device: {gpu_info.get('cuda_device_index')} -> {gpu_info.get('cuda_device_name')}")
+            print(f"  • Visible devices: {gpu_info.get('cuda_visible_devices')}")
+            print(f"  • Compute capability: {gpu_info.get('cuda_compute_capability')}")
+            print(f"  • Total memory: {gpu_info.get('cuda_memory_total_gb')} GB")
+            if not gpu_info.get('opencv_cuda_available'):
+                print("  • OpenCV CUDA: NOT available, using CPU fallback")
+        else:
+            print("  • CUDA not available – using CPU pipelines")
+
 
 def confirm(prompt: str, default: bool = False) -> bool:
     """Interactive yes/no confirmation with sensible defaults."""
