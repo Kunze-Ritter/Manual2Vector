@@ -378,10 +378,17 @@ class ProductExtractor:
         unique_models = self._deduplicate(found_models)
         
         if unique_models:
-            self.logger.info(
-                f"Extracted {len(unique_models)} unique products from page {page_number}"
-            )
-        
+            if page_number in {0, -1}:
+                # Keep prominent logs for filename/title extraction
+                self.logger.info(
+                    f"Extracted {len(unique_models)} unique products from page {page_number}"
+                )
+            else:
+                # Downgrade regular page spam to debug
+                self.logger.debug(
+                    f"Extracted {len(unique_models)} unique products from page {page_number}"
+                )
+
         return unique_models
     
     def extract_from_first_page(

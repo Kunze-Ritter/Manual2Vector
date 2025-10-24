@@ -453,16 +453,33 @@ class DocumentProcessor:
             # Step 2b: Scan ALL pages for products (regex extraction)
             self.logger.info(f"Running regex extraction on all {len(page_texts)} pages...")
             regex_count = 0
-            for page_num in sorted(page_texts.keys()):
-                page_products = product_extractor.extract_from_text(
-                    page_texts[page_num], page_number=page_num
+            page_numbers = sorted(page_texts.keys())
+            
+            with self.logger.progress_bar(page_numbers, "Scanning for products") as progress:
+                task = progress.add_task(
+                    f"Products found: {len(products)}",
+                    total=len(page_numbers)
                 )
-                if page_products:
-                    regex_count += len(page_products)
-                products.extend(page_products)
+                completed_pages = 0
+                
+                for page_num in page_numbers:
+                    page_products = product_extractor.extract_from_text(
+                        page_texts[page_num], page_number=page_num
+                    )
+                    if page_products:
+                        regex_count += len(page_products)
+                        products.extend(page_products)
+                    completed_pages += 1
+                    progress.update(
+                        task,
+                        advance=completed_pages - progress.tasks[task].completed,
+                        description=f"Products found: {len(products)}"
+                    )
             
             if regex_count > 0:
-                self.logger.success(f"Regex extracted {regex_count} products from {len(page_texts)} pages")
+                self.logger.success(
+                    f"Regex extracted {regex_count} products across {len(page_numbers)} pages"
+                )
             
             # Step 2c: LLM extraction - BATCH MODE (much faster!)
             if self.use_llm and self.llm_extractor:
@@ -665,7 +682,6 @@ class DocumentProcessor:
                 error_manufacturer = products[0].manufacturer_name
             elif detected_manufacturer and detected_manufacturer != "AUTO":
                 error_manufacturer = detected_manufacturer
-            
             error_codes_count = 0
             page_count = 0
             update_interval = max(1, len(page_texts) // 50)  # Update progress bar max 50 times
@@ -674,6 +690,7 @@ class DocumentProcessor:
                 task = progress.add_task(f"Error codes found: {error_codes_count}", total=len(page_texts))
                 
                 for page_num, text in page_texts.items():
+                    page_count += 1
                     page_codes = self.error_code_extractor.extract_from_text(
                         text=text,
                         page_number=page_num,
@@ -681,16 +698,16 @@ class DocumentProcessor:
                     )
                     error_codes.extend(page_codes)
                     error_codes_count = len(error_codes)
-                    page_count += 1
                     
                     # PERFORMANCE: Only update progress bar every N pages to avoid UI overhead
                     if page_count % update_interval == 0 or page_count == len(page_texts):
-                        progress.update(task, advance=update_interval, description=f"Error codes found: {error_codes_count}")
+                        progress.update(task, advance=page_count - progress.tasks[task].completed, description=f"Error codes found: {error_codes_count}")
             
             # Enrich error codes with full details from entire document
             if error_codes:
                 self.logger.info(f"Enriching {len(error_codes)} error codes with full document context...")
                 full_text = '\n\n'.join(page_texts.values())
+# ... (rest of the code remains the same)
                 
                 # Extract product series for OEM detection
                 product_series = None

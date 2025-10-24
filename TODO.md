@@ -1329,6 +1329,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **Files:** `backend/processors/embedding_processor.py`, `backend/processors/document_processor.py`
   - **Result:** Embedding stage now reports partial successes and avoids rerunning entire sets
 
+- [x] **Product extraction logging cleanup** ✅ (08:49)
+  - Replaced per-page INFO spam with rich progress bar and debug-only fallbacks
+  - Ensured error-code progress updates stay accurate without overshooting totals
+  - **Files:** `backend/processors/document_processor.py`, `backend/processors/product_extractor.py`
+  - **Result:** Console output focuses on high-level progress while retaining detail in logs
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)
