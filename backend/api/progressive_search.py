@@ -82,19 +82,36 @@ async def process_query_progressive(query: str, database_service, ai_service) ->
                 'text_chunk'
             ).ilike('text_chunk', f'*{search_code}*').limit(5).execute()
             
+            steps = []
             if chunk_results.data:
                 # Extract solution steps
                 for chunk in chunk_results.data:
                     text = chunk.get('text_chunk', '')
                     if 'recommended action' in text.lower() or 'procedure' in text.lower():
                         # Extract numbered steps
-                        steps = re.findall(r'\d+\.\s+[^\n]+', text)
-                        if steps:
-                            yield "### ✅ Lösungsschritte:\n\n"
-                            for step in steps[:5]:
-                                yield f"{step}\n"
-                            yield "\n"
+                        extracted_steps = re.findall(r'\d+\.\s+[^\n]+', text)
+                        if extracted_steps:
+                            steps = extracted_steps[:5]
                             break
+
+            if steps:
+                solution_text = "\n".join(steps)
+                translated_solution = solution_text
+                enable_translation = os.getenv("ENABLE_SOLUTION_TRANSLATION", "false").lower() == "true"
+                if ai_service and hasattr(ai_service, "translate_text"):
+                    try:
+                        translated_solution = await ai_service.translate_text(
+                            solution_text,
+                            target_language=os.getenv("SOLUTION_TRANSLATION_LANGUAGE", "de"),
+                            enable_translation=enable_translation
+                        )
+                    except Exception as translate_error:
+                        logger.warning(f"Translation failed, falling back to original text: {translate_error}")
+                yield "### ✅ Lösungsschritte:\n\n"
+                for line in translated_solution.splitlines():
+                    if line.strip():
+                        yield f"{line}\n"
+                yield "\n"
             
             yield "---\n\n"
             

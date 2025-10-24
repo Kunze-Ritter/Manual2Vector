@@ -30,14 +30,23 @@ if (-not $SkipAPI) {
         Write-WarningMessage ".venv not found. The API will start without virtualenv activation."
     }
 
-    $ApiCmdParts = @()
-    $ApiCmdParts += "cd `"$RepoRoot`""
-    if (Test-Path $VenvActivate) {
-        $ApiCmdParts += ". `\"$VenvActivate`\""
+    $PythonPathEntries = @()
+    $PythonPathEntries += $BackendDir
+    $PythonPathEntries += $RepoRoot
+    $ExistingPythonPath = [System.Environment]::GetEnvironmentVariable("PYTHONPATH", "Process")
+    if (-not [string]::IsNullOrWhiteSpace($ExistingPythonPath)) {
+        $PythonPathEntries += $ExistingPythonPath.Split(';')
     }
-    $ApiCmdParts += "python -m backend.main"
+    $PythonPathValue = ($PythonPathEntries | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique) -join ';'
 
-    $ApiCommand = [string]::Join('; ', $ApiCmdParts)
+    $ActivateCommand = ""
+    if (Test-Path $VenvActivate) {
+        $ActivateCommand = "if (Test-Path '$VenvActivate') { & '$VenvActivate' }"
+    }
+
+    $escapedPythonPath = $PythonPathValue -replace "'", "''"
+    $ApiCommand = "& { Set-Location -Path '$RepoRoot'; `$env:PYTHONPATH = '$escapedPythonPath'; $ActivateCommand; python -m backend.main }"
+
     Write-Info "Starting KR-AI API in new PowerShell window..."
     Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", $ApiCommand
 } else {
@@ -59,32 +68,64 @@ if (-not $SkipOpenWebUI) {
     $ApiBase = "http://host.docker.internal:8000/v1"
     $ApiKey = "dummy-key"
 
-    $ExistingContainer = (& $DockerCmd ps -a --filter "name=$ContainerName" --format '{{.ID}}')
+    try {
+        $ExistingContainer = (& $DockerCmd ps -a --filter "name=$ContainerName" --format '{{.ID}}')
+    } catch {
+        Write-ErrorMessage "Failed to query Docker containers: $($_.Exception.Message)"
+        return
+    }
+
+    $containerRunning = $false
+
     if ($ExistingContainer) {
         if ($ForceRestartOpenWebUI) {
             Write-Info "Force restarting existing OpenWebUI container $ContainerName..."
-            & $DockerCmd rm -f $ContainerName | Out-Null
+            try {
+                & $DockerCmd rm -f $ContainerName | Out-Null
+            } catch {
+                Write-ErrorMessage "Failed to remove container: $($_.Exception.Message)"
+                return
+            }
         } else {
-            $IsRunning = (& $DockerCmd ps --filter "name=$ContainerName" --format '{{.ID}}')
+            try {
+                $IsRunning = (& $DockerCmd ps --filter "name=$ContainerName" --format '{{.ID}}')
+            } catch {
+                Write-ErrorMessage "Failed to inspect container state: $($_.Exception.Message)"
+                return
+            }
+
             if (-not $IsRunning) {
                 Write-Info "Starting existing OpenWebUI container $ContainerName..."
-                & $DockerCmd start $ContainerName | Out-Null
+                try {
+                    & $DockerCmd start $ContainerName | Out-Null
+                } catch {
+                    Write-ErrorMessage "Failed to start container: $($_.Exception.Message)"
+                    return
+                }
             } else {
                 Write-Info "OpenWebUI container $ContainerName already running."
+                $containerRunning = $true
             }
-            goto EndOpenWebUI
         }
     }
 
-    Write-Info "Launching OpenWebUI container on http://localhost:3000 ..."
-    & $DockerCmd run -d `
-        --name $ContainerName `
-        -p $PortMapping `
-        -e "OPENAI_API_BASE_URLS=$ApiBase" `
-        -e "OPENAI_API_KEYS=$ApiKey" `
-        $Image | Out-Null
+    if (-not $containerRunning) {
+        Write-Info "Launching OpenWebUI container on http://localhost:3000 ..."
+        try {
+            & $DockerCmd run -d `
+                --name $ContainerName `
+                -p $PortMapping `
+                -e "OPENAI_API_BASE_URLS=$ApiBase" `
+                -e "OPENAI_API_KEYS=$ApiKey" `
+                -e "WEBUI_AUTH=False" `
+                $Image | Out-Null
+        } catch {
+            Write-ErrorMessage "Failed to launch OpenWebUI container: $($_.Exception.Message)"
+            Write-ErrorMessage "Is Docker Desktop running?"
+            return
+        }
+    }
 
-EndOpenWebUI:
     Write-Info "OpenWebUI ready at http://localhost:3000"
     Write-Info "Login, then set OpenAI connection to $ApiBase with API key $ApiKey"
 } else {

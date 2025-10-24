@@ -93,8 +93,26 @@ def _clean_solution_text(text: str) -> str:
             break
     
     if filtered_lines:
-        return '\n'.join(filtered_lines)
-    
+        numbered_lines = []
+        step_counter = 1
+        for line in filtered_lines:
+            stripped = line.lstrip()
+            if re.match(r'^(\d+[\.\)]|[a-z][\.\)]|[-•*])\s+', stripped):
+                numbered_lines.append(stripped)
+                # Try to keep step counter in sync when explicit numbers exist
+                number_match = re.match(r'^(\d+)[\.\)]', stripped)
+                if number_match:
+                    try:
+                        step_counter = int(number_match.group(1)) + 1
+                    except ValueError:
+                        step_counter += 1
+                else:
+                    step_counter += 1
+            else:
+                numbered_lines.append(f"{step_counter}. {stripped}")
+                step_counter += 1
+        return '\n'.join(numbered_lines)
+
     # Fallback: return first 1000 chars
     return text[:1000].strip()
 

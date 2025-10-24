@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx
 from supabase import create_client, Client
+from postgrest.exceptions import APIError
 
 # Setup logging first
 logging.basicConfig(
@@ -82,6 +83,37 @@ class VideoEnricher:
         if self.supabase is None:
             self.supabase = get_supabase_client()
         return self.supabase
+
+    def _insert_video_record(self, video_data: Dict[str, Any], unique_lookup: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Insert video record, falling back to existing row on unique constraint."""
+        supabase = self._get_supabase()
+        try:
+            result = supabase.schema('krai_content').table('videos').insert(video_data).execute()
+            if not result.data:
+                return None
+            return result.data[0]['id']
+        except APIError as e:
+            if getattr(e, 'code', None) == '23505':
+                logger.info("🔁 Video already stored (unique constraint %s). Reusing existing record.", e.message if hasattr(e, 'message') else '')
+                lookup = unique_lookup.copy() if unique_lookup else {}
+                if not lookup and video_data.get('video_url'):
+                    lookup['video_url'] = video_data['video_url']
+
+                query = supabase.schema('krai_content').table('videos').select('id').limit(1)
+                for column, value in lookup.items():
+                    if column.startswith('metadata->>'):
+                        key = column.split('->>')[1]
+                        query = query.filter(f'metadata->>{key}', 'eq', value)
+                    else:
+                        query = query.eq(column, value)
+
+                existing = query.execute()
+                if existing.data:
+                    return existing.data[0]['id']
+
+                logger.warning("⚠️ Unique constraint triggered but existing video not found for %s", video_data.get('video_url'))
+                return None
+            raise
         
     async def close(self):
         """Close HTTP client"""
@@ -721,7 +753,7 @@ class VideoEnricher:
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
+                video_data = {
                     'link_id': link['id'],
                     'youtube_id': metadata['youtube_id'],
                     'platform': 'youtube',
@@ -741,13 +773,16 @@ class VideoEnricher:
                         'channel_id': metadata['channel_id'],
                         'published_at': metadata['published_at']
                     }
-                }).execute()
-                
-                if not video_record.data:
-                    logger.error("Failed to insert video")
+                }
+
+                video_id_to_link = self._insert_video_record(
+                    video_data,
+                    unique_lookup={'youtube_id': metadata['youtube_id']}
+                )
+                if not video_id_to_link:
+                    logger.error("Failed to insert or reuse video record")
                     return False
-                
-                video_id_to_link = video_record.data[0]['id']
+
             
             # Update link with video_id
             self._get_supabase().schema('krai_content').table('links').update({
@@ -796,7 +831,7 @@ class VideoEnricher:
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
+                video_data = {
                     'link_id': link['id'],
                     'youtube_id': None,  # Vimeo doesn't use youtube_id
                     'platform': 'vimeo',
@@ -814,13 +849,14 @@ class VideoEnricher:
                         'source': 'vimeo_api',
                         'vimeo_id': video_id
                     }
-                }).execute()
-                
-                if not video_record.data:
-                    logger.error("Failed to insert video")
+                }
+                video_id_to_link = self._insert_video_record(
+                    video_data,
+                    unique_lookup={'metadata->>vimeo_id': video_id}
+                )
+                if not video_id_to_link:
+                    logger.error("Failed to insert or reuse video record")
                     return False
-                
-                video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
             self._get_supabase().schema('krai_content').table('links').update({
@@ -871,7 +907,7 @@ class VideoEnricher:
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
+                video_data = {
                     'link_id': link['id'],
                     'youtube_id': None,  # Brightcove doesn't use youtube_id
                     'platform': 'brightcove',
@@ -888,13 +924,14 @@ class VideoEnricher:
                         'brightcove_id': metadata['brightcove_id'],
                         'account_id': metadata['account_id']
                     }
-                }).execute()
-                
-                if not video_record.data:
-                    logger.error("Failed to insert video")
+                }
+                video_id_to_link = self._insert_video_record(
+                    video_data,
+                    unique_lookup={'metadata->>brightcove_id': metadata['brightcove_id']}
+                )
+                if not video_id_to_link:
+                    logger.error("Failed to insert or reuse video record")
                     return False
-                
-                video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
             self._get_supabase().schema('krai_content').table('links').update({
@@ -947,7 +984,7 @@ class VideoEnricher:
                 logger.info(f"🔗 Video exists, reusing (dedup)...")
             else:
                 # Insert new video
-                video_record = self._get_supabase().schema('krai_content').table('videos').insert({
+                video_data = {
                     'link_id': link['id'],
                     'youtube_id': None,
                     'platform': 'direct',
@@ -967,13 +1004,14 @@ class VideoEnricher:
                         'enriched_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'opencv_extraction'
                     }
-                }).execute()
-                
-                if not video_record.data:
-                    logger.error("Failed to insert video")
+                }
+                video_id_to_link = self._insert_video_record(
+                    video_data,
+                    unique_lookup={'video_url': url}
+                )
+                if not video_id_to_link:
+                    logger.error("Failed to insert or reuse video record")
                     return False
-                
-                video_id_to_link = video_record.data[0]['id']
             
             # Update link with video_id
             self._get_supabase().schema('krai_content').table('links').update({

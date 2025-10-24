@@ -1347,11 +1347,55 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **File:** `backend/api/gpu_utils.py`
   - **Result:** Processor startup no longer crashes when CUDA driver details are unavailable
 
-- [x] **Agent startup helper script** ✅ (10:43)
+- [x] **Agent startup helper script** ✅ (11:30)
   - Added PowerShell helper to launch API (new window) and OpenWebUI Docker container
-  - Supports flags: `-SkipAPI`, `-SkipOpenWebUI`, `-ForceRestartOpenWebUI`
+  - Supports flags: `-SkipAPI`, `-SkipOpenWebUI`, `-ForceRestartOpenWebUI`; auto-disables OpenWebUI login via `WEBUI_AUTH=False`
   - **File:** `scripts/start_agent_env.ps1`
   - **Result:** Single command boots full agent test environment in seconds
+
+- [x] **HP Lösungstexte übersetzen & nummerieren** ✅ (11:45)
+  - Ergänzte automatische Nummerierung für HP-Technikerlösungen, falls Dokument keinen Präfix hat
+  - Implementierte `AIService.translate_text()` und nutze sie in `progressive_search` für deutschsprachige Ausgabe
+  - **Files:** `backend/utils/hp_solution_filter.py`, `backend/services/ai_service.py`, `backend/api/progressive_search.py`
+  - **Result:** HP-Lösungen behalten saubere Nummerierung und werden im Agent auf Deutsch ausgegeben
+
+- [x] **Video-Deduplikation stabilisieren** ✅ (12:03)
+  - Fange Supabase-Unique-Constraint (video_url/brightcove_id/vimeo_id/youtube_id) ab und nutze vorhandene Datensätze
+  - Hilfsfunktion `_insert_video_record` bündelt Insert-Logik und Lookup
+  - **File:** `scripts/enrich_video_metadata.py`
+  - **Result:** Video-Enrichment bricht nicht mehr bei bereits gespeicherten Links ab
+
+- [x] **Lösungsübersetzung per Env togglebar** ✅ (12:45)
+  - Übersetzung nur noch bei `ENABLE_SOLUTION_TRANSLATION=true`; Standard bleibt Originalsprache
+  - Env-Beispiele in `.env.ai.example` dokumentiert (`SOLUTION_TRANSLATION_LANGUAGE`)
+  - **Files:** `backend/services/ai_service.py`, `backend/api/progressive_search.py`, `.env.ai.example`
+  - **Result:** Agent-Suche bleibt schnell, Übersetzung lässt sich bei Bedarf aktivieren
+
+- [x] **Accessory-Linker DNS Retry** ✅ (12:47)
+  - `_execute_with_retry` fängt `getaddrinfo failed` beim Link-Lookup/Insert ab (3 Versuche, Backoff)
+  - Einträge sowohl in `TODO_PRODUCT_ACCESSORIES.md` als auch Code aktualisiert
+  - **File:** `backend/processors/accessory_linker.py`
+  - **Result:** Zubehör-Verknüpfung läuft weiter, auch wenn Supabase kurzzeitig nicht auflösbar ist
+
+- [x] **HP Struktur-Text Fallback** ✅ (14:48)
+  - `TextExtractor` liefert jetzt strukturierte Zeilen separat neben dem Fließtext (rawdict-Parsing)
+  - `DocumentProcessor` kombiniert Fließtext + strukturierte Blöcke und nutzt sie für Error-Code-Extraction
+  - **File:** `backend/processors/text_extractor.py`, `backend/processors/document_processor.py`
+  - **Result:** Layout-basierte HP-Codes (z.B. 13.89.31) werden der Erkennung zugänglich
+
+- [x] **OCR Fallback Hooks** ✅ (14:49)
+  - Konfigurierbare Flags für Structured/OCR-Fallback in `error_code_patterns.json`
+  - OCR-Stub `_prepare_ocr_fallback` integriert (Logging + Optionen)
+  - **File:** `backend/processors/document_processor.py`, `backend/config/error_code_patterns.json`
+  - **Result:** Optionaler OCR-Fallback vorbereitet, bleibt deaktiviert bis Implementation folgt
+
+- [ ] **Strukturierte Diagnose-Skripte dokumentieren** 🔍 MEDIUM PRIORITY
+  - **Task:** Neue Scripts (`diagnose_structured_text.py`, `inspect_pdf_structured.py`) im Tool-Guide dokumentieren
+  - **Implementation:** README-Abschnitt „HP Structured Extraction Debugging“ ergänzen
+  - **Files to modify:** `docs/TOOLS.md`
+  - **Priority:** MEDIUM
+  - **Effort:** 0.5 Stunden
+  - **Status:** TODO
 
 ### 📋 TODO - NEXT PRIORITIES
 
@@ -1557,6 +1601,24 @@ UPLOAD_DOCUMENTS_TO_R2=false
 4. ✅ Schema documentation refreshed from latest Supabase export
 
 **Next Focus:** Verify vw_products compatibility; run extraction tests 🎯
+
+---
+
+### 📊 Session Statistics (2025-10-24)
+
+**Time:** HH:MM-HH:MM (X minutes)
+**Commits:** 0 commits
+**Files Changed:** 0 files
+**Migrations Created:** 0
+**Bugs Fixed:** 0
+**Features Added:** 0
+
+**Key Achievements:**
+1. ⏳ Pending session summary
+2. 
+3. 
+
+**Next Focus:** TBD 🎯
 
 ---
 

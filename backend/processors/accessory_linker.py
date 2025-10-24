@@ -3,7 +3,8 @@ Accessory Linker - Automatically link accessories to products
 Links accessories mentioned in documents to the main products in those documents
 """
 import logging
-from typing import List, Dict, Optional, Set
+import time
+from typing import List, Dict, Optional, Set, Callable
 from uuid import UUID
 from supabase import Client
 
@@ -18,6 +19,44 @@ class AccessoryLinker:
     def __init__(self, supabase: Client):
         self.supabase = supabase
         self.logger = logging.getLogger(__name__)
+
+    def _execute_with_retry(
+        self,
+        operation_name: str,
+        func: Callable[[], any],
+        max_attempts: int = 3,
+        base_delay: float = 0.5
+    ):
+        """Execute Supabase call with retry for transient DNS failures."""
+        last_exception = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return func()
+            except OSError as exc:
+                message = str(exc)
+                if "getaddrinfo failed" in message.lower() and attempt < max_attempts:
+                    delay = base_delay * (2 ** (attempt - 1))
+                    self.logger.warning(
+                        "⚠️ %s failed (attempt %d/%d): %s. Retrying in %.1fs",
+                        operation_name,
+                        attempt,
+                        max_attempts,
+                        message,
+                        delay
+                    )
+                    time.sleep(delay)
+                    last_exception = exc
+                    continue
+                last_exception = exc
+                break
+            except Exception as exc:  # pragma: no cover - non-DNS errors propagate
+                last_exception = exc
+                break
+
+        if last_exception:
+            raise last_exception
+
+        return None
     
     def link_accessories_for_document(self, document_id: UUID) -> Dict[str, int]:
         """
@@ -192,9 +231,12 @@ class AccessoryLinker:
         """
         try:
             # Check if link already exists
-            existing = self.supabase.schema('krai_core').table('product_accessories').select(
-                'id'
-            ).eq('product_id', product_id).eq('accessory_id', accessory_id).execute()
+            existing = self._execute_with_retry(
+                "Accessory link lookup",
+                lambda: self.supabase.schema('krai_core').table('product_accessories').select(
+                    'id'
+                ).eq('product_id', product_id).eq('accessory_id', accessory_id).execute()
+            )
             
             if existing.data:
                 return 'exists'
@@ -208,9 +250,12 @@ class AccessoryLinker:
                 'compatibility_notes': compatibility_notes
             }
             
-            self.supabase.schema('krai_core').table('product_accessories').insert(
-                link_data
-            ).execute()
+            self._execute_with_retry(
+                "Accessory link insert",
+                lambda: self.supabase.schema('krai_core').table('product_accessories').insert(
+                    link_data
+                ).execute()
+            )
             
             return 'created'
             

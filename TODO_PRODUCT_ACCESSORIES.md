@@ -74,24 +74,34 @@ class AccessoryLinker:
 
 **Strategy Implemented:**
 - ✅ Simple rule: If accessory mentioned in document → link to document's main products
-- ✅ Example: FS-533 in bizhub C558 manual → automatically linked!
-- ✅ Checks for existing links (no duplicates)
-- ✅ Returns statistics (links created, skipped, errors)
 
 **Features:**
-- ✅ Automatic accessory detection via `_is_accessory()` method
-- ✅ Uses product_type and accessory_detector patterns
-- ✅ Supports 77 product types (finisher, feeder, toner, etc.)
-- ✅ Comprehensive error handling and logging
+- Automatic accessory detection via `_is_accessory()` method
+- Uses product_type and accessory_detector patterns
+- Supports 77 product types (finisher, feeder, toner, etc.)
+- Comprehensive error handling and logging
+- **Accessory Linker logging & validation** (07:45)
+  - Added detailed logging for accessory/product linking steps
+  - Detects invalid manufacturer/product combos before insert, preventing DB errors
+  - **File:** `backend/processors/accessory_linker.py`
+  - **Result:** Accessory linking step logs meaningful output and avoids invalid links
+- **Accessory-Linker DNS Retry** (12:47)
+  - Ergänzt `_execute_with_retry` für Supabase-Aufrufe (Lookup/Insert) mit Exponential Backoff
+  - Fängt transienten `getaddrinfo failed` während Zubehörverknüpfung ab
+  - **File:** `backend/processors/accessory_linker.py`
+  - **Result:** Accessories linking bleibt stabil, auch wenn Supabase kurzzeitig nicht auflösbar ist
 
 **File:** `backend/processors/accessory_linker.py` (280 lines)
 
-### ✅ 1.3 Auto-Linking Integration (COMPLETE - 2025-10-22)
+### 1.3 Auto-Linking Integration (COMPLETE - 2025-10-22)
 **Goal:** Integrate accessory linking into document processor
 
-**Status:** ✅ Integrated!
+**Status:** 
 
 **Implementation:**
+- [x] Added to `document_processor.py` after product extraction 
+- [x] New step: "Step 2d: Linking accessories to products" 
+- [x] Runs after products are saved to DB 
 - [x] Added to `document_processor.py` after product extraction ✅
 - [x] New step: "Step 2d: Linking accessories to products" ✅
 - [x] Runs after products are saved to DB ✅

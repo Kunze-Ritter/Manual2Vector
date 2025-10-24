@@ -351,6 +351,38 @@ class AIService:
             self.logger.error(f"Failed to extract error codes: {e}")
             raise
     
+    async def translate_text(self, text: str, target_language: str = "de", enable_translation: bool = False) -> str:
+        """Translate text into target_language if enabled; otherwise return original."""
+        if not text or not text.strip():
+            return text
+
+        if not enable_translation:
+            return text
+
+        try:
+            model = self.models['text_classification']
+            prompt = (
+                "Translate the following technical troubleshooting instructions into "
+                f"{target_language.upper()} (German). Preserve numbering, bullet points, and line breaks. "
+                "Do not add explanations or commentary—return only the translated text.\n\n"
+                "--- ORIGINAL ---\n"
+                f"{text.strip()}\n"
+                "--- END ---"
+            )
+
+            result = await self._call_ollama(model, prompt)
+            translated = result.get('response', '').strip()
+
+            if translated:
+                # Remove potential code fences added by the model
+                if translated.startswith('```') and translated.endswith('```'):
+                    translated = translated.strip('`').strip()
+                return translated
+        except Exception as e:
+            self.logger.warning(f"Translation failed: {e}")
+
+        return text
+    
     async def generate_embeddings(self, text: str) -> List[float]:
         """
         Generate embeddings for text using embedding model

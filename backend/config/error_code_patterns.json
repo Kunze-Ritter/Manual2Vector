@@ -386,6 +386,14 @@
     "min_confidence": 0.60,
     "max_codes_per_page": 15,
     "context_window_chars": 200,
+    "enable_structured_text": true,
+    "enable_ocr_fallback": false,
+    "ocr_options": {
+      "engine": "tesseract",
+      "dpi": 220,
+      "max_pages": 5,
+      "language": "eng"
+    },
     "require_context_keywords": [
       "error", "code", "fault", "trouble", "malfunction", "failure", "alarm",
       "warning", "service", "maintenance", "troubleshooting", "diagnostic",

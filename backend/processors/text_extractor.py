@@ -30,6 +30,9 @@ from datetime import datetime
 logger = get_logger()
 
 
+STRUCTURED_CODE_REGEX = re.compile(r"\d{2}\.[0-9A-Za-z]{2,3}\.[0-9A-Za-z]{2}", re.IGNORECASE)
+
+
 class TextExtractor:
     """Extract text from PDF documents"""
     
@@ -60,7 +63,7 @@ class TextExtractor:
         self,
         pdf_path: Path,
         document_id: UUID
-    ) -> Tuple[Dict[int, str], DocumentMetadata]:
+    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
         """
         Extract text from PDF
         
@@ -89,9 +92,10 @@ class TextExtractor:
         self,
         pdf_path: Path,
         document_id: UUID
-    ) -> Tuple[Dict[int, str], DocumentMetadata]:
+    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
         """Extract using PyMuPDF (faster, better for service manuals)"""
         page_texts = {}
+        structured_texts = {}
         
         try:
             doc = fitz.open(pdf_path)
@@ -105,11 +109,15 @@ class TextExtractor:
                     page = doc[page_num]
                     text = page.get_text("text")
                     
+                    structured = self._extract_structured_text(page)
+
                     # Clean up text
                     text = self._clean_text(text)
-                    
+
                     if text.strip():
                         page_texts[page_num + 1] = text  # 1-indexed
+                    if structured:
+                        structured_texts[page_num + 1] = structured
                 
                 except Exception as page_error:
                     logger.warning(f"Failed to extract page {page_num + 1}: {page_error}")
@@ -119,7 +127,8 @@ class TextExtractor:
             doc.close()
             
             logger.success(f"Extracted {len(page_texts)} pages with PyMuPDF")
-            return page_texts, metadata
+
+            return page_texts, metadata, structured_texts
         
         except Exception as e:
             logger.error(f"PyMuPDF extraction failed: {e}", exc=e)
@@ -135,9 +144,10 @@ class TextExtractor:
         self,
         pdf_path: Path,
         document_id: UUID
-    ) -> Tuple[Dict[int, str], DocumentMetadata]:
+    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
         """Extract using pdfplumber (slower, but good fallback)"""
         page_texts = {}
+        structured_texts: Dict[int, str] = {}
         
         try:
             with pdfplumber.open(pdf_path) as pdf:
@@ -153,7 +163,7 @@ class TextExtractor:
                         page_texts[page_num] = text
             
             logger.success(f"Extracted {len(page_texts)} pages with pdfplumber")
-            return page_texts, metadata
+            return page_texts, metadata, structured_texts
         
         except Exception as e:
             logger.error(f"pdfplumber extraction failed: {e}", exc=e)
@@ -239,6 +249,48 @@ class TextExtractor:
             document_type=doc_type
         )
     
+    def _extract_structured_text(self, page: 'fitz.Page') -> Optional[str]:
+        """Extract error-code-friendly text using PyMuPDF raw dict layout."""
+        try:
+            raw = page.get_text("rawdict")
+        except Exception:
+            return None
+
+        if not raw:
+            return None
+
+        structured_lines: List[str] = []
+        seen = set()
+
+        for block in raw.get("blocks", []):
+            if block.get("type") != 0:  # text blocks only
+                continue
+            for line in block.get("lines", []):
+                spans = line.get("spans", [])
+                if not spans:
+                    continue
+
+                joined = "".join(span.get("text", "") for span in spans)
+                if not joined:
+                    continue
+
+                # Remove all whitespace characters and collapse leader dots for reliable matching
+                compact = re.sub(r"\s+", "", joined)
+                compact = re.sub(r"\.{2,}", ".", compact)
+                compact = compact.replace("·", ".")  # Normalize mid-dots often used in tables
+
+                if STRUCTURED_CODE_REGEX.search(compact):
+                    normalized = re.sub(r"\.{2,}", " ", joined)
+                    normalized = re.sub(r"\s+", " ", normalized).strip()
+                    if normalized and normalized not in seen:
+                        seen.add(normalized)
+                        structured_lines.append(normalized)
+
+        if not structured_lines:
+            return None
+
+        return "\n".join(structured_lines)
+    
     def _classify_document_type(self, title: str, filename: str) -> str:
         """
         Classify document type from title/filename
@@ -323,7 +375,7 @@ def extract_text_from_pdf(
     pdf_path: Path,
     document_id: UUID,
     engine: str = "pymupdf"
-) -> Tuple[Dict[int, str], DocumentMetadata]:
+) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
     """
     Convenience function to extract text from PDF
     
@@ -333,7 +385,7 @@ def extract_text_from_pdf(
         engine: Extraction engine ('pymupdf' or 'pdfplumber')
         
     Returns:
-        Tuple of (page_texts dict, metadata)
+        Tuple of (page_texts dict, metadata, structured_text dict)
     """
     extractor = TextExtractor(prefer_engine=engine)
     return extractor.extract_text(pdf_path, document_id)

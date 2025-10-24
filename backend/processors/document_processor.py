@@ -195,8 +195,36 @@ class DocumentProcessor:
             # Step 1: Extract text
             self.logger.info("Step 1/5: Extracting text from PDF...")
             update_stage_status("text_extraction", "in_progress")
-            page_texts, metadata = self.text_extractor.extract_text(working_pdf, document_id)
+            page_texts, metadata, structured_texts = self.text_extractor.extract_text(working_pdf, document_id)
             update_stage_status("text_extraction", "completed")
+            extraction_rules = self.error_code_extractor.extraction_rules
+            structured_enabled = extraction_rules.get("enable_structured_text", True)
+            ocr_enabled = extraction_rules.get("enable_ocr_fallback", False)
+            ocr_options = extraction_rules.get("ocr_options", {}) or {}
+
+            # Prepare combined texts for error code extraction (plain + structured)
+            error_page_texts: Dict[int, str] = {}
+            all_page_numbers = sorted(set(page_texts.keys()) | set(structured_texts.keys()))
+            for page_num in all_page_numbers:
+                base_text = page_texts.get(page_num, "")
+                structured_text = structured_texts.get(page_num) if structured_enabled else None
+
+                combined_text = base_text
+                if structured_text:
+                    header = "[STRUCTURED TABLE]"
+                    combined_text = (base_text + f"\n\n{header}\n{structured_text}") if base_text else f"{header}\n{structured_text}"
+
+                if combined_text:
+                    error_page_texts[page_num] = combined_text
+
+            if not error_page_texts and ocr_enabled:
+                self.logger.info("No searchable text found for error codes – invoking OCR fallback hook...")
+                ocr_texts = self._prepare_ocr_fallback(working_pdf, document_id, ocr_options)
+                if ocr_texts:
+                    self.logger.info(f"OCR fallback produced text for {len(ocr_texts)} page(s)")
+                    error_page_texts.update(ocr_texts)
+                else:
+                    self.logger.warning("OCR fallback produced no additional text (stub mode)")
             
             # CRITICAL: Detect manufacturer EARLY from 3 sources (filename, metadata, document text)
             # This ensures _save_error_codes_to_db can find the manufacturer
@@ -684,12 +712,12 @@ class DocumentProcessor:
                 error_manufacturer = detected_manufacturer
             error_codes_count = 0
             page_count = 0
-            update_interval = max(1, len(page_texts) // 50)  # Update progress bar max 50 times
+            update_interval = max(1, len(error_page_texts) // 50)  # Update progress bar max 50 times
             
-            with self.logger.progress_bar(page_texts.items(), "Scanning for error codes") as progress:
-                task = progress.add_task(f"Error codes found: {error_codes_count}", total=len(page_texts))
+            with self.logger.progress_bar(error_page_texts.items(), "Scanning for error codes") as progress:
+                task = progress.add_task(f"Error codes found: {error_codes_count}", total=len(error_page_texts))
                 
-                for page_num, text in page_texts.items():
+                for page_num, text in error_page_texts.items():
                     page_count += 1
                     page_codes = self.error_code_extractor.extract_from_text(
                         text=text,
@@ -700,13 +728,13 @@ class DocumentProcessor:
                     error_codes_count = len(error_codes)
                     
                     # PERFORMANCE: Only update progress bar every N pages to avoid UI overhead
-                    if page_count % update_interval == 0 or page_count == len(page_texts):
+                    if page_count % update_interval == 0 or page_count == len(error_page_texts):
                         progress.update(task, advance=page_count - progress.tasks[task].completed, description=f"Error codes found: {error_codes_count}")
             
             # Enrich error codes with full details from entire document
             if error_codes:
                 self.logger.info(f"Enriching {len(error_codes)} error codes with full document context...")
-                full_text = '\n\n'.join(page_texts.values())
+                full_text = '\n\n'.join(error_page_texts.get(page_num, '') for page_num in sorted(error_page_texts.keys()))
 # ... (rest of the code remains the same)
                 
                 # Extract product series for OEM detection
