@@ -1341,6 +1341,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **Files:** `backend/api/gpu_utils.py`, `backend/processors/process_production.py`
   - **Result:** Immediate visibility into which GPU backend is active when processing starts
 
+- [x] **CUDA driver logging guard** ✅ (09:15)
+  - Wrapped torch driver version check to avoid AttributeError on CPU-only builds
+  - Keeps GPU banner usable even when PyTorch lacks `torch.cuda.driver_version`
+  - **File:** `backend/api/gpu_utils.py`
+  - **Result:** Processor startup no longer crashes when CUDA driver details are unavailable
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)

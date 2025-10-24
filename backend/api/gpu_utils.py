@@ -41,7 +41,7 @@ class GPUManager:
             # Respect CUDA_VISIBLE_DEVICES by setting active device
             try:
                 selected_index = int(cuda_visible.split(',')[0])
-            except ValueError:
+            except (ValueError, TypeError):
                 selected_index = 0
 
             if torch.cuda.device_count() == 0:
@@ -59,18 +59,32 @@ class GPUManager:
             self._gpu_available = torch.cuda.is_available()
 
             if self._gpu_available:
+                props = torch.cuda.get_device_properties(selected_index)
+                compute_capability = f"{getattr(props, 'major', '?')}.{getattr(props, 'minor', '?')}"
+                total_memory_gb = props.total_memory / (1024 ** 3)
+
                 logger.info(
-                    "CUDA GPU ready -> device %s: %s (%s compute capability, %.1f GB total)",
+                    "CUDA GPU ready -> device %s: %s (compute capability %s, %.1f GB total)",
                     selected_index,
                     torch.cuda.get_device_name(selected_index),
-                    getattr(torch.cuda.get_device_properties(selected_index), "major", "?"),
-                    torch.cuda.get_device_properties(selected_index).total_memory / (1024 ** 3),
+                    compute_capability,
+                    total_memory_gb,
                 )
+
+                driver_version = "unknown"
+                driver_attr = getattr(torch.cuda, "driver_version", None)
+                if callable(driver_attr):
+                    try:
+                        driver_version = driver_attr()
+                    except Exception as driver_error:
+                        logger.debug(f"Failed to fetch CUDA driver version: {driver_error}")
+
                 logger.debug(
-                    "CUDA runtime: torch=%s, cuda_version=%s, driver=%s",
+                    "CUDA runtime: torch=%s, cuda_version=%s, driver=%s, devices=%s",
                     torch.__version__,
                     getattr(torch.version, "cuda", "unknown"),
-                    torch.cuda.driver_version(),
+                    driver_version,
+                    torch.cuda.device_count(),
                 )
             else:
                 logger.warning("CUDA not available, falling back to CPU")
