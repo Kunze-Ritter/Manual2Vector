@@ -1347,6 +1347,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **File:** `backend/api/gpu_utils.py`
   - **Result:** Processor startup no longer crashes when CUDA driver details are unavailable
 
+- [x] **Agent startup helper script** ✅ (10:43)
+  - Added PowerShell helper to launch API (new window) and OpenWebUI Docker container
+  - Supports flags: `-SkipAPI`, `-SkipOpenWebUI`, `-ForceRestartOpenWebUI`
+  - **File:** `scripts/start_agent_env.ps1`
+  - **Result:** Single command boots full agent test environment in seconds
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)
