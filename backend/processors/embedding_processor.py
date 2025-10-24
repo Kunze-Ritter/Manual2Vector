@@ -117,7 +117,8 @@ class EmbeddingProcessor:
     def process_document(
         self,
         document_id: UUID,
-        chunks: List[Dict[str, Any]]
+        chunks: List[Dict[str, Any]],
+        track_stage: bool = True
     ) -> Dict[str, Any]:
         """
         Generate embeddings for all chunks in a document
@@ -137,7 +138,9 @@ class EmbeddingProcessor:
             }
         
         # Start stage tracking
-        if self.stage_tracker:
+        stage_tracker = self.stage_tracker if track_stage and self.stage_tracker else None
+
+        if stage_tracker:
             self.stage_tracker.start_stage(str(document_id), 'embeddings')
         
         try:
@@ -178,22 +181,27 @@ class EmbeddingProcessor:
             processing_time = time.time() - start_time
             
             # Complete stage tracking
-            if self.stage_tracker:
-                if failed_chunks:
-                    self.stage_tracker.fail_stage(
+            if stage_tracker:
+                metadata = {
+                    'embeddings_created': total_embedded,
+                    'processing_time': round(processing_time, 2),
+                    'chunks_per_second': round(total_embedded / processing_time, 2) if processing_time else 0,
+                    'failed_chunks': len(failed_chunks)
+                }
+
+                if total_embedded == 0 and failed_chunks:
+                    stage_tracker.fail_stage(
                         str(document_id),
                         'embeddings',
-                        f"Failed to embed {len(failed_chunks)} chunks"
+                        f"Failed to embed all {len(failed_chunks)} chunks"
                     )
                 else:
-                    self.stage_tracker.complete_stage(
+                    if failed_chunks:
+                        metadata['status'] = 'partial'
+                    stage_tracker.complete_stage(
                         str(document_id),
                         'embeddings',
-                        metadata={
-                            'embeddings_created': total_embedded,
-                            'processing_time': round(processing_time, 2),
-                            'chunks_per_second': round(total_embedded / processing_time, 2)
-                        }
+                        metadata=metadata
                     )
             
             self.logger.success(
@@ -201,8 +209,17 @@ class EmbeddingProcessor:
                 f"({total_embedded/processing_time:.1f} chunks/s)"
             )
             
+            partial_success = total_embedded > 0 and len(failed_chunks) > 0
+            full_success = len(failed_chunks) == 0
+
+            if partial_success:
+                self.logger.warning(
+                    f"Embedding generation partial: {total_embedded} succeeded, {len(failed_chunks)} failed"
+                )
+
             return {
-                'success': len(failed_chunks) == 0,
+                'success': total_embedded > 0,
+                'partial_success': partial_success,
                 'embeddings_created': total_embedded,
                 'failed_count': len(failed_chunks),
                 'failed_chunks': failed_chunks,

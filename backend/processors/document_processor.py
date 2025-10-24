@@ -1110,12 +1110,18 @@ class DocumentProcessor:
             )
             
             if result['success']:
-                self.logger.success(
-                    f"Created {result['embeddings_created']} embeddings "
-                    f"in {result['processing_time']:.1f}s"
-                )
+                if result.get('partial_success'):
+                    self.logger.warning(
+                        f"Embeddings partial: {result['embeddings_created']} succeeded, "
+                        f"{result.get('failed_count', 0)} failed"
+                    )
+                else:
+                    self.logger.success(
+                        f"Created {result['embeddings_created']} embeddings "
+                        f"in {result['processing_time']:.1f}s"
+                    )
             else:
-                self.logger.warning(f"Some chunks failed: {result.get('failed_count', 0)}")
+                self.logger.warning(f"Failed to generate embeddings for {result.get('failed_count', 0)} chunks")
             
             return result
             

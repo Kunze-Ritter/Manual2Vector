@@ -1323,6 +1323,12 @@ UPLOAD_DOCUMENTS_TO_R2=false
   - **File:** `backend/processors/image_storage_processor.py`
   - **Result:** Cleaner logs during multi-thousand image uploads
 
+- [x] **Embedding retry resilience** ✅ (08:31)
+  - Detected batches failing after 17000s and forcing full pipeline retries
+  - Added partial-success handling, retry guards, and stage tracker metadata fixes
+  - **Files:** `backend/processors/embedding_processor.py`, `backend/processors/document_processor.py`
+  - **Result:** Embedding stage now reports partial successes and avoids rerunning entire sets
+
 ### 📋 TODO - NEXT PRIORITIES
 
 - [x] **Verify vw_products compatibility** ✅ (13:48)
