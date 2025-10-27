@@ -7,7 +7,7 @@ Respects paragraph boundaries and error code sections.
 
 import re
 import hashlib
-from typing import List, Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 
 from .logger import get_logger
@@ -24,7 +24,8 @@ class SmartChunker:
         self,
         chunk_size: int = 1000,
         overlap_size: int = 100,
-        min_chunk_size: int = 30  # Reduced to preserve small but valuable chunks
+        min_chunk_size: int = 30,
+        enable_header_cleanup: bool = True,
     ):
         """
         Initialize chunker
@@ -39,6 +40,7 @@ class SmartChunker:
         self.chunk_size = chunk_size
         self.overlap_size = overlap_size
         self.min_chunk_size = min_chunk_size
+        self.enable_header_cleanup = enable_header_cleanup
         self.logger = get_logger()
     
     def chunk_document(
@@ -278,7 +280,10 @@ class SmartChunker:
             return None
         
         # Clean headers and extract metadata
-        cleaned_text, header_metadata = self._clean_headers(text)
+        cleaned_text, header_metadata = self._clean_headers(
+            text,
+            perform_cleanup=self.enable_header_cleanup,
+        )
         
         # Validate minimum size AFTER cleaning (headers might have been removed)
         if len(cleaned_text.strip()) < self.min_chunk_size:
@@ -319,7 +324,11 @@ class SmartChunker:
             self.logger.error(f"Failed to create chunk: {e}")
             return None
     
-    def _clean_headers(self, text: str) -> Tuple[str, dict]:
+    def _clean_headers(
+        self,
+        text: str,
+        perform_cleanup: bool = True,
+    ) -> Tuple[str, Dict[str, object]]:
         """
         Remove repetitive PDF headers and extract as metadata
         
@@ -329,7 +338,7 @@ class SmartChunker:
         Returns:
             Tuple of (cleaned_text, header_metadata)
         """
-        header_metadata = {}
+        header_metadata: Dict[str, object] = {}
         cleaned_text = text
         
         # Common header patterns (first 1-3 lines)
@@ -337,7 +346,8 @@ class SmartChunker:
         if len(lines) < 2:
             return text, {}
         
-        header_lines = []
+        header_lines: List[str] = []
+        detection_rules: List[str] = []
         content_start_idx = 0
         
         # Check first few lines for header patterns
@@ -384,54 +394,62 @@ class SmartChunker:
                 # Riso (Digital Duplicators & Production Printers)
                 r'|ComColor|ORPHIS|Riso|RZ\d{3,4}|SF\d{3,4}'
             )
+            rule_trigger: Optional[str] = None
+
             if re.search(manufacturer_patterns, line_clean, re.IGNORECASE):
                 header_lines.append(line_clean)
                 content_start_idx = i + 1
-            # Roman numerals (page numbers in header)
+                rule_trigger = "manufacturer_pattern"
             elif re.match(r'^[ivxlcdm]+$', line_clean, re.IGNORECASE):
                 header_lines.append(line_clean)
                 content_start_idx = i + 1
-            # Document type headers (e.g., "Control Panel Messages Document")
+                rule_trigger = "roman_numeral"
             elif i < 3 and re.search(r'\b(Document|Manual|Guide|Instruction|Service|Technical|CPMD)\b', line_clean, re.IGNORECASE):
                 header_lines.append(line_clean)
                 content_start_idx = i + 1
-            # URLs (support pages, product pages)
+                rule_trigger = "document_keyword"
             elif i < 5 and re.match(r'^(https?://|www\.)', line_clean):
                 header_lines.append(line_clean)
                 content_start_idx = i + 1
-            # Very short lines that look like headers
+                rule_trigger = "url"
             elif i < 2 and len(line_clean) < 60 and line_clean and not line_clean[0].islower():
                 header_lines.append(line_clean)
                 content_start_idx = i + 1
+                rule_trigger = "short_title"
             else:
-                # Stop looking
                 break
+
+            if rule_trigger:
+                detection_rules.append(rule_trigger)
         
-        # Extract header info
-        if header_lines:
-            full_header = '\n'.join(header_lines)
-            header_metadata['page_header'] = full_header
-            header_metadata['header_removed'] = True
-            
-            # Extract product models
-            products = []
-            for line in header_lines:
-                # Find model patterns like C4080, C4070, C84hc, etc.
-                models = re.findall(r'[A-Z]\d{4}[a-z]*(?:/[A-Z]\d{4}[a-z]*)*', line)
-                products.extend(models)
-                
-                # Extract HP model codes from URLs (colorljM455, colorljE47528MFP)
-                url_models = re.findall(r'colorlj([A-Z]\d+[A-Z]*)', line, re.IGNORECASE)
-                products.extend(url_models)
-            
-            if products:
-                header_metadata['header_products'] = list(set(products))  # Unique
-            
-            # Remove header from text
+        if not header_lines:
+            header_metadata['header_removed'] = False
+            return cleaned_text, header_metadata
+
+        full_header = '\n'.join(header_lines)
+        header_metadata['page_header'] = full_header
+        header_metadata['header_lines_raw'] = header_lines
+        if detection_rules:
+            header_metadata['header_detection_rules'] = detection_rules
+
+        products = []
+        for line in header_lines:
+            products.extend(re.findall(r'[A-Z]\d{4}[a-z]*(?:/[A-Z]\d{4}[a-z]*)*', line))
+            products.extend(re.findall(r'colorlj([A-Z]\d+[A-Z]*)', line, re.IGNORECASE))
+
+        if products:
+            header_metadata['header_products'] = sorted(set(products))
+
+        if perform_cleanup:
             cleaned_text = '\n'.join(lines[content_start_idx:]).strip()
-            
-            self.logger.debug(f"🎯 Found header: '{full_header[:50]}...' | Products: {products}")
-        
+            header_metadata['header_removed'] = True
+        else:
+            header_metadata['header_removed'] = False
+
+        self.logger.debug(
+            f"🎯 Found header: '{full_header[:50]}...' | Products: {products} | Rule triggers: {detection_rules or ['n/a']}"
+        )
+
         return cleaned_text, header_metadata
     
     def _generate_fingerprint(self, text: str) -> str:

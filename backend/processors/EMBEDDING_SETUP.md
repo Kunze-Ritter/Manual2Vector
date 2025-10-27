@@ -78,8 +78,8 @@ This downloads the `embeddinggemma` model (~274MB).
 ### Step 4: Verify Configuration
 
 ```bash
-cd backend/processors_v2
-python test_embedding_config.py
+cd backend
+python processors/test_embedding_config.py
 ```
 
 **Expected output (with full config):**
@@ -167,7 +167,7 @@ ollama list
 ### Quick Test
 
 ```python
-from processors_v2.embedding_processor import EmbeddingProcessor
+from backend.processors.embedding_processor import EmbeddingProcessor
 
 processor = EmbeddingProcessor()
 
@@ -185,7 +185,7 @@ else:
 ### Full Test with Script
 
 ```bash
-python backend/processors_v2/test_embedding_config.py
+python backend/processors/test_embedding_config.py
 ```
 
 ---

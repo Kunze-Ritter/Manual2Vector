@@ -21,6 +21,17 @@ try:
 except ImportError:
     PDFPLUMBER_AVAILABLE = False
 
+try:
+    from langdetect import detect_langs, DetectorFactory
+    from langdetect.lang_detect_exception import LangDetectException
+
+    DetectorFactory.seed = 0  # Ensure deterministic results
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    detect_langs = None  # type: ignore
+    LangDetectException = Exception  # type: ignore
+    LANGDETECT_AVAILABLE = False
+
 from .logger import get_logger
 from .models import DocumentMetadata
 from uuid import UUID
@@ -63,7 +74,7 @@ class TextExtractor:
         self,
         pdf_path: Path,
         document_id: UUID
-    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
+    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, Optional[str]]]:
         """
         Extract text from PDF
         
@@ -72,8 +83,10 @@ class TextExtractor:
             document_id: Document UUID
             
         Returns:
-            Tuple of (page_texts dict, metadata)
-            page_texts: {page_number: text_content}
+            Tuple of (page_texts, metadata, structured_texts_by_page)
+            - page_texts: {page_number: text_content}
+            - metadata: DocumentMetadata object
+            - structured_texts_by_page: {page_number: structured_text | None}
         """
         if not pdf_path.exists():
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
@@ -92,8 +105,13 @@ class TextExtractor:
         self,
         pdf_path: Path,
         document_id: UUID
-    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
-        """Extract using PyMuPDF (faster, better for service manuals)"""
+    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, Optional[str]]]:
+        """
+        Extract using PyMuPDF (faster, better for service manuals)
+        
+        Returns:
+            Tuple of (page_texts, metadata, structured_texts_by_page)
+        """
         page_texts = {}
         structured_texts = {}
         
@@ -144,10 +162,15 @@ class TextExtractor:
         self,
         pdf_path: Path,
         document_id: UUID
-    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
-        """Extract using pdfplumber (slower, but good fallback)"""
+    ) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, Optional[str]]]:
+        """
+        Extract using pdfplumber (slower, but good fallback)
+        
+        Returns:
+            Tuple of (page_texts, metadata, structured_texts_by_page)
+        """
         page_texts = {}
-        structured_texts: Dict[int, str] = {}
+        structured_texts: Dict[int, Optional[str]] = {}
         
         try:
             with pdfplumber.open(pdf_path) as pdf:
@@ -196,6 +219,8 @@ class TextExtractor:
             filename=pdf_path.name
         )
         
+        language, language_confidence = self._detect_language_from_doc(doc)
+
         return DocumentMetadata(
             document_id=document_id,
             title=pdf_metadata.get('title') or pdf_path.stem,
@@ -204,7 +229,8 @@ class TextExtractor:
             page_count=len(doc),
             file_size_bytes=pdf_path.stat().st_size,
             mime_type="application/pdf",
-            language=self._detect_language(doc),
+            language=language,
+            language_confidence=language_confidence,
             document_type=doc_type
         )
     
@@ -237,6 +263,11 @@ class TextExtractor:
             filename=pdf_path.name
         )
         
+        # Detect language from first few pages
+        language, language_confidence = self._detect_language_from_samples(
+            self._collect_pdfplumber_samples(pdf)
+        )
+
         return DocumentMetadata(
             document_id=document_id,
             title=pdf_metadata.get('Title') or pdf_path.stem,
@@ -245,10 +276,99 @@ class TextExtractor:
             page_count=len(pdf.pages),
             file_size_bytes=pdf_path.stat().st_size,
             mime_type="application/pdf",
-            language="en",  # Default, would need better detection
+            language=language,
+            language_confidence=language_confidence,
             document_type=doc_type
         )
-    
+
+    def _collect_pdfplumber_samples(
+        self,
+        pdf: 'pdfplumber.PDF',
+        max_pages: int = 5,
+        max_chars: int = 5000
+    ) -> List[str]:
+        samples: List[str] = []
+        total_chars = 0
+        for page in pdf.pages[:max_pages]:
+            try:
+                text = page.extract_text() or ""
+            except Exception:
+                text = ""
+            if not text:
+                continue
+            samples.append(text)
+            total_chars += len(text)
+            if total_chars >= max_chars:
+                break
+        return samples
+
+    def _detect_language_from_doc(
+        self,
+        doc: 'fitz.Document',
+        max_pages: int = 5,
+        max_chars: int = 5000
+    ) -> Tuple[str, Optional[float]]:
+        if not doc:
+            return "unknown", None
+
+        samples: List[str] = []
+        total_chars = 0
+        page_count = min(len(doc), max_pages)
+
+        for page_index in range(page_count):
+            try:
+                page_text = doc[page_index].get_text("text") or ""
+            except Exception:
+                page_text = ""
+
+            if not page_text:
+                continue
+
+            samples.append(page_text)
+            total_chars += len(page_text)
+
+            if total_chars >= max_chars:
+                break
+
+        return self._detect_language_from_samples(samples)
+
+    def _detect_language_from_samples(
+        self,
+        samples: List[str],
+        min_chars: int = 20,
+        max_chars: int = 5000,
+        min_confidence: float = 0.6
+    ) -> Tuple[str, Optional[float]]:
+        if not LANGDETECT_AVAILABLE or not samples:
+            return "unknown", None
+
+        combined = "\n".join(s.strip() for s in samples if s and s.strip()).strip()
+        if not combined:
+            return "unknown", None
+
+        if len(combined) > max_chars:
+            combined = combined[:max_chars]
+
+        if len(combined) < min_chars:
+            return "unknown", None
+
+        try:
+            detections = detect_langs(combined)
+        except LangDetectException:
+            return "unknown", None
+
+        if not detections:
+            return "unknown", None
+
+        best = max(detections, key=lambda result: result.prob)
+        language_code = (best.lang or "unknown").lower()
+        confidence = float(best.prob)
+
+        if confidence < min_confidence:
+            return "unknown", confidence
+
+        return language_code, confidence
+
     def _extract_structured_text(self, page: 'fitz.Page') -> Optional[str]:
         """Extract error-code-friendly text using PyMuPDF raw dict layout."""
         try:
@@ -311,16 +431,6 @@ class TextExtractor:
             # Default to service_manual for now
             return "service_manual"
     
-    def _detect_language(self, doc: 'fitz.Document') -> str:
-        """
-        Simple language detection
-        
-        For now returns 'en', could be enhanced with langdetect library
-        """
-        # TODO: Implement proper language detection
-        # Could use langdetect or check for common German/French words
-        return "en"
-    
     def _clean_text(self, text: str) -> str:
         """
         Clean extracted text
@@ -375,7 +485,7 @@ def extract_text_from_pdf(
     pdf_path: Path,
     document_id: UUID,
     engine: str = "pymupdf"
-) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, str]]:
+) -> Tuple[Dict[int, str], DocumentMetadata, Dict[int, Optional[str]]]:
     """
     Convenience function to extract text from PDF
     
@@ -385,7 +495,10 @@ def extract_text_from_pdf(
         engine: Extraction engine ('pymupdf' or 'pdfplumber')
         
     Returns:
-        Tuple of (page_texts dict, metadata, structured_text dict)
+        Tuple of (page_texts, metadata, structured_texts_by_page)
+        - page_texts: {page_number: text_content}
+        - metadata: DocumentMetadata object
+        - structured_texts_by_page: {page_number: structured_text | None}
     """
     extractor = TextExtractor(prefer_engine=engine)
     return extractor.extract_text(pdf_path, document_id)

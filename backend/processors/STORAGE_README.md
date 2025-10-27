@@ -65,7 +65,7 @@ R2_BUCKET_NAME_DOCUMENTS=krai-documents-images
 ### Basic Upload:
 
 ```python
-from processors_v2.storage_processor import StorageProcessor
+from backend.processors.storage_processor import StorageProcessor
 from uuid import uuid4
 from pathlib import Path
 
@@ -149,8 +149,8 @@ for doc_type, info in stats['by_type'].items():
 ### Run Tests:
 
 ```bash
-cd backend/processors_v2
-python test_storage.py
+cd backend
+python processors/test_storage.py
 ```
 
 ### Test Coverage:
@@ -169,7 +169,7 @@ python test_storage.py
 ### With Stage Tracker:
 
 ```python
-from processors_v2.storage_processor import StorageProcessor
+from backend.processors.storage_processor import StorageProcessor
 from supabase import create_client
 import os
 

@@ -23,6 +23,11 @@ class ExtractedProduct(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     source_page: Optional[int] = None
     extraction_method: str = Field(default="regex")
+    quality_flag: str = Field(
+        default="normal",
+        pattern="^(normal|low_confidence|rejected)$",
+        description="Quality indicator for downstream filtering"
+    )
     
     # Specifications (JSONB - flexible storage)
     specifications: Dict[str, Any] = Field(
@@ -82,6 +87,7 @@ class ExtractedPart(BaseModel):
     pattern_name: Optional[str] = Field(None, description="Which pattern matched this part")
     page_number: Optional[int] = None
     context: Optional[str] = Field(None, max_length=500, description="Surrounding text context")
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     
     # NEW: Linking to error codes and products
     related_error_codes: List[str] = Field(default_factory=list, description="Error codes that mention this part")
@@ -118,6 +124,19 @@ class ExtractedErrorCode(BaseModel):
     product_id: Optional[str] = None
     video_id: Optional[str] = None
     chunk_id: Optional[str] = None  # Link to intelligence chunk for images
+    manufacturer_name: Optional[str] = Field(
+        default=None,
+        description="Brand manufacturer name used for extraction (e.g., Konica Minolta)"
+    )
+    effective_manufacturer: Optional[str] = Field(
+        default=None,
+        description="OEM manufacturer actually used for validation/patterns"
+    )
+    quality_flag: str = Field(
+        default="normal",
+        pattern="^(normal|low_confidence|rejected)$",
+        description="Quality indicator for downstream filtering"
+    )
     
     @validator('error_description')
     def validate_description(cls, v):
@@ -135,14 +154,6 @@ class ExtractedErrorCode(BaseModel):
                     raise ValueError(f"Description too generic: contains '{phrase}'")
         return v
     
-    @validator('confidence')
-    def validate_confidence(cls, v):
-        """Minimum confidence threshold"""
-        if v < 0.6:
-            raise ValueError("Confidence below minimum threshold (0.6)")
-        return v
-
-
 class TextChunk(BaseModel):
     """Text chunk for embedding"""
     chunk_id: UUID = Field(default_factory=uuid4)
@@ -173,6 +184,12 @@ class DocumentMetadata(BaseModel):
     file_size_bytes: int = Field(..., gt=0)
     mime_type: str = Field(default="application/pdf")
     language: str = Field(default="en")
+    language_confidence: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Confidence score (0-1) for detected language"
+    )
     document_type: str = Field(..., pattern="^(service_manual|parts_catalog|user_guide|troubleshooting)$")
 
 
@@ -243,6 +260,7 @@ class ProcessingResult(BaseModel):
                     'product_type': p.product_type,
                     'manufacturer_name': p.manufacturer_name,
                     'confidence': p.confidence,
+                    'quality_flag': p.quality_flag,
                     'extraction_method': p.extraction_method,
                     'specifications': p.specifications,
                 }
@@ -254,6 +272,7 @@ class ProcessingResult(BaseModel):
                     'error_description': e.error_description,
                     'solution_text': e.solution_text,
                     'confidence': e.confidence,
+                    'quality_flag': e.quality_flag,
                     'page_number': e.page_number,
                     'severity_level': e.severity_level,
                 }

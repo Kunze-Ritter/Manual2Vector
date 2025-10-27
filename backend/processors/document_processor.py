@@ -24,6 +24,9 @@ from .embedding_processor import EmbeddingProcessor
 from .chunker import SmartChunker
 from .link_extractor import LinkExtractor
 from .exceptions import ManufacturerNotFoundError
+from .stage_tracker import StageTracker
+from utils.manufacturer_normalizer import normalize_manufacturer
+from config.oem_mappings import get_effective_manufacturer
 
 
 class DocumentProcessor:
@@ -50,14 +53,19 @@ class DocumentProcessor:
             debug: Enable debug logging for product extraction
             supabase_client: Supabase client for embeddings (optional)
         """
-        self.manufacturer = manufacturer
+        self.raw_manufacturer = manufacturer
         self.debug = debug
         self.logger = get_logger()
+        canonical_manufacturer = None
+        if manufacturer and manufacturer != "AUTO":
+            canonical_manufacturer = normalize_manufacturer(manufacturer) or manufacturer
+        self.manufacturer = canonical_manufacturer or manufacturer
         self.supabase = supabase_client  # Store supabase client for accessory linker
+        self.stage_tracker = StageTracker(supabase_client) if supabase_client else None
         
         # Initialize extractors
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
-        self.product_extractor = ProductExtractor(manufacturer_name=manufacturer, debug=debug)
+        self.product_extractor = ProductExtractor(manufacturer_name=self.manufacturer, debug=debug)
         self.product_code_extractor = ProductCodeExtractor(debug=debug)
         self.document_type_detector = DocumentTypeDetector(debug=debug)
         
@@ -89,10 +97,13 @@ class DocumentProcessor:
         #     self.llm_extractor = None
         #     self.use_llm = False
         
-        if manufacturer == "AUTO":
+        if self.manufacturer == "AUTO":
             self.logger.info("Initialized processor with AUTO manufacturer detection")
         else:
-            self.logger.info(f"Initialized processor for {manufacturer}")
+            if self.manufacturer != self.raw_manufacturer:
+                self.logger.info(f"Initialized processor for {self.manufacturer} (input: {self.raw_manufacturer})")
+            else:
+                self.logger.info(f"Initialized processor for {self.manufacturer}")
         self.logger.info(f"PDF Engine: {pdf_engine}, Chunk Size: {chunk_size}")
         if debug:
             self.logger.info("Debug mode: ENABLED")
@@ -162,31 +173,79 @@ class DocumentProcessor:
         validation_errors = []
         
         # Helper function to update processing status
-        def update_stage_status(stage: str, status: str = "in_progress"):
-            """Update stage_status in database"""
+        def update_stage_status(stage: str, status: str = "in_progress", metadata: Optional[Dict[str, Any]] = None):
+            """Update stage status using StageTracker or direct Supabase fallback"""
+            metadata = metadata or {}
+
+            if self.stage_tracker:
+                try:
+                    if status == "in_progress":
+                        self.stage_tracker.start_stage(str(document_id), stage)
+                        progress_value = metadata.get("progress")
+                        if progress_value is not None:
+                            self.stage_tracker.update_progress(str(document_id), stage, progress_value, metadata)
+                    elif status == "completed":
+                        self.stage_tracker.complete_stage(str(document_id), stage, metadata)
+                    elif status == "failed":
+                        error_message = metadata.get("error", "Unknown error")
+                        self.stage_tracker.fail_stage(str(document_id), stage, error_message, metadata)
+                    elif status == "skipped":
+                        reason = metadata.get("reason", "Not applicable")
+                        self.stage_tracker.skip_stage(str(document_id), stage, reason)
+                    else:
+                        progress_value = metadata.get("progress", 0)
+                        self.stage_tracker.update_progress(str(document_id), stage, progress_value, metadata)
+                    return
+                except Exception as tracker_error:
+                    self.logger.debug(f"StageTracker update failed ({stage}, {status}): {tracker_error}")
+
             try:
                 from supabase import create_client
                 import os
                 from dotenv import load_dotenv
-                
+
                 load_dotenv()
                 supabase_url = os.getenv('SUPABASE_URL')
                 supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-                
+
                 if supabase_url and supabase_key:
                     supabase = create_client(supabase_url, supabase_key)
-                    
+
                     # Get current stage_status
                     current = supabase.table('vw_documents').select('stage_status').eq('id', str(document_id)).single().execute()
                     stage_status = current.data.get('stage_status', {}) if current.data else {}
-                    
-                    # Update stage
-                    stage_status[stage] = status
-                    
-                    # Update in DB
+
+                    existing_entry = stage_status.get(stage)
+                    if isinstance(existing_entry, dict):
+                        stage_entry = existing_entry
+                    else:
+                        stage_entry = {}
+
+                    stage_entry['status'] = status
+                    if metadata:
+                        stage_entry['metadata'] = metadata
+
+                    if status == "completed":
+                        stage_entry['progress'] = 100
+                    elif status == "in_progress":
+                        stage_entry.setdefault('progress', 0)
+                    elif status == "failed":
+                        stage_entry['progress'] = stage_entry.get('progress', 0)
+                    elif status not in stage_entry:
+                        stage_entry['progress'] = stage_entry.get('progress', 0)
+
+                    stage_status[stage] = stage_entry
+
+                    if status in ("completed", "skipped"):
+                        processing_status = 'completed'
+                    elif status == "failed":
+                        processing_status = 'failed'
+                    else:
+                        processing_status = 'processing'
+
                     supabase.table('vw_documents').update({
                         'stage_status': stage_status,
-                        'processing_status': 'processing' if status == 'in_progress' else 'completed'
+                        'processing_status': processing_status
                     }).eq('id', str(document_id)).execute()
             except Exception as e:
                 self.logger.debug(f"Could not update stage status: {e}")
@@ -590,8 +649,12 @@ class DocumentProcessor:
                 if errors:
                     validation_errors.extend([str(e) for e in errors])
             
+            product_stage_metadata = {
+                "product_count": len(products),
+                "product_series": [p.product_series or p.model_number for p in products if p.product_series or p.model_number]
+            }
             self.logger.success(f"Extracted {len(products)} products")
-            update_stage_status("product_extraction", "completed")
+            update_stage_status("product_extraction", "completed", product_stage_metadata)
             
             # Save products to database
             if products:
@@ -704,12 +767,25 @@ class DocumentProcessor:
             update_stage_status("error_code_extraction", "in_progress")
             error_codes = []
             
-            # Get manufacturer for error code patterns
+            # Prepare manufacturer and series context for error code patterns
             error_manufacturer = None
             if products:
                 error_manufacturer = products[0].manufacturer_name
             elif detected_manufacturer and detected_manufacturer != "AUTO":
                 error_manufacturer = detected_manufacturer
+
+            self.error_code_extractor.reset_missing_manufacturer_events()
+
+            page_series_map: Dict[int, List[str]] = {}
+            global_series_candidates: List[str] = []
+            for product in products:
+                series_or_model = product.product_series or product.model_number
+                if series_or_model:
+                    global_series_candidates.append(series_or_model)
+                    if product.source_page is not None and product.source_page >= 0:
+                        page_series_map.setdefault(product.source_page, []).append(series_or_model)
+
+            primary_series = global_series_candidates[0] if global_series_candidates else None
             error_codes_count = 0
             page_count = 0
             update_interval = max(1, len(error_page_texts) // 50)  # Update progress bar max 50 times
@@ -719,10 +795,16 @@ class DocumentProcessor:
                 
                 for page_num, text in error_page_texts.items():
                     page_count += 1
+                    series_candidate = None
+                    if page_num in page_series_map and page_series_map[page_num]:
+                        series_candidate = page_series_map[page_num][0]
+                    elif primary_series:
+                        series_candidate = primary_series
                     page_codes = self.error_code_extractor.extract_from_text(
                         text=text,
                         page_number=page_num,
-                        manufacturer_name=error_manufacturer
+                        manufacturer_name=error_manufacturer,
+                        product_series=series_candidate
                     )
                     error_codes.extend(page_codes)
                     error_codes_count = len(error_codes)
@@ -731,6 +813,16 @@ class DocumentProcessor:
                     if page_count % update_interval == 0 or page_count == len(error_page_texts):
                         progress.update(task, advance=page_count - progress.tasks[task].completed, description=f"Error codes found: {error_codes_count}")
             
+            missing_manufacturer_events = self.error_code_extractor.get_missing_manufacturer_events()
+
+            for event in missing_manufacturer_events:
+                self.logger.warning(
+                    "⚠️  No error code patterns configured for '%s' (effective: '%s') on page %s",
+                    event.get('manufacturer'),
+                    event.get('effective_manufacturer') or 'unknown',
+                    event.get('page')
+                )
+
             # Enrich error codes with full details from entire document
             if error_codes:
                 self.logger.info(f"Enriching {len(error_codes)} error codes with full document context...")
@@ -738,9 +830,8 @@ class DocumentProcessor:
 # ... (rest of the code remains the same)
                 
                 # Extract product series for OEM detection
-                product_series = None
-                if products:
-                    # Use first product's series or model for OEM detection
+                product_series = primary_series
+                if not product_series and products:
                     first_product = products[0]
                     product_series = first_product.product_series or first_product.model_number
                 
@@ -782,8 +873,17 @@ class DocumentProcessor:
                 if errors:
                     validation_errors.extend([str(e) for e in errors])
             
+            error_stage_metadata = {
+                "error_code_count": len(error_codes),
+                "product_series_used": primary_series,
+                "effective_manufacturer": get_effective_manufacturer(error_manufacturer, primary_series, 'error_codes') if (error_manufacturer and primary_series) else error_manufacturer
+            }
+            if missing_manufacturer_events:
+                error_stage_metadata["missing_manufacturer_events"] = missing_manufacturer_events
+                error_stage_metadata["missing_manufacturer_event_count"] = len(missing_manufacturer_events)
+
             self.logger.success(f"Extracted {len(error_codes)} error codes")
-            update_stage_status("error_code_extraction", "completed")
+            update_stage_status("error_code_extraction", "completed", error_stage_metadata)
             
             # Save error codes immediately (don't wait until end)
             if error_codes:

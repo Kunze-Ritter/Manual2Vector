@@ -151,7 +151,7 @@ Ignored: "FW 4.2" (Firmware, nicht Document Version)
 ## 🔧 **Usage in Code:**
 
 ```python
-from processors_v2.version_extractor import VersionExtractor
+from backend.processors.version_extractor import VersionExtractor
 
 extractor = VersionExtractor()
 

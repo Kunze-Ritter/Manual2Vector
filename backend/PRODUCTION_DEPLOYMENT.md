@@ -275,7 +275,7 @@ curl -X POST http://localhost:8000/content/links/check/sync \
 
 ### **2. Pipeline End-to-End Test**
 ```python
-# Run: python backend/processors_v2/test_pipeline_live.py
+# Run: python backend/processors/test_pipeline_live.py
 # Uploads PDF → Processes → Embeddings → Search
 ```
 

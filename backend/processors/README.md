@@ -16,7 +16,7 @@ Clean, modular rewrite of document processing pipeline with strict validation.
 ## Installation
 
 ```bash
-cd backend/processors_v2
+cd backend
 pip install -r requirements.txt
 ```
 
@@ -62,12 +62,41 @@ Extracts text from PDFs using PyMuPDF (primary) or pdfplumber (fallback).
 - Clean text normalization
 
 ```python
-from processors_v2.text_extractor import extract_text_from_pdf
+from backend.processors.text_extractor import extract_text_from_pdf
 
-page_texts, metadata = extract_text_from_pdf(pdf_path, document_id)
+page_texts, metadata, structured_texts_by_page = extract_text_from_pdf(pdf_path, document_id)
+
+if structured_texts_by_page:
+    # Prefilter enrichment search to pages that actually contain dense error tables
+    candidate_pages = [
+        page for page, structured in structured_texts_by_page.items()
+        if structured and "13.20" in structured
+    ]
+    print(f"Pages with structured error references: {candidate_pages}")
+
+    # Example: Only send those pages into a downstream enrichment run
+    enrichment_targets = {
+        page: page_texts[page]
+        for page in candidate_pages
+        if page in page_texts
+    }
+    # enrichment_pipeline.process(enrichment_targets)
 ```
 
----
+> Tipp: `structured_texts_by_page` ist bewusst schlank (tabellarische Ausschnitte). Damit lassen sich Enrichment- oder QA-Pipelines gezielt auf relevante Seiten begrenzen – besonders hilfreich bei sehr großen Service-Handbüchern.
+
+### Enrichment Usage
+
+The `text_extractor` module can be used to prefilter pages for enrichment pipelines. By analyzing the structured text extracted from each page, you can identify pages that contain dense error tables or other relevant information. These pages can then be sent to a downstream enrichment pipeline for further processing.
+
+```python
+enrichment_targets = {
+    page: page_texts[page]
+    for page in candidate_pages
+    if page in page_texts
+}
+# enrichment_pipeline.process(enrichment_targets)
+```
 
 ### 2. `product_extractor.py`
 Extracts product models with strict validation.
@@ -83,7 +112,7 @@ Extracts product models with strict validation.
 - ❌ NOT reject words (page, chapter, etc.)
 
 ```python
-from processors_v2.product_extractor import extract_products_from_text
+from backend.processors.product_extractor import extract_products_from_text
 
 products = extract_products_from_text(text, manufacturer="HP")
 ```
@@ -112,11 +141,11 @@ Extracts error codes with STRICT numeric validation.
 - HP Events: `12345-6789`
 
 **Validation:**
-- ✅ Must match numeric pattern
+- ✅ Must match manufacturer-specific numeric regex
 - ❌ NO random words ("descriptions", "information")
 - ✅ Description > 20 chars
 - ❌ NOT generic phrases
-- ✅ Confidence > 0.6
+- ⚠️ Confidence < 0.6 is marked with a `quality_flag` instead of being dropped
 
 **Confidence factors:**
 - Proper description: +0.3
@@ -125,7 +154,7 @@ Extracts error codes with STRICT numeric validation.
 - Multiple appearances: +0.1
 
 ```python
-from processors_v2.error_code_extractor import extract_error_codes_from_text
+from backend.processors.error_code_extractor import extract_error_codes_from_text
 
 error_codes = extract_error_codes_from_text(text, page_number=5)
 ```
@@ -153,7 +182,7 @@ Smart text chunking with overlap and context preservation.
 - Fingerprinting for deduplication
 
 ```python
-from processors_v2.chunker import chunk_document_text
+from backend.processors.chunker import chunk_document_text
 
 chunks = chunk_document_text(page_texts, document_id, chunk_size=1000, overlap=100)
 ```
@@ -171,7 +200,7 @@ Main orchestrator - coordinates everything.
 5. Validate & calculate statistics
 
 ```python
-from processors_v2.document_processor import process_pdf
+from backend.processors.document_processor import process_pdf
 
 result = process_pdf(pdf_path, manufacturer="HP")
 
@@ -190,7 +219,7 @@ if result.success:
 ExtractedProduct(
     model_number="LaserJet Pro M404dn",
     model_name="LaserJet Pro M404dn",
-    product_type="printer",  # printer, scanner, multifunction, copier, plotter
+    product_type="laser_printer",  # siehe ALLOWED_PRODUCT_TYPES in backend/constants/product_types.py
     manufacturer_name="HP",
     confidence=0.85,
     source_page=1,

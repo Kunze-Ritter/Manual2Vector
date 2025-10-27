@@ -14,9 +14,16 @@ from pathlib import Path
 from .logger import get_logger
 from .models import ExtractedProduct, ValidationError as ValError
 from utils.manufacturer_config import get_manufacturer_config
+from utils.manufacturer_normalizer import normalize_manufacturer
+from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
 
 
 logger = get_logger()
+
+DEFAULT_PRODUCT_TYPE = (
+    "laser_multifunction" if "laser_multifunction" in ALLOWED_PRODUCT_TYPES
+    else sorted(ALLOWED_PRODUCT_TYPES)[0]
+)
 
 
 # HP Product Model Patterns
@@ -259,19 +266,28 @@ class ProductExtractor:
             debug: Enable debug logging
             document_title: PDF title for context-based series extraction
         """
-        self.manufacturer_name = manufacturer_name
+        self.raw_manufacturer_name = manufacturer_name
+        self.canonical_manufacturer = None
+        if manufacturer_name and manufacturer_name != "AUTO":
+            self.canonical_manufacturer = normalize_manufacturer(manufacturer_name) or manufacturer_name
+
+        self.manufacturer_name = self.canonical_manufacturer or manufacturer_name
         self.debug = debug
         self.document_title = document_title
         self.context_series = self._extract_series_from_title(document_title) if document_title else []
         self.logger = get_logger()
+
         
         # Load manufacturer-specific config
         self.config = None
         self.compiled_patterns = []
         self.reject_patterns = []
         
-        if manufacturer_name and manufacturer_name != "AUTO":
-            self.config = get_manufacturer_config(manufacturer_name)
+        if self.canonical_manufacturer and self.canonical_manufacturer != "AUTO":
+            self.config = get_manufacturer_config(self.canonical_manufacturer)
+            if not self.config:
+                # Fallback: try raw manufacturer string for legacy configs
+                self.config = get_manufacturer_config(manufacturer_name)
             if self.config:
                 self.compiled_patterns = self.config.get_compiled_patterns()
                 self.reject_patterns = self.config.get_reject_patterns()
@@ -347,12 +363,16 @@ class ProductExtractor:
                         if self.debug:
                             self.logger.info(f"  ✓ Validated! Confidence: {confidence:.2f}")
                         
-                        # Use product_type from config
+                        # Use product_type from config (normalize against shared allow list)
+                        normalized_product_type = self._ensure_allowed_product_type(
+                            product_type,
+                            source=f"pattern '{series_name}'"
+                        )
                         try:
                             product = ExtractedProduct(
                                 model_number=model,
                                 product_series=series_name,
-                                product_type=product_type,
+                                product_type=normalized_product_type,
                                 manufacturer_name=self.config.canonical_name,
                                 confidence=confidence,
                                 source_page=page_number,
@@ -558,46 +578,62 @@ class ProductExtractor:
         # Check for plotters first
         if 'designjet' in model_lower:
             if 'latex' in model_lower:
-                return "latex_plotter"
+                return self._ensure_allowed_product_type("latex_plotter", source="model heuristic")
             elif 'inkjet' in model_lower:
-                return "inkjet_plotter"
+                return self._ensure_allowed_product_type("inkjet_plotter", source="model heuristic")
             else:
-                return "inkjet_plotter"  # DesignJet is typically inkjet
+                return self._ensure_allowed_product_type("inkjet_plotter", source="model heuristic")
         
         # Check for multifunction devices
         elif any(kw in model_lower for kw in ['mfp', 'multifunction', 'all-in-one']):
             # Determine if laser or inkjet
             if any(kw in model_lower for kw in ['laserjet', 'laser', 'accurio', 'bizhub', 'imagerunner']):
-                return "laser_multifunction"
+                return self._ensure_allowed_product_type("laser_multifunction", source="model heuristic")
             elif any(kw in model_lower for kw in ['officejet', 'inkjet', 'pagewide']):
-                return "inkjet_multifunction"
+                return self._ensure_allowed_product_type("inkjet_multifunction", source="model heuristic")
             else:
-                return "laser_multifunction"  # Default for unknown MFPs
+                return self._ensure_allowed_product_type("laser_multifunction", source="model heuristic")
         
         # Check for scanners
         elif 'scanner' in model_lower or 'scanjet' in model_lower:
             if 'document' in model_lower:
-                return "document_scanner"
+                return self._ensure_allowed_product_type("document_scanner", source="model heuristic")
             elif 'photo' in model_lower:
-                return "photo_scanner"
+                return self._ensure_allowed_product_type("photo_scanner", source="model heuristic")
             else:
-                return "scanner"
+                return self._ensure_allowed_product_type("scanner", source="model heuristic")
         
         # Check for copiers
         elif 'copier' in model_lower:
-            return "copier"
+            return self._ensure_allowed_product_type("copier", source="model heuristic")
         
         # Default: Determine printer type
         else:
             # Check if it's a laser printer
             if any(kw in model_lower for kw in ['laserjet', 'laser', 'accurio', 'bizhub', 'imagerunner', 'phaser']):
-                return "laser_printer"
+                return self._ensure_allowed_product_type("laser_printer", source="model heuristic")
             # Check if it's an inkjet printer
             elif any(kw in model_lower for kw in ['officejet', 'inkjet', 'pagewide', 'pixma', 'workforce']):
-                return "inkjet_printer"
+                return self._ensure_allowed_product_type("inkjet_printer", source="model heuristic")
             # Default to laser printer (most common in enterprise)
             else:
-                return "laser_printer"
+                return self._ensure_allowed_product_type("laser_printer", source="model heuristic")
+    
+    def _ensure_allowed_product_type(self, product_type: Optional[str], source: str) -> str:
+        """Normalize product_type values against shared allow-list."""
+        normalized = (product_type or "").strip().lower()
+        if normalized in ALLOWED_PRODUCT_TYPES:
+            return normalized
+
+        if product_type and product_type in ALLOWED_PRODUCT_TYPES:
+            return product_type
+
+        if self.debug:
+            self.logger.debug(
+                f"[{source}] product_type '{product_type}' not in ALLOWED_PRODUCT_TYPES. "
+                f"Falling back to '{DEFAULT_PRODUCT_TYPE}'."
+            )
+        return DEFAULT_PRODUCT_TYPE
     
     def _extract_series_from_title(self, title: Optional[str]) -> List[str]:
         """
@@ -789,23 +825,15 @@ class ProductExtractor:
                 severity="error"
             ))
         
-        # Check confidence
-        if product.confidence < 0.6:
-            errors.append(ValError(
-                field="confidence",
-                value=product.confidence,
-                error_message="Confidence below threshold (0.6)",
-                severity="error"
-            ))
-        
         # Check product type
-        valid_types = ['printer', 'scanner', 'multifunction', 'copier', 'plotter', 
-                       'finisher', 'feeder', 'tray', 'cabinet', 'accessory', 'consumable']
-        if product.product_type not in valid_types:
+        if product.product_type not in ALLOWED_PRODUCT_TYPES:
             errors.append(ValError(
                 field="product_type",
                 value=product.product_type,
-                error_message=f"Invalid product_type, must be one of {valid_types}",
+                error_message=(
+                    "Invalid product_type, must be one of "
+                    f"{sorted(ALLOWED_PRODUCT_TYPES)}"
+                ),
                 severity="error"
             ))
         

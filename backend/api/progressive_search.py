@@ -3,6 +3,7 @@ Progressive Search Implementation
 Yields results as they're found for real-time streaming
 """
 import re
+import os
 from typing import AsyncGenerator
 import logging
 

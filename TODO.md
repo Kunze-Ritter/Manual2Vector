@@ -26,7 +26,7 @@
 7. **Embedding Processor** - Vector embeddings for search
 8. **Search Processor** - Search analytics & indexing
 
-### Current Refactored Pipeline (backend/processors_v2/):
+### Current Refactored Pipeline (backend/processors/):
 - Step 1: Text extraction ✅ (Partial Stage 2)
 - Step 2: Product extraction ✅ (Partial Stage 4)
 - Step 3: Error code extraction ✅ (Partial Stage 5)
@@ -113,7 +113,7 @@
   - [x] Duplicate detection (hash-based)
   - [x] Database record creation (krai_core.documents)
   - [x] Processing queue management (krai_system.processing_queue)
-  - **File:** `backend/processors_v2/upload_processor.py` ✅ EXISTS
+  - **File:** `backend/processors/upload_processor.py` ✅ EXISTS
 
 - [x] **Deduplication Logic**
   - [x] SHA-256 hash calculation
@@ -149,7 +149,7 @@
   - [x] Filter relevant images (skip logos, headers)
   - [x] Image deduplication (hash-based)
   - [x] Store in krai_content.images
-  - **File:** `backend/processors_v2/image_processor.py` ✅ EXISTS (587 lines)
+  - **File:** `backend/processors/image_processor.py` ✅ EXISTS (587 lines)
 
 - [x] **OCR Processing**
   - [x] Tesseract OCR integration
@@ -181,7 +181,7 @@
   - [x] MD5 hash-based deduplication (no duplicate uploads!)
   - [x] Generate public URLs
   - [x] Store URLs in database
-  - **File:** `backend/processors_v2/image_storage_processor.py` ✅ EXISTS (429 lines)
+  - **File:** `backend/processors/image_storage_processor.py` ✅ EXISTS (429 lines)
 
 - [x] **File Organization**
   - [x] Flat storage structure: {hash}.{extension}
@@ -210,7 +210,7 @@
   - [x] Ollama integration (embeddinggemma 768-dim)
   - [x] Batch processing for efficiency
   - [x] Store in krai_intelligence.embeddings
-  - **File:** `backend/processors_v2/embedding_processor.py` ✅ EXISTS (470 lines)
+  - **File:** `backend/processors/embedding_processor.py` ✅ EXISTS (470 lines)
 
 - [x] **Chunk Embeddings**
   - [x] Generate embeddings for all chunks
@@ -243,7 +243,7 @@
   - [x] Track search queries
   - [x] Store query performance metrics
   - [x] Response time tracking
-  - **File:** `backend/processors_v2/search_analytics.py` ✅ EXISTS (250 lines)
+  - **File:** `backend/processors/search_analytics.py` ✅ EXISTS (250 lines)
 
 - [x] **Search Functionality**
   - [x] Vector similarity search (in embedding_processor.py)
@@ -275,7 +275,7 @@
   - **Detect:** "requires", "compatible with", "cannot be used with"
   - **Priority:** HIGH
   - **Effort:** 4-6 hours
-  - **File:** `backend/processors_v2/compatibility_extractor.py`
+  - **File:** `backend/processors/compatibility_extractor.py`
 
 - [ ] Populate product_accessories table
   - **Task:** Insert extracted relationships into database
@@ -373,6 +373,70 @@
 - [ ] Cost optimization (suggest cheaper alternatives)
   - **Priority:** LOW
   - **Effort:** 2-3 hours
+
+### ✅ Completed Today (2025-10-27)
+
+- [x] **OEM mapping regression tests** ✅ (10:28)
+  - Added Pytest coverage for `get_oem_manufacturer`, `get_effective_manufacturer`, and `get_oem_info`
+  - **File:** `backend/tests/test_oem_mappings.py`
+  - **Result:** OEM rebrand logic guarded by regression tests, 16 assertions passing
+- [x] **Manufacturer-specific error code validation** ✅ (12:05)
+  - Wired extractor + model to use validation regex per manufacturer
+  - **Files:** `backend/processors/error_code_extractor.py`, `backend/config/error_code_patterns.json`
+  - **Result:** Error codes validated against OEM-aware patterns with preserved metadata
+- [x] **Confidence thresholds moved to quality flags** ✅ (12:07)
+  - Relaxed Pydantic validators and tagged low-confidence outputs instead of rejecting
+  - **Files:** `backend/processors/models.py`, `backend/processors/product_extractor.py`, `backend/processors/error_code_extractor.py`, `backend/processors/parts_extractor.py`
+  - **Result:** Low-confidence items retained for downstream filtering with `quality_flag`
+- [x] **Text extractor return signature alignment** ✅ (12:08)
+  - Synced docstrings/type hints with triple return and structured texts naming
+  - **File:** `backend/processors/text_extractor.py`
+  - **Result:** Call sites and docs consistently reflect `(page_texts, metadata, structured_texts_by_page)`
+- [x] **Documentation namespace refresh** ✅ (12:09)
+  - Updated READMEs and TODO references from `processors_v2` to `backend.processors`
+  - **Files:** `backend/processors/README.md`, `backend/processors/STORAGE_README.md`, `backend/processors/EMBEDDING_SETUP.md`, `backend/PRODUCTION_DEPLOYMENT.md`, `backend/config/DOCUMENT_VERSION_PATTERNS.md`, `TODO.md`
+  - **Result:** Docs and guidance now reference the active module layout
+- [x] **Requirements consolidation** ✅ (13:35)
+  - Removed duplicate `backend/processors/requirements.txt` in favor of canonical backend requirements
+  - **File:** `backend/requirements.txt` (single source of truth)
+  - **Result:** Single source of truth for Python dependencies and optional extras
+
+### 📊 Session Statistics (2025-10-27 - Morning)
+
+**Time:** 09:10-10:28 (78 minutes)
+**Commits:** 0 commits
+**Files Changed:** 4 files
+**Migrations Created:** 0
+**Bugs Fixed:** 0
+**Features Added:** 1 (OEM mapping regression tests)
+
+**Key Achievements:**
+1. ✅ Unified manufacturer/OEM propagation with StageTracker telemetry in document processor
+2. ✅ Added regression tests covering OEM mapping functions
+3. ✅ Captured Stage metadata for product/error extraction including OEM details
+
+**Next Focus:** Stabilize pipeline integration tests & expand coverage to parts/OEM matching 🎯
+
+### 📊 Session Statistics (2025-10-27 - Midday)
+
+**Time:** 11:00-12:10 (70 minutes)
+**Commits:** 0 commits
+**Files Changed:** 10 files
+**Migrations Created:** 0
+**Bugs Fixed:** 0
+**Features Added:** 4 (manufacturer regex validation, quality flags, text extractor sync, doc refresh)
+
+**Key Achievements:**
+1. ✅ Manufacturer-specific error code validation flows end-to-end (models + extractors)
+2. ✅ Confidence thresholds now policy-driven via `quality_flag`
+3. ✅ Text extraction API documented with structured text return
+4. ✅ README/TODO references aligned with current module namespace
+
+**Next Focus:** Validate pipeline end-to-end with updated quality flags and refresh agent docs 🎯
+
+**Last Updated:** 2025-10-27 (13:35)
+**Current Focus:** Finalize documentation & dependency hygiene
+**Next Session:** Review remaining processor docs and prep end-to-end quality flag validation
 
 ---
 

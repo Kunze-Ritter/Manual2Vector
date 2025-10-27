@@ -296,11 +296,6 @@ class PartsExtractor:
                 has_description=bool(part_description)
             )
             
-            # Skip if confidence too low
-            min_confidence = self.extraction_rules.get("min_confidence", 0.70)
-            if confidence < min_confidence:
-                continue
-            
             part = ExtractedPart(
                 part_number=part_number,
                 part_name=part_name,
@@ -312,6 +307,9 @@ class PartsExtractor:
                 page_number=page_number,
                 context=context[:500]  # Limit context length
             )
+            min_confidence = self.extraction_rules.get("min_confidence", 0.70)
+            if confidence < min_confidence:
+                part.quality_flag = "low_confidence"
             
             parts.append(part)
         

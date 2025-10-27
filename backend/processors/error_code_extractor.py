@@ -22,6 +22,7 @@ from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
 from .exceptions import ManufacturerPatternNotFoundError
 from utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
+from utils.manufacturer_normalizer import normalize_manufacturer
 from config.oem_mappings import get_effective_manufacturer
 from .chunk_linker import link_error_codes_to_chunks
 
@@ -87,6 +88,7 @@ class ErrorCodeExtractor:
 
         self.logger = get_logger()
         self._chunk_cache = {}  # Cache chunks to avoid repeated queries
+        self._missing_manufacturer_events: List[Dict[str, Any]] = []
         
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "error_code_patterns.json"
@@ -110,44 +112,51 @@ class ErrorCodeExtractor:
             logger.error(f"Invalid JSON in error code patterns config: {e}")
             return {"extraction_rules": {}}
     
+    @staticmethod
+    def _slugify(name: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", name.lower())
+
+    def _reset_missing_manufacturer_events(self):
+        self._missing_manufacturer_events.clear()
+
+    def _get_missing_manufacturer_events(self) -> List[Dict[str, Any]]:
+        return list(self._missing_manufacturer_events)
+
+    def reset_missing_manufacturer_events(self) -> None:
+        """Public helper to clear missing-manufacturer telemetry buffer."""
+        self._reset_missing_manufacturer_events()
+
+    def get_missing_manufacturer_events(self) -> List[Dict[str, Any]]:
+        """Return missing-manufacturer telemetry collected during extraction."""
+        return self._get_missing_manufacturer_events()
+
     def _get_manufacturer_key(self, manufacturer_name: Optional[str]) -> Optional[str]:
-        """Convert manufacturer name to config key"""
+        """Convert manufacturer name to config key using unified normalization"""
         if not manufacturer_name:
             return None
-        
-        # Normalize manufacturer name
-        normalized = manufacturer_name.lower().replace(" ", "_").replace("-", "_")
-        
-        # Direct mapping
-        mapping = {
-            "hp": "hp",
-            "hewlett_packard": "hp",
-            "konica_minolta": "konica_minolta",
-            "konica": "konica_minolta",
-            "minolta": "konica_minolta",
-            "canon": "canon",
-            "ricoh": "ricoh",
-            "xerox": "xerox",
-            "lexmark": "lexmark",
-            "brother": "brother",
-            "epson": "epson",
-            "fujifilm": "fujifilm",
-            "riso": "riso",
-            "sharp": "sharp",
-            "kyocera": "kyocera",
-            "toshiba": "toshiba",
-            "oki": "oki"
+
+        canonical = normalize_manufacturer(manufacturer_name) or manufacturer_name
+        slug_candidates = {
+            self._slugify(manufacturer_name),
+            self._slugify(canonical)
         }
-        
-        # Check direct match
-        if normalized in mapping:
-            return mapping[normalized]
-        
-        # Check if any key is in the normalized name
-        for key, value in mapping.items():
-            if key in normalized:
-                return value
-        
+
+        for candidate in list(slug_candidates):
+            if candidate.endswith("inc"):
+                slug_candidates.add(candidate[:-3])
+            if candidate.endswith("corp"):
+                slug_candidates.add(candidate[:-4])
+
+        for config_key in self.patterns_config.keys():
+            if config_key == "extraction_rules":
+                continue
+            key_slug = self._slugify(config_key)
+            for candidate in slug_candidates:
+                if not candidate:
+                    continue
+                if candidate == key_slug or candidate.endswith(key_slug) or key_slug.endswith(candidate):
+                    return config_key
+
         return None
     
     def enrich_error_codes_from_document(
@@ -357,6 +366,8 @@ class ErrorCodeExtractor:
                             break
                 
                 # Create enriched error code
+                enriched_manufacturer = getattr(error_code, 'manufacturer_name', manufacturer_name)
+                enriched_effective = getattr(error_code, 'effective_manufacturer', effective_manufacturer)
                 enriched_code = ExtractedErrorCode(
                     error_code=error_code.error_code,
                     error_description=best_description,
@@ -365,7 +376,9 @@ class ErrorCodeExtractor:
                     confidence=best_confidence,
                     page_number=error_code.page_number,
                     extraction_method=f"{error_code.extraction_method}_enriched",
-                    severity_level=error_code.severity_level
+                    severity_level=error_code.severity_level,
+                    manufacturer_name=enriched_manufacturer,
+                    effective_manufacturer=enriched_effective,
                 )
                 enriched_codes.append(enriched_code)
                 progress.update(task, advance=1)
@@ -376,129 +389,125 @@ class ErrorCodeExtractor:
                     elapsed = time.time() - loop_start
                     rate = processed_count / elapsed
                     self.logger.info(f"   Processed {processed_count}/{len(error_codes)} codes ({rate:.1f} codes/sec)")
-        
+
         return enriched_codes
-    
+
     def extract_from_text(
         self,
         text: str,
         page_number: int,
-        manufacturer_name: Optional[str] = None
+        manufacturer_name: Optional[str] = None,
+        product_series: Optional[str] = None
     ) -> List[ExtractedErrorCode]:
         """
         Extract error codes from text using manufacturer-specific patterns
-        
+
         Args:
             text: Text to extract from
             page_number: Page number
             manufacturer_name: Manufacturer name for specific patterns
-            
+
         Returns:
             List of validated error codes
         """
         if not text or len(text) < 20:
             return []
-        
+
+        effective_manufacturer = manufacturer_name
+        if manufacturer_name and product_series:
+            oem_manufacturer = get_effective_manufacturer(
+                manufacturer_name,
+                product_series,
+                for_purpose='error_codes'
+            )
+            if oem_manufacturer and oem_manufacturer != manufacturer_name:
+                self.logger.info(
+                    f"🔄 OEM Detected: {manufacturer_name} {product_series} uses {oem_manufacturer} error codes"
+                )
+                effective_manufacturer = oem_manufacturer
+
+        manufacturer_key = self._get_manufacturer_key(effective_manufacturer)
+
+        if manufacturer_name and effective_manufacturer and manufacturer_name != effective_manufacturer:
+            self.logger.debug(
+                "Using OEM manufacturer '%s' for validation (original: '%s')",
+                effective_manufacturer,
+                manufacturer_name,
+            )
+
         # Determine which patterns to use
-        manufacturer_key = self._get_manufacturer_key(manufacturer_name)
-        patterns_to_use = []
-        
+        patterns_to_use: List[Tuple[str, Dict[str, Any]]] = []
+
         if manufacturer_key and manufacturer_key in self.patterns_config:
             # Use manufacturer-specific patterns ONLY (no generic fallback to avoid false positives like part numbers)
             patterns_to_use.append((manufacturer_key, self.patterns_config[manufacturer_key]))
             logger.debug(f"Using error code patterns for manufacturer: {manufacturer_key}")
         else:
-            # NO generic fallback - raise clear error with instructions
             if manufacturer_name:
-                raise ManufacturerPatternNotFoundError(
-                    manufacturer=manufacturer_name,
-                    stage="Error Code Extraction"
+                logger.warning(
+                    "⚠️  No error code patterns configured for '%s' (effective: '%s')",
+                    manufacturer_name,
+                    effective_manufacturer or "unknown"
                 )
-            else:
-                # No manufacturer specified at all - cannot extract
-                logger.warning("No manufacturer specified for error code extraction - skipping")
+                self._missing_manufacturer_events.append({
+                    "manufacturer": manufacturer_name,
+                    "effective_manufacturer": effective_manufacturer,
+                    "page": page_number
+                })
                 return []
-        
-        # Extract error codes
-        found_codes = []
+            logger.warning("No manufacturer specified for error code extraction - skipping")
+            return []
+
+        found_codes: List[ExtractedErrorCode] = []
         seen_codes = set()
-        
+
         for mfr_key, mfr_config in patterns_to_use:
             patterns = mfr_config.get("patterns", [])
             validation_regex = mfr_config.get("validation_regex")
-            
+
             for pattern_str in patterns:
                 try:
                     pattern = re.compile(pattern_str, re.IGNORECASE | re.MULTILINE)
                 except re.error as e:
                     logger.error(f"Invalid regex pattern '{pattern_str}': {e}")
                     continue
-                
+
                 matches = pattern.finditer(text)
-                
+
                 for match in matches:
-                    # Get code from first capture group
                     code = match.group(1) if match.groups() else match.group(0)
                     code = code.strip()
-                    
-                    # Validate code format
+
                     if validation_regex and not re.match(validation_regex, code):
                         continue
-                    
-                    # Skip duplicates
                     if code in seen_codes:
                         continue
-                    
-                    # Not a reject word
                     if code.lower() in REJECT_CODES:
                         continue
-                    
-                    # Extract context
+
                     context = self._extract_context(text, match.start(), match.end())
-                    
-                    # Special validation for JAM codes
-                    # J-##-## format is always valid (explicit JAM prefix)
-                    # ##-## format requires jam-related context
+
                     if re.match(r'^\d{2}-\d{2}$', code):
-                        # Check if context contains jam-related keywords
                         context_lower = context.lower()
-                        # Universal JAM keywords (applicable to all manufacturers)
                         jam_keywords = ['jam', 'misfeed', 'paper', 'feed', 'transport', 'duplex', 'tray', 'bypass', 'section']
                         if not any(kw in context_lower for kw in jam_keywords):
                             logger.debug(f"Skipping JAM code '{code}' - no jam-related context (use J-{code} format for explicit JAM codes)")
                             continue
-                    # J-##-## codes are always valid (no context check needed)
                     elif re.match(r'^J-\d{2}-\d{2}$', code):
                         logger.debug(f"Accepted JAM code '{code}' - explicit J- prefix")
-                    
-                    # Validate context
+
                     if not self._validate_context(context):
                         continue
-                    
-                    # Extract description
+
                     description = self._extract_description(text, match.end())
-                    
-                    # Skip if description is too generic
                     if not description or self._is_generic_description(description):
                         continue
-                    
-                    # Extract solution
+
                     solution = self._extract_solution(context, text, match.end())
-                    
-                    # Calculate confidence
-                    confidence = self._calculate_confidence(
-                        code, description, solution, context
-                    )
-                    
-                    # Only add if confidence is high enough
-                    min_confidence = self.extraction_rules.get("min_confidence", 0.70)
-                    if confidence < min_confidence:
-                        logger.debug(f"Skipping code '{code}' - confidence too low ({confidence:.2f})")
-                        continue
-                    
-                    # Determine severity
+                    confidence = self._calculate_confidence(code, description, solution, context)
+
                     severity = self._determine_severity(description, solution)
-                    
+
                     try:
                         error_code = ExtractedErrorCode(
                             error_code=code,
@@ -508,26 +517,26 @@ class ErrorCodeExtractor:
                             confidence=confidence,
                             page_number=page_number,
                             extraction_method=f"{mfr_key}_pattern",
-                            severity_level=severity
+                            severity_level=severity,
+                            manufacturer_name=manufacturer_name,
+                            effective_manufacturer=effective_manufacturer,
                         )
                         found_codes.append(error_code)
                         seen_codes.add(code)
+                        min_confidence = self.extraction_rules.get("min_confidence", 0.70)
+                        if confidence < min_confidence:
+                            error_code.quality_flag = "low_confidence"
                     except Exception as e:
                         logger.debug(f"Validation failed for code '{code}': {e}")
-        
-        # Deduplicate and sort
+
         unique_codes = self._deduplicate(found_codes)
         unique_codes.sort(key=lambda x: x.confidence, reverse=True)
-        
-        # Apply max codes limit
+
         max_codes = self.extraction_rules.get("max_codes_per_page", 20)
         if len(unique_codes) > max_codes:
             logger.warning(f"Extracted {len(unique_codes)} error codes, limiting to {max_codes}")
             unique_codes = unique_codes[:max_codes]
-        
-        # Don't log per-page results - progress bar shows running count
-        pass
-        
+
         return unique_codes
     
     def _validate_context(self, context: str) -> bool:
@@ -853,27 +862,53 @@ class ErrorCodeExtractor:
         
         return list(seen.values())
     
+    def _get_validation_regex(
+        self,
+        manufacturer_name: Optional[str],
+        effective_manufacturer: Optional[str]
+    ) -> Optional[str]:
+        """Resolve the appropriate validation regex for a manufacturer."""
+        # Prefer effective manufacturer, but fall back to declared name for logging clarity
+        for name in (effective_manufacturer, manufacturer_name):
+            key = self._get_manufacturer_key(name)
+            if key and key in self.patterns_config:
+                return self.patterns_config[key].get("validation_regex")
+        return None
+
     def validate_extraction(
         self,
         error_code: ExtractedErrorCode
     ) -> List[ValError]:
         """
         Validate extracted error code
-        
+
         Returns:
             List of validation errors (empty if valid)
         """
         errors = []
-        
-        # Check format
-        if not re.match(r'^\d{2}\.\d{2}(\.\d{2})?$', error_code.error_code):
+
+        validation_regex = self._get_validation_regex(
+            error_code.manufacturer_name,
+            error_code.effective_manufacturer
+        )
+
+        if validation_regex and not re.match(validation_regex, error_code.error_code):
             errors.append(ValError(
                 field="error_code",
                 value=error_code.error_code,
-                error_message="Error code doesn't match XX.XX.XX format",
+                error_message=(
+                    "Error code doesn't match manufacturer validation regex "
+                    f"'{validation_regex}'"
+                ),
                 severity="error"
             ))
-        
+        elif not validation_regex:
+            self.logger.debug(
+                "No validation regex available for manufacturer '%s' (effective: '%s')",
+                error_code.manufacturer_name,
+                error_code.effective_manufacturer,
+            )
+
         # Check description length
         if len(error_code.error_description) < 20:
             errors.append(ValError(
