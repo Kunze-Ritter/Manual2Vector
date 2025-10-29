@@ -25,6 +25,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # Load environment
 load_dotenv(PROJECT_ROOT / '.env.database')
 
+
+def get_pg_dump_executable() -> str:
+    """Return the pg_dump executable path (env override supported)."""
+    pg_dump_path = os.getenv('PG_DUMP_PATH')
+    if pg_dump_path:
+        return pg_dump_path
+    return 'pg_dump'
+
 def get_connection_string():
     """Build PostgreSQL connection string from Supabase credentials"""
     supabase_url = os.getenv('SUPABASE_URL')
@@ -71,7 +79,7 @@ def export_schema():
     
     # Export schema only (no data) for krai_* schemas
     cmd = [
-        'pg_dump',
+        get_pg_dump_executable(),
         '--schema-only',           # DDL only
         '--clean',                 # Add DROP statements
         '--if-exists',             # Add IF EXISTS to DROP
@@ -123,7 +131,7 @@ def export_minimal_seed():
     ]
     
     cmd = [
-        'pg_dump',
+        get_pg_dump_executable(),
         '--data-only',             # Data only (no DDL)
         '--no-owner',              # Don't include ownership
         '--no-privileges',         # Don't include privileges
@@ -211,7 +219,7 @@ def main():
     
     # Check for pg_dump
     try:
-        subprocess.run(['pg_dump', '--version'], capture_output=True, check=True)
+        subprocess.run([get_pg_dump_executable(), '--version'], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("\n❌ pg_dump not found!")
         print("   Please install PostgreSQL client tools first.")
