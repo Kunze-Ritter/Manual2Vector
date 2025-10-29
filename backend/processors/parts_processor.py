@@ -9,19 +9,21 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import sys
 
-# Use centralized imports
-from .imports import get_supabase_client, get_logger, extract_parts_with_context
+from backend.core.base_processor import BaseProcessor, Stage
+from .stage_tracker import StageTracker
+from .imports import get_supabase_client, extract_parts_with_context
 
-logger = get_logger()
 
-
-class PartsProcessor:
+class PartsProcessor(BaseProcessor):
     """Extract and store parts from document chunks"""
     
-    def __init__(self):
+    def __init__(self, supabase_client=None, stage_tracker: Optional[StageTracker] = None):
         """Initialize parts processor"""
-        self.supabase = get_supabase_client()
-        self.logger = get_logger()
+        super().__init__(name="parts_processor")
+        self.stage = Stage.PARTS_EXTRACTION
+        self.supabase = supabase_client or get_supabase_client()
+        self.stage_tracker = stage_tracker or (StageTracker(self.supabase) if self.supabase else None)
+        self.logger.info("PartsProcessor initialized")
         
     def process_document(self, document_id: str) -> Dict:
         """
@@ -33,8 +35,6 @@ class PartsProcessor:
         Returns:
             Dict with statistics
         """
-        self.logger.info(f"Starting parts extraction for document {document_id}")
-        
         stats = {
             'chunks_processed': 0,
             'parts_found': 0,
@@ -43,67 +43,101 @@ class PartsProcessor:
             'parts_linked_to_error_codes': 0,
             'errors': 0
         }
-        
-        try:
-            # Get document info
-            doc_result = self.supabase.table('vw_documents').select('*').eq('id', document_id).execute()
-            if not doc_result.data:
-                raise ValueError(f"Document {document_id} not found")
-            
-            document = doc_result.data[0]
-            manufacturer_id = document.get('manufacturer_id')
-            manufacturer_name = (document.get('manufacturer') or '').lower().replace(' ', '_')
-            
-            if not manufacturer_id:
-                self.logger.warning(f"Document {document_id} has no manufacturer_id, skipping parts extraction")
-                return stats
-            
-            self.logger.info(f"Extracting parts for manufacturer: {manufacturer_name}")
-            
-            # Get all chunks for this document
-            chunks_result = self.supabase.table('vw_chunks').select('*').eq('document_id', document_id).execute()
-            chunks = chunks_result.data
-            
-            self.logger.info(f"Processing {len(chunks)} chunks for parts extraction")
-            
-            for chunk in chunks:
-                stats['chunks_processed'] += 1
-                
-                try:
-                    # Extract parts from chunk text
-                    parts_found = self._extract_parts_from_chunk(
-                        chunk=chunk,
-                        manufacturer_id=manufacturer_id,
-                        manufacturer_key=manufacturer_name,
-                        document_id=document_id
-                    )
-                    
-                    stats['parts_found'] += len(parts_found)
-                    
-                    # Store parts in database
-                    for part_data in parts_found:
-                        result = self._store_part(part_data)
-                        if result == 'created':
-                            stats['parts_created'] += 1
-                        elif result == 'updated':
-                            stats['parts_updated'] += 1
-                            
-                except Exception as e:
-                    self.logger.error(f"Error processing chunk {chunk['id']}: {e}")
+
+        with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
+            if self.stage_tracker:
+                self.stage_tracker.start_stage(document_id, self.stage)
+
+            try:
+                doc_result = self.supabase.table('vw_documents').select('*').eq('id', document_id).execute()
+                if not doc_result.data:
+                    adapter.error("Document %s not found", document_id)
                     stats['errors'] += 1
-            
-            # Link parts to error codes
-            self.logger.info("Linking parts to error codes...")
-            linked_count = self._link_parts_to_error_codes(document_id)
-            stats['parts_linked_to_error_codes'] = linked_count
-            
-            self.logger.info(f"Parts extraction complete: {stats}")
-            return stats
-            
-        except Exception as e:
-            self.logger.error(f"Error in parts processing: {e}")
-            stats['errors'] += 1
-            return stats
+                    if self.stage_tracker:
+                        self.stage_tracker.fail_stage(document_id, self.stage, error="Document not found")
+                    return stats
+
+                document = doc_result.data[0]
+                manufacturer_id = document.get('manufacturer_id')
+                manufacturer_name = (document.get('manufacturer') or '').lower().replace(' ', '_')
+
+                if not manufacturer_id:
+                    adapter.warning("No manufacturer_id available, skipping parts extraction")
+                    if self.stage_tracker:
+                        self.stage_tracker.skip_stage(document_id, self.stage, reason="Missing manufacturer_id")
+                    return stats
+
+                adapter.info("Extracting parts for manufacturer: %s", manufacturer_name)
+
+                chunks_result = self.supabase.table('vw_chunks').select('*').eq('document_id', document_id).execute()
+                chunks = chunks_result.data or []
+                adapter.info("Processing %s chunks for parts extraction", len(chunks))
+
+                for chunk in chunks:
+                    stats['chunks_processed'] += 1
+
+                    try:
+                        parts_found = self._extract_parts_from_chunk(
+                            chunk=chunk,
+                            manufacturer_id=manufacturer_id,
+                            manufacturer_key=manufacturer_name,
+                            document_id=document_id
+                        )
+
+                        stats['parts_found'] += len(parts_found)
+
+                        for part_data in parts_found:
+                            result = self._store_part(part_data, adapter)
+                            if result == 'created':
+                                stats['parts_created'] += 1
+                            elif result == 'updated':
+                                stats['parts_updated'] += 1
+
+                    except Exception as e:
+                        adapter.error("Error processing chunk %s: %s", chunk.get('id'), e)
+                        stats['errors'] += 1
+
+                adapter.info("Linking parts to error codes...")
+                linked_count = self._link_parts_to_error_codes(document_id, adapter)
+                stats['parts_linked_to_error_codes'] = linked_count
+
+                adapter.info("Parts extraction complete: %s", stats)
+
+                if self.stage_tracker:
+                    self.stage_tracker.complete_stage(
+                        document_id,
+                        self.stage,
+                        metadata={
+                            'parts_found': stats['parts_found'],
+                            'parts_created': stats['parts_created'],
+                            'parts_updated': stats['parts_updated'],
+                            'chunks_processed': stats['chunks_processed']
+                        }
+                    )
+
+                return stats
+
+            except Exception as e:
+                adapter.error("Error in parts processing: %s", e)
+                stats['errors'] += 1
+                if self.stage_tracker:
+                    self.stage_tracker.fail_stage(document_id, self.stage, error=str(e))
+                return stats
+
+    async def process(self, context) -> Dict:
+        """Async wrapper to support BaseProcessor interface."""
+        document_id = getattr(context, "document_id", None)
+        if not document_id:
+            raise ValueError("Processing context must include 'document_id'")
+
+        stats = self.process_document(str(document_id))
+        metadata = {
+            "document_id": str(document_id),
+            "stage": self.stage.value,
+            "parts_found": stats.get("parts_found", 0),
+        }
+        result = self.create_success_result(stats, metadata=metadata)
+        return result
     
     def _extract_parts_from_chunk(
         self, 
@@ -216,7 +250,7 @@ class PartsProcessor:
         
         return description[:500], category  # Limit length
     
-    def _store_part(self, part_data: Dict) -> str:
+    def _store_part(self, part_data: Dict, adapter) -> str:
         """
         Store or update part in database
         
@@ -252,20 +286,20 @@ class PartsProcessor:
                 # Update if new description is longer/better
                 if len(new_desc) > len(old_desc):
                     self.supabase.table('vw_parts').update(store_data).eq('id', part_id).execute()
-                    self.logger.debug(f"Updated part {part_data['part_number']}")
+                    adapter.debug("Updated part %s", part_data['part_number'])
                     return 'updated'
                 return 'exists'
             else:
                 # Create new part
                 self.supabase.table('vw_parts').insert(store_data).execute()
-                self.logger.debug(f"Created part {part_data['part_number']}")
+                adapter.debug("Created part %s", part_data['part_number'])
                 return 'created'
                 
         except Exception as e:
-            self.logger.error(f"Error storing part {part_data['part_number']}: {e}")
+            adapter.error("Error storing part %s: %s", part_data['part_number'], e)
             return 'error'
     
-    def _link_parts_to_error_codes(self, document_id: str) -> int:
+    def _link_parts_to_error_codes(self, document_id: str, adapter) -> int:
         """
         Link parts to error codes based on chunk proximity and solution text
         
@@ -307,22 +341,24 @@ class PartsProcessor:
                         parts_in_chunk = self._extract_and_link_parts_from_text(
                             text=chunk_text,
                             error_code_id=ec_id,
-                            source='chunk'
+                            source='chunk',
+                            adapter=adapter
                         )
                         linked_count += parts_in_chunk
             
-            self.logger.info(f"Linked {linked_count} parts to error codes")
+            adapter.info("Linked %s parts to error codes", linked_count)
             return linked_count
             
         except Exception as e:
-            self.logger.error(f"Error linking parts to error codes: {e}")
+            adapter.error("Error linking parts to error codes: %s", e)
             return linked_count
     
     def _extract_and_link_parts_from_text(
         self, 
         text: str, 
         error_code_id: str, 
-        source: str
+        source: str,
+        adapter
     ) -> int:
         """
         Extract parts from text and link to error code
@@ -365,7 +401,7 @@ class PartsProcessor:
                     }).execute()
                     
                     linked_count += 1
-                    self.logger.debug(f"Linked part {part_number} to error code {error_code_id}")
+                    adapter.debug("Linked part %s to error code %s", part_number, error_code_id)
                     
                 except Exception:
                     # Link probably already exists, ignore
@@ -374,7 +410,7 @@ class PartsProcessor:
             return linked_count
             
         except Exception as e:
-            self.logger.error(f"Error extracting and linking parts: {e}")
+            adapter.error("Error extracting and linking parts: %s", e)
             return linked_count
 
 

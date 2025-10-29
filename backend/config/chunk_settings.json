@@ -146,7 +146,8 @@
       "preserve_relationships": true,
       "smart_boundaries": true,
       "adaptive_sizing": true,
-      "quality_threshold": 0.8
+      "quality_threshold": 0.8,
+      "structured_text_max_lines_per_page": 200
     }
   }
 }

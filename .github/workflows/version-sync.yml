@@ -1,0 +1,52 @@
+name: Version Sync
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - 'backend/processors/__version__.py'  # Prevent infinite loop
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for git info
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Update Version File
+        run: |
+          python scripts/update_version_ci.py --verbose
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+      
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          if git diff --quiet backend/processors/__version__.py; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Commit and Push Changes
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add backend/processors/__version__.py
+          git commit -m "chore: Auto-update version to $(git rev-parse --short HEAD) [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

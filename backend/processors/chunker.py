@@ -273,6 +273,7 @@ class SmartChunker:
         Returns:
             TextChunk object or None if invalid
         """
+        original_text = text
         text = text.strip()
         
         # Validate minimum size
@@ -300,6 +301,8 @@ class SmartChunker:
         metadata = {
             'char_count': len(cleaned_text),
             'word_count': len(cleaned_text.split()),
+            'orig_char_count': len(original_text),
+            'orig_word_count': len(original_text.split()),
             'has_error_codes': self._contains_error_codes(cleaned_text),
             'chunk_type': chunk_type
         }
@@ -460,14 +463,14 @@ class SmartChunker:
             text: Text to fingerprint
             
         Returns:
-            SHA256 hash (first 16 chars)
+            SHA256 hash (first 32 chars)
         """
         # Normalize text (remove whitespace variations)
         normalized = re.sub(r'\s+', ' ', text.lower().strip())
         
         # Hash
         hash_obj = hashlib.sha256(normalized.encode('utf-8'))
-        return hash_obj.hexdigest()[:16]
+        return hash_obj.hexdigest()[:32]
     
     def _detect_chunk_type(self, text: str) -> str:
         """

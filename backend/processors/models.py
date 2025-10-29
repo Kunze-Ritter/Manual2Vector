@@ -191,6 +191,9 @@ class DocumentMetadata(BaseModel):
         description="Confidence score (0-1) for detected language"
     )
     document_type: str = Field(..., pattern="^(service_manual|parts_catalog|user_guide|troubleshooting)$")
+    engine_used: str = Field(default="pymupdf", description="Primary engine used for text extraction")
+    fallback_used: Optional[str] = Field(default=None, description="Fallback extraction path used, if any")
+    pages_failed: int = Field(default=0, ge=0, description="Number of pages that failed primary text extraction")
 
 
 class ProcessingResult(BaseModel):

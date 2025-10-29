@@ -7,8 +7,12 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 from enum import Enum
-import logging
 from datetime import datetime
+import contextlib
+import logging
+from uuid import UUID
+
+from backend.processors.logger import get_logger
 
 class ProcessingStatus(Enum):
     """Processing status enumeration"""
@@ -61,6 +65,23 @@ class ProcessingContext:
         if self.processing_config is None:
             self.processing_config = {}
 
+class Stage(Enum):
+    """Canonical stage names for pipeline processors."""
+
+    UPLOAD = "upload"
+    TEXT_EXTRACTION = "text_extraction"
+    IMAGE_PROCESSING = "image_processing"
+    LINK_EXTRACTION = "link_extraction"
+    CHUNK_PREPROCESSING = "chunk_prep"
+    CLASSIFICATION = "classification"
+    METADATA_EXTRACTION = "metadata_extraction"
+    PARTS_EXTRACTION = "parts_extraction"
+    SERIES_DETECTION = "series_detection"
+    STORAGE = "storage"
+    EMBEDDING = "embedding"
+    SEARCH_INDEXING = "search_indexing"
+
+
 class BaseProcessor(ABC):
     """
     Base class for all processors in the KR-AI-Engine pipeline
@@ -80,19 +101,37 @@ class BaseProcessor(ABC):
     def __init__(self, name: str, config: Dict[str, Any] = None):
         self.name = name
         self.config = config or {}
-        self.logger = logging.getLogger(f"krai.{name}")
-        self._setup_logging()
-    
-    def _setup_logging(self):
-        """Setup logging for the processor"""
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            f'%(asctime)s - {self.name} - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        self.logger.setLevel(logging.INFO)
-    
+        processor_logger = get_logger(name=f"processor.{name}")
+        self.logger = processor_logger  # ProcessorLogger interface (info, success, etc.)
+        self.log = processor_logger
+        self._base_logger = processor_logger.logger
+        self._base_extra: Dict[str, Any] = {"processor": self.name}
+        self._logger_adapter = logging.LoggerAdapter(self._base_logger, dict(self._base_extra))
+
+    @contextlib.contextmanager
+    def logger_context(
+        self,
+        document_id: Optional[Union[str, UUID]] = None,
+        stage: Optional[Union[Stage, str]] = None,
+        **extra: Any
+    ):
+        """Attach contextual fields (processor/document/stage) to logger."""
+
+        merged_extra: Dict[str, Any] = dict(self._base_extra)
+        if document_id is not None:
+            merged_extra["document_id"] = str(document_id)
+        if stage is not None:
+            merged_extra["stage"] = stage.value if isinstance(stage, Stage) else stage
+        merged_extra.update({k: v for k, v in extra.items() if v is not None})
+
+        adapter = logging.LoggerAdapter(self._base_logger, merged_extra)
+        previous_adapter = self._logger_adapter
+        self._logger_adapter = adapter
+        try:
+            yield adapter
+        finally:
+            self._logger_adapter = previous_adapter
+
     @abstractmethod
     async def process(self, context: ProcessingContext) -> ProcessingResult:
         """
@@ -109,25 +148,21 @@ class BaseProcessor(ABC):
         """
         pass
     
-    @abstractmethod
     def get_required_inputs(self) -> List[str]:
         """
-        Get list of required input data for this processor
-        
-        Returns:
-            List[str]: List of required input keys
+        Get list of required input data for this processor.
+
+        Subclasses can override to declare specific requirements. Defaults to []
         """
-        pass
+        return []
     
-    @abstractmethod
     def get_outputs(self) -> List[str]:
         """
-        Get list of output data produced by this processor
-        
-        Returns:
-            List[str]: List of output keys
+        Get list of output data produced by this processor.
+
+        Subclasses can override to declare structured outputs. Defaults to []
         """
-        pass
+        return []
     
     def validate_inputs(self, context: ProcessingContext) -> bool:
         """
@@ -156,15 +191,41 @@ class BaseProcessor(ABC):
     
     def log_processing_start(self, context: ProcessingContext):
         """Log the start of processing"""
-        self.logger.info(f"Starting {self.name} processing for document {context.document_id}")
-        self.logger.debug(f"Context: {context}")
+        with self.logger_context(document_id=context.document_id) as adapter:
+            adapter.info(
+                "Starting %s processing for document %s",
+                self.name,
+                context.document_id,
+            )
+            adapter.debug("Context: %s", context)
     
     def log_processing_end(self, result: ProcessingResult):
         """Log the end of processing"""
-        if result.success:
-            self.logger.info(f"Completed {self.name} processing in {result.processing_time:.2f}s")
-        else:
-            self.logger.error(f"Failed {self.name} processing: {result.error}")
+        document_id = None
+        stage = None
+        if result.metadata:
+            document_id = result.metadata.get("document_id") or result.metadata.get("document")
+            stage = result.metadata.get("stage")
+
+        with self.logger_context(document_id=document_id, stage=stage) as adapter:
+            if result.success:
+                adapter.info(
+                    "Completed %s processing in %.2fs",
+                    self.name,
+                    result.processing_time,
+                )
+                self.logger.success(
+                    f"{self.name} completed in {result.processing_time:.2f}s"
+                )
+            else:
+                adapter.error(
+                    "Failed %s processing: %s",
+                    self.name,
+                    result.error,
+                )
+                self.logger.error(
+                    f"{self.name} failed: {result.error}"
+                )
     
     def create_success_result(self, data: Dict[str, Any], metadata: Dict[str, Any] = None) -> ProcessingResult:
         """Create a successful processing result"""

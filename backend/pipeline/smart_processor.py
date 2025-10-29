@@ -25,7 +25,7 @@ from backend.processors.upload_processor import UploadProcessor
 from backend.processors.text_processor_optimized import OptimizedTextProcessor
 from backend.processors.image_processor import ImageProcessor
 from backend.processors.classification_processor import ClassificationProcessor
-from backend.processors.metadata_processor import MetadataProcessor
+from backend.processors.metadata_processor_ai import MetadataProcessorAI
 from backend.processors.storage_processor import StorageProcessor
 from backend.processors.embedding_processor import EmbeddingProcessor
 from backend.processors.search_processor import SearchProcessor
@@ -96,7 +96,7 @@ class KRSmartProcessor:
             'text': OptimizedTextProcessor(self.database_service, self.config_service),
             'image': ImageProcessor(self.database_service, self.storage_service, self.ai_service),
             'classification': ClassificationProcessor(self.database_service, self.ai_service, self.features_service),
-            'metadata': MetadataProcessor(self.database_service, self.config_service),
+            'metadata': MetadataProcessorAI(self.database_service, self.ai_service, self.config_service),
             'storage': StorageProcessor(self.database_service, self.storage_service),
             'embedding': EmbeddingProcessor(self.database_service, self.ai_service),
             'search': SearchProcessor(self.database_service, self.ai_service)

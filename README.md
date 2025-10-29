@@ -44,7 +44,8 @@ KR-AI-Engine is a comprehensive document processing system that automatically ex
 8. **Search Processor** - Search analytics and indexing
 
 ### 🏗️ **Production-Ready Architecture**
-- **Supabase Database** with pgvector support
+- **Database Adapter Pattern** - Support for Supabase, PostgreSQL, Docker PostgreSQL
+- **Flexible Database Backend** - Switch between cloud and self-hosted
 - **Cloudflare R2** object storage
 - **GPU Acceleration** for AI models
 - **Parallel Processing** for optimal performance
@@ -86,6 +87,24 @@ ollama pull llava-phi3:latest
 # Run the application
 python backend/pipeline/master_pipeline.py
 ```
+
+### **Version Management**
+
+The project uses automatic version synchronization via a **commit-msg** git hook:
+
+```bash
+# Install Git hook for automatic version updates
+python scripts/install_git_hooks.py
+```
+
+The hook runs after you write the commit message and updates `backend/processors/__version__.py` with the correct semantic version and current date. The commit hash is left untouched locally and will be written by CI after push.
+
+**Semantic Versioning via Commit Messages:**
+- `MAJOR:` or `RELEASE:` → Increment Major Version (2.1.3 → 3.0.0)
+- `MINOR:` or `FEATURE:` → Increment Minor Version (2.1.3 → 2.2.0)
+- `PATCH:` or `FIX:` → Increment Patch Version (2.1.3 → 2.1.4)
+
+Details: [Version Management Guide](docs/development/VERSION_MANAGEMENT.md)
 
 📖 **For detailed installation instructions, see [docs/setup/INSTALLATION_GUIDE.md](docs/setup/INSTALLATION_GUIDE.md)**
 
@@ -153,6 +172,19 @@ VISION_ENABLED=true
 MAX_WORKERS=8
 CHUNK_SIZE=1000
 LOG_LEVEL=INFO
+
+# Logging
+LOG_TO_CONSOLE=true
+LOG_TO_FILE=true
+LOG_DIR=backend/logs
+LOG_ROTATION=size          # "size" (RotatingFileHandler) or "time" (TimedRotatingFileHandler)
+LOG_MAX_BYTES=10000000     # Only used for size-based rotation
+LOG_BACKUP_COUNT=5         # Retained rotated files
+LOG_ROTATION_WHEN=midnight # Only used for time-based rotation
+LOG_ROTATION_INTERVAL=1
+
+# Optional OCR fallback for text extraction
+ENABLE_OCR_FALLBACK=false  # Requires pytesseract + Pillow + system Tesseract binary
 ```
 
 ### **Hardware Detection**
@@ -172,6 +204,9 @@ The system automatically detects:
 - **Batch Operations** - Database optimization
 - **Resource Monitoring** - Real-time performance tracking
 - **Vision Model Keep-Alive** - Optimized VRAM management
+- **Structured Text Capping** - Limits structured table extraction to configurable line and length caps
+- **Configurable Logger Rotation** - Size/time-based rotation with retention controls
+- **Extraction Telemetry** - Tracks primary PDF engine, fallback usage, and failed pages
 
 ### **Expected Performance**
 - **CPU**: 12+ cores utilization
@@ -206,7 +241,7 @@ The system automatically detects:
 KRAI-minimal/
 ├── backend/
 │   ├── pipeline/         # Main processing pipelines ⭐ NEW
-│   ├── processors/       # 8-stage processing pipeline
+│   ├── processors/       # Active processor implementations
 │   ├── services/         # Database, AI, storage services
 │   ├── api/              # REST API endpoints
 │   ├── config/           # Configuration files
@@ -215,20 +250,30 @@ KRAI-minimal/
 │   ├── scripts/          # Utility scripts
 │   ├── tests/            # Unit tests
 │   └── requirements.txt  # Python dependencies
-├── docs/                 # Documentation ⭐ NEW
+├── docs/                 # Documentation (see breakdown below)
+│   ├── processor/        # Processor design docs & checklists
+│   ├── video_enrichment/ # Video enrichment & linking
+│   ├── database/         # Schema references & migrations
+│   ├── features/         # Feature-specific guides
+│   ├── releases/         # Release notes & changelogs
+│   ├── project_management/ # TODOs, QA reports, planning
 │   ├── setup/            # Installation guides
 │   ├── architecture/     # System architecture
 │   ├── troubleshooting/  # Troubleshooting guides
 │   └── n8n/              # n8n integration docs
 ├── database/
 │   └── migrations/       # Database migrations
+├── examples/             # Example scripts and usage demonstrations
 ├── n8n/                  # n8n integration ⭐ NEW
 │   ├── workflows/        # n8n workflow files
 │   └── credentials/      # n8n credential templates
-├── scripts/              # Helper scripts (.bat files) ⭐ NEW
+├── scripts/              # Helper scripts (checks, migrations, utilities)
+├── archive/              # Archived temp files and legacy assets
 ├── .env                  # Environment variables
 └── README.md             # This file
 ```
+
+For reorganization details, consult `docs/PROJECT_CLEANUP_LOG.md`.
 
 ## 🔍 Monitoring
 
@@ -254,6 +299,8 @@ KRAI-minimal/
 3. **Vision model crashes** - See `docs/troubleshooting/VISION_MODEL_TROUBLESHOOTING.md`
 4. **Database errors** - Check Supabase credentials and RLS policies
 5. **Memory issues** - Reduce OLLAMA_KEEP_ALIVE or batch size
+6. **Log file grows too large** - Adjust `LOG_ROTATION`, `LOG_MAX_BYTES`, or `LOG_BACKUP_COUNT`
+7. **Scanned PDFs contain no text** - Enable `ENABLE_OCR_FALLBACK` and install Tesseract OCR
 
 ### **Debug Mode**
 ```bash
@@ -265,8 +312,10 @@ python backend/pipeline/master_pipeline.py
 ### **Documentation**
 - **Setup**: `docs/setup/` - Installation and configuration
 - **Architecture**: `docs/architecture/` - System design and pipeline
+- **Version Management**: `docs/development/VERSION_MANAGEMENT.md` - Automatic version synchronization
 - **Troubleshooting**: `docs/troubleshooting/` - Common issues and fixes
 - **n8n Integration**: `docs/n8n/` - Automation workflows
+- **Performance Features**: `docs/PERFORMANCE_FEATURES.md` - Structured text capping, OCR fallback, telemetry, statistics
 
 ## 🤖 N8N Integration
 

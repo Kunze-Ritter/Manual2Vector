@@ -1,29 +1,24 @@
 """Series Processor
 
 Detects and creates product series, links products to series.
-Stage 7 in the processing pipeline.
 """
 
 from typing import Dict, Optional
-from pathlib import Path
-import sys
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from .logger import get_logger
+from backend.core.base_processor import BaseProcessor, Stage
+from .imports import get_supabase_client
 from utils.series_detector import detect_series
 
-logger = get_logger()
 
+class SeriesProcessor(BaseProcessor):
+    """Detect and create product series."""
 
-class SeriesProcessor:
-    
-    def __init__(self):
+    def __init__(self, supabase_client=None):
         """Initialize series processor"""
-        from .imports import get_supabase_client
-        self.supabase = get_supabase_client()
-        self.logger = get_logger()
+        super().__init__(name="series_processor")
+        self.stage = Stage.SERIES_DETECTION
+        self.supabase = supabase_client or get_supabase_client()
+        self.logger.info("SeriesProcessor initialized")
         
     def process_all_products(self) -> Dict:
         """
@@ -32,8 +27,6 @@ class SeriesProcessor:
         Returns:
             Dict with statistics
         """
-        self.logger.info("Starting series detection for all products")
-        
         stats = {
             'products_processed': 0,
             'series_detected': 0,
@@ -41,38 +34,38 @@ class SeriesProcessor:
             'products_linked': 0,
             'errors': 0
         }
-        
-        try:
-            # Get all products without series_id
-            products_result = self.supabase.table('vw_products').select(
-                '*'
-            ).is_('series_id', 'null').execute()
-            
-            products = products_result.data
-            self.logger.info(f"Processing {len(products)} products without series")
-            
-            for product in products:
-                stats['products_processed'] += 1
-                
-                try:
-                    result = self._process_product(product)
-                    if result:
-                        stats['series_detected'] += 1
-                        if result['series_created']:
-                            stats['series_created'] += 1
-                        if result['product_linked']:
-                            stats['products_linked'] += 1
-                except Exception as e:
-                    self.logger.error(f"Error processing product {product['id']}: {e}")
-                    stats['errors'] += 1
-            
-            self.logger.info(f"Series processing complete: {stats}")
-            return stats
-            
-        except Exception as e:
-            self.logger.error(f"Error in series processing: {e}")
-            stats['errors'] += 1
-            return stats
+
+        with self.logger_context(stage=self.stage) as adapter:
+            try:
+                products_result = self.supabase.table('vw_products').select(
+                    '*'
+                ).is_('series_id', 'null').execute()
+
+                products = products_result.data or []
+                adapter.info("Processing %s products without series", len(products))
+
+                for product in products:
+                    stats['products_processed'] += 1
+
+                    try:
+                        result = self._process_product(product, adapter)
+                        if result:
+                            stats['series_detected'] += 1
+                            if result['series_created']:
+                                stats['series_created'] += 1
+                            if result['product_linked']:
+                                stats['products_linked'] += 1
+                    except Exception as e:
+                        adapter.error("Error processing product %s: %s", product.get('id'), e)
+                        stats['errors'] += 1
+
+                adapter.info("Series processing complete: %s", stats)
+                return stats
+
+            except Exception as e:
+                adapter.error("Error in series processing: %s", e)
+                stats['errors'] += 1
+                return stats
     
     def process_product(self, product_id: str) -> Optional[Dict]:
         """
@@ -84,24 +77,24 @@ class SeriesProcessor:
         Returns:
             Dict with result or None
         """
-        try:
-            # Get product
-            product_result = self.supabase.table('vw_products').select(
-                '*'
-            ).eq('id', product_id).execute()
-            
-            if not product_result.data:
-                self.logger.warning(f"Product {product_id} not found")
+        with self.logger_context(stage=self.stage, product_id=product_id) as adapter:
+            try:
+                product_result = self.supabase.table('vw_products').select(
+                    '*'
+                ).eq('id', product_id).execute()
+
+                if not product_result.data:
+                    adapter.warning("Product %s not found", product_id)
+                    return None
+
+                product = product_result.data[0]
+                return self._process_product(product, adapter)
+
+            except Exception as e:
+                adapter.error("Error processing product %s: %s", product_id, e)
                 return None
-            
-            product = product_result.data[0]
-            return self._process_product(product)
-            
-        except Exception as e:
-            self.logger.error(f"Error processing product {product_id}: {e}")
-            return None
     
-    def _process_product(self, product: Dict) -> Optional[Dict]:
+    def _process_product(self, product: Dict, adapter) -> Optional[Dict]:
         """
         Process a product to detect and link series
         
@@ -122,12 +115,12 @@ class SeriesProcessor:
             mfr_result = self.supabase.table('vw_manufacturers').select('name').eq('id', manufacturer_id).single().execute()
             manufacturer_name = mfr_result.data.get('name', '') if mfr_result.data else ''
         except Exception as e:
-            self.logger.warning(f"Could not get manufacturer name for {manufacturer_id}: {e}")
+            adapter.warning("Could not get manufacturer name for %s: %s", manufacturer_id, e)
             manufacturer_name = ''
         
         # Don't detect series if manufacturer is unknown (prevents false matches)
         if not manufacturer_name:
-            self.logger.warning(f"Skipping series detection for {model_number} - manufacturer unknown")
+            adapter.warning("Skipping series detection for %s - manufacturer unknown", model_number)
             return {
                 'series_detected': False,
                 'series_created': False,
@@ -137,19 +130,20 @@ class SeriesProcessor:
         # Detect series
         series_data = detect_series(model_number, manufacturer_name)
         if not series_data:
-            self.logger.debug(f"No series detected for {manufacturer_name} {model_number}")
+            adapter.debug("No series detected for %s %s", manufacturer_name, model_number)
             return {
                 'series_detected': False,
                 'series_created': False,
                 'product_linked': False
             }
         
-        self.logger.info(f"✓ Detected series for {model_number}: {series_data['series_name']}")
+        adapter.info("Detected series for %s: %s", model_number, series_data['series_name'])
         
         # Get or create series
         series_id, series_created = self._get_or_create_series(
             manufacturer_id=manufacturer_id,
-            series_data=series_data
+            series_data=series_data,
+            adapter=adapter
         )
         
         if not series_id:
@@ -158,7 +152,8 @@ class SeriesProcessor:
         # Link product to series
         product_linked = self._link_product_to_series(
             product_id=product['id'],
-            series_id=series_id
+            series_id=series_id,
+            adapter=adapter
         )
         
         return {
@@ -169,10 +164,38 @@ class SeriesProcessor:
             'product_linked': product_linked
         }
     
+    async def process(self, context) -> Dict:
+        """Async wrapper for BaseProcessor interface to process a single product."""
+        product_id = getattr(context, "product_id", None)
+        if not product_id:
+            raise ValueError("Processing context must include 'product_id'")
+
+        with self.logger_context(stage=self.stage, product_id=product_id) as adapter:
+            result = self.process_product(str(product_id))
+            if result is None:
+                metadata = {"product_id": str(product_id), "stage": self.stage.value}
+                error = {
+                    "series_detected": False,
+                    "series_created": False,
+                    "product_linked": False,
+                }
+                processing_result = self.create_success_result(error, metadata=metadata)
+                return processing_result
+
+            metadata = {
+                "product_id": str(product_id),
+                "stage": self.stage.value,
+                "series_detected": result.get("series_detected", False),
+                "series_created": result.get("series_created", False),
+                "product_linked": result.get("product_linked", False),
+            }
+            return self.create_success_result(result, metadata=metadata)
+    
     def _get_or_create_series(
         self, 
         manufacturer_id: str, 
-        series_data: Dict
+        series_data: Dict,
+        adapter
     ) -> tuple[Optional[str], bool]:
         """
         Get existing series or create new one
@@ -198,7 +221,7 @@ class SeriesProcessor:
             ).execute()
             
             if existing.data:
-                self.logger.debug(f"Series '{series_name}' ({model_pattern}) already exists")
+                adapter.debug("Series '%s' (%s) already exists", series_name, model_pattern)
                 return existing.data[0]['id'], False
             
             # Create new series
@@ -213,32 +236,39 @@ class SeriesProcessor:
             
             if result.data:
                 series_id = result.data[0]['id']
-                self.logger.info(f"Created series '{series_name}' with ID {series_id}")
+                adapter.info("Created series '%s' with ID %s", series_name, series_id)
                 return series_id, True
             
             return None, False
             
         except Exception as e:
             error_str = str(e)
-            # If duplicate key error, try to get existing series
             if '23505' in error_str or 'duplicate key' in error_str.lower():
-                self.logger.debug(f"Series '{series_name}' already exists (duplicate key), fetching existing...")
+                adapter.debug("Series '%s' already exists (duplicate key), fetching existing...", series_name)
                 try:
                     existing = self.supabase.table('vw_product_series').select('id').eq(
                         'manufacturer_id', manufacturer_id
                     ).eq(
                         'series_name', series_name
                     ).limit(1).execute()
-                    
                     if existing.data:
                         return existing.data[0]['id'], False
-                except:
-                    pass
-            
-            self.logger.error(f"Error creating series '{series_name}': {e}")
+                except Exception as fetch_error:
+                    adapter.warning(
+                        "Failed to fetch existing series '%s' after duplicate key: %s",
+                        series_name,
+                        fetch_error
+                    )
+
+            adapter.error("Error creating series '%s': %s", series_name, e)
             return None, False
-    
-    def _link_product_to_series(self, product_id: str, series_id: str) -> bool:
+        
+    def _link_product_to_series(
+        self,
+        product_id: str,
+        series_id: str,
+        adapter
+    ) -> bool:
         """
         Link product to series
         
@@ -250,23 +280,13 @@ class SeriesProcessor:
             True if successful
         """
         try:
-            self.logger.info(f"   → Linking product {product_id[:8]}... to series {series_id[:8]}...")
-            
-            result = self.supabase.table('vw_products').update({
+            self.supabase.table('vw_products').update({
                 'series_id': series_id
             }).eq('id', product_id).execute()
-            
-            if result.data:
-                self.logger.success(f"   ✅ Linked product to series (updated {len(result.data)} row)")
-                return True
-            else:
-                self.logger.warning(f"   ⚠️  UPDATE returned no data - product may not exist")
-                return False
-            
+            adapter.debug("Linked product %s to series %s", product_id, series_id)
+            return True
         except Exception as e:
-            self.logger.error(f"   ❌ Error linking product {product_id} to series: {e}")
-            import traceback
-            self.logger.debug(traceback.format_exc())
+            adapter.error("Error linking product %s to series %s: %s", product_id, series_id, e)
             return False
     
     def get_series_products(self, series_id: str) -> list:

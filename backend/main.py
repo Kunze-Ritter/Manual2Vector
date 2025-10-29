@@ -5,8 +5,23 @@ FastAPI application with all endpoints and services
 
 import logging
 import os
+import sys
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Dict, Any
+
+# Configure logger
+logger = logging.getLogger("krai.api")
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+# Ensure project root is on sys.path when executed directly
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # Load environment variables from multiple .env files
 # Priority: Later files override earlier ones
@@ -28,22 +43,21 @@ try:
         '.env.ai',        # AI settings (LLM_MAX_PAGES, OLLAMA models)
     ]
     
-    loaded_count = 0
+    loaded_files = []
     for env_file in env_files:
-        env_path = project_root / env_file
+        env_path = PROJECT_ROOT / env_file
         if env_path.exists():
             load_dotenv(env_path, override=True)
-            print(f"✅ Loaded: {env_file}")
-            loaded_count += 1
+            loaded_files.append(env_file)
+            logger.info("Loaded configuration from %s", env_file)
     
-    if loaded_count == 0:
-        print("⚠️  No .env files found - using system environment variables")
+    if not loaded_files:
+        logger.warning("No .env files found - falling back to system environment variables")
     else:
-        print(f"✅ Loaded {loaded_count} configuration file(s)")
+        logger.info("Loaded %s configuration file(s)", len(loaded_files))
     
 except ImportError:
-    print("⚠️ python-dotenv not installed, using system environment variables")
-    pass
+    logger.warning("python-dotenv not installed, using system environment variables only")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -92,12 +106,12 @@ async def lifespan(app: FastAPI):
     global document_api, search_api, defect_detection_api, features_api, content_management_api, openai_api
     
     # Startup
-    print("🚀 Starting KR-AI-Engine...")
+    logger.info("🚀 Starting KR-AI-Engine…")
     
     try:
         # Initialize configuration service
         config_service = ConfigService()
-        print("✅ Configuration service initialized")
+        logger.info("✅ Configuration service initialized")
         
         # Initialize database service
         database_service = DatabaseService(
@@ -106,9 +120,9 @@ async def lifespan(app: FastAPI):
             postgres_url=os.getenv("DATABASE_CONNECTION_URL")
         )
         await database_service.connect()
-        print("✅ Database service connected")
+        logger.info("✅ Database service connected")
         if database_service.pg_pool:
-            print("✅ PostgreSQL connection pool initialized")
+            logger.info("✅ PostgreSQL connection pool initialized")
         
         # Initialize object storage service
         storage_service = ObjectStorageService(
@@ -120,26 +134,26 @@ async def lifespan(app: FastAPI):
             r2_public_url_parts=os.getenv("R2_PUBLIC_URL_PARTS")
         )
         await storage_service.connect()
-        print("✅ Object storage service connected")
+        logger.info("✅ Object storage service connected")
         
         # Initialize AI service
         ai_service = AIService(
             ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434")
         )
         await ai_service.connect()
-        print("✅ AI service connected")
+        logger.info("✅ AI service connected")
         
         # Initialize features service
         features_service = FeaturesService(ai_service, database_service)
-        print("✅ Features service initialized")
+        logger.info("✅ Features service initialized")
         
         # Initialize video enrichment service
         video_enrichment_service = VideoEnrichmentService()
-        print("✅ Video enrichment service initialized")
+        logger.info("✅ Video enrichment service initialized")
         
         # Initialize link checker service
         link_checker_service = LinkCheckerService()
-        print("✅ Link checker service initialized")
+        logger.info("✅ Link checker service initialized")
         
         # NOW initialize APIs with services
         document_api = DocumentAPI(database_service, storage_service, ai_service)
@@ -160,26 +174,26 @@ async def lifespan(app: FastAPI):
         app.include_router(features_api.router)
         app.include_router(content_management_api.router)
         app.include_router(openai_api.router)
-        print("✅ API routers registered (including OpenAI-compatible)")
-        
-        print("🎯 KR-AI-Engine ready!")
+        logger.info("✅ API routers registered (including OpenAI-compatible)")
+
+        logger.info("🎯 KR-AI-Engine ready!")
         
     except Exception as e:
-        print(f"❌ Startup failed: {e}")
+        logger.exception("❌ Startup failed")
         raise
     
     # Yield control to the application
     yield
     
     # Shutdown
-    print("🛑 Shutting down KR-AI-Engine...")
+    logger.info("🛑 Shutting down KR-AI-Engine…")
     if database_service:
-        print("✅ Database service disconnected")
+        logger.info("✅ Database service disconnected")
     if storage_service:
-        print("✅ Storage service disconnected")
+        logger.info("✅ Storage service disconnected")
     if ai_service:
-        print("✅ AI service disconnected")
-    print("👋 KR-AI-Engine stopped")
+        logger.info("✅ AI service disconnected")
+    logger.info("👋 KR-AI-Engine stopped")
 
 # Create FastAPI application with lifespan
 app = FastAPI(

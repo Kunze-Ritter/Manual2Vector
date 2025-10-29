@@ -14,7 +14,7 @@ from backend.services.database_service import DatabaseService
 from backend.services.object_storage_service import ObjectStorageService
 from backend.services.ai_service import AIService
 from backend.processors.upload_processor import UploadProcessor
-from backend.processors.master_pipeline import MasterPipeline
+from backend.pipeline.master_pipeline import KRMasterPipeline
 
 class DocumentAPI:
     """
@@ -262,7 +262,7 @@ class DocumentAPI:
                 upload_images = os.getenv('UPLOAD_IMAGES_TO_R2', 'false').lower() == 'true'
                 upload_documents = os.getenv('UPLOAD_DOCUMENTS_TO_R2', 'false').lower() == 'true'
                 
-                pipeline = MasterPipeline(
+                pipeline = KRMasterPipeline(
                     supabase_client=self.database_service.supabase,
                     manufacturer="AUTO",  # Auto-detect manufacturer
                     enable_images=True,          # Extract images

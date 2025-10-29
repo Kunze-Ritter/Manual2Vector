@@ -6,6 +6,7 @@ Clean, modular rewrite of document processing pipeline with strict validation.
 
 ✅ **Type-safe** - Pydantic models with built-in validation  
 ✅ **Beautiful logging** - Rich console output with progress bars  
+✅ **Unified processor base** - Shared `BaseProcessor` with centralized Stage enum + contextual logging  
 ✅ **Strict validation** - No filenames as products, no random words as error codes  
 ✅ **Real confidence** - Context-based scoring, not fake values  
 ✅ **Modular design** - Easy to test and extend  
@@ -48,6 +49,42 @@ python test_processor.py manual.pdf --chunk-size 1500
 # Save results to JSON
 python test_processor.py manual.pdf --output results.json
 ```
+
+---
+
+## Active Processors in Master Pipeline
+
+1. `upload_processor.py` – UploadProcessor (Document ingestion & deduplication)
+2. `text_processor_optimized.py` – OptimizedTextProcessor (Smart chunking with AI)
+3. `image_processor.py` – ImageProcessor (OCR, AI vision, SVG support)
+4. `classification_processor.py` – ClassificationProcessor (Manufacturer/product detection)
+5. `chunk_preprocessor.py` – ChunkPreprocessor (Chunk preparation)
+6. `link_extraction_processor_ai.py` – LinkExtractionProcessorAI (Link extraction)
+7. `metadata_processor_ai.py` – MetadataProcessorAI (Error codes, version extraction)
+8. `storage_processor.py` – StorageProcessor (Cloudflare R2 storage)
+9. `embedding_processor.py` – EmbeddingProcessor (Vector embeddings)
+10. `search_processor.py` – SearchProcessor (Search analytics)
+
+Diese Liste spiegelt die aktive Pipeline in `backend/pipeline/master_pipeline.py` wider.
+
+---
+
+## Archived Processors
+
+Legacy-Varianten und historische Implementierungen liegen jetzt in `backend/processors/archive/`. So bleiben Referenzen erhalten, ohne die aktive Pipeline zu verwirren.
+
+---
+
+## Test Files
+
+Alle Processor-bezogenen Tests wurden nach `tests/processors/` verschoben. Verwende dieses Verzeichnis für Integration- und Regressionstests der Pipeline.
+
+---
+
+## Utility Scripts
+
+- `scripts/` enthält Hilfs- und Wartungsskripte (z.B. `auto_processor.py`, `pipeline_processor.py`).
+- `examples/` bündelt Demonstrationen wie `example_pipeline_usage.py` zur schnellen Orientierung.
 
 ---
 

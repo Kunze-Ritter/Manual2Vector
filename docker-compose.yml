@@ -44,9 +44,52 @@ services:
     networks:
       - krai-network
 
+  # Optional: PostgreSQL for KRAI local development
+  krai-postgres:
+    image: postgres:15
+    container_name: krai-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=krai
+      - POSTGRES_USER=krai_user
+      - POSTGRES_PASSWORD=krai_password
+    volumes:
+      - krai_postgres_data:/var/lib/postgresql/data
+      - ./database/seeds:/docker-entrypoint-initdb.d/seeds
+      - ./database/migrations:/docker-entrypoint-initdb.d/migrations
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U krai_user -d krai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: pgAdmin for database management
+  krai-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: krai-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@krai.local
+      - PGADMIN_DEFAULT_PASSWORD=krai_admin_2024
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - krai_pgadmin_data:/var/lib/pgadmin
+    networks:
+      - krai-network
+    depends_on:
+      - krai-postgres
+
 volumes:
   n8n_data:
   n8n_postgres_data:
+  krai_postgres_data:
+  krai_pgadmin_data:
 
 networks:
   krai-network:

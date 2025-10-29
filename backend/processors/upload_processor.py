@@ -7,14 +7,15 @@ Handles document ingestion, validation, deduplication, and queue management.
 import hashlib
 from pathlib import Path
 from typing import Optional, Dict, Any
+import asyncio
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from .logger import get_logger
+from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult, Stage
 from .stage_tracker import StageTracker
 
 
-class UploadProcessor:
+class UploadProcessor(BaseProcessor):
     """
     Stage 1: Document Upload & Validation
     
@@ -39,12 +40,33 @@ class UploadProcessor:
             max_file_size_mb: Maximum file size in MB
             allowed_extensions: List of allowed file extensions
         """
+        super().__init__(name="upload_processor")
+        self.stage = Stage.UPLOAD
         self.supabase = supabase_client
         self.max_file_size_bytes = max_file_size_mb * 1024 * 1024
         self.allowed_extensions = allowed_extensions or ['.pdf']
-        self.logger = get_logger()
         self.stage_tracker = StageTracker(supabase_client)
     
+    async def process(self, context) -> Dict[str, Any]:
+        """Async entrypoint used by the pipeline framework."""
+        if not hasattr(context, 'file_path'):
+            raise ValueError("Processing context must provide 'file_path'")
+
+        file_path = Path(context.file_path)
+        document_type = getattr(context, 'document_type', 'service_manual')
+        force_reprocess = getattr(context, 'force_reprocess', False)
+
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            self.process_upload,
+            file_path,
+            document_type,
+            force_reprocess
+        )
+
+        return result
+
     def process_upload(
         self,
         file_path: Path,
@@ -62,7 +84,8 @@ class UploadProcessor:
         Returns:
             Dict with status, document_id, and metadata
         """
-        self.logger.info(f"Processing upload: {file_path.name}")
+        with self.logger_context(stage=self.stage, document_id=None, file=file_path.name) as adapter:
+            adapter.info("Processing upload: %s", file_path.name)
         
         # Step 1: Validate file
         validation_result = self._validate_file(file_path)
@@ -81,7 +104,8 @@ class UploadProcessor:
         existing_doc = self._check_duplicate(file_hash)
         
         if existing_doc and not force_reprocess:
-            self.logger.info(f"Duplicate found: {existing_doc['id']}")
+            with self.logger_context(stage=self.stage, document_id=existing_doc['id']) as adapter:
+                adapter.info("Duplicate found - skipping reprocess")
             return {
                 'success': True,
                 'document_id': existing_doc['id'],
@@ -97,7 +121,8 @@ class UploadProcessor:
         if existing_doc and force_reprocess:
             # Update existing record
             document_id = existing_doc['id']
-            self.logger.info(f"Reprocessing document: {document_id}")
+            with self.logger_context(stage=self.stage, document_id=document_id) as adapter:
+                adapter.info("Reprocessing existing document")
             self._update_document_record(document_id, metadata, file_hash)
             status = 'reprocessing'
         else:
@@ -117,7 +142,7 @@ class UploadProcessor:
         # Step 7: Mark upload stage as completed
         self.stage_tracker.complete_stage(
             document_id=document_id,
-            stage_name='upload',
+            stage_name=self.stage,
             metadata={
                 'file_hash': file_hash,
                 'file_size': metadata['file_size_bytes'],

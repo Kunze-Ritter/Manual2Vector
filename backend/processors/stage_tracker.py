@@ -5,9 +5,12 @@ Helper class for tracking processing stages per document.
 Enables parallel processing and detailed monitoring.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from datetime import datetime
 from uuid import UUID
+import logging
+
+from backend.core.base_processor import Stage
 
 
 class StageTracker:
@@ -32,22 +35,32 @@ class StageTracker:
     - skipped: Not applicable for this document
     """
     
-    STAGES = [
-        'upload',
-        'text_extraction',
-        'image_processing',
-        'classification',
-        'metadata_extraction',
-        'storage',
-        'embedding',
-        'search_indexing'
-    ]
+    STAGES = [stage.value for stage in Stage]
     
     def __init__(self, supabase_client):
         """Initialize tracker"""
         self.supabase = supabase_client
+        self.logger = logging.getLogger("krai.stage_tracker")
+
+    @staticmethod
+    def _make_json_safe(value: Any) -> Any:
+        """Recursively convert values to JSON-serializable types."""
+        if isinstance(value, UUID):
+            return str(value)
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, dict):
+            return {str(k): StageTracker._make_json_safe(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple, set)):
+            return [StageTracker._make_json_safe(v) for v in value]
+        return value
     
-    def start_stage(self, document_id: str, stage_name: str) -> bool:
+    def _normalize_stage(self, stage_name: Union[str, Stage]) -> str:
+        if isinstance(stage_name, Stage):
+            return stage_name.value
+        return str(stage_name)
+
+    def start_stage(self, document_id: str, stage_name: Union[str, Stage]) -> bool:
         """
         Mark stage as started
         
@@ -58,20 +71,28 @@ class StageTracker:
         Returns:
             True if successful
         """
+        stage = self._normalize_stage(stage_name)
+
         try:
             self.supabase.rpc('start_stage', {
                 'p_document_id': document_id,
-                'p_stage_name': stage_name
+                'p_stage_name': stage
             }).execute()
             return True
         except Exception as e:
-            print(f"Error starting stage: {e}")
+            self.logger.error(
+                "Error starting stage %s for document %s: %s",
+                stage,
+                document_id,
+                e,
+                exc_info=True
+            )
             return False
     
     def update_progress(
         self,
         document_id: str,
-        stage_name: str,
+        stage_name: Union[str, Stage],
         progress: float,
         metadata: Optional[Dict] = None
     ) -> bool:
@@ -81,29 +102,62 @@ class StageTracker:
         Args:
             document_id: Document UUID
             stage_name: Name of the stage
-            progress: Progress percentage (0-100)
+            progress: Progress percentage (0-100). Fractions (0-1] are
+                automatically converted to percentages and logged.
             metadata: Additional metadata (e.g., pages_processed)
             
         Returns:
             True if successful
         """
+        stage = self._normalize_stage(stage_name)
+
         try:
+            metadata = metadata or {}
+            metadata = self._make_json_safe(metadata)
+            normalized_progress = progress
+
+            if normalized_progress is None:
+                self.logger.warning(
+                    "Received None progress for stage '%s' on document '%s'; defaulting to 0.",
+                    stage_name,
+                    document_id
+                )
+                normalized_progress = 0.0
+
+            if 0 < normalized_progress <= 1:
+                self.logger.warning(
+                    "Progress for stage '%s' on document '%s' provided as fraction %.4f;"
+                    " scaling to percentage.",
+                    stage_name,
+                    document_id,
+                    normalized_progress
+                )
+                normalized_progress = normalized_progress * 100
+                metadata.setdefault('progress_scale_adjusted', True)
+
+            normalized_progress = max(0.0, min(100.0, float(normalized_progress)))
+
             self.supabase.rpc('update_stage_progress', {
                 'p_document_id': document_id,
-                'p_stage_name': stage_name,
-                'p_progress': progress,
-                'p_metadata': metadata or {}
+                'p_stage_name': stage,
+                'p_progress': normalized_progress,
+                'p_metadata': metadata
             }).execute()
             return True
         except Exception as e:
-            print(f"Error updating progress: {e}")
+            self.logger.error(
+                "Error updating progress for stage '%s' on document '%s': %s",
+                stage_name,
+                document_id,
+                e
+            )
             return False
     
     # Alias for consistency
     def update_stage_progress(
         self,
         document_id: str,
-        stage_name: str,
+        stage_name: Union[str, Stage],
         progress: float,
         metadata: Optional[Dict] = None
     ) -> bool:
@@ -127,15 +181,23 @@ class StageTracker:
         Returns:
             True if successful
         """
+        stage = self._normalize_stage(stage_name)
+
         try:
             self.supabase.rpc('complete_stage', {
                 'p_document_id': document_id,
-                'p_stage_name': stage_name,
+                'p_stage_name': stage,
                 'p_metadata': metadata or {}
             }).execute()
             return True
         except Exception as e:
-            print(f"Error completing stage: {e}")
+            self.logger.error(
+                "Error completing stage %s for document %s: %s",
+                stage,
+                document_id,
+                e,
+                exc_info=True
+            )
             return False
     
     def fail_stage(
@@ -157,16 +219,24 @@ class StageTracker:
         Returns:
             True if successful
         """
+        stage = self._normalize_stage(stage_name)
+
         try:
             self.supabase.rpc('fail_stage', {
                 'p_document_id': document_id,
-                'p_stage_name': stage_name,
+                'p_stage_name': stage,
                 'p_error': error,
                 'p_metadata': metadata or {}
             }).execute()
             return True
         except Exception as e:
-            print(f"Error failing stage: {e}")
+            self.logger.error(
+                "Error marking stage %s as failed for document %s: %s",
+                stage,
+                document_id,
+                e,
+                exc_info=True
+            )
             return False
     
     def skip_stage(
@@ -186,15 +256,23 @@ class StageTracker:
         Returns:
             True if successful
         """
+        stage = self._normalize_stage(stage_name)
+
         try:
             self.supabase.rpc('skip_stage', {
                 'p_document_id': document_id,
-                'p_stage_name': stage_name,
+                'p_stage_name': stage,
                 'p_reason': reason
             }).execute()
             return True
         except Exception as e:
-            print(f"Error skipping stage: {e}")
+            self.logger.error(
+                "Error skipping stage %s for document %s: %s",
+                stage,
+                document_id,
+                e,
+                exc_info=True
+            )
             return False
     
     def get_progress(self, document_id: str) -> float:
@@ -216,7 +294,12 @@ class StageTracker:
                 return float(result.data)
             return 0.0
         except Exception as e:
-            print(f"Error getting progress: {e}")
+            self.logger.error(
+                "Error getting progress for document %s: %s",
+                document_id,
+                e,
+                exc_info=True
+            )
             return 0.0
     
     def get_current_stage(self, document_id: str) -> str:
@@ -238,7 +321,12 @@ class StageTracker:
                 return result.data
             return 'upload'
         except Exception as e:
-            print(f"Error getting current stage: {e}")
+            self.logger.error(
+                "Error getting current stage for document %s: %s",
+                document_id,
+                e,
+                exc_info=True
+            )
             return 'unknown'
     
     def can_start_stage(self, document_id: str, stage_name: str) -> bool:
@@ -252,15 +340,23 @@ class StageTracker:
         Returns:
             True if stage can start
         """
+        stage = self._normalize_stage(stage_name)
+
         try:
             result = self.supabase.rpc('can_start_stage', {
                 'p_document_id': document_id,
-                'p_stage_name': stage_name
+                'p_stage_name': stage
             }).execute()
             
             return bool(result.data) if result.data is not None else False
         except Exception as e:
-            print(f"Error checking stage: {e}")
+            self.logger.error(
+                "Error checking if stage %s can start for document %s: %s",
+                stage,
+                document_id,
+                e,
+                exc_info=True
+            )
             return False
     
     def get_stage_status(self, document_id: str) -> Dict[str, Any]:
@@ -283,7 +379,12 @@ class StageTracker:
                 return result.data[0].get('stage_status', {})
             return {}
         except Exception as e:
-            print(f"Error getting stage status: {e}")
+            self.logger.error(
+                "Error getting stage status for document %s: %s",
+                document_id,
+                e,
+                exc_info=True
+            )
             return {}
     
     def get_statistics(self) -> Dict[str, Any]:
@@ -312,7 +413,11 @@ class StageTracker:
                 }
             return {}
         except Exception as e:
-            print(f"Error getting statistics: {e}")
+            self.logger.error(
+                "Error getting stage statistics: %s",
+                e,
+                exc_info=True
+            )
             return {}
 
 
@@ -334,11 +439,12 @@ class StageContext:
         self,
         tracker: StageTracker,
         document_id: str,
-        stage_name: str
+        stage_name: Union[str, Stage]
     ):
         self.tracker = tracker
         self.document_id = document_id
-        self.stage_name = stage_name
+        tracker_stage = tracker._normalize_stage(stage_name)
+        self.stage_name = tracker_stage
         self.metadata = {}
     
     def __enter__(self):
@@ -386,6 +492,7 @@ if __name__ == "__main__":
     from supabase import create_client
     import os
     from dotenv import load_dotenv
+    import logging
     
     load_dotenv()
     
@@ -399,26 +506,27 @@ if __name__ == "__main__":
     # Example document ID (replace with real one)
     doc_id = "5a30739d-d8d4-4a1a-b033-a32e39cf33ba"
     
-    print("Stage Status Tracker Demo")
-    print("="*60)
+    logger = logging.getLogger("krai.stage_tracker.demo")
+    logger.info("Stage Status Tracker Demo")
+    logger.info("=" * 60)
     
     # Get current status
-    print(f"\nCurrent Stage: {tracker.get_current_stage(doc_id)}")
-    print(f"Overall Progress: {tracker.get_progress(doc_id)}%")
+    logger.info("Current Stage: %s", tracker.get_current_stage(doc_id))
+    logger.info("Overall Progress: %s%%", tracker.get_progress(doc_id))
     
     # Get detailed status
     status = tracker.get_stage_status(doc_id)
     if status:
-        print("\nDetailed Status:")
+        logger.info("Detailed Status:")
         for stage, data in status.items():
-            print(f"  {stage}: {data.get('status', 'unknown')}")
+            logger.info("  %s: %s", stage, data.get('status', 'unknown'))
     
     # Get statistics
     stats = tracker.get_statistics()
     if stats:
-        print("\nPipeline Statistics:")
+        logger.info("Pipeline Statistics:")
         for stage, data in stats.items():
-            print(f"  {stage}:")
-            print(f"    Pending: {data['pending']}")
-            print(f"    Processing: {data['processing']}")
-            print(f"    Completed: {data['completed']}")
+            logger.info("  %s:", stage)
+            logger.info("    Pending: %s", data['pending'])
+            logger.info("    Processing: %s", data['processing'])
+            logger.info("    Completed: %s", data['completed'])

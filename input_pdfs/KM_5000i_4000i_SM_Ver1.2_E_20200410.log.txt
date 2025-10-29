@@ -1,0 +1,61 @@
+2025-10-28 14:37:30 - INFO - Document ID: b3bfc6b8-ef5f-4a7f-b081-6009002c089c
+2025-10-28 14:37:30 - INFO - Log file: C:\Users\haast\docker\KRAI-minimal\input_pdfs\KM_5000i_4000i_SM_Ver1.2_E_20200410.log.txt
+2025-10-28 14:37:30 - INFO - Step 1/5: Extracting text from PDF...
+2025-10-28 14:37:30 - INFO - Extracting text from: KM_5000i_4000i_SM_Ver1.2_E_20200410.pdf
+2025-10-28 14:37:30 - INFO - Using engine: pymupdf
+2025-10-28 14:37:38 - INFO - [green]Extracted 315 pages with PyMuPDF[/green]
+2025-10-28 14:37:38 - INFO - 🔍 Auto-detecting manufacturer from multiple sources...
+2025-10-28 14:37:38 - INFO -    📄 Filename: 'KM_5000i_4000i_SM_Ver1.2_E_20200410'
+2025-10-28 14:37:38 - INFO -    📋 Title: 'KM_5000i_4000i_SM_Ver1.2_E_20200410'
+2025-10-28 14:37:38 - INFO -    ✍️  Author: (none)
+2025-10-28 14:37:38 - INFO -    📖 Text sample: First 3 pages (2000 chars)
+2025-10-28 14:37:38 - INFO - 
+2025-10-28 14:37:38 - INFO - 📊 Detection Results:
+2025-10-28 14:37:38 - INFO -    🏆 Konica Minolta: 3 points
+2025-10-28 14:37:38 - INFO -       Sources: 📖 Text (6 mentions)
+2025-10-28 14:37:38 - INFO - 
+2025-10-28 14:37:38 - INFO - [green]✅ Selected: Konica Minolta (score: 3)[/green]
+2025-10-28 14:37:38 - WARNING - [yellow]   ⚠️  Low confidence (text only)[/yellow]
+2025-10-28 14:37:39 - INFO - ✅ Set document manufacturer: Konica Minolta (ID: a62168e3-8b74-47b6-824c-5a1772e6b06f)
+2025-10-28 14:37:39 - INFO - Step 2/5: Extracting product models...
+2025-10-28 14:37:41 - INFO - [green]📋 Loaded config: Konica Minolta (8 patterns)[/green]
+2025-10-28 14:37:41 - INFO - 🔍 Extracting from filename: 'KM 5000i 4000i SM Ver1.2 E 20200410'
+2025-10-28 14:37:41 - WARNING - [yellow]⚠️  No products found in filename[/yellow]
+2025-10-28 14:37:41 - INFO - Running regex extraction on all 315 pages...
+2025-10-28 14:37:41 - INFO - 🔍 Using 8 patterns from Konica Minolta config
+2025-10-28 14:37:41 - INFO - [green]Regex extracted 142 products across 315 pages[/green]
+2025-10-28 14:37:41 - INFO - [green]Extracted 10 products[/green]
+2025-10-28 14:37:47 - INFO - ✓ Updated manufacturer_id for 10 products: bizhub 4000i, bizhub 5000i, C001, C002, C003, C004, C100, C700, C800, C900
+2025-10-28 14:37:47 - INFO - ✓ Set product_type for 10 products: bizhub 4000i (laser_multifunction→laser_multifunction), bizhub 5000i (laser_multifunction→laser_multifunction), C001 (laser_multifunction→laser_multifunction), C002 (laser_multifunction→laser_multifunction), C003 (laser_multifunction→laser_multifunction), C004 (laser_multifunction→laser_multifunction), C100 (laser_multifunction→laser_multifunction), C700 (laser_multifunction→laser_multifunction), C800 (laser_multifunction→laser_multifunction), C900 (laser_multifunction→laser_multifunction)
+2025-10-28 14:37:47 - INFO - [green]💾 Saved 0 new products, updated 10 existing[/green]
+2025-10-28 14:37:50 - INFO - 🔄 Updated 2 products with OEM information
+2025-10-28 14:37:58 - INFO - [green]🔗 Linked 10 products to document[/green]
+2025-10-28 14:37:58 - INFO - Step 2b/5: Detecting and linking series for 10 products...
+2025-10-28 14:38:01 - INFO -    Series stats: 3 detected, 0 created, 3 linked
+2025-10-28 14:38:01 - INFO - [green]✅ Series: 0 created, 3 products linked[/green]
+2025-10-28 14:38:01 - INFO -    🔄 Updating product types based on series...
+2025-10-28 14:38:03 - INFO - Step 2c/5: Extracting spare parts...
+2025-10-28 14:38:03 - INFO - 📦 Document type 'service_manual' - extracting parts with high confidence
+2025-10-28 14:38:03 - INFO - [green]✅ Extracted 1 spare parts[/green]
+2025-10-28 14:38:07 - INFO - 🔄 Updated 1 existing parts
+2025-10-28 14:38:07 - INFO - [green]💾 Saved 0 new parts, updated 1 existing[/green]
+2025-10-28 14:38:07 - INFO - Step 2d/5: Linking accessories to products...
+2025-10-28 14:38:08 - INFO - >> No accessories detected in this document
+2025-10-28 14:38:08 - INFO - Step 3/5: Extracting error codes...
+2025-10-28 14:38:10 - INFO - [green]Extracted 0 error codes[/green]
+2025-10-28 14:38:12 - INFO - Step 3b/7: Extracting document versions...
+2025-10-28 14:38:12 - INFO - [green]Extracted version: 2020/04/10 (confidence: 0.95)[/green]
+2025-10-28 14:38:12 - INFO - Step 3c/8: Extracting images...
+2025-10-28 14:54:17 - INFO - [green]✅ Image processing complete: 84 images ready[/green]
+2025-10-28 14:54:28 - INFO - Step 3d/8: Extracting links and videos...
+2025-10-28 14:54:29 - INFO - [green]Extracted 0 unique links (0 videos)[/green]
+2025-10-28 14:54:29 - INFO - Step 4/8: Chunking text...
+2025-10-28 14:54:30 - INFO - [green]✅ Created 348 chunks from 315 pages[/green]
+2025-10-28 14:54:30 - INFO -    Types: general: 192, procedure: 57, specification: 7, troubleshooting: 92
+2025-10-28 14:54:30 - INFO -    Headers preserved: 332/348 chunks
+2025-10-28 14:54:31 - INFO - Removed 2 duplicate chunks
+2025-10-28 14:54:31 - INFO - [green]Created 346 chunks[/green]
+2025-10-28 14:54:31 - INFO - Step 5/8: Saving links and videos...
+2025-10-28 14:54:31 - INFO - Step 6/8: Calculating statistics...
+2025-10-28 14:54:32 - INFO - ✅ Resolved manufacturer_id: a62168e3-8b74-47b6-824c-5a1772e6b06f for 'Konica Minolta'
+2025-10-28 14:54:32 - INFO - [green]✅ Saved document to database via RPC[/green]

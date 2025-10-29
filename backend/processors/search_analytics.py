@@ -4,7 +4,7 @@ Track search queries, performance metrics, and usage analytics.
 """
 
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from .logger import get_logger
@@ -66,7 +66,7 @@ class SearchAnalytics:
                 'user_id': user_id,
                 'filters': filters or {},
                 'document_id': document_id,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
             # Store in krai_intelligence.search_analytics
@@ -182,7 +182,7 @@ class SearchAnalytics:
                     'chunks_count': chunks_count,
                     'embeddings_count': embeddings_count,
                     'processing_time_seconds': processing_time_seconds,
-                    'indexed_at': datetime.utcnow().isoformat()
+                    'indexed_at': datetime.now(timezone.utc).isoformat()
                 }
             }
             

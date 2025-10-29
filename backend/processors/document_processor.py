@@ -4,6 +4,7 @@ Main Document Processor - Orchestrates everything
 Coordinates text extraction, chunking, product/error extraction.
 """
 
+import os
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from uuid import UUID, uuid4
@@ -64,7 +65,8 @@ class DocumentProcessor:
         self.stage_tracker = StageTracker(supabase_client) if supabase_client else None
         
         # Initialize extractors
-        self.text_extractor = TextExtractor(prefer_engine=pdf_engine)
+        enable_ocr = os.getenv("ENABLE_OCR_FALLBACK", "false").lower() in {"1", "true", "yes", "on"}
+        self.text_extractor = TextExtractor(prefer_engine=pdf_engine, enable_ocr_fallback=enable_ocr)
         self.product_extractor = ProductExtractor(manufacturer_name=self.manufacturer, debug=debug)
         self.product_code_extractor = ProductCodeExtractor(debug=debug)
         self.document_type_detector = DocumentTypeDetector(debug=debug)
@@ -173,28 +175,31 @@ class DocumentProcessor:
         validation_errors = []
         
         # Helper function to update processing status
+        from backend.core.base_processor import Stage
+
         def update_stage_status(stage: str, status: str = "in_progress", metadata: Optional[Dict[str, Any]] = None):
             """Update stage status using StageTracker or direct Supabase fallback"""
             metadata = metadata or {}
 
             if self.stage_tracker:
                 try:
+                    stage_enum = Stage(stage)
                     if status == "in_progress":
-                        self.stage_tracker.start_stage(str(document_id), stage)
+                        self.stage_tracker.start_stage(str(document_id), stage_enum)
                         progress_value = metadata.get("progress")
                         if progress_value is not None:
-                            self.stage_tracker.update_progress(str(document_id), stage, progress_value, metadata)
+                            self.stage_tracker.update_progress(str(document_id), stage_enum, progress_value, metadata)
                     elif status == "completed":
-                        self.stage_tracker.complete_stage(str(document_id), stage, metadata)
+                        self.stage_tracker.complete_stage(str(document_id), stage_enum, metadata)
                     elif status == "failed":
                         error_message = metadata.get("error", "Unknown error")
-                        self.stage_tracker.fail_stage(str(document_id), stage, error_message, metadata)
+                        self.stage_tracker.fail_stage(str(document_id), stage_enum, error_message, metadata)
                     elif status == "skipped":
                         reason = metadata.get("reason", "Not applicable")
-                        self.stage_tracker.skip_stage(str(document_id), stage, reason)
+                        self.stage_tracker.skip_stage(str(document_id), stage_enum, reason)
                     else:
                         progress_value = metadata.get("progress", 0)
-                        self.stage_tracker.update_progress(str(document_id), stage, progress_value, metadata)
+                        self.stage_tracker.update_progress(str(document_id), stage_enum, progress_value, metadata)
                     return
                 except Exception as tracker_error:
                     self.logger.debug(f"StageTracker update failed ({stage}, {status}): {tracker_error}")
@@ -1047,7 +1052,7 @@ class DocumentProcessor:
             # Step 6: Statistics
             self.logger.info("Step 6/8: Calculating statistics...")
             statistics = self._calculate_statistics(
-                page_texts, products, error_codes, versions, images, chunks
+                page_texts, products, error_codes, versions, images, chunks, metadata
             )
             statistics['links_count'] = len(links)
             statistics['videos_count'] = len(videos)
@@ -1073,7 +1078,6 @@ class DocumentProcessor:
             )
             
             # Step 7: Save document to database
-            self.logger.info("Step 7/8: Saving document to database...")
             self._save_document_to_db(
                 document_id=document_id,
                 pdf_path=pdf_path,
@@ -1082,49 +1086,45 @@ class DocumentProcessor:
                 detected_manufacturer=detected_manufacturer
             )
             
-            # Log summary
-            log_processing_summary(
-                self.logger,
-                result.to_summary_dict(),
-                processing_time
-            )
+            # Step 8: Save images to database
+            if images:
+                self._save_images_to_db(document_id, images)
             
-            # Remove file handler
-            if file_handler:
-                self._remove_file_handler(file_handler)
-                self.logger.info(f"✅ Log saved to: {log_file_path}")
-            
-            # Convert to dict for pipeline consumption
-            result_dict = result.to_dict()
-            
-            # Add images to result
-            result_dict['images'] = images
-            
-            return result_dict
-        
-        except Exception as e:
-            self.logger.error(f"Processing failed: {e}", exc=e)
-            processing_time = time.time() - start_time
-            
-            # Remove file handler on error
-            if file_handler:
-                self._remove_file_handler(file_handler)
-                self.logger.info(f"❌ Error log saved to: {log_file_path}")
-            
-            return self._create_failed_result(
-                document_id,
-                str(e),
-                processing_time
-            )
-        
-        finally:
-            # Cleanup temporary decompressed file
+            # Cleanup temp file if created
             if temp_decompressed and temp_decompressed.exists():
                 try:
                     temp_decompressed.unlink()
                     self.logger.debug(f"Cleaned up temporary file: {temp_decompressed.name}")
                 except Exception as cleanup_error:
                     self.logger.debug(f"Could not cleanup temp file: {cleanup_error}")
+            
+            # Remove file handler
+            if file_handler:
+                self._remove_file_handler(file_handler)
+                self.logger.info(f"✅ Processing log saved to: {log_file_path}")
+            
+            return result
+            
+        except Exception as e:
+            processing_time = time.time() - start_time
+            error_message = str(e)
+            
+            self.logger.error(f"Processing failed: {error_message}")
+            self.logger.error(f"Error type: {type(e).__name__}")
+            
+            # Remove file handler on error too
+            if file_handler:
+                self._remove_file_handler(file_handler)
+                self.logger.info(f"❌ Error log saved to: {log_file_path}")
+            
+            # Cleanup temp file on error
+            if temp_decompressed and temp_decompressed.exists():
+                try:
+                    temp_decompressed.unlink()
+                except Exception:
+                    pass
+            
+            return self._create_failed_result(document_id, error_message, processing_time)
     
     def upload_images_to_storage(
         self,
@@ -1228,6 +1228,16 @@ class DocumentProcessor:
         try:
             self.logger.info(f"Generating embeddings for {len(chunks)} chunks...")
             
+            if not chunks:
+                self.logger.warning("No chunks available for embedding generation; skipping stage.")
+                return {
+                    'success': True,
+                    'embeddings_created': 0,
+                    'failed_count': 0,
+                    'skipped': True,
+                    'reason': 'No chunks generated'
+                }
+
             # Chunks might be objects OR dicts - handle both!
             chunks_dict = []
             for chunk in chunks:
@@ -2214,43 +2224,41 @@ class DocumentProcessor:
             import os
             from dotenv import load_dotenv
             import hashlib
-            from datetime import datetime
-            
+
             load_dotenv()
             supabase_url = os.getenv('SUPABASE_URL')
             supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-            
+
             if not supabase_url or not supabase_key:
                 self.logger.warning("Supabase not configured - skipping image storage")
                 return
-            
+
             supabase = create_client(supabase_url, supabase_key)
-            
+
             saved_count = 0
             skipped_count = 0
-            
+
             for img in images:
                 try:
-                    # Calculate file hash for deduplication
                     file_path = img.get('path')
                     if not file_path or not Path(file_path).exists():
                         continue
-                    
-                    with open(file_path, 'rb') as f:
-                        file_hash = hashlib.sha256(f.read()).hexdigest()
-                    
-                    # Check if image already exists
-                    existing = supabase.table('vw_images') \
-                        .select('id') \
-                        .eq('file_hash', file_hash) \
-                        .limit(1) \
+
+                    with open(file_path, 'rb') as file_obj:
+                        file_hash = hashlib.sha256(file_obj.read()).hexdigest()
+
+                    existing = (
+                        supabase.table('vw_images')
+                        .select('id')
+                        .eq('file_hash', file_hash)
+                        .limit(1)
                         .execute()
-                    
+                    )
+
                     if existing.data:
                         skipped_count += 1
                         continue
-                    
-                    # Prepare image record
+
                     image_record = {
                         'document_id': str(document_id),
                         'page_number': img.get('page_num'),
@@ -2260,166 +2268,49 @@ class DocumentProcessor:
                         'image_type': img.get('type', 'diagram'),
                         'width_px': img.get('width'),
                         'height_px': img.get('height'),
-                        'file_size_bytes': Path(file_path).stat().st_size if Path(file_path).exists() else 0,
-                        'storage_url': None,  # No R2 upload yet
-                        'storage_path': None
-                        # extracted_at removed - column doesn't exist (uses created_at instead)
+                        'file_size_bytes': Path(file_path).stat().st_size,
+                        'storage_url': None,
+                        'storage_path': None,
                     }
-                    
-                    # Add optional fields with debug logging
+
+                        # extracted_at removed - column doesn't exist (uses created_at instead)
+
                     if img.get('ai_description'):
                         image_record['ai_description'] = img['ai_description']
-                        self.logger.debug(f"✓ AI description: {img.get('filename')} - {img['ai_description'][:50]}...")
-                    if img.get('ai_confidence'):
+                        self.logger.debug(
+                            f"✓ AI description: {img.get('filename')} - {img['ai_description'][:50]}..."
+                        )
+                    if img.get('ai_confidence') is not None:
                         image_record['ai_confidence'] = img['ai_confidence']
                     if img.get('ocr_text'):
                         image_record['ocr_text'] = img['ocr_text']
-                        self.logger.debug(f"✓ OCR text: {img.get('filename')} - {len(img['ocr_text'])} chars")
-                    if img.get('ocr_confidence'):
+                        self.logger.debug(
+                            f"✓ OCR text: {img.get('filename')} - {len(img['ocr_text'])} chars"
+                        )
+                    if img.get('ocr_confidence') is not None:
                         image_record['ocr_confidence'] = img['ocr_confidence']
                     if img.get('contains_text') is not None:
                         image_record['contains_text'] = img['contains_text']
-                    
-                    # Debug: Log what's in the img dict
+
                     if not img.get('ai_description') and not img.get('ocr_text'):
-                        self.logger.debug(f"⚠️  No AI/OCR data for {img.get('filename')} - Keys: {list(img.keys())}")
-                    
-                    # Insert into database
-                    result = supabase.table('vw_images').insert(image_record).execute()
-                    
-                    if result.data:
-                        saved_count += 1
-                        
+                        self.logger.debug(
+                            f"⚠️  No AI/OCR data for {img.get('filename')} - Keys: {list(img.keys())}"
+                        )
+
+                    supabase.table('vw_images').insert(image_record).execute()
+                    saved_count += 1
+
                 except Exception as img_error:
                     self.logger.debug(f"Failed to save image {img.get('path')}: {img_error}")
                     continue
-            
+
             if saved_count > 0:
                 self.logger.success(f"💾 Saved {saved_count} images to database")
             if skipped_count > 0:
                 self.logger.info(f"⏭️  Skipped {skipped_count} duplicate images")
-                
+
         except Exception as e:
             self.logger.error(f"Failed to save images to database: {e}")
-            import traceback
-            self.logger.debug(traceback.format_exc())
-    
-    def _calculate_statistics(
-        self,
-        page_texts: Dict[int, str],
-        products: List,
-        error_codes: List,
-        versions: List,
-        images: List[Dict],
-        chunks: List
-    ) -> Dict[str, Any]:
-        """Calculate processing statistics"""
-        total_chars = sum(len(text) for text in page_texts.values())
-        total_words = sum(len(text.split()) for text in page_texts.values())
-        
-        # Chunk types distribution
-        chunk_types = {}
-        for chunk in chunks:
-            chunk_type = chunk.chunk_type
-            chunk_types[chunk_type] = chunk_types.get(chunk_type, 0) + 1
-        
-        # Product confidence
-        avg_product_conf = (
-            sum(p.confidence for p in products) / len(products)
-            if products else 0
-        )
-        
-        # Error code confidence
-        avg_error_conf = (
-            sum(e.confidence for e in error_codes) / len(error_codes)
-            if error_codes else 0
-        )
-        
-        # Version confidence
-        avg_version_conf = (
-            sum(v.confidence for v in versions) / len(versions)
-            if versions else 0
-        )
-        
-        # Image types distribution
-        image_types = {}
-        for img in images:
-            img_type = img.get('type', 'unknown')
-            image_types[img_type] = image_types.get(img_type, 0) + 1
-        
-        return {
-            'total_pages': len(page_texts),
-            'page_count': len(page_texts),  # Add for document metadata
-            'total_characters': total_chars,
-            'character_count': total_chars,  # Add for document metadata
-            'total_words': total_words,
-            'word_count': total_words,  # Add for document metadata
-            'total_chunks': len(chunks),
-            'total_products': len(products),
-            'total_error_codes': len(error_codes),
-            'total_versions': len(versions),
-            'total_images': len(images),
-            'avg_product_confidence': round(avg_product_conf, 2),
-            'avg_error_code_confidence': round(avg_error_conf, 2),
-            'avg_version_confidence': round(avg_version_conf, 2),
-            'chunk_types': chunk_types,
-            'image_types': image_types,
-            'avg_chunk_size': round(total_chars / len(chunks), 0) if chunks else 0
-        }
-    
-    def _add_file_handler(self, log_file_path: Path) -> 'logging.FileHandler':
-        """Add file handler to logger for document-specific logging"""
-        import logging
-        
-        # Ensure parent directory exists
-        log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Create file handler
-        file_handler = logging.FileHandler(log_file_path, mode='w', encoding='utf-8')
-        file_handler.setLevel(logging.DEBUG)
-        
-        # Format with timestamp
-        formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        file_handler.setFormatter(formatter)
-        
-        # Add to logger
-        self.logger.logger.addHandler(file_handler)
-        
-        return file_handler
-    
-    def _remove_file_handler(self, file_handler: 'logging.FileHandler'):
-        """Remove file handler from logger"""
-        if file_handler:
-            file_handler.flush()
-            file_handler.close()
-            self.logger.logger.removeHandler(file_handler)
-    
-    def _create_failed_result(
-        self,
-        document_id: UUID,
-        error_message: str,
-        processing_time: float
-    ) -> Dict[str, Any]:
-        """Create failed processing result as dict"""
-        return {
-            'success': False,
-            'document_id': str(document_id),
-            'error': error_message,
-            'metadata': {
-                'page_count': 0,
-                'file_size_bytes': 0,
-            },
-            'chunks': [],
-            'products': [],
-            'error_codes': [],
-            'versions': [],
-            'images': [],
-            'statistics': {'error': error_message},
-            'processing_time': processing_time
-        }
     
     def _save_parts_to_db(self, document_id: UUID, parts: List, manufacturer: str = None):
         """
@@ -2641,6 +2532,152 @@ class DocumentProcessor:
                 
         except Exception as e:
             self.logger.error(f"Failed to save document to database: {e}")
+    
+    def _calculate_statistics(
+        self,
+        page_texts: Dict[int, str],
+        products: List,
+        error_codes: List,
+        versions: List,
+        images: List[Dict],
+        chunks: List,
+        metadata: DocumentMetadata,
+    ) -> Dict[str, Any]:
+        """Calculate processing statistics with quantiles and coverage."""
+        total_chars = sum(len(text) for text in page_texts.values())
+        total_words = sum(len(text.split()) for text in page_texts.values())
+
+        chunk_types: Dict[str, int] = {}
+        for chunk in chunks:
+            chunk_type = chunk.chunk_type
+            chunk_types[chunk_type] = chunk_types.get(chunk_type, 0) + 1
+
+        image_types: Dict[str, int] = {}
+        for img in images:
+            img_type = img.get('type', 'unknown')
+            image_types[img_type] = image_types.get(img_type, 0) + 1
+
+        avg_product_conf = (
+            sum(p.confidence for p in products) / len(products) if products else 0
+        )
+        avg_error_conf = (
+            sum(e.confidence for e in error_codes) / len(error_codes) if error_codes else 0
+        )
+        avg_version_conf = (
+            sum(v.confidence for v in versions) / len(versions) if versions else 0
+        )
+
+        def _quantiles(values: List[float]) -> Dict[str, float]:
+            if not values:
+                return {"p50": 0.0, "p90": 0.0, "p99": 0.0}
+            sorted_vals = sorted(values)
+
+            def pick(percent: float) -> float:
+                if len(sorted_vals) == 1:
+                    return sorted_vals[0]
+                idx = int(round((len(sorted_vals) - 1) * percent))
+                return sorted_vals[idx]
+
+            return {
+                "p50": round(pick(0.50), 2),
+                "p90": round(pick(0.90), 2),
+                "p99": round(pick(0.99), 2),
+            }
+
+        error_conf_values = [e.confidence for e in error_codes]
+        product_conf_values = [p.confidence for p in products]
+        version_conf_values = [v.confidence for v in versions]
+
+        unique_pages_with_chunks = {chunk.page_start for chunk in chunks}
+        total_pages = metadata.page_count or len(page_texts)
+        coverage_ratio = (len(unique_pages_with_chunks) / total_pages) if total_pages else 0
+
+        return {
+            'total_pages': len(page_texts),
+            'page_count': len(page_texts),
+            'total_characters': total_chars,
+            'character_count': total_chars,
+            'total_words': total_words,
+            'word_count': total_words,
+            'total_chunks': len(chunks),
+            'total_products': len(products),
+            'total_error_codes': len(error_codes),
+            'total_versions': len(versions),
+            'total_images': len(images),
+            'avg_product_confidence': round(avg_product_conf, 2),
+            'avg_error_code_confidence': round(avg_error_conf, 2),
+            'avg_version_confidence': round(avg_version_conf, 2),
+            'chunk_types': chunk_types,
+            'image_types': image_types,
+            'avg_chunk_size': round(total_chars / len(chunks), 0) if chunks else 0,
+            'engine_used': metadata.engine_used,
+            'fallback_used': metadata.fallback_used,
+            'pages_failed': metadata.pages_failed,
+            'error_conf_quantiles': _quantiles(error_conf_values),
+            'product_conf_quantiles': _quantiles(product_conf_values),
+            'version_conf_quantiles': _quantiles(version_conf_values),
+            'page_coverage': {
+                'covered': len(unique_pages_with_chunks),
+                'total': total_pages,
+                'ratio': round(coverage_ratio, 3),
+            },
+        }
+    
+    def _create_failed_result(
+        self,
+        document_id: UUID,
+        error_message: str,
+        processing_time: float
+    ) -> Dict[str, Any]:
+        """Create failed processing result as dict"""
+        return {
+            'success': False,
+            'document_id': str(document_id),
+            'error': error_message,
+            'metadata': {
+                'page_count': 0,
+                'file_size_bytes': 0,
+            },
+            'chunks': [],
+            'products': [],
+            'error_codes': [],
+            'versions': [],
+            'images': [],
+            'statistics': {'error': error_message},
+            'processing_time': processing_time
+        }
+    
+    def _remove_file_handler(self, file_handler: 'logging.FileHandler'):
+        """Remove file handler from logger"""
+        if file_handler:
+            file_handler.flush()
+            file_handler.close()
+            self.logger.logger.removeHandler(file_handler)
+    
+    def _add_file_handler(self, log_file_path: Path) -> 'logging.FileHandler':
+        """Add file handler to logger for document-specific logging"""
+        import logging
+        
+        # Ensure parent directory exists
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Create file handler
+        file_handler = logging.FileHandler(log_file_path, mode='w', encoding='utf-8')
+        file_handler.setLevel(logging.DEBUG)
+        
+        # Format with timestamp
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+        
+        # Add to logger
+        self.logger.logger.addHandler(file_handler)
+        
+        return file_handler
+
+
 def process_pdf(
     pdf_path: Path,
     manufacturer: str = "HP",

@@ -5,8 +5,9 @@ Uses PyMuPDF (fitz) as primary extractor.
 Fallback to pdfplumber if needed.
 """
 
+import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import re
 
 try:
@@ -20,6 +21,20 @@ try:
     PDFPLUMBER_AVAILABLE = True
 except ImportError:
     PDFPLUMBER_AVAILABLE = False
+
+try:
+    import pytesseract  # type: ignore
+    OCR_AVAILABLE = True
+except Exception:
+    pytesseract = None  # type: ignore
+    OCR_AVAILABLE = False
+
+try:
+    from PIL import Image  # type: ignore
+    PIL_AVAILABLE = True
+except ImportError:
+    Image = None  # type: ignore
+    PIL_AVAILABLE = False
 
 try:
     from langdetect import detect_langs, DetectorFactory
@@ -41,20 +56,70 @@ from datetime import datetime
 logger = get_logger()
 
 
+DEFAULT_MAX_STRUCTURED_LINES = 200
+STRUCTURED_LINE_MAX_LENGTH = 300
+
+
+def _load_structured_line_cap(default: int) -> int:
+    """Load structured line cap from chunk settings configuration."""
+    config_path = Path(__file__).parent.parent / "config" / "chunk_settings.json"
+    try:
+        with open(config_path, "r", encoding="utf-8") as config_file:
+            config = json.load(config_file)
+        value = (
+            config
+            .get("chunk_settings", {})
+            .get("advanced_settings", {})
+            .get("structured_text_max_lines_per_page")
+        )
+        if isinstance(value, (int, float)):
+            return max(1, int(value))
+        if isinstance(value, str) and value.strip().isdigit():
+            return max(1, int(value.strip()))
+    except FileNotFoundError:
+        logger.debug(
+            "chunk_settings.json not found while loading structured line cap; using default %s",
+            default,
+        )
+    except json.JSONDecodeError as decode_error:
+        logger.warning(
+            "Invalid JSON in chunk_settings.json while loading structured line cap: %s",
+            decode_error,
+        )
+    except Exception as exc:  # Broad catch to protect extraction path
+        logger.warning(
+            "Failed to load structured line cap from chunk settings (%s); using default %s",
+            exc,
+            default,
+        )
+    return default
+
+
+STRUCTURED_LINE_CAP = _load_structured_line_cap(DEFAULT_MAX_STRUCTURED_LINES)
+
+
 STRUCTURED_CODE_REGEX = re.compile(r"\d{2}\.[0-9A-Za-z]{2,3}\.[0-9A-Za-z]{2}", re.IGNORECASE)
 
 
 class TextExtractor:
     """Extract text from PDF documents"""
     
-    def __init__(self, prefer_engine: str = "pymupdf"):
+    def __init__(self, prefer_engine: str = "pymupdf", enable_ocr_fallback: bool = False, max_structured_lines: int = DEFAULT_MAX_STRUCTURED_LINES, max_structured_line_len: int = STRUCTURED_LINE_MAX_LENGTH):
         """
         Initialize text extractor
         
         Args:
             prefer_engine: Preferred extraction engine ('pymupdf' or 'pdfplumber')
+            enable_ocr_fallback: Enable OCR fallback for pages without text
+            max_structured_lines: Maximum structured lines per page (default: 200)
+            max_structured_line_len: Maximum length per structured line (default: 300)
         """
         self.prefer_engine = prefer_engine
+        self.max_structured_lines = max_structured_lines
+        self.max_structured_line_len = max_structured_line_len
+        self.enable_ocr_fallback = enable_ocr_fallback
+        self.metrics: Dict[str, Any] = {}
+        self._reset_metrics()
         
         if not PYMUPDF_AVAILABLE and not PDFPLUMBER_AVAILABLE:
             raise RuntimeError(
@@ -93,14 +158,20 @@ class TextExtractor:
         
         logger.info(f"Extracting text from: {pdf_path.name}")
         logger.info(f"Using engine: {self.prefer_engine}")
+        self._reset_metrics()
         
         if self.prefer_engine == "pymupdf" and PYMUPDF_AVAILABLE:
-            return self._extract_with_pymupdf(pdf_path, document_id)
+            page_texts, metadata, structured_texts = self._extract_with_pymupdf(pdf_path, document_id)
         elif self.prefer_engine == "pdfplumber" and PDFPLUMBER_AVAILABLE:
-            return self._extract_with_pdfplumber(pdf_path, document_id)
+            page_texts, metadata, structured_texts = self._extract_with_pdfplumber(pdf_path, document_id)
         else:
             raise RuntimeError("No extraction engine available")
-    
+
+        metadata.engine_used = self.metrics.get("engine_used", self.prefer_engine)
+        metadata.fallback_used = self.metrics.get("fallback_used")
+        metadata.pages_failed = int(self.metrics.get("pages_failed", 0) or 0)
+        return page_texts, metadata, structured_texts
+
     def _extract_with_pymupdf(
         self,
         pdf_path: Path,
@@ -114,6 +185,7 @@ class TextExtractor:
         """
         page_texts = {}
         structured_texts = {}
+        self.metrics["engine_used"] = "pymupdf"
         
         try:
             doc = fitz.open(pdf_path)
@@ -125,8 +197,16 @@ class TextExtractor:
             for page_num in range(len(doc)):
                 try:
                     page = doc[page_num]
-                    text = page.get_text("text")
-                    
+                    text = page.get_text("text") or ""
+                    had_text = bool(text.strip())
+
+                    if not had_text:
+                        ocr_text = self._try_ocr(page)
+                        if ocr_text:
+                            text = ocr_text
+                        else:
+                            self.metrics["pages_failed"] = int(self.metrics.get("pages_failed", 0) or 0) + 1
+
                     structured = self._extract_structured_text(page)
 
                     # Clean up text
@@ -139,6 +219,7 @@ class TextExtractor:
                 
                 except Exception as page_error:
                     logger.warning(f"Failed to extract page {page_num + 1}: {page_error}")
+                    self.metrics["pages_failed"] = int(self.metrics.get("pages_failed", 0) or 0) + 1
                     # Continue with next page
                     continue
             
@@ -154,6 +235,7 @@ class TextExtractor:
             # Try fallback if available
             if PDFPLUMBER_AVAILABLE:
                 logger.info("Falling back to pdfplumber...")
+                self.metrics["fallback_used"] = self.metrics.get("fallback_used") or "pdfplumber"
                 return self._extract_with_pdfplumber(pdf_path, document_id)
             else:
                 raise
@@ -171,6 +253,7 @@ class TextExtractor:
         """
         page_texts = {}
         structured_texts: Dict[int, Optional[str]] = {}
+        self.metrics["engine_used"] = "pdfplumber"
         
         try:
             with pdfplumber.open(pdf_path) as pdf:
@@ -191,6 +274,34 @@ class TextExtractor:
         except Exception as e:
             logger.error(f"pdfplumber extraction failed: {e}", exc=e)
             raise
+    
+    def _reset_metrics(self) -> None:
+        """Reset extraction metrics"""
+        self.metrics = {
+            "engine_used": self.prefer_engine,
+            "fallback_used": None,
+            "pages_failed": 0,
+        }
+    
+    def _try_ocr(self, page: 'fitz.Page') -> Optional[str]:
+        """Try OCR on a page if no text was extracted"""
+        if not (self.enable_ocr_fallback and OCR_AVAILABLE and PYMUPDF_AVAILABLE and PIL_AVAILABLE):
+            return None
+
+        try:
+            pix = page.get_pixmap(dpi=200)
+            mode = "RGBA" if pix.alpha else "RGB"
+            image = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+            text = pytesseract.image_to_string(image) if pytesseract else ""
+            text = text or ""
+            cleaned = self._clean_text(text)
+            if cleaned.strip():
+                self.metrics["fallback_used"] = self.metrics.get("fallback_used") or "ocr"
+                return cleaned
+        except Exception as ocr_error:
+            logger.debug(f"OCR fallback failed for page: {ocr_error}")
+            self.metrics["pages_failed"] = int(self.metrics.get("pages_failed", 0) or 0) + 1
+        return None
     
     def _extract_metadata_pymupdf(
         self,
@@ -376,11 +487,16 @@ class TextExtractor:
         except Exception:
             return None
 
+        return self._extract_structured_text_from_raw(raw)
+
+    def _extract_structured_text_from_raw(self, raw: Optional[Dict[str, Any]]) -> Optional[str]:
+        """Extract structured text from a raw dict (separated for easier testing)."""
         if not raw:
             return None
 
         structured_lines: List[str] = []
-        seen = set()
+        seen: set = set()
+        line_cap = max(1, getattr(self, "max_structured_lines", DEFAULT_MAX_STRUCTURED_LINES))
 
         for block in raw.get("blocks", []):
             if block.get("type") != 0:  # text blocks only
@@ -394,7 +510,7 @@ class TextExtractor:
                 if not joined:
                     continue
 
-                # Remove all whitespace characters and collapse leader dots for reliable matching
+                # Remove whitespace and collapse leader dots for reliable matching
                 compact = re.sub(r"\s+", "", joined)
                 compact = re.sub(r"\.{2,}", ".", compact)
                 compact = compact.replace("·", ".")  # Normalize mid-dots often used in tables
@@ -402,9 +518,26 @@ class TextExtractor:
                 if STRUCTURED_CODE_REGEX.search(compact):
                     normalized = re.sub(r"\.{2,}", " ", joined)
                     normalized = re.sub(r"\s+", " ", normalized).strip()
-                    if normalized and normalized not in seen:
-                        seen.add(normalized)
-                        structured_lines.append(normalized)
+                    if not normalized:
+                        continue
+
+                    # Trim to configured max length
+                    max_len = getattr(self, "max_structured_line_len", STRUCTURED_LINE_MAX_LENGTH)
+                    if len(normalized) > max_len:
+                        trimmed = normalized[:max_len] + "…"
+                    else:
+                        trimmed = normalized
+
+                    if not trimmed:
+                        continue
+
+                    if trimmed not in seen:
+                        seen.add(trimmed)
+                        structured_lines.append(trimmed)
+                        if len(structured_lines) >= line_cap:
+                            break
+            if len(structured_lines) >= line_cap:
+                break
 
         if not structured_lines:
             return None

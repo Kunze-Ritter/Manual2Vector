@@ -26,6 +26,20 @@ from utils.manufacturer_normalizer import normalize_manufacturer
 from config.oem_mappings import get_effective_manufacturer
 from .chunk_linker import link_error_codes_to_chunks
 
+try:
+    from rich.progress import (
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        BarColumn,
+        TaskProgressColumn,
+        TimeRemainingColumn,
+    )
+    RICH_PROGRESS_AVAILABLE = True
+except ImportError:
+    Progress = SpinnerColumn = TextColumn = BarColumn = TaskProgressColumn = TimeRemainingColumn = None  # type: ignore
+    RICH_PROGRESS_AVAILABLE = False
+
 logger = get_logger()
 
 # Words that are NOT error codes (reject these!)
@@ -78,6 +92,9 @@ SECTION_END_TITLE = re.compile(r'\n\s*[A-Z][a-z]+\s+[A-Z]')
 SECTION_END_NUMBERED = re.compile(r'\n\s*\d+\.\d+\s')
 CLASSIFICATION_PATTERN = re.compile(r'Classification\s*\n\s*(.+?)(?:\n\s*Cause|\n\s*Measures|$)', re.IGNORECASE | re.DOTALL)
 SENTENCE_END_PATTERN = re.compile(r'[.!?\n]{1,2}')
+
+
+MAX_BATCH_CODE_LENGTH = 128
 
 
 class ErrorCodeExtractor:
@@ -220,54 +237,70 @@ class ErrorCodeExtractor:
         
         # OPTIMIZATION 2: Build a single regex pattern for all codes (batch search)
         # Group codes by pattern to reduce regex complexity
-        code_to_original = {}
-        patterns_to_compile = []
-        
+        code_to_original: Dict[str, ExtractedErrorCode] = {}
+        pattern_entries: List[Tuple[str, str]] = []  # (original_code, escaped_code)
+        long_code_values: List[str] = []
+
         for error_code in codes_needing_enrichment:
-            escaped_code = re.escape(error_code.error_code)
-            patterns_to_compile.append(escaped_code)
-            code_to_original[error_code.error_code] = error_code
-        
+            code_value = (error_code.error_code or "").strip()
+            if not code_value:
+                self.logger.debug("Skipping empty error code during enrichment batch setup")
+                continue
+
+            code_to_original[code_value] = error_code
+
+            if len(code_value) > MAX_BATCH_CODE_LENGTH:
+                self.logger.debug(
+                    "Skipping batch regex for long code '%s' (len=%s) - streaming fallback",
+                    code_value,
+                    len(code_value)
+                )
+                long_code_values.append(code_value)
+                continue
+
+            escaped_code = re.escape(code_value)
+            if len(escaped_code) > MAX_BATCH_CODE_LENGTH:
+                self.logger.debug(
+                    "Escaped pattern for code '%s' exceeds limit (len=%s) - streaming fallback",
+                    code_value,
+                    len(escaped_code)
+                )
+                long_code_values.append(code_value)
+                continue
+
+            pattern_entries.append((code_value, escaped_code))
+
         # OPTIMIZATION 3: Compile single regex for all codes
         # Use alternation (|) to match any of the codes in one pass
-        self.logger.info(f"   Building batch regex for {len(patterns_to_compile)} codes...")
-        if len(patterns_to_compile) > 100:
-            # For very large lists, process in batches of 100 to avoid regex complexity
-            batch_size = 100
-            all_matches = {}
-            
-            num_batches = (len(patterns_to_compile) + batch_size - 1) // batch_size
-            self.logger.info(f"   Scanning {num_batches} batches (this may take 30-60 seconds)...")
-            
-            for i in range(0, len(patterns_to_compile), batch_size):
-                batch_num = i // batch_size + 1
-                batch_patterns = patterns_to_compile[i:i+batch_size]
-                combined_pattern = r'\b(' + '|'.join(batch_patterns) + r')\b'
-                compiled_regex = re.compile(combined_pattern)
-                
-                # Show progress every 5 batches
-                if batch_num % 5 == 0 or batch_num == num_batches:
-                    self.logger.info(f"   Scanning batch {batch_num}/{num_batches}...")
-                
-                # Find all matches for this batch
-                for match in compiled_regex.finditer(full_document_text):
-                    code = match.group(0)
-                    if code not in all_matches:
-                        all_matches[code] = []
-                    all_matches[code].append((match.start(), match.end()))
-        else:
-            # Single pass for smaller lists
-            combined_pattern = r'\b(' + '|'.join(patterns_to_compile) + r')\b'
-            compiled_regex = re.compile(combined_pattern)
-            
-            self.logger.info(f"   Scanning document for {len(patterns_to_compile)} codes...")
-            
-            all_matches = {}
-            for match in compiled_regex.finditer(full_document_text):
-                code = match.group(0)
-                if code not in all_matches:
-                    all_matches[code] = []
-                all_matches[code].append((match.start(), match.end()))
+        batchable_count = len(pattern_entries)
+        if long_code_values:
+            self.logger.info(
+                "   Streaming fallback for %s long codes (excluded from batch regex)",
+                len(long_code_values)
+            )
+
+        self.logger.info(
+            "   Building batch regex for %s codes...",
+            batchable_count
+        )
+
+        all_matches: Dict[str, List[Tuple[int, int]]] = {}
+
+        if batchable_count:
+            all_matches = self._collect_with_batches(
+                full_document_text,
+                pattern_entries,
+                batch_size=100,
+                existing_matches=all_matches
+            )
+
+        if long_code_values:
+            self._streaming_fallback(
+                full_document_text,
+                long_code_values,
+                matches=all_matches,
+                batch_label="long-codes"
+            )
         
         # OPTIMIZATION 4: Process each code with its pre-found matches
         enriched_codes = []
@@ -275,16 +308,23 @@ class ErrorCodeExtractor:
         self.logger.info(f"   Starting enrichment loop for {len(error_codes)} codes...")
         
         # Progress tracking
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
-        
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeRemainingColumn(),
-            console=None  # Use default console
-        ) as progress:
+        progress_console = getattr(self.logger, "console", None)
+        if RICH_PROGRESS_AVAILABLE and progress_console is not None:
+            disable_progress = not getattr(progress_console, "is_terminal", False)
+            progress_context = Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeRemainingColumn(),
+                console=progress_console,
+                transient=False,
+                disable=disable_progress,
+            )
+        else:
+            progress_context = self.logger.progress_bar([], "Enriching error codes")
+
+        with progress_context as progress:
             task = progress.add_task(
                 f"[cyan]Enriching {len(error_codes)} error codes...",
                 total=len(error_codes)
@@ -391,6 +431,108 @@ class ErrorCodeExtractor:
                     self.logger.info(f"   Processed {processed_count}/{len(error_codes)} codes ({rate:.1f} codes/sec)")
 
         return enriched_codes
+
+    def _collect_with_batches(
+        self,
+        document_text: str,
+        pattern_entries: List[Tuple[str, str]],
+        batch_size: int,
+        existing_matches: Optional[Dict[str, List[Tuple[int, int]]]] = None
+    ) -> Dict[str, List[Tuple[int, int]]]:
+        """Collect regex matches while handling large batches defensively."""
+        matches: Dict[str, List[Tuple[int, int]]] = existing_matches or {}
+        total_patterns = len(pattern_entries)
+        if total_patterns == 0:
+            return matches
+
+        # Sort longest-first to reduce catastrophic backtracking risk
+        sorted_entries = sorted(pattern_entries, key=lambda entry: len(entry[1]), reverse=True)
+
+        for batch_start in range(0, total_patterns, batch_size):
+            batch = sorted_entries[batch_start:batch_start + batch_size]
+            if not batch:
+                continue
+
+            alternation = "|".join(entry[1] for entry in batch)
+            # Guard alternation length to avoid regex DoS
+            if len(alternation) > 100_000:
+                self.logger.warning(
+                    "Batch alternation length %s exceeds cap, splitting batch (size=%s)",
+                    len(alternation),
+                    len(batch)
+                )
+                self._collect_with_batches(
+                    document_text,
+                    batch,
+                    max(1, batch_size // 2),
+                    matches
+                )
+                continue
+
+            pattern = rf"\b({alternation})\b"
+            try:
+                compiled_regex = re.compile(pattern)
+            except re.error as regex_error:
+                self.logger.error(
+                    "Regex compilation failed for batch starting at %s (size=%s): %s",
+                    batch_start,
+                    len(batch),
+                    regex_error
+                )
+                # Retry with smaller batches
+                if batch_size > 1:
+                    half = max(1, batch_size // 2)
+                    self.logger.info(
+                        "Retrying batch starting at %s with smaller size %s",
+                        batch_start,
+                        half
+                    )
+                    self._collect_with_batches(
+                        document_text,
+                        batch,
+                        half,
+                        matches
+                    )
+                    continue
+                # Fallback to streaming search for smallest unit
+                codes = [entry[0] for entry in batch]
+                self._streaming_fallback(
+                    document_text,
+                    codes,
+                    matches,
+                    batch_label="regex-error"
+                )
+                continue
+
+            for match in compiled_regex.finditer(document_text):
+                code = match.group(0)
+                matches.setdefault(code, []).append((match.start(), match.end()))
+
+        return matches
+
+    def _streaming_fallback(
+        self,
+        document_text: str,
+        codes: List[str],
+        matches: Dict[str, List[Tuple[int, int]]],
+        batch_label: str
+    ) -> None:
+        """Perform serial search for codes when batch regex fails or is unsuitable."""
+        self.logger.info(
+            "   Streaming fallback (%s) for %s codes",
+            batch_label,
+            len(codes)
+        )
+
+        for code in codes:
+            start = 0
+            while True:
+                idx = document_text.find(code, start)
+                if idx == -1:
+                    break
+                end_idx = idx + len(code)
+                matches.setdefault(code, []).append((idx, end_idx))
+                start = end_idx
 
     def extract_from_text(
         self,

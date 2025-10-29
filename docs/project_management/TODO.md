@@ -431,6 +431,10 @@
 
 ### ✅ Completed Today (2025-10-29)
 
+- [x] **Align version management doc with CI hash updates** ✅ (12:35)
+  - Clarified that local commits update the date while CI refreshes the commit hash post-push in VERSION_MANAGEMENT.md.
+  - **File:** `docs/development/VERSION_MANAGEMENT.md`
+  - **Result:** Developers now see accurate guidance on when commit hashes update.
 - [x] **Auto Processor import path fix** ✅ (08:32)
   - Updated `auto_processor` to add project root to `sys.path` and import `PipelineProcessor` from `scripts.pipeline_processor`; switched `pipeline_processor` to backend absolute imports.
   - **File:** `scripts/auto_processor.py`, `scripts/pipeline_processor.py`
@@ -670,7 +674,7 @@
 
 **Next Focus:** Validate pipeline end-to-end with updated quality flags and refresh agent docs 🎯
 
-**Last Updated:** 2025-10-29 (09:57)
+**Last Updated:** 2025-10-29 (12:35)
 **Current Focus:** Structured logging rollout & documentation refresh
 **Next Session:** Sweep remaining scripts for path assumptions & add smoke tests
 
@@ -2108,30 +2112,41 @@ UPLOAD_DOCUMENTS_TO_R2=false
 
 **Next Focus:** Run targeted pipeline tests with new logging instrumentation 🎯
 
-**Last Updated:** 2025-10-29 (08:55)
-**Current Focus:** Pipeline stabilization & logging consistency
-**Next Session:** Execute logging regression tests & Supabase sync review
+**Last Updated:** 2025-10-29 (12:25)
+**Current Focus:** Dokumentation finalisieren für commit-msg Hook
+**Next Session:** Team über commit-msg Hook informieren & Merge-Konflikt-Guidelines evaluieren
 
-- [x] **Strukturierte Diagnose-Skripte dokumentieren** ✅ (09:45)
-  - **Task:** Neue Scripts (`diagnose_structured_text.py`, `inspect_pdf_structured.py`) im Tool-Guide dokumentieren
-  - **Implementation:** README-Abschnitt „HP Structured Extraction Debugging“ ergänzen
-  - **Files to modify:** `docs/TOOLS.md`
-  - **Priority:** MEDIUM
-  - **Effort:** 0.5 Stunden
-  - **Status:** DONE
+- [x] **Commit Hooks auf commit-msg umstellen** ✅ (11:47)
+  - **Task:** Pre-commit Hook durch commit-msg Hook ersetzen, Install-Skript & Tests anpassen
+  - **Implementation:** `commit_msg.py` erstellt, `pre_commit.py` refaktoriert, Windows Wrapper + CI Semantik umgesetzt
+  - **Files to modify:** `scripts/git_hooks/commit_msg.py`, `scripts/git_hooks/pre_commit.py`, `scripts/install_git_hooks.py`, `scripts/test_version_hook.py`, `scripts/update_version_ci.py`, `README.md`, `docs/development/VERSION_MANAGEMENT.md`, `docs/setup/SETUP_NEW_COMPUTER.md`
+  - **Result:** Konsistente Versionierung, `__commit__` via CI, fehlende Felder werden ergänzt, Dokumentation aktualisiert
+
+- [x] **Dokumentation für commit-msg Hook finalisiert** ✅ (12:25)
+  - **Task:** Alle Docs auf commit-msg Hook umstellen, pre-commit Referenzen entfernen, __commit__ Semantik klären
+  - **Changes:**
+    - Removed outdated `pre-commit` references → replaced with `commit-msg`
+    - Corrected "Standard Commit (Hash Update Only)" → "Standard Commit (Date Update Only)"
+    - Removed incorrect `git log -1 --pretty=%B` reference (hook reads message file from argv[1])
+    - Clarified CI-only usage of `git rev-parse --short HEAD`
+    - Updated FAQ: Delete `.git/hooks/commit-msg` instead of `.git/hooks/pre-commit`
+    - Added callout box explaining __commit__ lag and CI trade-off
+    - Changed "Always Current" → "Locally Current" with CI sync explanation
+  - **Files:** `docs/development/VERSION_MANAGEMENT.md`
+  - **Result:** Dokumentation ist jetzt vollständig konsistent mit commit-msg Hook Implementierung
 
 ### 📊 Session Statistics (2025-10-29)
 
-**Time:** 09:40-09:45 (5 minutes)
+**Time:** 11:15-11:47 (32 minutes)
 **Commits:** 0 commits (pending)
-**Files Changed:** 1 file (docs/TOOLS.md)
+**Files Changed:** 9 files
 **Migrations Created:** 0
-**Bugs Fixed:** 0
-**Features Added:** 0 (docs update)
+**Bugs Fixed:** 1 (hook mis-semantics)
+**Features Added:** 1 (commit-msg hook workflow)
 
 **Key Achievements:**
-1. ✅ Updated `docs/TOOLS.md` with structured diagnosis scripts
-2. ✅ Added README section for HP Structured Extraction Debugging
-3. ✅ Completed task and marked as DONE
+1. ✅ Commit-msg Hook implementiert inkl. Windows Wrapper
+2. ✅ CI/Hook Versionierungs-Semantik dokumentiert
+3. ✅ Tests aktualisiert und erfolgreich ausgeführt
 
-**Next Focus:** Verify pipeline CLI scripts for import drift 🎯
+**Next Focus:** Rollout der neuen Hook-Version im Team & Merge-Konflikt-Strategie abstimmen 🎯
