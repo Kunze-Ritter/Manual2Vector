@@ -65,19 +65,26 @@ class KRMasterPipeline:
         # Setup colored logging globally (ERROR = RED, WARNING = YELLOW, INFO = GREEN)
         apply_colored_logging_globally(level=logging.INFO)
         self.logger = logging.getLogger("krai.master_pipeline")
+        self.interactive_console = sys.stdout.isatty()
         
         # Get hardware info
         cpu_count = mp.cpu_count()
         # Use 75% of cores for concurrent docs
         self.max_concurrent = max(4, int(cpu_count * 0.75))  # Min 4, max 75% of cores
         
-        print(f"⚡ PERFORMANCE: {self.max_concurrent} concurrent documents on {cpu_count} CPU cores")
-        
-        self.logger.info(f"KR Master Pipeline initialized with {self.max_concurrent} concurrent documents")
+        self.logger.info(
+            "performance",
+            concurrent_documents=self.max_concurrent,
+            cpu_cores=cpu_count
+        )
+        self.logger.info(
+            "initialized",
+            concurrent_documents=self.max_concurrent
+        )
         
     async def initialize_services(self):
         """Initialize all services"""
-        print("Initializing KR Master Pipeline Services...")
+        self.logger.info("Initializing KR Master Pipeline services")
         
         # Load environment variables from specific .env files
         # Try multiple possible locations for .env files (universal approach)
@@ -128,21 +135,21 @@ class KRMasterPipeline:
                 env_loaded = True
         
         if loaded_files:
-            print(f"✅ Environment loaded from {len(loaded_files)} file(s):")
-            for file_path in loaded_files:
-                print(f"   📄 {file_path}")
+            self.logger.info(
+                "environment_loaded",
+                num_files=len(loaded_files),
+                files="; ".join(loaded_files)
+            )
         else:
             env_loaded = False
         
         if not env_loaded:
-            print("⚠️  No .env file found in any expected location!")
-            print("💡 Please ensure .env files exist in project root")
-            print("🔍 Searched for these files:")
-            for env_file in env_files:
-                print(f"   - {env_file}")
-            print("🔍 In these locations:")
-            for base_path in base_paths[:3]:  # Show first 3 paths
-                print(f"   - {os.path.abspath(base_path)}")
+            self.logger.warning("No .env file found in expected locations")
+            self.logger.info("Searched for env files: %s", ", ".join(env_files))
+            self.logger.info(
+                "Search base paths (sample): %s",
+                ", ".join(os.path.abspath(path) for path in base_paths[:3])
+            )
             
             # Try to create .env files from templates if available
             self._try_create_env_from_templates()
@@ -186,8 +193,8 @@ class KRMasterPipeline:
                     
                     for template_path in template_paths:
                         if os.path.exists(template_path):
-                            print(f"📋 Found template: {template_path}")
-                            print(f"💡 Creating: {env_file}")
+                            self.logger.info("📋 Found template: %s", template_path)
+                            self.logger.info("💡 Creating: %s", env_file)
                             
                             # Create directory if it doesn't exist
                             os.makedirs(os.path.dirname(target_path), exist_ok=True)
@@ -203,15 +210,19 @@ class KRMasterPipeline:
                     break  # Template found and copied, move to next env file
             
             if created_files:
-                print(f"✅ Created {len(created_files)} .env file(s): {', '.join(created_files)}")
-                print("⚠️  Please edit these files with your actual credentials")
+                self.logger.info(
+                    "✅ Created %s .env file(s): %s",
+                    len(created_files),
+                    ", ".join(created_files)
+                )
+                self.logger.warning("Please edit newly created .env files with actual credentials")
                 return True
             else:
-                print("❌ No template files found to create .env files from")
+                self.logger.warning("No template files found to create .env files from")
                 return False
                 
         except Exception as e:
-            print(f"❌ Failed to create .env files from templates: {e}")
+            self.logger.error("Failed to create .env files from templates", exc_info=True)
             return False
     
     async def _initialize_services_after_env_loaded(self):
@@ -221,28 +232,31 @@ class KRMasterPipeline:
         supabase_key = os.getenv('SUPABASE_ANON_KEY')
         
         if not supabase_url:
-            print("❌ SUPABASE_URL not found in environment variables!")
+            self.logger.error("SUPABASE_URL not found in environment variables!")
         else:
-            print(f"✅ SUPABASE_URL: {supabase_url[:30]}...")
+            self.logger.info("✅ SUPABASE_URL: %s...", supabase_url[:30])
             
         if not supabase_key:
-            print("❌ SUPABASE_ANON_KEY not found in environment variables!")
+            self.logger.error("SUPABASE_ANON_KEY not found in environment variables!")
         else:
-            print(f"✅ SUPABASE_ANON_KEY: {supabase_key[:20]}...")
+            self.logger.info("✅ SUPABASE_ANON_KEY: %s...", supabase_key[:20])
         
         # Get Service Role Key for elevated permissions (cross-schema via PostgREST)
         service_role_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
         if service_role_key:
-            print(f"✅ SUPABASE_SERVICE_ROLE_KEY: {service_role_key[:20]}... (PostgREST cross-schema enabled)")
+            self.logger.info(
+                "✅ SUPABASE_SERVICE_ROLE_KEY: %s... (PostgREST cross-schema enabled)",
+                service_role_key[:20]
+            )
         else:
-            print("⚠️  SUPABASE_SERVICE_ROLE_KEY not found - Will try POSTGRES_URL fallback")
+            self.logger.warning("SUPABASE_SERVICE_ROLE_KEY not found - will try POSTGRES_URL fallback")
         
         # Get PostgreSQL URL for direct connection (alternative method)
         postgres_url = os.getenv('POSTGRES_URL') or os.getenv('DATABASE_URL')
         if postgres_url:
-            print(f"✅ POSTGRES_URL: {postgres_url[:40]}... (asyncpg fallback enabled)")
+            self.logger.info("✅ POSTGRES_URL: %s... (asyncpg fallback enabled)", postgres_url[:40])
         else:
-            print("⚠️  POSTGRES_URL not found - Using PostgREST only")
+            self.logger.warning("POSTGRES_URL not found - using PostgREST only")
         
         # Initialize database service with multiple connection options
         self.database_service = DatabaseService(
@@ -293,11 +307,11 @@ class KRMasterPipeline:
             'embedding': EmbeddingProcessor(self.database_service, self.ai_service),
             'search': SearchProcessor(self.database_service, self.ai_service)
         }
-        print("All services initialized!")
+        self.logger.info("All services initialized!")
     
     async def get_documents_status(self) -> Dict[str, Any]:
         """Get comprehensive documents status"""
-        print("Checking documents status...")
+        self.logger.info("Checking documents status")
         
         try:
             # Use direct database service
@@ -318,13 +332,13 @@ class KRMasterPipeline:
             
             return status
                 
-        except Exception as e:
-            print(f"Error getting documents status: {e}")
+        except Exception:
+            self.logger.error("Error getting documents status", exc_info=True)
             return {'total_documents': 0, 'completed': 0, 'pending': 0, 'failed': 0, 'processing': 0}
     
     async def get_documents_needing_processing(self) -> List[Dict[str, Any]]:
         """Get documents that need further processing (all pending documents)"""
-        print("Finding documents that need remaining stages...")
+        self.logger.info("Finding documents that need remaining stages")
         
         try:
             # Get ALL pending AND failed documents directly (no chunk check)
@@ -348,11 +362,14 @@ class KRMasterPipeline:
                     'created_at': doc['created_at']
                 })
             
-            print(f"Found {len(pending_docs)} documents (pending + failed) that need further processing")
+            self.logger.info(
+                "Found %s documents (pending + failed) that need further processing",
+                len(pending_docs)
+            )
             return pending_docs
             
-        except Exception as e:
-            print(f"Error getting documents: {e}")
+        except Exception:
+            self.logger.error("Error getting documents needing processing", exc_info=True)
             return []
     
     async def get_all_documents(self) -> List[Dict[str, Any]]:
@@ -373,8 +390,8 @@ class KRMasterPipeline:
                     doc['file_exists'] = False
             
             return all_docs.data or []
-        except Exception as e:
-            print(f"Error getting all documents: {e}")
+        except Exception:
+            self.logger.error("Error getting all documents", exc_info=True)
             return []
     
     async def get_document_stage_status(self, document_id: str) -> Dict[str, bool]:
@@ -449,40 +466,35 @@ class KRMasterPipeline:
             if stage_status['image']:
                 stage_status['storage'] = True
             
-        except Exception as e:
-            print(f"Error checking stage status: {e}")
+        except Exception:
+            self.logger.error("Error checking stage status", exc_info=True)
         
         return stage_status
     
     async def process_document_smart_stages(self, document_id: str, filename: str, file_path: str) -> Dict[str, Any]:
-        """Process only the missing stages for a document"""
+        """Process only the missing stages for a document using structured logging."""
         try:
-            print(f"\nSmart Processing for: {filename}")
-            print(f"  Document ID: {document_id}")
-            
-            # Check current stage status
+            self.logger.info("Smart processing document '%s' (%s)", filename, document_id)
+
             stage_status = await self.get_document_stage_status(document_id)
-            
-            print(f"  Current Status:")
+
+            self.logger.info("  Current status:")
             for stage, completed in stage_status.items():
                 status_icon = "✅" if completed else "❌"
-                print(f"    {stage.capitalize()}: {status_icon}")
-            
-            # Find missing stages
+                self.logger.info("    %s: %s", stage.capitalize(), status_icon)
+
             missing_stages = [stage for stage, completed in stage_status.items() if not completed]
-            
             if not missing_stages:
-                print(f"  ✅ All stages already completed for {filename}")
+                self.logger.info("  ✅ All stages already completed for '%s'", filename)
                 return {
                     'success': True,
                     'filename': filename,
                     'stages_completed': len(stage_status),
                     'message': 'All stages already completed'
                 }
-            
-            print(f"  Missing stages: {', '.join(missing_stages)}")
-            
-            # Create processing context
+
+            self.logger.info("  Missing stages: %s", ', '.join(missing_stages))
+
             context = ProcessingContext(
                 file_path=file_path,
                 document_id=document_id,
@@ -491,187 +503,104 @@ class KRMasterPipeline:
                 processing_config={'filename': filename},
                 file_size=0
             )
-            
-            # Get document info from database
+
             doc_info = await self.database_service.get_document(document_id)
             if doc_info:
-                context.file_hash = doc_info.file_hash if doc_info.file_hash else ''
-                context.document_type = doc_info.document_type if doc_info.document_type else ''
-            
-            completed_stages = []
-            failed_stages = []
-            
-            # Process only missing stages
-            if 'text' in missing_stages:
-                print(f"  [2/8] Text Processing: {filename}")
+                context.file_hash = doc_info.file_hash or ''
+                context.document_type = doc_info.document_type or ''
+
+            stage_sequence = [
+                ("text", "[2/10] Text Processing:", 'text'),
+                ("image", "[3/10] Image Processing:", 'image'),
+                ("classification", "[4/10] Classification:", 'classification'),
+                ("chunk_prep", "[5/10] Chunk Preprocessing:", 'chunk_prep'),
+                ("links", "[6/10] Links:", 'links'),
+                ("metadata", "[7/10] Metadata (Error Codes):", 'metadata'),
+                ("storage", "[8/10] Storage:", 'storage'),
+                ("embedding", "[9/10] Embeddings:", 'embedding'),
+                ("search", "[10/10] Search:", 'search'),
+            ]
+
+            success_messages = {
+                'text': lambda res: "Text processing completed",
+                'image': lambda res: f"Image processing completed: {res.data.get('images_processed', 0)} images",
+                'chunk_prep': lambda res: f"Chunk preprocessing completed: {res.data.get('chunks_preprocessed', 0)} chunks",
+                'links': lambda res: (
+                    "Link extraction completed: "
+                    f"{res.data.get('links_extracted', 0)} links "
+                    f"({res.data.get('video_links_created', 0)} videos)"
+                ),
+                'metadata': lambda res: "Metadata processing completed",
+                'storage': lambda res: "Storage processing completed",
+                'embedding': lambda res: f"Embedding processing completed: {res.data.get('embeddings_created', 0)} embeddings",
+                'search': lambda res: "Search processing completed",
+            }
+
+            completed_stages: List[str] = []
+            failed_stages: List[str] = []
+
+            for stage_name, label, processor_key in stage_sequence:
+                if stage_name not in missing_stages:
+                    continue
+
+                self.logger.info("  %s %s", label, filename)
                 try:
-                    result2 = await self.processors['text'].process(context)
-                    if result2.success:
-                        completed_stages.append('text')
-                        print(f"    ✅ Text processing completed")
+                    result = await self.processors[processor_key].process(context)
+                    if result.success:
+                        completed_stages.append(stage_name)
+                        formatter = success_messages.get(stage_name)
+                        message = formatter(result) if formatter else f"{stage_name.capitalize()} completed"
+                        self.logger.info("    ✅ %s", message)
                     else:
-                        failed_stages.append('text')
-                        print(f"    ❌ Text processing failed: {result2.message}")
-                except Exception as e:
-                    failed_stages.append('text')
-                    print(f"    ❌ Text processing error: {e}")
-            
-            if 'image' in missing_stages:
-                print(f"  [3/8] Image Processing: {filename}")
-                try:
-                    result3 = await self.processors['image'].process(context)
-                    if result3.success:
-                        completed_stages.append('image')
-                        images_count = result3.data.get('images_processed', 0)
-                        print(f"    ✅ Image processing completed: {images_count} images")
-                    else:
-                        failed_stages.append('image')
-                        print(f"    ❌ Image processing failed: {result3.message}")
-                except Exception as e:
-                    failed_stages.append('image')
-                    print(f"    ❌ Image processing error: {e}")
-            
-            if 'classification' in missing_stages:
-                print(f"  [4/10] Classification: {filename}")
-                try:
-                    result4 = await self.processors['classification'].process(context)
-                    if result4.success:
-                        completed_stages.append('classification')
-                        print(f"    ✅ Classification completed")
-                    else:
-                        failed_stages.append('classification')
-                        print(f"    ❌ Classification failed: {result4.message}")
-                except Exception as e:
-                    failed_stages.append('classification')
-                    print(f"    ❌ Classification error: {e}")
-            
-            if 'chunk_prep' in missing_stages:
-                print(f"  [5/10] Chunk Preprocessing: {filename}")
-                try:
-                    result4b = await self.processors['chunk_prep'].process(context)
-                    if result4b.success:
-                        completed_stages.append('chunk_prep')
-                        chunks_preprocessed = result4b.data.get('chunks_preprocessed', 0)
-                        print(f"    ✅ Chunk preprocessing completed: {chunks_preprocessed} chunks")
-                    else:
-                        failed_stages.append('chunk_prep')
-                        print(f"    ❌ Chunk preprocessing failed: {result4b.message}")
-                except Exception as e:
-                    failed_stages.append('chunk_prep')
-                    print(f"    ❌ Chunk preprocessing error: {e}")
-            
-            if 'links' in missing_stages:
-                print(f"  [6/10] Links: {filename}")
-                try:
-                    result4b = await self.processors['links'].process(context)
-                    if result4b.success:
-                        completed_stages.append('links')
-                        links_count = result4b.data.get('links_extracted', 0)
-                        video_count = result4b.data.get('video_links_created', 0)
-                        print(f"    ✅ Link extraction completed: {links_count} links ({video_count} videos)")
-                    else:
-                        failed_stages.append('links')
-                        print(f"    ❌ Link extraction failed: {result4b.message}")
-                except Exception as e:
-                    failed_stages.append('links')
-                    print(f"    ❌ Link extraction error: {e}")
-            
-            if 'metadata' in missing_stages:
-                print(f"  [7/10] Metadata (Error Codes): {filename}")
-                try:
-                    result5 = await self.processors['metadata'].process(context)
-                    if result5.success:
-                        completed_stages.append('metadata')
-                        print(f"    ✅ Metadata processing completed")
-                    else:
-                        failed_stages.append('metadata')
-                        print(f"    ❌ Metadata processing failed: {result5.message}")
-                except Exception as e:
-                    failed_stages.append('metadata')
-                    print(f"    ❌ Metadata processing error: {e}")
-            
-            if 'storage' in missing_stages:
-                print(f"  [8/10] Storage: {filename}")
-                try:
-                    result6 = await self.processors['storage'].process(context)
-                    if result6.success:
-                        completed_stages.append('storage')
-                        print(f"    ✅ Storage processing completed")
-                    else:
-                        failed_stages.append('storage')
-                        print(f"    ❌ Storage processing failed: {result6.message}")
-                except Exception as e:
-                    failed_stages.append('storage')
-                    print(f"    ❌ Storage processing error: {e}")
-            
-            if 'embedding' in missing_stages:
-                print(f"  [9/10] Embeddings: {filename}")
-                try:
-                    result7 = await self.processors['embedding'].process(context)
-                    if result7.success:
-                        completed_stages.append('embedding')
-                        embeddings_count = result7.data.get('embeddings_created', 0)
-                        print(f"    ✅ Embedding processing completed: {embeddings_count} embeddings")
-                    else:
-                        failed_stages.append('embedding')
-                        print(f"    ❌ Embedding processing failed: {result7.message}")
-                except Exception as e:
-                    failed_stages.append('embedding')
-                    print(f"    ❌ Embedding processing error: {e}")
-            
-            if 'search' in missing_stages:
-                print(f"  [10/10] Search: {filename}")
-                try:
-                    result8 = await self.processors['search'].process(context)
-                    if result8.success:
-                        completed_stages.append('search')
-                        print(f"    ✅ Search processing completed")
-                    else:
-                        failed_stages.append('search')
-                        print(f"    ❌ Search processing failed: {result8.message}")
-                except Exception as e:
-                    failed_stages.append('search')
-                    print(f"    ❌ Search processing error: {e}")
-            
-            # Update document status based on actual completion
+                        failed_stages.append(stage_name)
+                        failure_message = result.message or "Unknown error"
+                        self.logger.warning("    ❌ %s failed: %s", stage_name.capitalize(), failure_message)
+                except Exception:
+                    failed_stages.append(stage_name)
+                    self.logger.error("    ❌ %s raised an exception", stage_name.capitalize(), exc_info=True)
+
             if not failed_stages:
                 await self.database_service.update_document_status(document_id, 'completed')
-                print(f"  ✅ Document {filename} fully processed!")
-            elif failed_stages and completed_stages:
-                # Partially completed - don't change status, let user decide
-                print(f"  ⚠️ Document {filename} partially processed (✅ {len(completed_stages)} stages, ❌ {len(failed_stages)} failed)")
+                self.logger.success(f"  ✅ Document {filename} fully processed!")
+            elif completed_stages:
+                self.logger.warning(
+                    "  Document %s partially processed (✅ %s stages, ❌ %s failed)",
+                    filename,
+                    len(completed_stages),
+                    len(failed_stages)
+                )
             else:
-                # Only mark as failed if ALL stages failed
                 await self.database_service.update_document_status(document_id, 'failed')
-                print(f"  ❌ Document {filename} completely failed (all stages failed)")
-            
-            # Run quality check
-            print(f"\n  🔍 Running quality check...")
+                self.logger.error("  Document %s completely failed (all stages failed)", filename)
+
+            self.logger.info("  🔍 Running quality check...")
             quality_result = await self.quality_service.check_document_quality(document_id)
-            
-            if quality_result['score'] >= 80:
-                print(f"  ✅ Quality: {quality_result['score']}/100")
+
+            score = quality_result.get('score', 0)
+            issues = quality_result.get('issues') or []
+            if score >= 80:
+                self.logger.info("  ✅ Quality: %s/100", score)
             else:
-                print(f"  ⚠️  Quality: {quality_result['score']}/100")
-                for issue in quality_result['issues'][:3]:  # Show first 3 issues
-                    print(f"      {issue}")
-            
+                self.logger.warning("  ⚠️  Quality: %s/100", score)
+                for issue in issues[:3]:
+                    self.logger.warning("      %s", issue)
+
             return {
-                'success': len(completed_stages) > 0,  # Success if ANY stage completed
+                'success': len(completed_stages) > 0,
                 'filename': filename,
                 'completed_stages': completed_stages,
                 'failed_stages': failed_stages,
                 'total_stages': len(completed_stages) + len(failed_stages),
-                'quality_score': quality_result['score'],
-                'quality_passed': quality_result['passed']
+                'quality_score': score,
+                'quality_passed': quality_result.get('passed')
             }
-            
-        except Exception as e:
-            print(f"Error in smart processing: {e}")
+
+        except Exception as error:
+            self.logger.error("Error in smart processing", exc_info=True)
             return {
                 'success': False,
                 'filename': filename,
-                'error': str(e)
+                'error': str(error)
             }
     
     async def process_document_remaining_stages(self, document_id: str, filename: str, file_path: str) -> Dict[str, Any]:
@@ -687,8 +616,9 @@ class KRMasterPipeline:
             # Get file information
             file_size = os.path.getsize(file_path)
             filename = os.path.basename(file_path)
+            file_size_mb = file_size / 1024 / 1024
             
-            print(f"[{doc_index}/{total_docs}] Processing: {filename} ({file_size/1024/1024:.1f}MB)")
+            self.logger.info("[%s/%s] Processing: %s (%.1fMB)", doc_index, total_docs, filename, file_size_mb)
             
             # Create processing context
             context = ProcessingContext(
@@ -704,22 +634,31 @@ class KRMasterPipeline:
             )
             
             # Stage 1: Upload Processor
-            print(f"  [{doc_index}] Upload: {filename}")
+            self.logger.info("  [%s] Upload: %s", doc_index, filename)
             result1 = await self.processors['upload'].process(context)
             
             # FORCE DEBUG OUTPUT - ALWAYS SHOW
-            print(f"  [{doc_index}] FORCE DEBUG: result1.success = {result1.success}")
-            print(f"  [{doc_index}] FORCE DEBUG: result1.data = {result1.data}")
-            print(f"  [{doc_index}] FORCE DEBUG: duplicate flag = {result1.data.get('duplicate') if result1.data else 'NO DATA'}")
+            self.logger.debug("  [%s] FORCE DEBUG: result1.success = %s", doc_index, result1.success)
+            self.logger.debug("  [%s] FORCE DEBUG: result1.data = %s", doc_index, result1.data)
+            self.logger.debug(
+                "  [%s] FORCE DEBUG: duplicate flag = %s",
+                doc_index,
+                result1.data.get('duplicate') if result1.data else 'NO DATA'
+            )
             
             # Check if document already exists (deduplication)
-            print(f"  [{doc_index}] DEBUG: result1.success={result1.success}, duplicate={result1.data.get('duplicate')}")
-            print(f"  [{doc_index}] FORCE DEBUG: result1.data = {result1.data}")
+            self.logger.debug(
+                "  [%s] DEBUG: result1.success=%s, duplicate=%s",
+                doc_index,
+                result1.success,
+                result1.data.get('duplicate')
+            )
+            self.logger.debug("  [%s] FORCE DEBUG: result1.data = %s", doc_index, result1.data)
             
             # FORCE SMART PROCESSING - Always use smart processing for existing documents
             if result1.success and (result1.data.get('duplicate') or result1.data.get('document_id')):
                 # Document already exists - use Smart Processing for remaining stages
-                print(f"  [{doc_index}] Document exists - using Smart Processing for remaining stages")
+                self.logger.info("  [%s] Document exists - using Smart Processing for remaining stages", doc_index)
                 document_id = result1.data.get('document_id')
                 # Use absolute path
                 import os
@@ -757,51 +696,51 @@ class KRMasterPipeline:
             
             # For new documents, continue with all stages
             # Stage 2: Text Processor
-            print(f"  [{doc_index}] Text Processing: {filename}")
+            self.logger.info("  [%s] Text Processing: %s", doc_index, filename)
             result2 = await self.processors['text'].process(context)
             chunks_count = result2.data.get('chunks_created', 0)
             
             # Stage 3: Image Processor
-            print(f"  [{doc_index}] Image Processing: {filename}")
+            self.logger.info("  [%s] Image Processing: %s", doc_index, filename)
             result3 = await self.processors['image'].process(context)
             images_count = result3.data.get('images_processed', 0)
             
             # Stage 4: Classification Processor
-            print(f"  [{doc_index}] Classification: {filename}")
+            self.logger.info("  [%s] Classification: %s", doc_index, filename)
             result4 = await self.processors['classification'].process(context)
             
             # Stage 5: Chunk Preprocessing (NEW! - AI-ready chunks)
-            print(f"  [{doc_index}] Chunk Preprocessing: {filename}")
+            self.logger.info("  [%s] Chunk Preprocessing: %s", doc_index, filename)
             result4b = await self.processors['chunk_prep'].process(context)
             chunks_preprocessed = result4b.data.get('chunks_preprocessed', 0) if result4b.success else 0
-            print(f"    → {chunks_preprocessed} chunks preprocessed")
+            self.logger.info("    → %s chunks preprocessed", chunks_preprocessed)
             
             # Stage 6: Link Extraction Processor
-            print(f"  [{doc_index}] Link Extraction: {filename}")
+            self.logger.info("  [%s] Link Extraction: %s", doc_index, filename)
             result4c = await self.processors['links'].process(context)
             links_count = result4c.data.get('links_extracted', 0) if result4c.success else 0
             video_count = result4c.data.get('video_links_created', 0) if result4c.success else 0
-            print(f"    → {links_count} links, {video_count} videos")
+            self.logger.info("    → %s links, %s videos", links_count, video_count)
             
             # Stage 7: Metadata Processor (Error Codes)
-            print(f"  [{doc_index}] Metadata (Error Codes): {filename}")
+            self.logger.info("  [%s] Metadata (Error Codes): %s", doc_index, filename)
             result5 = await self.processors['metadata'].process(context)
             error_codes_count = result5.data.get('error_codes_found', 0) if result5.success else 0
-            print(f"    → {error_codes_count} error codes")
+            self.logger.info("    → %s error codes", error_codes_count)
             
             # Stage 8: Storage Processor
-            print(f"  [{doc_index}] Storage: {filename}")
+            self.logger.info("  [%s] Storage: %s", doc_index, filename)
             result6 = await self.processors['storage'].process(context)
             
             # Stage 9: Embedding Processor (Uses intelligence.chunks!)
-            print(f"  [{doc_index}] Embeddings: {filename}")
+            self.logger.info("  [%s] Embeddings: %s", doc_index, filename)
             result7 = await self.processors['embedding'].process(context)
             
             # Stage 10: Search Processor
-            print(f"  [{doc_index}] Search Index: {filename}")
+            self.logger.info("  [%s] Search Index: %s", doc_index, filename)
             result8 = await self.processors['search'].process(context)
             
-            print(f"  [{doc_index}] Completed: {filename}")
+            self.logger.info("  [%s] Completed: %s", doc_index, filename)
             
             return {
                 'success': True,
@@ -822,8 +761,12 @@ class KRMasterPipeline:
     
     async def process_batch_hardware_waker(self, file_paths: List[str]) -> Dict[str, Any]:
         """Process multiple documents simultaneously to wake up hardware"""
-        print(f"HARDWARE WAKER - Processing {len(file_paths)} files with {self.max_concurrent} concurrent documents!")
-        print("This WILL wake up your CPU and GPU!")
+        self.logger.info(
+            "HARDWARE WAKER - Processing %s files with %s concurrent documents!",
+            len(file_paths),
+            self.max_concurrent
+        )
+        self.logger.info("This WILL wake up your CPU and GPU!")
         
         results = {
             'successful': [],
@@ -846,8 +789,8 @@ class KRMasterPipeline:
             tasks = [process_with_semaphore(file_path, i+1) for i, file_path in enumerate(file_paths)]
             
             # Process all files in parallel - Multiple documents running through all stages simultaneously
-            print(f"Starting HARDWARE WAKER processing of {len(tasks)} files...")
-            print("Multiple documents will be processed simultaneously - CPU and GPU will be busy!")
+            self.logger.info("Starting HARDWARE WAKER processing of %s files...", len(tasks))
+            self.logger.info("Multiple documents will be processed simultaneously - CPU and GPU will be busy!")
             
             # Monitor hardware while processing
             monitor_task = asyncio.create_task(self.monitor_hardware())
@@ -871,7 +814,7 @@ class KRMasterPipeline:
                     results['failed'].append(result)
         
         except Exception as e:
-            print(f"Error in hardware waker processing: {e}")
+            self.logger.error("Error in hardware waker processing: %s", e, exc_info=True)
         
         # Calculate final statistics
         results['end_time'] = time.time()
@@ -889,8 +832,8 @@ class KRMasterPipeline:
         show_detailed_view = False
         
         # PowerShell-optimized initial setup
-        print(f"\n💡 PowerShell Mode: Press 'd' for detailed view, 'q' to quit")
-        print(f"{'='*80}")
+        self.logger.info("💡 PowerShell Mode: Press 'd' for detailed view, 'q' to quit")
+        self.logger.info("%s", "=" * 80)
         
         # Set PowerShell console properties if available
         try:
@@ -963,8 +906,11 @@ class KRMasterPipeline:
                 )
                 
                 # PowerShell-optimized status display
-                # Use carriage return to overwrite the same line
-                print(f"\r{status_line}", end="", flush=True)
+                if self.interactive_console:
+                    # Use carriage return only when interactive console is available
+                    self._console_write(status_line, carriage_return=True)
+                else:
+                    self.logger.info(status_line)
                 
                 # Get current status values
                 current_doc_count = pipeline_status['total_docs']
@@ -976,7 +922,10 @@ class KRMasterPipeline:
                     current_classified_count != last_classified_count or 
                     current_chunk_count != last_chunk_count or
                     show_detailed_view):
-                    print()  # New line before detailed view
+                    if self.interactive_console:
+                        self._console_write("", newline=True)  # New line before detailed view
+                    else:
+                        self.logger.debug("Detailed view triggered for status update")
                 
                 # Check for keyboard input (Windows compatible)
                 try:
@@ -986,7 +935,11 @@ class KRMasterPipeline:
                         if key == 'd':
                             show_detailed_view = True
                         elif key == 'q':
-                            print(f"\n🛑 Monitoring stopped by user")
+                            if self.interactive_console:
+                                self._console_write("", newline=True)
+                                self._console_write("🛑 Monitoring stopped by user", newline=True)
+                            else:
+                                self.logger.info("Monitoring stopped by user")
                             break
                 except:
                     # Fallback: skip keyboard input on non-Windows or if msvcrt not available
@@ -1010,8 +963,7 @@ class KRMasterPipeline:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"Monitor error: {e}")
-                pass
+                self.logger.error("Monitor error: %s", e, exc_info=True)
     
     def _get_gpu_status(self) -> Dict[str, Any]:
         """Get GPU status information"""
@@ -1137,7 +1089,7 @@ class KRMasterPipeline:
             }
             
         except Exception as e:
-            print(f"Pipeline status error: {e}")
+            self.logger.error("Pipeline status error: %s", e, exc_info=True)
             return {
                 'total_docs': 0,
                 'classified_docs': 0,
@@ -1164,16 +1116,38 @@ class KRMasterPipeline:
             except:
                 return 0
     
+    def _console_write(self, message: str, *, newline: bool = False, carriage_return: bool = False):
+        """Write directly to console when running interactively without using print"""
+        if not self.interactive_console:
+            return
+        try:
+            if carriage_return:
+                sys.stdout.write("\r" + message)
+            else:
+                sys.stdout.write(message)
+                if newline:
+                    sys.stdout.write("\n")
+            sys.stdout.flush()
+        except Exception:
+            # Disable further console writes if stdout is not available
+            self.interactive_console = False
+            self.logger.debug("Console write disabled due to error", exc_info=True)
+    
     async def _print_detailed_pipeline_view(self, pipeline_status: Dict[str, Any], error_count: int):
-        """Print detailed pipeline overview with progress bars for each stage (PowerShell optimized)"""
-        print(f"\n{'='*70}")
-        print(f"📊 KR-AI PIPELINE OVERVIEW")
-        print(f"{'='*70}")
+        """Log detailed pipeline overview with progress bars for each stage"""
+        self.logger.info("%s", "=" * 70)
+        self.logger.info("📊 KR-AI PIPELINE OVERVIEW")
+        self.logger.info("%s", "=" * 70)
         
         # Stage 1: Upload
         upload_progress = 100.0 if pipeline_status['total_docs'] > 0 else 0
         upload_bar = "█" * 15 + "░" * 0 if upload_progress == 100 else "░" * 15
-        print(f"📤 Upload:        {upload_bar} {upload_progress:5.1f}% ({pipeline_status['total_docs']} docs)")
+        self.logger.info(
+            "📤 Upload:        %s %5.1f%% (%s docs)",
+            upload_bar,
+            upload_progress,
+            pipeline_status['total_docs']
+        )
         
         # Stage 2: Text Processing
         text_progress = 0
@@ -1183,7 +1157,12 @@ class KRMasterPipeline:
         
         text_bar_length = int((text_progress / 100) * 15)
         text_bar = "█" * text_bar_length + "░" * (15 - text_bar_length)
-        print(f"📄 Text:          {text_bar} {text_progress:5.1f}% ({pipeline_status['total_chunks']:,} chunks)")
+        self.logger.info(
+            "📄 Text:          %s %5.1f%% (%s chunks)",
+            text_bar,
+            text_progress,
+            f"{pipeline_status['total_chunks']:,}"
+        )
         
         # Stage 3: Image Processing
         image_progress = 0
@@ -1193,7 +1172,12 @@ class KRMasterPipeline:
         
         image_bar_length = int((image_progress / 100) * 15)
         image_bar = "█" * image_bar_length + "░" * (15 - image_bar_length)
-        print(f"🖼️  Images:        {image_bar} {image_progress:5.1f}% ({pipeline_status['total_images']:,} images)")
+        self.logger.info(
+            "🖼️  Images:        %s %5.1f%% (%s images)",
+            image_bar,
+            image_progress,
+            f"{pipeline_status['total_images']:,}"
+        )
         
         # Stage 4: Classification
         class_progress = 0
@@ -1202,22 +1186,35 @@ class KRMasterPipeline:
         
         class_bar_length = int((class_progress / 100) * 15)
         class_bar = "█" * class_bar_length + "░" * (15 - class_bar_length)
-        print(f"🏷️  Classification: {class_bar} {class_progress:5.1f}% ({pipeline_status['classified_docs']}/{pipeline_status['total_docs']} docs)")
+        self.logger.info(
+            "🏷️  Classification: %s %5.1f%% (%s/%s docs)",
+            class_bar,
+            class_progress,
+            pipeline_status['classified_docs'],
+            pipeline_status['total_docs']
+        )
         
         # Overall Progress
         overall_bar_length = int((pipeline_status['overall_progress'] / 100) * 20)
         overall_bar = "█" * overall_bar_length + "░" * (20 - overall_bar_length)
-        print(f"\n🎯 OVERALL:       {overall_bar} {pipeline_status['overall_progress']:5.1f}%")
+        self.logger.info(
+            "🎯 OVERALL:       %s %5.1f%%",
+            overall_bar,
+            pipeline_status['overall_progress']
+        )
         
         # Error Status
         if error_count > 0:
-            print(f"❌ ERRORS: {error_count} docs stuck | 💡 Run: python backend/tests/pipeline_recovery.py")
+            self.logger.warning(
+                "❌ ERRORS: %s docs stuck | 💡 Run: python backend/tests/pipeline_recovery.py",
+                error_count
+            )
         
         # Current Activity
         if pipeline_status['current_stage']:
-            print(f"🔄 CURRENT: {pipeline_status['current_stage']}")
+            self.logger.info("🔄 CURRENT: %s", pipeline_status['current_stage'])
         
-        print(f"{'='*70}")
+        self.logger.info("%s", "=" * 70)
     
     def find_pdf_files(self, directory: str, limit: int = None) -> List[str]:
         """Find PDF files in directory with optional limit"""
@@ -1225,17 +1222,17 @@ class KRMasterPipeline:
         
         # Check if directory exists
         if not os.path.exists(directory):
-            print(f"⚠️  Directory not found: {directory}")
+            self.logger.warning("⚠️  Directory not found: %s", directory)
             return []
         
         # Check if directory is empty
         try:
             files_in_dir = os.listdir(directory)
             if not files_in_dir:
-                print(f"⚠️  Directory is empty: {directory}")
+                self.logger.warning("⚠️  Directory is empty: %s", directory)
                 return []
         except Exception as e:
-            print(f"⚠️  Cannot read directory: {directory} - {e}")
+            self.logger.error("⚠️  Cannot read directory: %s", directory, exc_info=True)
             return []
         
         # Supported document formats
@@ -1255,9 +1252,9 @@ class KRMasterPipeline:
             ext = os.path.splitext(file)[1].lower()
             extension_counts[ext] = extension_counts.get(ext, 0) + 1
         
-        print(f"📁 Found {len(pdf_files)} document files in {directory}")
+        self.logger.info("📁 Found %s document files in %s", len(pdf_files), directory)
         for ext, count in extension_counts.items():
-            print(f"   {ext}: {count} files")
+            self.logger.info("   %s: %s files", ext, count)
         
         return sorted(pdf_files)
     
@@ -1273,7 +1270,7 @@ class KRMasterPipeline:
             os.path.join(os.path.dirname(os.getcwd()), "service_documents"),  # Parent + service_documents
         ]
         
-        print("🔍 Searching for service_documents directory...")
+        self.logger.info("🔍 Searching for service_documents directory...")
         
         for path in possible_paths:
             if os.path.exists(path) and os.path.isdir(path):
@@ -1285,100 +1282,112 @@ class KRMasterPipeline:
                     doc_count = sum(1 for f in files if os.path.splitext(f)[1].lower() in supported_extensions)
                     
                     if doc_count > 0:
-                        print(f"✅ Found service_documents with {doc_count} document files: {os.path.abspath(path)}")
+                        self.logger.info(
+                            "✅ Found service_documents with %s document files: %s",
+                            doc_count,
+                            os.path.abspath(path)
+                        )
                         return path
                     else:
-                        print(f"📁 Found directory but no supported documents: {os.path.abspath(path)}")
+                        self.logger.info("📁 Found directory but no supported documents: %s", os.path.abspath(path))
                 except Exception as e:
-                    print(f"⚠️  Cannot read directory {path}: {e}")
+                    self.logger.error("⚠️  Cannot read directory %s", path, exc_info=True)
             else:
-                print(f"❌ Not found: {path}")
+                self.logger.debug("❌ Not found: %s", path)
         
-        print("⚠️  No service_documents directory with PDFs found!")
-        print("💡 Please create a 'service_documents' directory and add PDF files")
+        self.logger.warning("⚠️  No service_documents directory with PDFs found!")
+        self.logger.info("💡 Please create a 'service_documents' directory and add PDF files")
         return None
     
     def print_status_summary(self, results: Dict[str, Any]):
         """Print status summary"""
-        print(f"\n{'='*80}")
-        print(f"KR MASTER PIPELINE SUMMARY")
-        print(f"{'='*80}")
-        print(f"Total Files: {results['total_files']}")
-        print(f"Successful: {len(results['successful'])}")
-        print(f"Failed: {len(results['failed'])}")
-        print(f"Success Rate: {results['success_rate']:.1f}%")
+        self.logger.info("%s", "=" * 80)
+        self.logger.info("KR MASTER PIPELINE SUMMARY")
+        self.logger.info("%s", "=" * 80)
+        self.logger.info("Total Files: %s", results['total_files'])
+        self.logger.info("Successful: %s", len(results['successful']))
+        self.logger.info("Failed: %s", len(results['failed']))
+        self.logger.info("Success Rate: %.1f%%", results['success_rate'])
         if 'duration' in results:
-            print(f"Total Duration: {results['duration']:.1f}s ({results['duration']/60:.1f}m)")
-            print(f"Average per File: {results['duration']/results['total_files']:.1f}s")
-        print(f"{'='*80}")
+            self.logger.info(
+                "Total Duration: %.1fs (%.1fm)",
+                results['duration'],
+                results['duration'] / 60
+            )
+            self.logger.info(
+                "Average per File: %.1fs",
+                results['duration'] / results['total_files']
+            )
+        self.logger.info("%s", "=" * 80)
 
 async def main():
     """Main function with menu system"""
-    print("KR-AI-ENGINE MASTER PIPELINE")
-    print("="*50)
-    print("Ein einziges Script für alle Pipeline-Funktionen!")
-    print("="*50)
-    
-    # Initialize pipeline
     pipeline = KRMasterPipeline()
     await pipeline.initialize_services()
+    logger = pipeline.logger
+
+    logger.info("KR-AI-ENGINE MASTER PIPELINE")
+    logger.info("%s", "=" * 50)
+    logger.info("Ein einziges Script für alle Pipeline-Funktionen!")
+    logger.info("%s", "=" * 50)
     
     while True:
-        print("\nMASTER PIPELINE MENU:")
-        print("1. Status Check - Zeige aktuelle Dokument-Status")
-        print("2. Smart Processing - Nur fehlende Stages verarbeiten")
-        print("3. Hardware Waker - Verarbeite neue Dokumente (CPU/GPU)")
-        print("4. Einzelnes Dokument verarbeiten")
-        print("5. Batch Processing - Alle Dokumente verarbeiten")
-        print("6. Debug - Zeige Pfad-Informationen")
-        print("8. Quality Check - Prüfe Verarbeitungsqualität ⭐ NEW")
-        print("9. Force Smart Processing - Alle Dokumente (mit Quality Check) ⭐ NEW")
-        print("7. Exit")
+        logger.info("")
+        logger.info("MASTER PIPELINE MENU:")
+        logger.info("1. Status Check - Zeige aktuelle Dokument-Status")
+        logger.info("2. Smart Processing - Nur fehlende Stages verarbeiten")
+        logger.info("3. Hardware Waker - Verarbeite neue Dokumente (CPU/GPU)")
+        logger.info("4. Einzelnes Dokument verarbeiten")
+        logger.info("5. Batch Processing - Alle Dokumente verarbeiten")
+        logger.info("6. Debug - Zeige Pfad-Informationen")
+        logger.info("8. Quality Check - Prüfe Verarbeitungsqualität NEW")
+        logger.info("9. Force Smart Processing - Alle Dokumente (mit Quality Check) NEW")
+        logger.info("7. Exit")
         
         choice = input("\nWähle Option (1-9): ").strip()
         
         if choice == "1":
             # Status Check
-            print("\n=== STATUS CHECK ===")
+            logger.info("=== STATUS CHECK ===")
             status = await pipeline.get_documents_status()
-            print(f"Total Documents: {status['total_documents']}")
-            print(f"Completed: {status['completed']}")
-            print(f"Pending: {status['pending']}")
-            print(f"Failed: {status['failed']}")
-            print(f"Processing: {status['processing']}")
+            logger.info("Total Documents: %s", status['total_documents'])
+            logger.info("Completed: %s", status['completed'])
+            logger.info("Pending: %s", status['pending'])
+            logger.info("Failed: %s", status['failed'])
+            logger.info("Processing: %s", status['processing'])
             
         elif choice == "2":
             # Smart Processing - Only Missing Stages
-            print("\n=== SMART PROCESSING - MISSING STAGES ONLY ===")
+            logger.info("=== SMART PROCESSING - MISSING STAGES ONLY ===")
             documents = await pipeline.get_documents_needing_processing()
             
             if not documents:
-                print("Keine Dokumente gefunden die weitere Verarbeitung brauchen!")
+                logger.warning("Keine Dokumente gefunden die weitere Verarbeitung brauchen!")
                 continue
             
-            print(f"Gefunden: {len(documents)} Dokumente - prüfe welche Stages fehlen...")
+            logger.info("Gefunden: %s Dokumente - prüfe welche Stages fehlen...", len(documents))
             
             # Show first few documents with their stage status
-            print("\nErste 5 Dokumente mit Stage-Status:")
+            logger.info("Erste 5 Dokumente mit Stage-Status:")
             for i, doc in enumerate(documents[:5]):
                 stage_status = await pipeline.get_document_stage_status(doc['id'])
                 missing_stages = [stage for stage, completed in stage_status.items() if not completed]
                 status_text = f"Missing: {', '.join(missing_stages)}" if missing_stages else "All complete"
-                print(f"  {i+1}. {doc['filename']} - {status_text}")
+                logger.info("  %s. %s - %s", i + 1, doc['filename'], status_text)
             
             if len(documents) > 5:
-                print(f"  ... und {len(documents) - 5} weitere")
+                logger.info("  ... und %s weitere", len(documents) - 5)
             
             response = input(f"\nSmart Process {len(documents)} Dokumente (nur fehlende Stages)? (y/n): ").lower().strip()
             if response != 'y':
-                print("Smart Processing abgebrochen.")
+                logger.info("Smart Processing abgebrochen.")
                 continue
             
             # Process documents with smart processing
             results = {'successful': [], 'failed': [], 'total_files': len(documents)}
             
             for i, doc in enumerate(documents):
-                print(f"\n[{i+1}/{len(documents)}] Smart Processing: {doc['filename']}")
+                logger.info("[%s/%s] Smart Processing: %s", i + 1, len(documents), doc['filename'])
                 result = await pipeline.process_document_smart_stages(
                     doc['id'], doc['filename'], doc['file_path']
                 )
@@ -1393,19 +1402,19 @@ async def main():
             
         elif choice == "3":
             # Hardware Waker
-            print("\n=== HARDWARE WAKER ===")
+            logger.info("=== HARDWARE WAKER ===")
             
             # Find service_documents directory intelligently
             pdf_directory = pipeline.find_service_documents_directory()
             if not pdf_directory:
-                print("❌ Cannot find service_documents directory with PDFs!")
-                print("💡 Please create a 'service_documents' directory and add PDF files")
+                logger.error(" Cannot find service_documents directory with PDFs!")
+                logger.info(" Please create a 'service_documents' directory and add PDF files")
                 continue
             
-            print("Options:")
-            print("1. Test mit 3 Dokumenten (schneller Test)")
-            print("2. Test mit 5 Dokumenten (mittlerer Test)")
-            print("3. Verarbeite alle Dokumente (vollständig)")
+            logger.info("Options:")
+            logger.info("1. Test mit 3 Dokumenten (schneller Test)")
+            logger.info("2. Test mit 5 Dokumenten (mittlerer Test)")
+            logger.info("3. Verarbeite alle Dokumente (vollständig)")
             
             sub_choice = input("Wähle Option (1-3): ").strip()
             
@@ -1419,16 +1428,16 @@ async def main():
                 pdf_files = pipeline.find_pdf_files(pdf_directory, limit=3)
             
             if not pdf_files:
-                print(f"Keine Dokumente in {pdf_directory} gefunden!")
+                logger.warning("Keine Dokumente in %s gefunden!", pdf_directory)
                 continue
             
-            print(f"\nAusgewählt: {len(pdf_files)} Dokumente für Hardware Waker")
-            print(f"Verarbeite {pipeline.max_concurrent} Dokumente gleichzeitig!")
-            print("Das SOLLTE deine Hardware aufwecken!")
+            logger.info("Ausgewählt: %s Dokumente für Hardware Waker", len(pdf_files))
+            logger.info("Verarbeite %s Dokumente gleichzeitig!", pipeline.max_concurrent)
+            logger.info("Das SOLLTE deine Hardware aufwecken!")
             
             response = input(f"\nWAKE UP HARDWARE und verarbeite {len(pdf_files)} Dokumente? (y/n): ").lower().strip()
             if response != 'y':
-                print("Hardware Waker abgebrochen.")
+                logger.info("Hardware Waker abgebrochen.")
                 continue
             
             # Process batch
@@ -1436,15 +1445,15 @@ async def main():
             pipeline.print_status_summary(results)
             
             # FORCE Smart Processing for all documents (regardless of upload results)
-            print("\n=== FORCED SMART PROCESSING - ALL DOCUMENTS ===")
+            logger.info("=== FORCED SMART PROCESSING - ALL DOCUMENTS ===")
             all_docs = pipeline.database_service.client.table('vw_documents').select('*').execute()
             
             if all_docs.data:
-                print(f"Found {len(all_docs.data)} total documents - forcing smart processing...")
+                logger.info("Found %s total documents - forcing smart processing...", len(all_docs.data))
                 stage_results = {'successful': [], 'failed': [], 'total_files': len(all_docs.data)}
                 
                 for i, doc in enumerate(all_docs.data):
-                    print(f"\n[{i+1}/{len(all_docs.data)}] Forced Smart processing: {doc['filename']}")
+                    logger.info("[%s/%s] Forced Smart processing: %s", i + 1, len(all_docs.data), doc['filename'])
                     # Use absolute path
                     import os
                     file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", doc['filename']))
@@ -1459,66 +1468,66 @@ async def main():
                         stage_results['failed'].append(result)
                 
                 stage_results['success_rate'] = len(stage_results['successful']) / len(all_docs.data) * 100
-                print("\n=== FORCED SMART PROCESSING SUMMARY ===")
+                logger.info("=== FORCED SMART PROCESSING SUMMARY ===")
                 pipeline.print_status_summary(stage_results)
             else:
-                print("No documents found in database!")
+                logger.warning("No documents found in database!")
             
         elif choice == "4":
             # Single Document Processing
-            print("\n=== EINZELNES DOKUMENT ===")
+            logger.info("=== EINZELNES DOKUMENT ===")
             document_id = input("Document ID eingeben: ").strip()
             
             if not document_id:
-                print("Keine Document ID eingegeben.")
+                logger.info("Keine Document ID eingegeben.")
                 continue
             
             # Get document info
             doc_info = await pipeline.database_service.get_document(document_id)
             if not doc_info:
-                print(f"Document {document_id} nicht gefunden!")
+                logger.error("Document %s nicht gefunden!", document_id)
                 continue
             
             filename = doc_info.filename if doc_info.filename else 'Unknown'
             file_path = doc_info.storage_path if doc_info.storage_path else ''
             
-            print(f"Gefunden: {filename}")
-            print(f"File path: {file_path}")
+            logger.info("Gefunden: %s", filename)
+            logger.info("File path: %s", file_path)
             
             response = input(f"\nVerarbeite verbleibende Stages für {filename}? (y/n): ").lower().strip()
             if response != 'y':
-                print("Verarbeitung abgebrochen.")
+                logger.info("Verarbeitung abgebrochen.")
                 continue
             
             result = await pipeline.process_document_remaining_stages(document_id, filename, file_path)
             
             if result['success']:
-                print(f"\n[SUCCESS] Erfolgreich verarbeitet: {result['filename']}!")
-                print(f"Images processed: {result['images']}")
+                logger.info("[SUCCESS] Erfolgreich verarbeitet: %s!", result['filename'])
+                logger.info("Images processed: %s", result['images'])
             else:
-                print(f"\n[FAILED] Fehler bei {result['filename']}: {result['error']}")
+                logger.error("[FAILED] Fehler bei %s: %s", result['filename'], result['error'])
                 
         elif choice == "5":
             # Batch Processing
-            print("\n=== BATCH PROCESSING ===")
+            logger.info("=== BATCH PROCESSING ===")
             
             # Find service_documents directory intelligently
             pdf_directory = pipeline.find_service_documents_directory()
             if not pdf_directory:
-                print("❌ Cannot find service_documents directory with PDFs!")
-                print("💡 Please create a 'service_documents' directory and add PDF files")
+                logger.error(" Cannot find service_documents directory with PDFs!")
+                logger.info(" Please create a 'service_documents' directory and add PDF files")
                 continue
             
             pdf_files = pipeline.find_pdf_files(pdf_directory)
             
             if not pdf_files:
-                print(f"Keine Dokumente in {pdf_directory} gefunden!")
+                logger.warning("Keine Dokumente in %s gefunden!", pdf_directory)
                 continue
             
-            print(f"Gefunden: {len(pdf_files)} Dokumente")
+            logger.info("Gefunden: %s Dokumente", len(pdf_files))
             response = input(f"\nVerarbeite ALLE {len(pdf_files)} Dokumente? (y/n): ").lower().strip()
             if response != 'y':
-                print("Batch Processing abgebrochen.")
+                logger.info("Batch Processing abgebrochen.")
                 continue
             
             results = await pipeline.process_batch_hardware_waker(pdf_files)
@@ -1526,45 +1535,46 @@ async def main():
             
         elif choice == "6":
             # Debug
-            print("\n=== DEBUG INFORMATIONEN ===")
-            print(f"Current Working Directory: {os.getcwd()}")
-            print(f"Script Location: {os.path.abspath(__file__)}")
-            print(f"Script Directory: {os.path.dirname(os.path.abspath(__file__))}")
+            import os
+            logger.info("=== DEBUG INFORMATIONEN ===")
+            logger.info("Current Working Directory: %s", os.getcwd())
+            logger.info("Script Location: %s", os.path.abspath(__file__))
+            logger.info("Script Directory: %s", os.path.dirname(os.path.abspath(__file__)))
             
             # Show file locator information
             pipeline.file_locator.print_debug_info()
             
-            print("\n🔍 Searching for service_documents...")
+            logger.info(" Searching for service_documents...")
             pdf_directory = pipeline.find_service_documents_directory()
             
             if pdf_directory:
-                print(f"\n✅ Service Documents Directory: {os.path.abspath(pdf_directory)}")
+                logger.info(" Service Documents Directory: %s", os.path.abspath(pdf_directory))
                 pdf_files = pipeline.find_pdf_files(pdf_directory)
-                print(f"📁 Document Files found: {len(pdf_files)}")
+                logger.info(" Document Files found: %s", len(pdf_files))
                 if pdf_files:
-                    print("First 5 document files:")
+                    logger.info("First 5 document files:")
                     for i, pdf in enumerate(pdf_files[:5]):
-                        print(f"  {i+1}. {os.path.basename(pdf)}")
+                        logger.info("  %s. %s", i + 1, os.path.basename(pdf))
             else:
-                print("\n❌ No service_documents directory found!")
-                print("💡 Create a 'service_documents' directory and add PDF files")
+                logger.warning(" No service_documents directory found!")
+                logger.info(" Create a 'service_documents' directory and add PDF files")
             
             # Test finding a specific file
-            print("\n🔍 Test File Locator:")
+            logger.info(" Test File Locator:")
             test_filename = input("Enter a filename to search for (or press Enter to skip): ").strip()
             if test_filename:
                 found_path = pipeline.file_locator.find_file(test_filename)
                 if found_path:
-                    print(f"  ✅ Found: {found_path}")
+                    logger.info("  Found: %s", found_path)
                 else:
-                    print(f"  ❌ Not found: {test_filename}")
+                    logger.warning("  Not found: %s", test_filename)
             
         elif choice == "8":
             # Quality Check
-            print("\n=== QUALITY CHECK ===")
-            print("1. Check single document")
-            print("2. Check pipeline health")
-            print("3. Check all documents")
+            logger.info("=== QUALITY CHECK ===")
+            logger.info("1. Check single document")
+            logger.info("2. Check pipeline health")
+            logger.info("3. Check all documents")
             
             qc_choice = input("\nWähle (1-3): ").strip()
             
@@ -1574,30 +1584,30 @@ async def main():
                     docs = await pipeline.get_all_documents()
                     if docs:
                         doc_id = docs[0]['id']
-                        print(f"Using: {docs[0]['filename']}")
+                        logger.info("Using: %s", docs[0]['filename'])
 
                 quality_result = await pipeline.quality_service.check_document_quality(doc_id)
                 pipeline.quality_service.print_quality_report(doc_id, quality_result)
             
             elif qc_choice == "2":
                 health = await pipeline.quality_service.check_pipeline_health()
-                print(f"\nPipeline Status: {health['status'].upper()}")
-                print(f"Documents: {health['checks'].get('documents_count', 0)}")
-                print(f"Content Chunks: {health['checks'].get('content_chunks_count', 0)}")
-                print(f"Intelligence Chunks: {health['checks'].get('intelligence_chunks_count', 0)}")
+                logger.info("Pipeline Status: %s", health['status'].upper())
+                logger.info("Documents: %s", health['checks'].get('documents_count', 0))
+                logger.info("Content Chunks: %s", health['checks'].get('content_chunks_count', 0))
+                logger.info("Intelligence Chunks: %s", health['checks'].get('intelligence_chunks_count', 0))
                 
                 if health['issues']:
-                    print(f"\n❌ Issues:")
+                    logger.error(" Issues:")
                     for issue in health['issues']:
-                        print(f"  {issue}")
+                        logger.error("  %s", issue)
                 
                 if health['warnings']:
-                    print(f"\n⚠️  Warnings:")
+                    logger.warning("  Warnings:")
                     for warning in health['warnings']:
-                        print(f"  {warning}")
+                        logger.warning("  %s", warning)
             
             elif qc_choice == "3":
-                print("\nChecking all documents...")
+                logger.info("Checking all documents...")
                 docs = await pipeline.get_all_documents()
                 total_score = 0
                 passed_count = 0
@@ -1608,23 +1618,23 @@ async def main():
                     if quality_result['passed']:
                         passed_count += 1
                     
-                    status = "✅" if quality_result['passed'] else "⚠️"
-                    print(f"{i+1}. {status} {doc['filename'][:40]:40} Score: {quality_result['score']}/100")
+                    status_icon = " " if quality_result['passed'] else " "
+                    logger.info("%s. %s %s Score: %s/100", i + 1, status_icon, doc['filename'][:40].ljust(40), quality_result['score'])
                 
                 avg_score = total_score / min(len(docs), 10)
-                print(f"\nAverage Quality Score: {avg_score:.1f}/100")
-                print(f"Passed: {passed_count}/{min(len(docs), 10)}")
+                logger.info("Average Quality Score: %.1f/100", avg_score)
+                logger.info("Passed: %s/%s", passed_count, min(len(docs), 10))
         
         elif choice == "9":
             # Force Smart Processing with Quality Check
-            print("\n=== FORCE SMART PROCESSING (with Quality Check) ===")
+            logger.info("=== FORCE SMART PROCESSING (with Quality Check) ===")
             
             docs = await pipeline.get_all_documents()
-            print(f"Found {len(docs)} documents")
+            logger.info("Found %s documents", len(docs))
             
             response = input(f"\nProcess ALL {len(docs)} documents with quality checks? (y/n): ").strip().lower()
             if response != 'y':
-                print("Abgebrochen.")
+                logger.info("Abgebrochen.")
                 continue
             
             quality_scores = []
@@ -1633,12 +1643,12 @@ async def main():
             import os  # Explicit import for this scope
             
             for i, doc in enumerate(docs):
-                print(f"\n[{i+1}/{len(docs)}] {doc['filename']}")
+                logger.info("[%s/%s] %s", i + 1, len(docs), doc['filename'])
                 
                 # Use resolved path from file locator
                 file_path = doc.get('resolved_path')
                 if not file_path:
-                    print(f"  ⚠️  File not found, processing with database data only")
+                    logger.warning("  File not found, processing with database data only")
                     file_path = ""  # Empty path - processors will handle it
                 
                 result = await pipeline.process_document_smart_stages(doc['id'], doc['filename'], file_path)
@@ -1648,22 +1658,22 @@ async def main():
                     quality_scores.append(result.get('quality_score', 0))
             
             # Summary
-            print(f"\n{'='*60}")
-            print(f"📊 QUALITY SUMMARY")
-            print(f"{'='*60}")
-            print(f"Documents Processed: {len(docs)}")
-            print(f"Quality Passed: {passed_count}/{len(docs)} ({passed_count/len(docs)*100:.1f}%)")
+            logger.info("%s", "=" * 60)
+            logger.info(" QUALITY SUMMARY")
+            logger.info("%s", "=" * 60)
+            logger.info("Documents Processed: %s", len(docs))
+            logger.info("Quality Passed: %s/%s (%.1f%%)", passed_count, len(docs), (passed_count / len(docs) * 100) if docs else 0)
             if quality_scores:
-                print(f"Average Score: {sum(quality_scores)/len(quality_scores):.1f}/100")
-            print(f"{'='*60}")
+                logger.info("Average Score: %.1f/100", sum(quality_scores) / len(quality_scores))
+            logger.info("%s", "=" * 60)
         
         elif choice == "7":
-            print("\nExiting...")
-            print("\nAuf Wiedersehen! KR-AI-Engine Master Pipeline beendet.")
+            logger.info("Exiting...")
+            logger.info("Auf Wiedersehen! KR-AI-Engine Master Pipeline beendet.")
             break
             
         else:
-            print("Ungültige Option. Bitte 1-9 wählen.")
+            logger.warning("Ungültige Option. Bitte 1-9 wählen.")
 
 if __name__ == "__main__":
     asyncio.run(main())

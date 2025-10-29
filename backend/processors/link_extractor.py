@@ -16,14 +16,16 @@ from pathlib import Path
 import requests
 from urllib.parse import urlparse, parse_qs
 
+from .logger import get_logger
+
+logger = get_logger(name="krai.link_extractor")
+
 try:
     import pdfplumber
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
-    print("⚠️  pdfplumber not available - PDF link extraction disabled")
-
-from .logger import get_logger
+    logger.warning("pdfplumber not available - PDF link extraction disabled")
 
 
 class LinkExtractor:
