@@ -40,17 +40,21 @@ langdetect>=1.0.9  # Document language detection
 # AI & MACHINE LEARNING
 # ================================
 sentence-transformers>=2.2.0
-transformers>=4.35.0
+transformers>=4.45.0  # Required for ColQwen2.5 model loading
 torch>=2.2.0
 torchvision>=0.17.0
 numpy>=1.24.0
 scikit-learn>=1.3.0
+# Visual Document Embeddings (ColQwen2.5)
+colpali-engine>=0.3.7  # ColQwen2.5 for visual document retrieval
+pdf2image>=1.17.0  # PDF to PIL Image conversion (optional for ColQwen)
 
 # ================================
 # HTTP & API CLIENTS
 # ================================
 httpx>=0.26.0
 aiohttp>=3.8.0
+firecrawl-py>=0.0.16  # Firecrawl SDK for advanced web scraping with JS rendering and LLM extraction
 ollama>=0.1.0
 boto3>=1.34.0
 botocore>=1.34.0
@@ -107,3 +111,12 @@ pytest-asyncio>=0.21.0
 black>=23.0.0
 flake8>=6.0.0
 mypy>=1.7.0
+
+# ================================
+# TESTING & PERFORMANCE ADDITIONAL DEPS
+# ================================
+websockets>=12.0
+locust>=2.20.0
+faker>=24.0.0
+pytest-cov>=4.1.0
+pytest-mock>=3.14.0
