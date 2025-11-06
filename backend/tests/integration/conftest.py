@@ -20,14 +20,14 @@ import uuid
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from backend.services.database_service_production import DatabaseService
-from backend.services.object_storage_service import ObjectStorageService
-from backend.services.storage_factory import create_storage_service
-from backend.services.ai_service import AIService
-from backend.services.config_service import ConfigService
-from backend.services.features_service import FeaturesService
-from backend.services.multimodal_search_service import MultimodalSearchService
-from backend.pipeline.master_pipeline import KRMasterPipeline
+from services.database_service_production import DatabaseService
+from services.object_storage_service import ObjectStorageService
+from services.storage_factory import create_storage_service
+from services.ai_service import AIService
+from services.config_service import ConfigService
+from services.features_service import FeaturesService
+from services.multimodal_search_service import MultimodalSearchService
+from pipeline.master_pipeline import KRMasterPipeline
 
 # Test configuration
 TEST_CONFIG = {

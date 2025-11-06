@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
 
-from backend.models.monitoring import (
+from models.monitoring import (
     Alert,
     HardwareStatus,
     PipelineMetrics,
@@ -17,8 +17,8 @@ from backend.models.monitoring import (
     WebSocketEvent,
     WebSocketMessage,
 )
-from backend.services.auth_service import AuthService
-from backend.services.metrics_service import MetricsService
+from services.auth_service import AuthService
+from services.metrics_service import MetricsService
 
 LOGGER = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ async def websocket_endpoint(
     
     try:
         # Import here to avoid circular dependency
-        from backend.api.app import ensure_auth_service
+        from api.app import ensure_auth_service
         auth_service = ensure_auth_service()
         
         # Validate JWT token
@@ -187,7 +187,7 @@ async def websocket_endpoint(
         
         # Send initial data
         try:
-            from backend.api.app import get_metrics_service
+            from api.app import get_metrics_service
             metrics_service = await get_metrics_service()
             
             pipeline_metrics = await metrics_service.get_pipeline_metrics()

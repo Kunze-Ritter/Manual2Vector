@@ -9,7 +9,7 @@ import os
 import logging
 from typing import Optional
 
-from backend.services.object_storage_service import ObjectStorageService
+from services.object_storage_service import ObjectStorageService
 
 
 logger = logging.getLogger("krai.storage.factory")

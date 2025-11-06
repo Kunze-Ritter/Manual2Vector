@@ -11,7 +11,7 @@ import asyncio
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult, Stage
+from core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult, Stage
 from .stage_tracker import StageTracker
 
 

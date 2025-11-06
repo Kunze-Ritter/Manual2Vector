@@ -67,7 +67,7 @@ def mock_config_service():
 @pytest.fixture
 def mock_web_scraping_service():
     """WebScrapingService in mock mode (no network calls)."""
-    from backend.services.web_scraping_service import create_web_scraping_service
+    from services.web_scraping_service import create_web_scraping_service
     return create_web_scraping_service(backend='firecrawl', config_service=None)
 
 
@@ -452,7 +452,7 @@ def sample_structured_extractions():
 @pytest.fixture
 def mock_link_enrichment_service(mock_database_service, mock_web_scraping_service):
     """Mock LinkEnrichmentService for testing."""
-    from backend.services.link_enrichment_service import LinkEnrichmentService
+    from services.link_enrichment_service import LinkEnrichmentService
     return LinkEnrichmentService(
         database_service=mock_database_service,
         web_scraping_service=mock_web_scraping_service
@@ -462,7 +462,7 @@ def mock_link_enrichment_service(mock_database_service, mock_web_scraping_servic
 @pytest.fixture
 def mock_structured_extraction_service(mock_database_service, mock_web_scraping_service):
     """Mock StructuredExtractionService for testing."""
-    from backend.services.structured_extraction_service import StructuredExtractionService
+    from services.structured_extraction_service import StructuredExtractionService
     return StructuredExtractionService(
         database_service=mock_database_service,
         web_scraping_service=mock_web_scraping_service
@@ -472,7 +472,7 @@ def mock_structured_extraction_service(mock_database_service, mock_web_scraping_
 @pytest.fixture
 def mock_manufacturer_crawler(mock_database_service, mock_web_scraping_service, mock_batch_task_service):
     """Mock ManufacturerCrawler for testing."""
-    from backend.services.manufacturer_crawler import ManufacturerCrawler
+    from services.manufacturer_crawler import ManufacturerCrawler
     return ManufacturerCrawler(
         database_service=mock_database_service,
         web_scraping_service=mock_web_scraping_service,

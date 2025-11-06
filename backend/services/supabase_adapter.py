@@ -25,14 +25,14 @@ except ImportError:
     asyncpg = None
     ASYNCPG_AVAILABLE = False
 
-from backend.core.data_models import (
+from core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
     ErrorCodeModel, SearchAnalyticsModel, ProcessingQueueModel,
     AuditLogModel, SystemMetricsModel, PrintDefectModel
 )
 
-from backend.services.database_adapter import DatabaseAdapter
+from services.database_adapter import DatabaseAdapter
 
 class SupabaseAdapter(DatabaseAdapter):
     """

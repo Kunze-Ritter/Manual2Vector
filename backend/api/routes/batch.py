@@ -9,10 +9,10 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
-from backend.api.app import get_supabase_adapter
-from backend.api.middleware.auth_middleware import require_permission
-from backend.api.routes.response_models import SuccessResponse
-from backend.models.batch import (
+from api.app import get_supabase_adapter
+from api.middleware.auth_middleware import require_permission
+from api.routes.response_models import SuccessResponse
+from models.batch import (
     BatchDeleteRequest,
     BatchOperationRequest,
     BatchOperationResponse,
@@ -26,9 +26,9 @@ from backend.models.batch import (
     RollbackRequest,
     RollbackResponse,
 )
-from backend.services.batch_task_service import BatchTaskService
-from backend.services.transaction_manager import TransactionManager
-from backend.services.supabase_adapter import SupabaseAdapter
+from services.batch_task_service import BatchTaskService
+from services.transaction_manager import TransactionManager
+from services.supabase_adapter import SupabaseAdapter
 
 LOGGER = logging.getLogger("krai.api.batch")
 
@@ -92,7 +92,7 @@ def _get_resource_permission(resource_type: str, action: str) -> str:
 
 
 async def _get_services(supabase: SupabaseAdapter) -> Dict[str, Any]:
-    from backend.api.app import get_batch_task_service, get_transaction_manager  # Circular import guard
+    from api.app import get_batch_task_service, get_transaction_manager  # Circular import guard
 
     task_service = await get_batch_task_service()
     transaction_manager = await get_transaction_manager()

@@ -5,7 +5,7 @@ Detects and creates product series, links products to series.
 
 from typing import Dict, Optional
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .imports import get_supabase_client
 from utils.series_detector import detect_series
 

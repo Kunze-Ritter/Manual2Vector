@@ -12,7 +12,7 @@ import contextlib
 import logging
 from uuid import UUID
 
-from backend.processors.logger import get_logger
+from processors.logger import get_logger
 
 class ProcessingStatus(Enum):
     """Processing status enumeration"""

@@ -42,8 +42,8 @@ def _load_env_files() -> None:
 _load_env_files()
 
 # Import after environment loading and path setup
-from backend.api.dependencies.auth_factory import create_auth_service
-from backend.services.auth_service import AuthenticationError, AuthService
+from api.dependencies.auth_factory import create_auth_service
+from services.auth_service import AuthenticationError, AuthService
 
 # Default admin user details
 DEFAULT_ADMIN_EMAIL = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")

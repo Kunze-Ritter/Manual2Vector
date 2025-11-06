@@ -10,7 +10,7 @@ import os
 import logging
 from typing import Optional
 
-from backend.services.database_adapter import DatabaseAdapter
+from services.database_adapter import DatabaseAdapter
 
 
 logger = logging.getLogger("krai.database.factory")
@@ -114,7 +114,7 @@ def _create_supabase_adapter(
     postgres_url: Optional[str] = None
 ) -> DatabaseAdapter:
     """Create a Supabase adapter with configuration from parameters or environment."""
-    from backend.services.supabase_adapter import SupabaseAdapter
+    from services.supabase_adapter import SupabaseAdapter
     
     # Get configuration from parameters or environment
     url = supabase_url or os.getenv("SUPABASE_URL")
@@ -150,7 +150,7 @@ def _create_postgresql_adapter(
     schema_prefix: Optional[str] = None
 ) -> DatabaseAdapter:
     """Create a PostgreSQL adapter with configuration from parameters or environment."""
-    from backend.services.postgresql_adapter import PostgreSQLAdapter
+    from services.postgresql_adapter import PostgreSQLAdapter
     
     # Get configuration from parameters or environment
     pg_url = postgres_url or os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL")

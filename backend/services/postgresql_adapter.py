@@ -7,7 +7,9 @@ No Supabase dependencies - uses only asyncpg for database access.
 
 import logging
 import json
-from typing import Dict, List, Optional, Any
+import re
+from types import SimpleNamespace
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 
 try:
@@ -16,13 +18,13 @@ try:
 except ImportError:
     raise ImportError("asyncpg not available. Please install: pip install asyncpg")
 
-from backend.core.data_models import (
+from core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
     ErrorCodeModel, SearchAnalyticsModel, ProcessingQueueModel,
     AuditLogModel, SystemMetricsModel, PrintDefectModel
 )
-from backend.services.database_adapter import DatabaseAdapter
+from services.database_adapter import DatabaseAdapter
 
 
 class PostgreSQLAdapter(DatabaseAdapter):
@@ -49,6 +51,87 @@ class PostgreSQLAdapter(DatabaseAdapter):
         if self.pg_pool is None:
             raise RuntimeError("PostgreSQL connection pool is not initialized. Call connect() first.")
         return self.pg_pool
+
+    def _prepare_query(self, query: str, params: Optional[Any]) -> Tuple[str, List[Any]]:
+        """Convert named (":param") or psycopg-style ("%s") placeholders to asyncpg positional ones."""
+
+        if params is None:
+            return query, []
+
+        # Handle sequence parameters (assume positional order)
+        if isinstance(params, (list, tuple)):
+            values = list(params)
+            # Convert psycopg %s placeholders to $1, $2, ...
+            if "%s" in query:
+                placeholder_pattern = re.compile(r"%s")
+                index = 0
+
+                def repl(_):
+                    nonlocal index
+                    index += 1
+                    return f"${index}"
+
+                query = placeholder_pattern.sub(repl, query)
+            return query, values
+
+        # Handle single scalar parameter
+        if not isinstance(params, dict):
+            return query, [params]
+
+        # Named parameters
+        pattern = re.compile(r":([a-zA-Z0-9_]+)")
+        values: List[Any] = []
+        index_map: Dict[str, int] = {}
+
+        def replace(match: re.Match) -> str:
+            name = match.group(1)
+            if name not in params:
+                raise KeyError(f"Parameter '{name}' not provided for query")
+            if name not in index_map:
+                index_map[name] = len(values) + 1
+                values.append(params[name])
+            return f"${index_map[name]}"
+
+        query = pattern.sub(replace, query)
+        return query, values
+
+    async def fetch_one(self, query: str, params: Optional[Any] = None):
+        """Execute query and return a single row."""
+        pool = self._ensure_pool()
+        formatted_query, values = self._prepare_query(query, params)
+        async with pool.acquire() as conn:
+            return await conn.fetchrow(formatted_query, *values)
+
+    async def fetch_all(self, query: str, params: Optional[Any] = None) -> List[Any]:
+        """Execute query and return all rows."""
+        pool = self._ensure_pool()
+        formatted_query, values = self._prepare_query(query, params)
+        async with pool.acquire() as conn:
+            return await conn.fetch(formatted_query, *values)
+
+    async def execute_query(self, query: str, params: Optional[Any] = None):
+        """Execute arbitrary SQL query supporting SELECT and mutation statements."""
+        pool = self._ensure_pool()
+        formatted_query, values = self._prepare_query(query, params)
+        lower_query = formatted_query.lstrip().lower()
+
+        async with pool.acquire() as conn:
+            # Return rows for SELECT/RETURNING/CTE statements
+            if lower_query.startswith(("select", "with")) or " returning " in lower_query:
+                return await conn.fetch(formatted_query, *values)
+
+            status = await conn.execute(formatted_query, *values)
+
+            # Extract rowcount from command tag (e.g., "UPDATE 1")
+            rowcount = 0
+            try:
+                parts = status.split()
+                if parts and parts[-1].isdigit():
+                    rowcount = int(parts[-1])
+            except Exception:  # pragma: no cover - fallback safety
+                rowcount = 0
+
+            return SimpleNamespace(status=status, rowcount=rowcount)
 
     def _prepare_insert(self, data: Dict[str, Any]) -> tuple[list[str], list[str], list[Any]]:
         columns = list(data.keys())

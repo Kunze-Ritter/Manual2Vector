@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
 import hashlib
 
-from backend.services.manufacturer_crawler import ManufacturerCrawler
+from services.manufacturer_crawler import ManufacturerCrawler
 
 
 pytest.mark.unit = pytest.mark.unit

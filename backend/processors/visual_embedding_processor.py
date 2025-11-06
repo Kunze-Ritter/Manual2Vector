@@ -30,8 +30,8 @@ except ImportError:
     COLPALI_AVAILABLE = False
     logging.warning("colpali-engine not available - visual embeddings disabled")
 
-from backend.core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
-from backend.config.ai_config import get_ai_config
+from core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
+from config.ai_config import get_ai_config
 
 
 class VisualEmbeddingProcessor(BaseProcessor):

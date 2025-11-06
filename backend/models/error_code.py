@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, PositiveInt, model_validator
 
-from backend.models.document import DocumentResponse, SortOrder
-from backend.models.manufacturer import ManufacturerResponse
+from models.document import DocumentResponse, SortOrder
+from models.manufacturer import ManufacturerResponse
 
 
 class SeverityLevel(str, Enum):

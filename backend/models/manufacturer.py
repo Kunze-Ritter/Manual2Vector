@@ -10,7 +10,7 @@ from typing import Dict, Optional, Union
 
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, root_validator, validator
 
-from backend.models.product import ProductListResponse, ProductWithRelationsResponse
+from models.product import ProductListResponse, ProductWithRelationsResponse
 
 
 class SortOrder(str, Enum):

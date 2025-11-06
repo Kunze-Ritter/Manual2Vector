@@ -12,16 +12,16 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 import json
 
-from backend.services.web_scraping_service import (
+from services.web_scraping_service import (
     WebScrapingService,
     FirecrawlBackend,
     BeautifulSoupBackend,
     FirecrawlUnavailableError,
     create_web_scraping_service
 )
-from backend.services.link_enrichment_service import LinkEnrichmentService
-from backend.services.structured_extraction_service import StructuredExtractionService
-from backend.services.manufacturer_crawler import ManufacturerCrawler
+from services.link_enrichment_service import LinkEnrichmentService
+from services.structured_extraction_service import StructuredExtractionService
+from services.manufacturer_crawler import ManufacturerCrawler
 
 
 pytest.mark.unit = pytest.mark.unit

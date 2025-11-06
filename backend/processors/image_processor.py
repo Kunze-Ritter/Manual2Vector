@@ -37,11 +37,11 @@ from PIL import Image, ImageOps
 import fitz  # PyMuPDF
 from datetime import datetime
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
-from backend.pipeline.metrics import metrics
-from backend.processors.logger import sanitize_document_name, text_stats
-from backend.services.context_extraction_service import ContextExtractionService
+from pipeline.metrics import metrics
+from processors.logger import sanitize_document_name, text_stats
+from services.context_extraction_service import ContextExtractionService
 
 
 class ImageProcessor(BaseProcessor):

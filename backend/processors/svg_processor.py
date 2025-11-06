@@ -18,7 +18,7 @@ from PIL import Image
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 
-from backend.core.base_processor import BaseProcessor, Stage, ProcessingResult, ProcessingStatus, ProcessingError, ProcessingContext
+from core.base_processor import BaseProcessor, Stage, ProcessingResult, ProcessingStatus, ProcessingError, ProcessingContext
 
 
 class SVGProcessor(BaseProcessor):

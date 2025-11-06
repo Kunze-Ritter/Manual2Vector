@@ -32,10 +32,10 @@ from requests import exceptions as requests_exceptions
 from urllib3.util.retry import Retry
 from datetime import datetime, timezone
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
-from backend.pipeline.metrics import metrics
-from backend.processors.logger import text_stats
+from pipeline.metrics import metrics
+from processors.logger import text_stats
 
 
 class EmbeddingProcessor(BaseProcessor):

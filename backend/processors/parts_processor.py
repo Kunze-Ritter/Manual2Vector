@@ -9,7 +9,7 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import sys
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
 from .imports import get_supabase_client, extract_parts_with_context
 

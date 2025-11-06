@@ -11,18 +11,18 @@ from typing import Dict, Any, List, Optional
 from passlib.context import CryptContext
 
 # Import models and config
-from backend.models.user import (
+from models.user import (
     UserCreate, UserLogin, UserUpdate, UserResponse, UserListResponse,
     Token, TokenPayload, AuthResponse, UserRole, UserStatus,
     generate_user_id, generate_jti
 )
-from backend.config.auth_config import (
+from config.auth_config import (
     get_jwt_config, get_jwt_validator, ACCESS_TOKEN, REFRESH_TOKEN,
     CLAIM_USER_ID, CLAIM_EMAIL, CLAIM_ROLE, CLAIM_TOKEN_TYPE, CLAIM_JTI
 )
 
 # Import database service
-from backend.services.database_service import DatabaseService
+from services.database_service import DatabaseService
 
 # Setup logging
 logger = logging.getLogger("krai.auth.service")

@@ -261,7 +261,7 @@ def test_jwt_functionality():
     """Test JWT functionality (for development only)"""
     try:
         import json
-        from backend.models.user import generate_jti
+        from models.user import generate_jti
         
         # Test payload
         test_payload = {

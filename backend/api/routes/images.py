@@ -11,11 +11,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 from pydantic import BaseModel
 from supabase import Client
 
-from backend.api.app import get_supabase
-from backend.api.middleware.auth_middleware import require_permission
-from backend.api.routes.response_models import ErrorResponse, SuccessResponse
-from backend.models.document import DocumentResponse, PaginationParams, SortOrder
-from backend.models.image import (
+from api.app import get_supabase
+from api.middleware.auth_middleware import require_permission
+from api.routes.response_models import ErrorResponse, SuccessResponse
+from models.document import DocumentResponse, PaginationParams, SortOrder
+from models.image import (
     BucketType,
     ImageCreateRequest,
     ImageFilterParams,
@@ -28,8 +28,8 @@ from backend.models.image import (
     ImageUploadResponse,
     ImageWithRelationsResponse,
 )
-from backend.services.object_storage_service import ObjectStorageService
-from backend.services.storage_factory import create_storage_service
+from services.object_storage_service import ObjectStorageService
+from services.storage_factory import create_storage_service
 
 LOGGER = logging.getLogger("krai.api.images")
 
@@ -189,7 +189,7 @@ def _build_relations(
     chunk = _fetch_chunk(supabase, record.get("chunk_id"))
     chunk_payload = None
     if chunk:
-        from backend.models.image import ChunkSnippet
+        from models.image import ChunkSnippet
 
         chunk_payload = ChunkSnippet(**chunk)
 

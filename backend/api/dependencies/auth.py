@@ -1,7 +1,7 @@
 """Auth-related dependency helpers."""
 from typing import Optional
 
-from backend.services.auth_service import AuthService
+from services.auth_service import AuthService
 
 _auth_service: Optional[AuthService] = None
 

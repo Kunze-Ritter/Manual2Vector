@@ -20,8 +20,8 @@ try:
 except Exception:
     croniter = None
 
-from backend.services.config_service import ConfigService
-from backend.services.web_scraping_service import FirecrawlUnavailableError, WebScrapingService
+from services.config_service import ConfigService
+from services.web_scraping_service import FirecrawlUnavailableError, WebScrapingService
 
 
 class ManufacturerCrawler:

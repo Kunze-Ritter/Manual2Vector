@@ -15,17 +15,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, EmailStr
 
 # Import services and models
-from backend.services.auth_service import AuthService, AuthenticationError, AuthorizationError, RateLimitError
-from backend.models.user import (
+from services.auth_service import AuthService, AuthenticationError, AuthorizationError, RateLimitError
+from models.user import (
     UserCreate, UserLogin, AuthResponse, UserResponse, UserUpdate, 
     UserListResponse, UserRole, UserStatus
 )
-from backend.api.dependencies.auth import get_auth_service, set_auth_service
-from backend.api.middleware.auth_middleware import (
+from api.dependencies.auth import get_auth_service, set_auth_service
+from api.middleware.auth_middleware import (
     get_current_user, require_admin, require_permission
 )
-from backend.services.database_service import DatabaseService
-from backend.config.auth_config import ACCESS_TOKEN
+from services.database_service import DatabaseService
+from config.auth_config import ACCESS_TOKEN
 
 logger = logging.getLogger("krai.api.auth")
 
@@ -70,7 +70,7 @@ class ChangePasswordRequest(BaseModel):
 
 class UserCreateRequest(UserCreate):
     """Create user request model (admin only)"""
-    role: UserRole = Field(default=UserRole.USER, description="User role")
+    role: UserRole = Field(default=UserRole.VIEWER, description="User role")
     is_active: bool = Field(default=True, description="Whether the user is active")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="User status")
 

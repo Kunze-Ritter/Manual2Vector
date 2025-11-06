@@ -10,7 +10,7 @@ import re
 from typing import Any, Dict, Optional
 from pathlib import Path
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .document_type_detector import DocumentTypeDetector
 from utils.manufacturer_normalizer import normalize_manufacturer
 

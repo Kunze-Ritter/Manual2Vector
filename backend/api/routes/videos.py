@@ -10,13 +10,13 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
-from backend.api.app import get_supabase
-from backend.api.middleware.auth_middleware import require_permission
-from backend.api.routes.response_models import ErrorResponse, SuccessResponse
-from backend.models.document import DocumentResponse, PaginationParams, SortOrder
-from backend.models.manufacturer import ManufacturerResponse
-from backend.models.product import ProductListResponse, ProductResponse, ProductSeriesResponse
-from backend.models.video import (
+from api.app import get_supabase
+from api.middleware.auth_middleware import require_permission
+from api.routes.response_models import ErrorResponse, SuccessResponse
+from models.document import DocumentResponse, PaginationParams, SortOrder
+from models.manufacturer import ManufacturerResponse
+from models.product import ProductListResponse, ProductResponse, ProductSeriesResponse
+from models.video import (
     VideoCreateRequest,
     VideoEnrichmentRequest,
     VideoEnrichmentResponse,
@@ -28,7 +28,7 @@ from backend.models.video import (
     VideoUpdateRequest,
     VideoWithRelationsResponse,
 )
-from backend.services.video_enrichment_service import VideoEnrichmentService
+from services.video_enrichment_service import VideoEnrichmentService
 
 LOGGER = logging.getLogger("krai.api.videos")
 

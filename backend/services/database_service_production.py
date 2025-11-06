@@ -10,7 +10,7 @@ DEPRECATED: Use database_factory.create_database_adapter() for new code.
 import logging
 from typing import Optional
 
-from backend.services.supabase_adapter import SupabaseAdapter
+from services.supabase_adapter import SupabaseAdapter
 
 
 logger = logging.getLogger("krai.database.compat")

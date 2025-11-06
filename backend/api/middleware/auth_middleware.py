@@ -11,10 +11,10 @@ from typing import Optional, Dict, Any, List, Callable, Awaitable
 from fastapi import Request, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.api.dependencies.auth import get_auth_service
-from backend.services.auth_service import AuthService
-from backend.models.user import UserRole, UserStatus
-from backend.config.auth_config import (
+from api.dependencies.auth import get_auth_service
+from services.auth_service import AuthService
+from models.user import UserRole, UserStatus
+from config.auth_config import (
     get_jwt_config, get_jwt_validator, ACCESS_TOKEN, REFRESH_TOKEN,
     CLAIM_USER_ID, CLAIM_EMAIL, CLAIM_ROLE, CLAIM_TOKEN_TYPE, CLAIM_JTI, CLAIM_EXP
 )

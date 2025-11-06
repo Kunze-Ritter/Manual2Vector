@@ -9,8 +9,8 @@ import logging
 import asyncio
 from typing import List, Dict, Any, Optional
 
-from backend.services.database_service import DatabaseService
-from backend.services.ai_service import AIService
+from services.database_service import DatabaseService
+from services.ai_service import AIService
 
 
 class MultimodalSearchService:

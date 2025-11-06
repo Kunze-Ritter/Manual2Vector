@@ -20,18 +20,18 @@ import json
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from backend.services.database_service_production import DatabaseService
-from backend.services.object_storage_service import ObjectStorageService
-from backend.services.storage_factory import create_storage_service
-from backend.services.ai_service import AIService
-from backend.services.config_service import ConfigService
-from backend.services.features_service import FeaturesService
-from backend.services.quality_check_service import QualityCheckService
-from backend.services.context_extraction_service import ContextExtractionService
-from backend.services.multimodal_search_service import MultimodalSearchService
+from services.database_service_production import DatabaseService
+from services.object_storage_service import ObjectStorageService
+from services.storage_factory import create_storage_service
+from services.ai_service import AIService
+from services.config_service import ConfigService
+from services.features_service import FeaturesService
+from services.quality_check_service import QualityCheckService
+from services.context_extraction_service import ContextExtractionService
+from services.multimodal_search_service import MultimodalSearchService
 
-from backend.pipeline.master_pipeline import KRMasterPipeline
-from backend.core.base_processor import ProcessingContext
+from pipeline.master_pipeline import KRMasterPipeline
+from core.base_processor import ProcessingContext
 
 # Configure logging
 logger = logging.getLogger(__name__)

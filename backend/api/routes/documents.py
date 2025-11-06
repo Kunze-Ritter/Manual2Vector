@@ -11,9 +11,9 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
 
-from backend.api.app import get_supabase
-from backend.api.middleware.auth_middleware import require_permission
-from backend.models.document import (
+from api.app import get_supabase
+from api.middleware.auth_middleware import require_permission
+from models.document import (
     DocumentCreateRequest,
     DocumentListResponse,
     DocumentResponse,
@@ -24,7 +24,7 @@ from backend.models.document import (
     PaginationParams,
     DocumentFilterParams,
 )
-from backend.api.routes.response_models import ErrorResponse, SuccessResponse
+from api.routes.response_models import ErrorResponse, SuccessResponse
 from pydantic import BaseModel
 
 LOGGER = logging.getLogger("krai.api.documents")

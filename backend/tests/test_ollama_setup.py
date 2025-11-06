@@ -12,8 +12,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.utils.gpu_detector import get_gpu_info, print_gpu_info
-from backend.utils.colored_logging import apply_colored_logging_globally, success, error, warning, info
+from utils.gpu_detector import get_gpu_info, print_gpu_info
+from utils.colored_logging import apply_colored_logging_globally, success, error, warning, info
 import httpx
 
 # Setup colored logging

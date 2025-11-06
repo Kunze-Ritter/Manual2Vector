@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.processors.text_extractor import extract_text_from_pdf
-from backend.processors.error_code_extractor import ErrorCodeExtractor
+from processors.text_extractor import extract_text_from_pdf
+from processors.error_code_extractor import ErrorCodeExtractor
 from uuid import uuid4
 import re
 

@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
-from backend.models.batch import (
+from models.batch import (
     BatchOperationResult,
     BatchOperationResultStatus,
     BatchTaskRequest,
@@ -353,4 +353,4 @@ class BatchTaskService:
 
 
 # Circular import guard
-from backend.services.supabase_adapter import SupabaseAdapter  # noqa: E402, F401  # isort:skip
+from services.supabase_adapter import SupabaseAdapter  # noqa: E402, F401  # isort:skip

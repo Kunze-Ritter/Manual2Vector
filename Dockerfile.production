@@ -27,6 +27,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application code
 COPY backend/ /app/
 COPY scripts/ /app/scripts/
+COPY main.py /app/main.py
 COPY .env /app/.env
 
 # Create necessary directories
@@ -39,12 +40,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run with gunicorn
-CMD ["gunicorn", "main:app", \
-     "--workers", "4", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000", \
-     "--log-level", "info", \
-     "--access-logfile", "/app/logs/access.log", \
-     "--error-logfile", "/app/logs/error.log", \
-     "--timeout", "300"]
+# Default command (can be overridden)
+CMD ["python", "main.py"]

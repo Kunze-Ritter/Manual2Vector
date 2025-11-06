@@ -8,7 +8,7 @@ Designed for local development with Docker Compose.
 import logging
 from typing import Optional
 
-from backend.services.postgresql_adapter import PostgreSQLAdapter
+from services.postgresql_adapter import PostgreSQLAdapter
 
 
 class DockerPostgreSQLAdapter(PostgreSQLAdapter):

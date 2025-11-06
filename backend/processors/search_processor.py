@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 import time
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
 from .search_analytics import SearchAnalytics
 

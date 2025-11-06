@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 import logging
 
-from backend.core.data_models import (
+from core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
     ErrorCodeModel, SearchAnalyticsModel, ProcessingQueueModel,

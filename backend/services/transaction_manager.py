@@ -14,7 +14,7 @@ try:
 except ImportError:  # pragma: no cover - asyncpg optional
     asyncpg = None  # type: ignore
 
-from backend.models.batch import (
+from models.batch import (
     BatchOperationResponse,
     BatchOperationResult,
     BatchOperationResultStatus,
@@ -307,4 +307,4 @@ class TransactionManager:
 
 
 # Circular import avoidance: SupabaseAdapter is only needed for type checking.
-from backend.services.supabase_adapter import SupabaseAdapter  # noqa: E402  # isort:skip
+from services.supabase_adapter import SupabaseAdapter  # noqa: E402  # isort:skip

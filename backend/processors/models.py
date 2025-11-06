@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from uuid import UUID, uuid4
-from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
+from constants.product_types import ALLOWED_PRODUCT_TYPES
 
 
 class ExtractedProduct(BaseModel):

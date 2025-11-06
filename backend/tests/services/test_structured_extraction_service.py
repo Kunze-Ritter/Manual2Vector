@@ -13,7 +13,7 @@ from pathlib import Path
 import json
 import tempfile
 
-from backend.services.structured_extraction_service import StructuredExtractionService
+from services.structured_extraction_service import StructuredExtractionService
 
 
 pytest.mark.unit = pytest.mark.unit

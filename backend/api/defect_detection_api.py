@@ -9,9 +9,9 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from datetime import datetime
 
-from backend.core.data_models import DefectDetectionRequest, DefectDetectionResponse
-from backend.services.ai_service import AIService
-from backend.services.database_service import DatabaseService
+from core.data_models import DefectDetectionRequest, DefectDetectionResponse
+from services.ai_service import AIService
+from services.database_service import DatabaseService
 
 class DefectDetectionAPI:
     """

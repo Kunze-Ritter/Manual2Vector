@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 from uuid import UUID
 import hashlib
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .text_extractor import TextExtractor
 from .chunker import SmartChunker
 from .models import TextChunk

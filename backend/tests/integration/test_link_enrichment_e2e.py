@@ -11,8 +11,8 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
 import hashlib
 
-from backend.services.link_enrichment_service import LinkEnrichmentService
-from backend.services.web_scraping_service import WebScrapingService, FirecrawlUnavailableError
+from services.link_enrichment_service import LinkEnrichmentService
+from services.web_scraping_service import WebScrapingService, FirecrawlUnavailableError
 
 
 pytest.mark.integration = pytest.mark.integration

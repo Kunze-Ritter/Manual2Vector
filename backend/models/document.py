@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, root_validator, validator
 
-from backend.core.data_models import DocumentType, ProcessingStatus
+from core.data_models import DocumentType, ProcessingStatus
 
 
 class PaginationParams(BaseModel):

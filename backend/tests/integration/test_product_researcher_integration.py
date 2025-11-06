@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
 import json
 
-from backend.research.product_researcher import ProductResearcher
+from research.product_researcher import ProductResearcher
 
 
 pytest.mark.integration = pytest.mark.integration

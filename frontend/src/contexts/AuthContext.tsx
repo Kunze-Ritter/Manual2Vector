@@ -20,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const authStore = useAuthStore()
+  const isMountedRef = useRef(true)
 
   // Load user from database if token exists
   const { data: currentUserData, isLoading: isUserLoading } = useQuery({
@@ -32,14 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Update store when user data is loaded
   useEffect(() => {
-    const isMounted = useRef(true)
-    
-    if (currentUserData?.data?.user && isMounted.current) {
+    if (currentUserData?.data?.user && isMountedRef.current) {
       authStore.setUser(currentUserData.data.user)
     }
-    
+
     return () => {
-      isMounted.current = false
+      isMountedRef.current = false
     }
   }, [currentUserData, authStore])
 

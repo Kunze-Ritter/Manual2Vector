@@ -15,14 +15,14 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 from pydantic import BaseModel
 
-from backend.core.data_models import (
+from core.data_models import (
     SearchRequest, SearchResponse,
     MultimodalSearchRequest, MultimodalSearchResponse,
     TwoStageSearchRequest, TwoStageSearchResponse
 )
-from backend.services.database_service import DatabaseService
-from backend.services.ai_service import AIService
-from backend.services.multimodal_search_service import MultimodalSearchService
+from services.database_service import DatabaseService
+from services.ai_service import AIService
+from services.multimodal_search_service import MultimodalSearchService
 
 # Create router
 router = APIRouter(prefix="/search", tags=["search"])
@@ -37,7 +37,7 @@ class ImageContextSearchRequest(BaseModel):
 def get_database_service() -> DatabaseService:
     """Get database service instance"""
     # This will be overridden by app.py with proper dependency injection
-    from backend.api.app import get_supabase
+    from api.app import get_supabase
     return DatabaseService(get_supabase())
 
 def get_ai_service() -> AIService:

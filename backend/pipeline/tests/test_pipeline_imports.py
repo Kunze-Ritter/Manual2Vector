@@ -25,7 +25,7 @@ class TestPipelineImports:
     def test_import_master_pipeline(self):
         """Test that master_pipeline.py can be imported without errors"""
         try:
-            from backend.pipeline import master_pipeline
+            from pipeline import master_pipeline
             assert master_pipeline is not None
         except ImportError as e:
             pytest.fail(f"Failed to import master_pipeline: {e}")
@@ -33,7 +33,7 @@ class TestPipelineImports:
     def test_import_smart_processor(self):
         """Test that smart_processor.py can be imported without errors"""
         try:
-            from backend.pipeline import smart_processor
+            from pipeline import smart_processor
             assert smart_processor is not None
         except ImportError as e:
             pytest.fail(f"Failed to import smart_processor: {e}")
@@ -92,7 +92,7 @@ class TestPipelineInitialization:
     @pytest.mark.asyncio
     async def test_master_pipeline_initialization(self, mock_services):
         """Test that KRMasterPipeline can be initialized with mocked services"""
-        from backend.pipeline.master_pipeline import KRMasterPipeline
+        from pipeline.master_pipeline import KRMasterPipeline
         
         # Mock environment variables
         with patch.dict(os.environ, {
@@ -158,7 +158,7 @@ class TestPipelineInitialization:
     
     def test_processor_integrity_check(self):
         """Test that processor integrity check works correctly"""
-        from backend.pipeline.master_pipeline import KRMasterPipeline
+        from pipeline.master_pipeline import KRMasterPipeline
         
         pipeline = KRMasterPipeline()
         
@@ -189,16 +189,16 @@ class TestPipelineInitialization:
     
     def test_all_processors_have_process_method(self):
         """Test that all processor classes have a process() method"""
-        from backend.processors.upload_processor import UploadProcessor
-        from backend.processors.text_processor_optimized import OptimizedTextProcessor
-        from backend.processors.image_processor import ImageProcessor
-        from backend.processors.classification_processor import ClassificationProcessor
-        from backend.processors.chunk_preprocessor import ChunkPreprocessor
-        from backend.processors.metadata_processor_ai import MetadataProcessorAI
-        from backend.processors.link_extraction_processor_ai import LinkExtractionProcessorAI
-        from backend.processors.storage_processor import StorageProcessor
-        from backend.processors.embedding_processor import EmbeddingProcessor
-        from backend.processors.search_processor import SearchProcessor
+        from processors.upload_processor import UploadProcessor
+        from processors.text_processor_optimized import OptimizedTextProcessor
+        from processors.image_processor import ImageProcessor
+        from processors.classification_processor import ClassificationProcessor
+        from processors.chunk_preprocessor import ChunkPreprocessor
+        from processors.metadata_processor_ai import MetadataProcessorAI
+        from processors.link_extraction_processor_ai import LinkExtractionProcessorAI
+        from processors.storage_processor import StorageProcessor
+        from processors.embedding_processor import EmbeddingProcessor
+        from processors.search_processor import SearchProcessor
         
         processors = [
             UploadProcessor,

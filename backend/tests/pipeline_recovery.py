@@ -13,18 +13,18 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path))
 
-from backend.services.database_service_production import DatabaseService
-from backend.processors.classification_processor import ClassificationProcessor
-from backend.processors.image_processor import ImageProcessor
-from backend.processors.metadata_processor import MetadataProcessor
-from backend.processors.storage_processor import StorageProcessor
-from backend.processors.embedding_processor import EmbeddingProcessor
-from backend.processors.search_processor import SearchProcessor
-from backend.services.ai_service import AIService
-from backend.services.object_storage_service import ObjectStorageService
-from backend.services.storage_factory import create_storage_service
-from backend.config.ai_config import ConfigService
-from backend.core.data_models import ProcessingContext
+from services.database_service_production import DatabaseService
+from processors.classification_processor import ClassificationProcessor
+from processors.image_processor import ImageProcessor
+from processors.metadata_processor import MetadataProcessor
+from processors.storage_processor import StorageProcessor
+from processors.embedding_processor import EmbeddingProcessor
+from processors.search_processor import SearchProcessor
+from services.ai_service import AIService
+from services.object_storage_service import ObjectStorageService
+from services.storage_factory import create_storage_service
+from config.ai_config import ConfigService
+from core.data_models import ProcessingContext
 
 class PipelineRecovery:
     def __init__(self):

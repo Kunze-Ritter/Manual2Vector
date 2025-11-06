@@ -10,13 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from supabase import Client
 
-from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
-from backend.api.app import get_supabase
-from backend.api.middleware.auth_middleware import require_permission
-from backend.api.routes.response_models import ErrorResponse, SuccessResponse
-from backend.models.document import PaginationParams
-from backend.models.manufacturer import ManufacturerResponse
-from backend.models.product import (
+from constants.product_types import ALLOWED_PRODUCT_TYPES
+from api.app import get_supabase
+from api.middleware.auth_middleware import require_permission
+from api.routes.response_models import ErrorResponse, SuccessResponse
+from models.document import PaginationParams
+from models.manufacturer import ManufacturerResponse
+from models.product import (
     ProductBatchCreateRequest,
     ProductBatchDeleteRequest,
     ProductBatchResponse,

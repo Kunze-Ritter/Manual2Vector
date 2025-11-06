@@ -16,9 +16,9 @@ import traceback
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.processors.error_code_extractor import ErrorCodeExtractor
-from backend.processors.text_extractor import extract_text_from_pdf
-from backend.utils.colored_logging import setup_colored_logging
+from processors.error_code_extractor import ErrorCodeExtractor
+from processors.text_extractor import extract_text_from_pdf
+from utils.colored_logging import setup_colored_logging
 from uuid import uuid4
 import logging
 

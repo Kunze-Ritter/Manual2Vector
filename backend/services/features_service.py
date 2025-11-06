@@ -7,8 +7,8 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from backend.services.ai_service import AIService
-from backend.services.database_service import DatabaseService
+from services.ai_service import AIService
+from services.database_service import DatabaseService
 
 class FeaturesService:
     """

@@ -7,9 +7,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from backend.models.monitoring import Alert, AlertListResponse, AlertRule, AlertSeverity, AlertType, CreateAlertRule
-from backend.services.metrics_service import MetricsService
-from backend.services.supabase_adapter import SupabaseAdapter
+from models.monitoring import Alert, AlertListResponse, AlertRule, AlertSeverity, AlertType, CreateAlertRule
+from services.metrics_service import MetricsService
+from services.supabase_adapter import SupabaseAdapter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -462,7 +462,7 @@ class AlertService:
         
         # Broadcast over WebSocket
         try:
-            from backend.api.websocket import broadcast_alert
+            from api.websocket import broadcast_alert
             await broadcast_alert(alert)
         except Exception as e:
             self.logger.error(f"Failed to broadcast alert via WebSocket: {e}")

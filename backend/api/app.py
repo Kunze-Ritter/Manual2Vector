@@ -29,29 +29,29 @@ logger = logging.getLogger(__name__)
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.processors.upload_processor import UploadProcessor, BatchUploadProcessor
-from backend.processors.document_processor import DocumentProcessor
-from backend.processors.stage_tracker import StageTracker
-from backend.api.dependencies.auth import set_auth_service
-from backend.api.dependencies.auth_factory import create_auth_service
-from backend.api.middleware.auth_middleware import AuthMiddleware, require_permission
-from backend.services.database_service import DatabaseService
-from backend.services.auth_service import AuthService, AuthenticationError
-from backend.services.supabase_adapter import SupabaseAdapter
-from backend.services.batch_task_service import BatchTaskService
-from backend.services.transaction_manager import TransactionManager
+from processors.upload_processor import UploadProcessor, BatchUploadProcessor
+from processors.document_processor import DocumentProcessor
+from processors.stage_tracker import StageTracker
+from api.dependencies.auth import set_auth_service
+from api.dependencies.auth_factory import create_auth_service
+from api.middleware.auth_middleware import AuthMiddleware, require_permission
+from services.database_service import DatabaseService
+from services.auth_service import AuthService, AuthenticationError
+from services.supabase_adapter import SupabaseAdapter
+from services.batch_task_service import BatchTaskService
+from services.transaction_manager import TransactionManager
 
 # Import API routers
-from backend.api.agent_api import create_agent_api
-from backend.api.routes import documents, products
-from backend.api.routes.error_codes import router as error_codes_router
-from backend.api.routes.videos import router as videos_router
-from backend.api.routes.images import router as images_router
-from backend.api.routes.batch import router as batch_router
-from backend.api.routes.search import router as search_router
-from backend.api import websocket as websocket_api
-from backend.services.metrics_service import MetricsService
-from backend.services.alert_service import AlertService
+from api.agent_api import create_agent_api
+from api.routes import documents, products
+from api.routes.error_codes import router as error_codes_router
+from api.routes.videos import router as videos_router
+from api.routes.images import router as images_router
+from api.routes.batch import router as batch_router
+from api.routes.search import router as search_router
+from api import websocket as websocket_api
+from services.metrics_service import MetricsService
+from services.alert_service import AlertService
 
 # Load ALL environment files (they are in project root)
 project_root = Path(__file__).parent.parent.parent
@@ -227,7 +227,7 @@ async def get_metrics_service() -> MetricsService:
     if metrics_service is None:
         adapter = get_supabase_adapter()
         # Import broadcast function for WebSocket integration
-        from backend.api.websocket import broadcast_stage_event
+        from api.websocket import broadcast_stage_event
         stage_tracker = StageTracker(get_supabase(), websocket_callback=broadcast_stage_event)
         metrics_service = MetricsService(adapter, stage_tracker)
     return metrics_service
@@ -815,7 +815,7 @@ async def get_system_metrics(
 
 
 # Include API routes
-from backend.api.routes import auth as auth_routes
+from api.routes import auth as auth_routes
 
 # Initialize auth routes
 auth_router = auth_routes.initialize_auth_routes(DatabaseService())
@@ -829,7 +829,7 @@ app.include_router(batch_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")
 
 # Mount Monitoring API
-from backend.api import monitoring_api
+from api import monitoring_api
 app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
 
 # Mount WebSocket API

@@ -193,7 +193,7 @@ class DocumentProcessor:
         validation_errors = []
         
         # Helper function to update processing status
-        from backend.core.base_processor import Stage
+        from core.base_processor import Stage
 
         def update_stage_status(stage: str, status: str = "in_progress", metadata: Optional[Dict[str, Any]] = None):
             """Update stage status using StageTracker or direct Supabase fallback"""

@@ -11,7 +11,7 @@ import httpx
 from unittest.mock import MagicMock, AsyncMock, patch
 import os
 
-from backend.services.web_scraping_service import (
+from services.web_scraping_service import (
     FirecrawlBackend,
     BeautifulSoupBackend,
     WebScrapingService,

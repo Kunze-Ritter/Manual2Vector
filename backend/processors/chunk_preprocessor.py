@@ -10,7 +10,7 @@ and detecting chunk types for better embedding quality.
 import re
 from typing import Any, Dict, List
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 
 
 class ChunkPreprocessor(BaseProcessor):

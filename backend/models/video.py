@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, PositiveInt, model_validator
 
-from backend.models.document import DocumentResponse, PaginationParams, SortOrder
-from backend.models.manufacturer import ManufacturerResponse
-from backend.models.product import ProductResponse, ProductSeriesResponse
+from models.document import DocumentResponse, PaginationParams, SortOrder
+from models.manufacturer import ManufacturerResponse
+from models.product import ProductResponse, ProductSeriesResponse
 
 
 class VideoPlatform(str, Enum):

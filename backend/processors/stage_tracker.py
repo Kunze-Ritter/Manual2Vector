@@ -11,7 +11,7 @@ from uuid import UUID
 import asyncio
 import logging
 
-from backend.core.base_processor import Stage
+from core.base_processor import Stage
 
 
 class StageTracker:
@@ -195,7 +195,7 @@ class StageTracker:
             # Broadcast WebSocket event
             if self.websocket_callback:
                 try:
-                    from backend.models.monitoring import WebSocketEvent
+                    from models.monitoring import WebSocketEvent
                     asyncio.create_task(
                         self.websocket_callback(
                             WebSocketEvent.STAGE_COMPLETED,
@@ -250,7 +250,7 @@ class StageTracker:
             # Broadcast WebSocket event
             if self.websocket_callback:
                 try:
-                    from backend.models.monitoring import WebSocketEvent
+                    from models.monitoring import WebSocketEvent
                     asyncio.create_task(
                         self.websocket_callback(
                             WebSocketEvent.STAGE_FAILED,

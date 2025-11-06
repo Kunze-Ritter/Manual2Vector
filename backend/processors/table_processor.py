@@ -22,7 +22,7 @@ from uuid import UUID, uuid4
 import pymupdf  # PyMuPDF
 import pandas as pd
 
-from backend.core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
+from core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
 
 class TableProcessor(BaseProcessor):
     """Extract tables from PDFs and generate embeddings"""

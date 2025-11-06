@@ -85,7 +85,7 @@ class TestLLMProviderSwitching:
             'FIRECRAWL_LLM_PROVIDER': 'ollama',
             'FIRECRAWL_MODEL_NAME': 'llama3.2:latest'
         }):
-            from backend.services.structured_extraction_service import StructuredExtractionService
+            from services.structured_extraction_service import StructuredExtractionService
             
             service = StructuredExtractionService(
                 database_service=mock_database_service,
@@ -116,7 +116,7 @@ class TestLLMProviderSwitching:
             'FIRECRAWL_LLM_PROVIDER': 'openai',
             'FIRECRAWL_MODEL_NAME': 'gpt-3.5-turbo'
         }):
-            from backend.services.structured_extraction_service import StructuredExtractionService
+            from services.structured_extraction_service import StructuredExtractionService
             
             service = StructuredExtractionService(
                 database_service=mock_database_service,
@@ -137,7 +137,7 @@ class TestLLMProviderSwitching:
     @pytest.mark.asyncio
     async def test_provider_switching_runtime_change(self, mock_database_service, mock_web_scraping_service):
         """Test provider switching at runtime through environment changes."""
-        from backend.services.structured_extraction_service import StructuredExtractionService
+        from services.structured_extraction_service import StructuredExtractionService
         
         # Start with Ollama
         with patch.dict(os.environ, {
@@ -177,7 +177,7 @@ class TestLLMProviderSwitching:
             'FIRECRAWL_LLM_PROVIDER': 'anthropic',
             'FIRECRAWL_MODEL_NAME': 'claude-3-sonnet'
         }):
-            from backend.services.web_scraping_service import create_web_scraping_service
+            from services.web_scraping_service import create_web_scraping_service
             
             service = create_web_scraping_service(backend='firecrawl', config_service=mock_config_service)
             
@@ -196,7 +196,7 @@ class TestLLMProviderSwitching:
         """Test provider configuration falls back to defaults when env vars are missing."""
         # Clear environment variables
         with patch.dict(os.environ, {}, clear=True):
-            from backend.services.structured_extraction_service import StructuredExtractionService
+            from services.structured_extraction_service import StructuredExtractionService
             
             service = StructuredExtractionService(
                 database_service=mock_database_service,
@@ -220,7 +220,7 @@ class TestLLMProviderSwitching:
             'FIRECRAWL_LLM_PROVIDER': 'openai',
             'FIRECRAWL_MODEL_NAME': 'gpt-4'
         }):
-            from backend.services.structured_extraction_service import StructuredExtractionService
+            from services.structured_extraction_service import StructuredExtractionService
             
             service = StructuredExtractionService(
                 database_service=mock_database_service,
@@ -260,7 +260,7 @@ class TestLLMProviderSwitching:
             'FIRECRAWL_LLM_PROVIDER': 'invalid_provider',
             'FIRECRAWL_MODEL_NAME': 'invalid_model'
         }):
-            from backend.services.structured_extraction_service import StructuredExtractionService
+            from services.structured_extraction_service import StructuredExtractionService
             
             service = StructuredExtractionService(
                 database_service=mock_database_service,
@@ -303,7 +303,7 @@ class TestLLMProviderSwitching:
             'FIRECRAWL_LLM_PROVIDER': 'openai',  # Override
             'FIRECRAWL_MODEL_NAME': 'gpt-4'  # Override
         }):
-            from backend.services.web_scraping_service import create_web_scraping_service
+            from services.web_scraping_service import create_web_scraping_service
             
             service = create_web_scraping_service(backend='firecrawl', config_service=mock_config_service)
             

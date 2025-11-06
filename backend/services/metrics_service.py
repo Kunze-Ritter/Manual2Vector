@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.models.monitoring import (
+from models.monitoring import (
     DataQualityResponse,
     DuplicateMetrics,
     HardwareStatus,
@@ -16,8 +16,8 @@ from backend.models.monitoring import (
     StageMetrics,
     ValidationMetrics,
 )
-from backend.processors.stage_tracker import StageTracker
-from backend.services.supabase_adapter import SupabaseAdapter
+from processors.stage_tracker import StageTracker
+from services.supabase_adapter import SupabaseAdapter
 
 LOGGER = logging.getLogger(__name__)
 

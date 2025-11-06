@@ -6,7 +6,7 @@ Syncs OEM mappings from oem_mappings.py to the database.
 Also updates products table with OEM information.
 
 Usage:
-    from backend.utils.oem_sync import sync_oem_relationships_to_db
+    from utils.oem_sync import sync_oem_relationships_to_db
     
     sync_oem_relationships_to_db(supabase)
 """
@@ -16,7 +16,7 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 import logging
 
-from backend.config.oem_mappings import OEM_MAPPINGS, get_oem_manufacturer, get_oem_info
+from config.oem_mappings import OEM_MAPPINGS, get_oem_manufacturer, get_oem_info
 
 logger = logging.getLogger(__name__)
 

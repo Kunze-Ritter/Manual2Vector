@@ -10,7 +10,7 @@ Uses pattern matching and AI for intelligent extraction.
 from typing import Any, Dict, List
 from pathlib import Path
 
-from backend.core.base_processor import BaseProcessor, Stage
+from core.base_processor import BaseProcessor, Stage
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
 

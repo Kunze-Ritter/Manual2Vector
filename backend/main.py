@@ -65,23 +65,23 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 
 # Import services
-from backend.services.database_service import DatabaseService
-from backend.services.object_storage_service import ObjectStorageService
-from backend.services.database_factory import create_database_adapter
-from backend.services.storage_factory import create_storage_service
-from backend.services.ai_service import AIService
-from backend.services.config_service import ConfigService
-from backend.services.features_service import FeaturesService
-from backend.services.video_enrichment_service import VideoEnrichmentService
-from backend.services.link_checker_service import LinkCheckerService
+from services.database_service import DatabaseService
+from services.object_storage_service import ObjectStorageService
+from services.database_factory import create_database_adapter
+from services.storage_factory import create_storage_service
+from services.ai_service import AIService
+from services.config_service import ConfigService
+from services.features_service import FeaturesService
+from services.video_enrichment_service import VideoEnrichmentService
+from services.link_checker_service import LinkCheckerService
 
 # Import APIs
-from backend.api.document_api import DocumentAPI
-from backend.api.search_api import SearchAPI
-from backend.api.defect_detection_api import DefectDetectionAPI
-from backend.api.features_api import FeaturesAPI
-from backend.api.content_management_api import ContentManagementAPI
-from backend.api.openai_compatible_api import OpenAICompatibleAPI
+from api.document_api import DocumentAPI
+from api.search_api import SearchAPI
+from api.defect_detection_api import DefectDetectionAPI
+from api.features_api import FeaturesAPI
+from api.content_management_api import ContentManagementAPI
+from api.openai_compatible_api import OpenAICompatibleAPI
 
 # Global services
 database_service = None

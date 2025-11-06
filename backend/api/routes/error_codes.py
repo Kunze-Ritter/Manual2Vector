@@ -11,11 +11,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from supabase import Client
 
-from backend.api.app import get_supabase
-from backend.api.middleware.auth_middleware import require_permission
-from backend.api.routes.response_models import ErrorResponse, SuccessResponse
-from backend.models.document import DocumentResponse, PaginationParams, SortOrder
-from backend.models.error_code import (
+from api.app import get_supabase
+from api.middleware.auth_middleware import require_permission
+from api.routes.response_models import ErrorResponse, SuccessResponse
+from models.document import DocumentResponse, PaginationParams, SortOrder
+from models.error_code import (
     ChunkExcerpt,
     ErrorCodeCreateRequest,
     ErrorCodeFilterParams,
@@ -27,7 +27,7 @@ from backend.models.error_code import (
     ErrorCodeUpdateRequest,
     ErrorCodeWithRelationsResponse,
 )
-from backend.models.manufacturer import ManufacturerResponse
+from models.manufacturer import ManufacturerResponse
 
 LOGGER = logging.getLogger("krai.api.error_codes")
 

@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from backend.api.middleware.auth_middleware import require_permission
-from backend.models.monitoring import (
+from api.middleware.auth_middleware import require_permission
+from models.monitoring import (
     Alert,
     AlertListResponse,
     AlertRule,
@@ -21,8 +21,8 @@ from backend.models.monitoring import (
     PipelineStatusResponse,
     QueueStatusResponse,
 )
-from backend.services.alert_service import AlertService
-from backend.services.metrics_service import MetricsService
+from services.alert_service import AlertService
+from services.metrics_service import MetricsService
 
 router = APIRouter()
 
@@ -30,13 +30,13 @@ router = APIRouter()
 # These functions are used as dependencies
 async def get_metrics_service() -> MetricsService:
     """Get metrics service instance from app.py."""
-    from backend.api.app import get_metrics_service as app_get_metrics
+    from api.app import get_metrics_service as app_get_metrics
     return await app_get_metrics()
 
 
 async def get_alert_service() -> AlertService:
     """Get alert service instance from app.py."""
-    from backend.api.app import get_alert_service as app_get_alert
+    from api.app import get_alert_service as app_get_alert
     return await app_get_alert()
 
 class StageStatus(BaseModel):
