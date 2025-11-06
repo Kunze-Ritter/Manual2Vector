@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr-eng \
     libpq-dev \
     gcc \
+    pkg-config \
+    libcairo2-dev \
+    libfreetype6-dev \
+    libfontconfig1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
