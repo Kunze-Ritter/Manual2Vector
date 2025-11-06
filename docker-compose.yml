@@ -19,9 +19,12 @@ services:
       - N8N_LOG_LEVEL=info
       - N8N_METRICS=true
       - N8N_DIAGNOSTICS_ENABLED=true
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DATABASE_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=krai-postgres
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=krai_user
+      - DB_POSTGRESDB_PASSWORD=krai_secure_password
       - N8N_CUSTOM_EXTENSIONS=@n8n/n8n-nodes-langchain
     volumes:
       - n8n_data:/home/node/.n8n
@@ -29,6 +32,9 @@ services:
       - ./n8n_credentials:/home/node/.n8n/credentials
     networks:
       - krai-network
+    depends_on:
+      krai-postgres:
+        condition: service_healthy
 
   # Optional: PostgreSQL for n8n data persistence
   n8n-postgres:
@@ -44,21 +50,34 @@ services:
     networks:
       - krai-network
 
-  # Optional: PostgreSQL for KRAI local development
+  # PostgreSQL for KRAI local development
   krai-postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg16
     container_name: krai-postgres
     restart: unless-stopped
     ports:
       - "5432:5432"
+    command: >
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
     environment:
       - POSTGRES_DB=krai
       - POSTGRES_USER=krai_user
-      - POSTGRES_PASSWORD=krai_password
+      - POSTGRES_PASSWORD=krai_secure_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
     volumes:
       - krai_postgres_data:/var/lib/postgresql/data
-      - ./database/seeds:/docker-entrypoint-initdb.d/seeds
-      - ./database/migrations:/docker-entrypoint-initdb.d/migrations
+      - ./database/initdb:/docker-entrypoint-initdb.d:ro
     networks:
       - krai-network
     healthcheck:
@@ -67,7 +86,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Optional: pgAdmin for database management
+  # pgAdmin for database management
   krai-pgadmin:
     image: dpage/pgadmin4:latest
     container_name: krai-pgadmin
@@ -83,13 +102,182 @@ services:
     networks:
       - krai-network
     depends_on:
-      - krai-postgres
+      krai-postgres:
+        condition: service_healthy
+
+  # MinIO S3-compatible object storage
+  krai-minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: krai-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+      - MINIO_BROWSER_REDIRECT_URL=http://localhost:9001
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/minio/health/live >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Ollama AI service
+  krai-ollama:
+    image: ollama/ollama:latest
+    container_name: krai-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - krai-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Redis for Firecrawl job queue and rate limiting
+  krai-redis:
+    image: redis:7-alpine
+    container_name: krai-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Playwright browser service for Firecrawl scraping
+  krai-playwright:
+    image: ghcr.io/mendableai/playwright-service:latest
+    container_name: krai-playwright
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - PROXY_SERVER=${FIRECRAWL_PROXY_SERVER:-}
+      - PROXY_USERNAME=${FIRECRAWL_PROXY_USERNAME:-}
+      - PROXY_PASSWORD=${FIRECRAWL_PROXY_PASSWORD:-}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+    expose:
+      - "3000"
+    shm_size: "1g"
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # Firecrawl API service for advanced web scraping
+  krai-firecrawl-api:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: krai-firecrawl-api
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://krai-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
+      - BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - USE_DB_AUTHENTICATION=false
+      - OLLAMA_BASE_URL=http://krai-ollama:11434
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - FIRECRAWL_PROXY_SERVER=${FIRECRAWL_PROXY_SERVER:-}
+      - FIRECRAWL_PROXY_USERNAME=${FIRECRAWL_PROXY_USERNAME:-}
+      - FIRECRAWL_PROXY_PASSWORD=${FIRECRAWL_PROXY_PASSWORD:-}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+    networks:
+      - krai-network
+    depends_on:
+      krai-redis:
+        condition: service_healthy
+      krai-playwright:
+        condition: service_healthy
+      krai-ollama:
+        condition: service_started
+      krai-postgres:
+        condition: service_healthy
+      krai-minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+
+  # Firecrawl worker processing background jobs
+  krai-firecrawl-worker:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: krai-firecrawl-worker
+    restart: unless-stopped
+    command: ["pnpm", "run", "workers"]
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://krai-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
+      - BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - USE_DB_AUTHENTICATION=false
+      - OLLAMA_BASE_URL=http://krai-ollama:11434
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - FIRECRAWL_PROXY_SERVER=${FIRECRAWL_PROXY_SERVER:-}
+      - FIRECRAWL_PROXY_USERNAME=${FIRECRAWL_PROXY_USERNAME:-}
+      - FIRECRAWL_PROXY_PASSWORD=${FIRECRAWL_PROXY_PASSWORD:-}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+    networks:
+      - krai-network
+    depends_on:
+      krai-redis:
+        condition: service_healthy
+      krai-playwright:
+        condition: service_healthy
+      krai-firecrawl-api:
+        condition: service_started
+      krai-postgres:
+        condition: service_healthy
+      krai-minio:
+        condition: service_healthy
 
 volumes:
   n8n_data:
   n8n_postgres_data:
   krai_postgres_data:
   krai_pgadmin_data:
+  minio_data:
+  ollama_data:
+  redis_data:
 
 networks:
   krai-network:

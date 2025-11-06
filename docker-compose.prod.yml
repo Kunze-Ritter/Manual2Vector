@@ -8,7 +8,7 @@ services:
       dockerfile: backend/Dockerfile
     image: krai-engine:latest
     container_name: krai-engine-prod
-    restart: unless-stopped
+    restart: always  # Production: always restart
     ports:
       - "8000:8000"
     environment:
@@ -26,12 +26,25 @@ services:
       - krai-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      interval: 60s  # Production: longer intervals
+      timeout: 15s
+      retries: 5
+      start_period: 60s
     depends_on:
-      - ollama
+      krai-postgres:
+        condition: service_healthy
+      krai-minio:
+        condition: service_healthy
+      krai-ollama:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+          cpus: '1'
     command: >
       gunicorn main:app
         --workers 4
@@ -42,32 +55,128 @@ services:
         --error-logfile /app/logs/error.log
         --timeout 300
         --keep-alive 5
+        --max-requests 1000
+        --max-requests-jitter 100
 
-  # Ollama (AI Models)
-  ollama:
+  # PostgreSQL Database (Production)
+  krai-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: krai-postgres-prod
+    restart: always
+    ports:
+      - "5432:5432"
+    command: >
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c maintenance_work_mem=256MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=32MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=8MB
+      -c min_wal_size=2GB
+      -c max_wal_size=8GB
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/server.crt
+      -c ssl_key_file=/var/lib/postgresql/server.key
+    environment:
+      - POSTGRES_DB=krai
+      - POSTGRES_USER=krai_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
+    volumes:
+      - krai_postgres_data:/var/lib/postgresql/data
+      - ./database/initdb:/docker-entrypoint-initdb.d:ro
+      - ./certs/postgres:/var/lib/postgresql:ro
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U krai_user -d krai"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    secrets:
+      - postgres_password
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          cpus: '1'
+
+  # MinIO Object Storage (Production)
+  krai-minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: krai-minio-prod
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
+      - MINIO_BROWSER_REDIRECT_URL=https://minio.yourdomain.com
+    command: server /data --console-address ":9001" --certs-dir /certs
+    volumes:
+      - minio_data:/data
+      - ./certs/minio:/certs:ro
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://localhost:9000/minio/health/live >/dev/null"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Ollama AI Service (Production)
+  krai-ollama:
     image: ollama/ollama:latest
-    container_name: krai-ollama
-    restart: unless-stopped
+    container_name: krai-ollama-prod
+    restart: always
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     networks:
       - krai-network
-    # GPU support (optional, uncomment if you have NVIDIA GPU)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 16G  # Large for AI models
+          cpus: '4'
+        reservations:
+          memory: 8G
+          cpus: '2'
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
-  # Nginx Reverse Proxy (optional)
+  # Nginx Reverse Proxy with SSL
   nginx:
     image: nginx:alpine
-    container_name: krai-nginx
-    restart: unless-stopped
+    container_name: krai-nginx-prod
+    restart: always
     ports:
       - "80:80"
       - "443:443"
@@ -75,30 +184,120 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./nginx/logs:/var/log/nginx
+      - ./certs/nginx:/etc/nginx/certs:ro
     depends_on:
       - krai-engine
     networks:
       - krai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
 
-  # Redis (optional, for caching)
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: krai-redis
-  #   restart: unless-stopped
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   networks:
-  #     - krai-network
-  #   command: redis-server --appendonly yes
+  # Redis Cache (Production)
+  redis:
+    image: redis:7-alpine
+    container_name: krai-redis-prod
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/etc/redis/redis.conf:ro
+    networks:
+      - krai-network
+    command: redis-server /etc/redis/redis.conf --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Prometheus Monitoring (Production)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: krai-prometheus-prod
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - krai-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+
+  # Grafana Dashboard (Production)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: krai-grafana-prod
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana_password
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - krai-network
+    secrets:
+      - grafana_password
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
 
 volumes:
+  krai_postgres_data:
+    driver: local
+  minio_data:
+    driver: local
   ollama_data:
     driver: local
-  # redis_data:
-  #   driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  minio_root_user:
+    file: ./secrets/minio_root_user.txt
+  minio_root_password:
+    file: ./secrets/minio_root_password.txt
+  grafana_password:
+    file: ./secrets/grafana_password.txt
 
 networks:
   krai-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
