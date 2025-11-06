@@ -1,0 +1,70 @@
+name: API Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: krai
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install backend dependencies
+        run: |
+          python -m venv .venv
+          . .venv/Scripts/activate
+          pip install -r backend/requirements.txt
+      - name: Set up environment variables
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/krai" >> $GITHUB_ENV
+      - name: Run migrations (if script exists)
+        run: |
+          if [ -f backend/scripts/run_migrations.py ]; then
+            python backend/scripts/run_migrations.py
+          fi
+      - name: Start FastAPI backend
+        run: |
+          uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+          # Wait for health endpoint
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/health; then break; fi
+            sleep 1
+          done
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Run API tests with coverage
+        run: |
+          pytest tests/api/ --cov=backend --cov-report=xml --cov-report=html
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/

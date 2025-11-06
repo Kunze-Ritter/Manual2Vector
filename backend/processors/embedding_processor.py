@@ -10,8 +10,10 @@ Features:
 - Batch embedding generation
 - Ollama integration (embeddinggemma 768-dim)
 - pgvector storage in Supabase
+- Multi-modal embeddings support (text, image, table) via embeddings_v2 table
 - Similarity search
 - Progress tracking
+- Backward compatibility with vw_chunks table
 """
 
 import os
@@ -69,7 +71,8 @@ class EmbeddingProcessor(BaseProcessor):
         embedding_dimension: int = 768,
         min_batch_size: int = 25,
         max_batch_size: int = 200,
-        batch_adjust_step: int = 10
+        batch_adjust_step: int = 10,
+        enable_embeddings_v2: bool = None
     ):
         """
         Initialize embedding processor
@@ -80,6 +83,7 @@ class EmbeddingProcessor(BaseProcessor):
             model_name: Embedding model name (default: from OLLAMA_MODEL_EMBEDDING env)
             batch_size: Number of chunks to embed per batch
             embedding_dimension: Dimension of embedding vectors (768 for embeddinggemma, nomic-embed-text)
+            enable_embeddings_v2: Enable embeddings_v2 table storage (default: from env)
         """
         super().__init__(name="embedding_processor")
         self.stage = Stage.EMBEDDING
@@ -90,6 +94,16 @@ class EmbeddingProcessor(BaseProcessor):
         self.batch_adjust_step = max(1, batch_adjust_step)
         self.batch_size = max(self.min_batch_size, min(self.max_batch_size, batch_size))
         self.embedding_dimension = embedding_dimension
+        
+        # Multi-modal embeddings support
+        self.enable_embeddings_v2 = (
+            enable_embeddings_v2 if enable_embeddings_v2 is not None 
+            else os.getenv('ENABLE_EMBEDDINGS_V2', 'false').lower() == 'true'
+        )
+        
+        # Phase 5: Context embedding configuration
+        self.enable_context_embeddings = os.getenv('ENABLE_CONTEXT_EMBEDDINGS', 'true').lower() == 'true'
+        self.context_embedding_dimension = int(os.getenv('CONTEXT_EMBEDDING_DIMENSION', str(embedding_dimension)))
         
         # Ollama configuration
         self.ollama_url = ollama_url or os.getenv('OLLAMA_URL', 'http://localhost:11434')
@@ -262,7 +276,8 @@ class EmbeddingProcessor(BaseProcessor):
             'model_name': self.model_name,
             'supabase_configured': self.supabase is not None,
             'embedding_dimension': self.embedding_dimension,
-            'batch_size': self.batch_size
+            'batch_size': self.batch_size,
+            'embeddings_v2_enabled': self.enable_embeddings_v2
         }
     
     async def process(self, context) -> Dict[str, Any]:
@@ -308,6 +323,18 @@ class EmbeddingProcessor(BaseProcessor):
                     success=bool(result.get('success')),
                     error_label=str(result.get('error')) if result.get('error') else None
                 )
+
+        # After processing text chunks, handle image and table embeddings if available
+        if self.enable_embeddings_v2:
+            # Store image embeddings
+            if hasattr(context, 'image_embeddings') and context.image_embeddings:
+                image_result = await self.store_embeddings_batch(context.image_embeddings)
+                self.logger.info(f"Stored {image_result['success_count']} image embeddings")
+            
+            # Store table embeddings
+            if hasattr(context, 'table_embeddings') and context.table_embeddings:
+                table_result = await self.store_embeddings_batch(context.table_embeddings)
+                self.logger.info(f"Stored {table_result['success_count']} table embeddings")
 
         return result
 
@@ -420,9 +447,26 @@ class EmbeddingProcessor(BaseProcessor):
                 processing_time = time.time() - start_time
                 chunks_per_second = (total_embedded / processing_time) if processing_time else 0.0
 
+                # Phase 5: Generate context embeddings for media items (NEW!)
+                context_embeddings_created = 0
+                if self.enable_context_embeddings and self.enable_embeddings_v2:
+                    try:
+                        adapter.info("Generating context embeddings for media items...")
+                        context_start = time.time()
+                        context_embeddings_created = self._generate_context_embeddings(
+                            document_id=document_id,
+                            adapter=adapter
+                        )
+                        context_time = time.time() - context_start
+                        adapter.info("Generated %d context embeddings in %.1fs", context_embeddings_created, context_time)
+                    except Exception as e:
+                        adapter.error("Failed to generate context embeddings: %s", e)
+                        # Don't fail the entire embedding stage for context embedding errors
+
                 if stage_tracker:
                     metadata = {
                         'embeddings_created': total_embedded,
+                        'context_embeddings_created': context_embeddings_created,
                         'processing_time': round(processing_time, 2),
                         'chunks_per_second': round(chunks_per_second, 2),
                         'failed_chunks': len(failed_chunks),
@@ -466,6 +510,7 @@ class EmbeddingProcessor(BaseProcessor):
                     'success': total_embedded > 0,
                     'partial_success': partial_success,
                     'embeddings_created': total_embedded,
+                    'context_embeddings_created': context_embeddings_created,
                     'failed_count': len(failed_chunks),
                     'failed_chunks': failed_chunks,
                     'processing_time': processing_time
@@ -732,12 +777,46 @@ class EmbeddingProcessor(BaseProcessor):
             if hasattr(table, 'upsert'):
                 try:
                     table.upsert(record).execute()
+                    
+                    # Also store in embeddings_v2 for unified search (if enabled)
+                    if self.enable_embeddings_v2:
+                        self._store_embedding_v2(
+                            source_id=chunk_id,
+                            source_type='text',
+                            document_id=document_id,
+                            embedding=embedding,
+                            embedding_context=chunk_data.get('text', '')[:500],
+                            metadata={
+                                'chunk_type': chunk_data.get('chunk_type', 'text'),
+                                'page_start': chunk_data.get('page_start'),
+                                'page_end': chunk_data.get('page_end'),
+                                'chunk_index': chunk_data.get('chunk_index', 0)
+                            }
+                        )
+                    
                     return True
                 except Exception as e:
                     self.logger.error(f"Embedding upsert failed (chunk={chunk_id}): {e}")
 
             try:
                 table.insert(record).execute()
+                
+                # Also store in embeddings_v2 for unified search (if enabled)
+                if self.enable_embeddings_v2:
+                    self._store_embedding_v2(
+                        source_id=chunk_id,
+                        source_type='text',
+                        document_id=document_id,
+                        embedding=embedding,
+                        embedding_context=chunk_data.get('text', '')[:500],
+                        metadata={
+                            'chunk_type': chunk_data.get('chunk_type', 'text'),
+                            'page_start': chunk_data.get('page_start'),
+                            'page_end': chunk_data.get('page_end'),
+                            'chunk_index': chunk_data.get('chunk_index', 0)
+                        }
+                    )
+                
                 return True
             except Exception as insert_error:
                 self.logger.error(f"Embedding insert failed (chunk={chunk_id}): {insert_error}")
@@ -746,6 +825,167 @@ class EmbeddingProcessor(BaseProcessor):
         except Exception as e:
             self.logger.error(f"Failed to store embedding (chunk={chunk_id}): {e}")
             return False
+    
+    def _store_embedding_v2(
+        self,
+        source_id: str,
+        source_type: str,  # 'text', 'image', 'table'
+        document_id: UUID,
+        embedding: List[float],
+        embedding_context: str,
+        metadata: Dict[str, Any] = None
+    ) -> bool:
+        """
+        Store embedding in embeddings_v2 table for unified multi-modal search
+        
+        Args:
+            source_id: Source ID (chunk_id, image_id, table_id)
+            source_type: Type of source ('text', 'image', 'table')
+            document_id: Document UUID
+            embedding: Embedding vector
+            embedding_context: Context text for the embedding
+            metadata: Additional metadata
+            
+        Returns:
+            True if successful
+        """
+        if not self.supabase or not self.enable_embeddings_v2:
+            return False
+        
+        try:
+            # Prepare record for embeddings_v2 table
+            embedding_data = {
+                'source_id': source_id,
+                'source_type': source_type,
+                'model_name': self.model_name,
+                'embedding': embedding,  # pgvector will handle this
+                'embedding_context': embedding_context[:500] if embedding_context else None,
+                'metadata': metadata or {}
+            }
+
+            embedding_data = self._make_json_safe(embedding_data)
+            
+            table = self.supabase.table('embeddings_v2')
+
+            if hasattr(table, 'upsert'):
+                try:
+                    table.upsert(embedding_data).execute()
+                    self.logger.debug(f"Stored embedding_v2 for {source_type} {source_id}")
+                    return True
+                except Exception as e:
+                    self.logger.error(f"Embedding_v2 upsert failed ({source_type}={source_id}): {e}")
+
+            try:
+                table.insert(embedding_data).execute()
+                self.logger.debug(f"Stored embedding_v2 for {source_type} {source_id}")
+                return True
+            except Exception as insert_error:
+                self.logger.error(f"Embedding_v2 insert failed ({source_type}={source_id}): {insert_error}")
+                return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to store embedding_v2 ({source_type}={source_id}): {e}")
+            return False
+    
+    async def store_embeddings_batch(
+        self,
+        embeddings: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Store batch of embeddings (text, image, table) in embeddings_v2
+        
+        Args:
+            embeddings: List of embedding dictionaries with keys:
+                - source_id: Source ID
+                - source_type: Type ('text', 'image', 'table')
+                - embedding: Embedding vector
+                - embedding_context: Context text
+                - metadata: Additional metadata
+                
+        Returns:
+            Dict with success_count, failed_count
+        """
+        if not self.supabase or not self.enable_embeddings_v2:
+            return {'success_count': 0, 'failed_count': len(embeddings)}
+        
+        success_count = 0
+        failed_count = 0
+        embeddings_created = 0
+        errors = []
+        
+        try:
+            for emb_data in embeddings:
+                try:
+                    # Validate source_type
+                    source_type = emb_data.get('source_type')
+                    if source_type not in ['text', 'image', 'table']:
+                        self.logger.warning(f"Invalid source_type: {source_type}")
+                        failed_count += 1
+                        continue
+                    
+                    # Store embedding
+                    success = self._store_embedding_v2(
+                        source_id=emb_data['source_id'],
+                        source_type=emb_data['source_type'],
+                        document_id=document_id,
+                        embedding=emb_data['embedding'],
+                        embedding_context=emb_data.get('embedding_context'),
+                        metadata=emb_data.get('metadata')
+                    )
+                    
+                    if success:
+                        success_count += 1
+                    else:
+                        failed_count += 1
+                        
+                except Exception as e:
+                    self.logger.error(f"Failed to store batch embedding: {e}")
+                    failed_count += 1
+            
+            # Process image embeddings if available (from VisualEmbeddingProcessor)
+            # Note: This is currently disabled as VisualEmbeddingProcessor stores embeddings directly
+            # If you want EmbeddingProcessor to handle image embeddings, set ENABLE_IMAGE_EMBEDDINGS_HANDLING=true
+            if (os.getenv('ENABLE_IMAGE_EMBEDDINGS_HANDLING', 'false').lower() == 'true' and
+                hasattr(context, 'image_embeddings') and context.image_embeddings):
+                self.logger.info(f"Processing {len(context.image_embeddings)} image embeddings")
+                for img_emb in context.image_embeddings:
+                    try:
+                        await self._store_image_embedding(
+                            img_emb['id'],
+                            img_emb['embedding'],
+                            img_emb.get('metadata', {}),
+                            document_id
+                        )
+                        embeddings_created += 1
+                    except Exception as e:
+                        self.logger.error(f"Failed to store image embedding: {e}")
+                        errors.append(f"Image embedding storage failed: {e}")
+            
+            # Process table embeddings if available (from TableProcessor)
+            # Note: This is currently disabled as TableProcessor stores embeddings directly
+            # If you want EmbeddingProcessor to handle table embeddings, set ENABLE_TABLE_EMBEDDINGS_HANDLING=true
+            if (os.getenv('ENABLE_TABLE_EMBEDDINGS_HANDLING', 'false').lower() == 'true' and
+                hasattr(context, 'table_embeddings') and context.table_embeddings):
+                self.logger.info(f"Processing {len(context.table_embeddings)} table embeddings")
+                for table_emb in context.table_embeddings:
+                    try:
+                        await self._store_table_embedding(
+                            table_emb['id'],
+                            table_emb['embedding'],
+                            table_emb.get('metadata', {}),
+                            document_id
+                        )
+                        embeddings_created += 1
+                    except Exception as e:
+                        self.logger.error(f"Failed to store table embedding: {e}")
+                        errors.append(f"Table embedding storage failed: {e}")
+            
+            self.logger.info(f"Batch embedding storage: {success_count} success, {failed_count} failed")
+            return {'success_count': success_count, 'failed_count': failed_count}
+            
+        except Exception as e:
+            self.logger.error(f"Batch embedding storage failed: {e}")
+            return {'success_count': success_count, 'failed_count': len(embeddings)}
     
     def search_similar(
         self,
@@ -798,6 +1038,215 @@ class EmbeddingProcessor(BaseProcessor):
         except Exception as e:
             self.logger.error(f"Similarity search failed: {e}")
             return []
+
+    def _generate_context_embeddings(self, document_id: UUID, adapter) -> int:
+        """
+        Generate embeddings for context fields of media items (images, videos, links).
+        
+        Args:
+            document_id: Document UUID
+            adapter: Logger adapter
+            
+        Returns:
+            Number of context embeddings created
+        """
+        if not self.supabase or not self.enable_embeddings_v2:
+            adapter.debug("Context embeddings disabled - skipping")
+            return 0
+        
+        total_context_embeddings = 0
+        
+        try:
+            # Process images with context (using view for RLS consistency)
+            images_result = self.supabase.table('vw_images').select(
+                'id, context_caption, page_header, figure_reference, '
+                'related_error_codes, related_products, surrounding_paragraphs'
+            ).eq('document_id', str(document_id)).not_.is_('context_caption', 'null').execute()
+            
+            if images_result.data:
+                adapter.info(f"Processing {len(images_result.data)} images with context")
+                image_embeddings = []
+                
+                for image in images_result.data:
+                    # Combine context fields for embedding
+                    context_parts = []
+                    
+                    if image.get('context_caption'):
+                        context_parts.append(image['context_caption'])
+                    if image.get('page_header'):
+                        context_parts.append(image['page_header'])
+                    if image.get('figure_reference'):
+                        context_parts.append(image['figure_reference'])
+                    
+                    # Add related entities
+                    if image.get('related_error_codes'):
+                        context_parts.extend([f"Error: {code}" for code in image['related_error_codes']])
+                    if image.get('related_products'):
+                        context_parts.extend([f"Product: {product}" for product in image['related_products']])
+                    if image.get('surrounding_paragraphs'):
+                        context_parts.extend(image['surrounding_paragraphs'])
+                    
+                    if context_parts:
+                        context_text = ' | '.join(context_parts)
+                        
+                        # Generate embedding
+                        embedding = self._generate_embedding(context_text)
+                        if embedding:
+                            image_embeddings.append({
+                                'source_id': image['id'],
+                                'source_type': 'context',
+                                'embedding': embedding,
+                                'embedding_context': context_text,
+                                'metadata': {
+                                    'media_type': 'image',
+                                    'media_id': image['id'],
+                                    'document_id': str(document_id)
+                                }
+                            })
+                
+                # Store image context embeddings
+                if image_embeddings:
+                    result = self._store_embeddings_v2(image_embeddings, adapter)
+                    total_context_embeddings += result['success_count']
+                    adapter.info(f"Stored {result['success_count']} image context embeddings")
+            
+            # Process videos with context (using view for RLS consistency)
+            videos_result = self.supabase.table('vw_videos').select(
+                'id, context_description, page_header, related_error_codes, related_products'
+            ).eq('document_id', str(document_id)).not_.is_('context_description', 'null').execute()
+            
+            if videos_result.data:
+                adapter.info(f"Processing {len(videos_result.data)} videos with context")
+                video_embeddings = []
+                
+                for video in videos_result.data:
+                    context_parts = []
+                    
+                    if video.get('context_description'):
+                        context_parts.append(video['context_description'])
+                    if video.get('page_header'):
+                        context_parts.append(video['page_header'])
+                    
+                    if video.get('related_error_codes'):
+                        context_parts.extend([f"Error: {code}" for code in video['related_error_codes']])
+                    if video.get('related_products'):
+                        context_parts.extend([f"Product: {product}" for product in video['related_products']])
+                    
+                    if context_parts:
+                        context_text = ' | '.join(context_parts)
+                        
+                        embedding = self._generate_embedding(context_text)
+                        if embedding:
+                            video_embeddings.append({
+                                'source_id': video['id'],
+                                'source_type': 'context',
+                                'embedding': embedding,
+                                'embedding_context': context_text,
+                                'metadata': {
+                                    'media_type': 'video',
+                                    'media_id': video['id'],
+                                    'document_id': str(document_id)
+                                }
+                            })
+                
+                if video_embeddings:
+                    result = self._store_embeddings_v2(video_embeddings, adapter)
+                    total_context_embeddings += result['success_count']
+                    adapter.info(f"Stored {result['success_count']} video context embeddings")
+            
+            # Process links with context (using view for RLS consistency)
+            links_result = self.supabase.table('vw_links').select(
+                'id, context_description, page_header, related_error_codes, related_products'
+            ).eq('document_id', str(document_id)).not_.is_('context_description', 'null').execute()
+            
+            if links_result.data:
+                adapter.info(f"Processing {len(links_result.data)} links with context")
+                link_embeddings = []
+                
+                for link in links_result.data:
+                    context_parts = []
+                    
+                    if link.get('context_description'):
+                        context_parts.append(link['context_description'])
+                    if link.get('page_header'):
+                        context_parts.append(link['page_header'])
+                    
+                    if link.get('related_error_codes'):
+                        context_parts.extend([f"Error: {code}" for code in link['related_error_codes']])
+                    if link.get('related_products'):
+                        context_parts.extend([f"Product: {product}" for product in link['related_products']])
+                    
+                    if context_parts:
+                        context_text = ' | '.join(context_parts)
+                        
+                        embedding = self._generate_embedding(context_text)
+                        if embedding:
+                            link_embeddings.append({
+                                'source_id': link['id'],
+                                'source_type': 'context',
+                                'embedding': embedding,
+                                'embedding_context': context_text,
+                                'metadata': {
+                                    'media_type': 'link',
+                                    'media_id': link['id'],
+                                    'document_id': str(document_id)
+                                }
+                            })
+                
+                if link_embeddings:
+                    result = self._store_embeddings_v2(link_embeddings, adapter)
+                    total_context_embeddings += result['success_count']
+                    adapter.info(f"Stored {result['success_count']} link context embeddings")
+            
+            # Process tables with context
+            tables_result = self.supabase.table('structured_tables').select(
+                'id, context_text, page_header, caption, document_id'
+            ).eq('document_id', str(document_id)).not_.is_('context_text', 'null').execute()
+            
+            if tables_result.data:
+                adapter.info(f"Processing {len(tables_result.data)} tables with context")
+                table_embeddings = []
+                
+                for table in tables_result.data:
+                    # Combine context fields for embedding
+                    context_parts = []
+                    
+                    if table.get('context_text'):
+                        context_parts.append(table['context_text'])
+                    if table.get('caption'):
+                        context_parts.append(table['caption'])
+                    if table.get('page_header'):
+                        context_parts.append(table['page_header'])
+                    
+                    if context_parts:
+                        context_text = ' | '.join(context_parts)
+                        
+                        # Generate embedding
+                        embedding = self._generate_embedding(context_text)
+                        if embedding:
+                            table_embeddings.append({
+                                'source_id': table['id'],
+                                'source_type': 'context',
+                                'embedding': embedding,
+                                'embedding_context': context_text,
+                                'metadata': {
+                                    'media_type': 'table',
+                                    'media_id': table['id'],
+                                    'document_id': str(document_id)
+                                }
+                            })
+                
+                # Store table context embeddings
+                if table_embeddings:
+                    result = self._store_embeddings_v2(table_embeddings, adapter)
+                    total_context_embeddings += result['success_count']
+                    adapter.info(f"Stored {result['success_count']} table context embeddings")
+            
+            return total_context_embeddings
+            
+        except Exception as e:
+            adapter.error(f"Failed to generate context embeddings: {e}")
+            return 0
 
 
 # Example usage

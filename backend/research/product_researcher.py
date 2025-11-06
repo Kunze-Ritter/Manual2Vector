@@ -10,10 +10,13 @@ Automatically researches products online to extract:
 
 Uses:
 - Web search (Tavily API or SerpAPI)
-- Web scraping (BeautifulSoup)
+- Web scraping (Firecrawl or BeautifulSoup)
 - LLM analysis (Ollama)
+
+Firecrawl provides JavaScript rendering and LLM-ready Markdown output for improved analysis quality.
 """
 
+import asyncio
 import os
 import json
 import logging
@@ -24,6 +27,12 @@ from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
+
+from services.config_service import ConfigService
+from services.web_scraping_service import (
+    WebScrapingService,
+    create_web_scraping_service,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +48,10 @@ class ProductResearcher:
         supabase=None,
         ollama_url: str = "http://localhost:11434",
         model: str = "qwen2.5:7b",
-        cache_days: int = 90
+        cache_days: int = 90,
+        scraping_backend: Optional[str] = None,
+        config_service: Optional[ConfigService] = None,
+        mock_mode: bool = False,
     ):
         """
         Initialize researcher
@@ -54,12 +66,37 @@ class ProductResearcher:
         self.ollama_url = ollama_url
         self.model = model
         self.cache_days = cache_days
+        self.config_service = config_service
+        self.mock_mode = mock_mode
         
         # Search API (Tavily preferred, fallback to direct search)
         self.tavily_api_key = os.getenv('TAVILY_API_KEY')
         self.use_tavily = bool(self.tavily_api_key)
-        
-        logger.info(f"ProductResearcher initialized (search: {'Tavily' if self.use_tavily else 'Direct'})")
+
+        # Scraping configuration
+        if self.mock_mode:
+            os.environ.setdefault('SCRAPING_MOCK_MODE', 'true')
+
+        self.scraping_service: Optional[WebScrapingService] = None
+        self.scraping_backend: str = "legacy"
+        selected_backend = scraping_backend or os.getenv('SCRAPING_BACKEND', 'beautifulsoup')
+
+        try:
+            self.scraping_service = create_web_scraping_service(
+                backend=selected_backend,
+                config_service=config_service,
+            )
+            backend_info = self.scraping_service.get_backend_info()
+            self.scraping_backend = backend_info.get('backend', 'legacy')
+        except Exception as exc:
+            logger.warning("Failed to initialise WebScrapingService (%s). Using legacy scraping.", exc)
+            self.scraping_service = None
+
+        logger.info(
+            "ProductResearcher initialized (search: %s, scraping: %s)",
+            'Tavily' if self.use_tavily else 'Direct',
+            self.scraping_backend,
+        )
     
     def research_product(
         self,
@@ -145,7 +182,7 @@ class ProductResearcher:
         if self.use_tavily:
             return self._tavily_search(query)
         else:
-            return self._direct_search(query, manufacturer)
+            return self._direct_search(query, manufacturer, model_number)
     
     def _tavily_search(self, query: str) -> Optional[Dict]:
         """Search using Tavily API"""
@@ -172,13 +209,9 @@ class ProductResearcher:
         
         return None
     
-    def _direct_search(self, query: str, manufacturer: str) -> Optional[Dict]:
-        """
-        Direct search (construct URLs based on manufacturer)
-        
-        This is a fallback when no search API is available
-        """
-        # Common manufacturer website patterns
+    def _direct_search(self, query: str, manufacturer: str, model_number: str) -> Optional[Dict]:
+        """Direct search (construct URLs based on manufacturer)."""
+
         manufacturer_domains = {
             'konica minolta': 'konicaminolta.com',
             'hp': 'hp.com',
@@ -193,73 +226,140 @@ class ProductResearcher:
             'toshiba': 'toshiba.com',
             'oki': 'oki.com',
         }
-        
+
         manufacturer_lower = manufacturer.lower()
         domain = manufacturer_domains.get(manufacturer_lower)
-        
+
         if not domain:
-            logger.warning(f"No known domain for manufacturer: {manufacturer}")
+            logger.warning("No known domain for manufacturer: %s", manufacturer)
             return None
-        
-        # Construct likely URLs
-        model_clean = re.sub(r'[^a-zA-Z0-9-]', '', query.split()[-1].lower())
+
+        model_clean = re.sub(r'[^a-zA-Z0-9-]', '', model_number.lower())
         urls = [
             f"https://www.{domain}/products/{model_clean}",
             f"https://www.{domain}/en/products/{model_clean}",
             f"https://www.{domain}/us/products/{model_clean}",
         ]
-        
+
+        discovery_urls = self._discover_urls(f"https://www.{domain}", model_number)
+        combined_urls: List[str] = []
+        for url in urls + discovery_urls:
+            if url not in combined_urls:
+                combined_urls.append(url)
+
         return {
-            'urls': urls,
+            'urls': combined_urls,
             'snippets': []
         }
-    
+
     def _scrape_urls(self, urls: List[str]) -> str:
-        """
-        Scrape content from URLs
-        
-        Returns:
-            Combined text content
-        """
-        all_content = []
-        
+        """Scrape content from URLs, preferring async scraping service."""
+
+        if not urls:
+            return ""
+
+        if not self.scraping_service:
+            logger.debug("Scraping service unavailable; using legacy BeautifulSoup scraping")
+            return self._scrape_urls_legacy(urls)
+
+        try:
+            content = self._run_async(self._scrape_urls_async(urls))
+            if content:
+                return content
+        except Exception as exc:
+            logger.warning("Async scraping failed (%s); using legacy fallback", exc)
+
+        return self._scrape_urls_legacy(urls)
+
+    def _scrape_urls_legacy(self, urls: List[str]) -> str:
+        """Legacy synchronous BeautifulSoup scraping implementation."""
+
+        all_content: List[str] = []
         for url in urls:
             try:
-                logger.debug(f"Scraping: {url}")
+                logger.debug("Scraping (legacy): %s", url)
                 response = requests.get(
                     url,
                     timeout=10,
                     headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                 )
-                
+
                 if response.status_code != 200:
                     continue
-                
+
                 soup = BeautifulSoup(response.content, 'html.parser')
-                
-                # Remove script and style elements
                 for script in soup(["script", "style", "nav", "footer", "header"]):
                     script.decompose()
-                
-                # Get text
+
                 text = soup.get_text(separator='\n', strip=True)
-                
-                # Clean up
                 lines = [line.strip() for line in text.split('\n') if line.strip()]
                 text = '\n'.join(lines)
-                
-                # Limit length
+
                 if len(text) > 10000:
                     text = text[:10000]
-                
+
                 all_content.append(text)
-                
-            except Exception as e:
-                logger.debug(f"Failed to scrape {url}: {e}")
+            except Exception as exc:
+                logger.debug("Failed to scrape %s using legacy method: %s", url, exc)
                 continue
-        
+
         return '\n\n---\n\n'.join(all_content)
-    
+
+    async def _scrape_urls_async(self, urls: List[str]) -> str:
+        """Scrape URLs concurrently using async web scraping service."""
+
+        if not self.scraping_service:
+            return ""
+
+        results = await asyncio.gather(
+            *(self.scraping_service.scrape_url(url) for url in urls),
+            return_exceptions=True,
+        )
+
+        contents: List[str] = []
+        for url, result in zip(urls, results):
+            if isinstance(result, Exception):
+                logger.warning("Async scrape exception for %s: %s", url, result)
+                continue
+
+            if not result.get('success'):
+                logger.warning(
+                    "Scrape failed for %s using %s: %s",
+                    url,
+                    result.get('backend'),
+                    result.get('error'),
+                )
+                continue
+
+            backend = result.get('backend')
+            logger.debug("Scraped %s using %s backend", url, backend)
+            content = result.get('content') or ""
+            if content:
+                if len(content) > 30000:
+                    content = content[:30000]
+                contents.append(content)
+
+        combined = '\n\n---\n\n'.join(contents)
+        if len(combined) > 30000:
+            combined = combined[:30000]
+        return combined
+
+    def _run_async(self, coro: Any) -> Any:
+        """Run async coroutine with graceful event loop handling."""
+
+        try:
+            return asyncio.run(coro)
+        except RuntimeError as exc:
+            if "event loop" in str(exc).lower() and "running" in str(exc).lower():
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    return loop.run_until_complete(coro)
+                finally:
+                    asyncio.set_event_loop(None)
+                    loop.close()
+            raise
+
     def _llm_analyze(
         self,
         manufacturer: str,
@@ -267,18 +367,14 @@ class ProductResearcher:
         content: str,
         source_urls: List[str]
     ) -> Optional[Dict]:
-        """
-        Analyze scraped content with LLM
-        
-        Returns:
-            Dictionary with extracted information
-        """
+        """Analyze scraped content with LLM."""
+
         prompt = f"""You are a technical product analyst. Analyze the following content about a printer/MFP product and extract structured information.
 
 Product: {manufacturer} {model_number}
 
 Content:
-{content[:8000]}
+{content[:12000]}
 
 Extract the following information in JSON format:
 
@@ -287,11 +383,11 @@ Extract the following information in JSON format:
     "series_description": "Brief description of the series",
     "product_type": "One of: laser_printer, inkjet_printer, laser_multifunction, inkjet_multifunction, production_printer, etc.",
     "specifications": {{
-        "speed_mono": 75,  // Pages per minute (mono)
-        "speed_color": 75,  // Pages per minute (color)
+        "speed_mono": 75,
+        "speed_color": 75,
         "resolution": "1200x1200 dpi",
         "paper_sizes": ["A4", "A3", "Letter"],
-        "duplex": "automatic",  // or "manual" or "none"
+        "duplex": "automatic",
         "memory": "8192 MB",
         "storage": "256 GB SSD",
         "connectivity": ["USB 2.0", "Ethernet", "WiFi"],
@@ -308,10 +404,11 @@ Extract the following information in JSON format:
     "oem_manufacturer": "OEM manufacturer if rebrand (or null)",
     "oem_notes": "Notes about OEM relationship",
     "launch_year": 2023,
-    "confidence": 0.85  // Your confidence in this analysis (0.0-1.0)
+    "confidence": 0.85
 }}
 
 IMPORTANT:
+- Content may be provided in Markdown format with structured headings and lists. Use this structure to improve accuracy.
 - Only include information you find in the content
 - Use null for missing information
 - Be conservative with confidence score
@@ -319,7 +416,7 @@ IMPORTANT:
 
 Return ONLY the JSON, no other text.
 """
-        
+
         try:
             response = requests.post(
                 f"{self.ollama_url}/api/generate",
@@ -328,37 +425,124 @@ Return ONLY the JSON, no other text.
                     'prompt': prompt,
                     'stream': False,
                     'options': {
-                        'temperature': 0.1,  # Low temperature for factual extraction
-                        'num_predict': 2000
-                    }
+                        'temperature': 0.1,
+                        'num_predict': 2000,
+                    },
                 },
-                timeout=120
+                timeout=120,
             )
-            
+
             if response.status_code != 200:
-                logger.error(f"Ollama API error: {response.status_code}")
+                logger.error("Ollama API error: %s", response.status_code)
                 return None
-            
+
             result = response.json()
             response_text = result.get('response', '')
-            
-            # Extract JSON from response
+
             json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
             if not json_match:
                 logger.error("No JSON found in LLM response")
                 return None
-            
+
             analysis = json.loads(json_match.group())
-            
-            # Add metadata
             analysis['source_urls'] = source_urls
             analysis['research_date'] = datetime.now().isoformat()
-            
+            analysis['scraping_backend'] = self.scraping_backend
+            analysis['content_format'] = 'markdown' if self.scraping_backend == 'firecrawl' else 'text'
+
             return analysis
-            
-        except Exception as e:
-            logger.error(f"LLM analysis failed: {e}")
+
+        except Exception as exc:
+            logger.error("LLM analysis failed: %s", exc)
             return None
+
+    def _discover_urls(self, manufacturer_url: str, model_number: str) -> List[str]:
+        """Discover additional URLs on manufacturer site using scraping service."""
+
+        if not self.scraping_service or not manufacturer_url:
+            return []
+
+        backend_info: Dict[str, Any] = {}
+        try:
+            backend_info = self.scraping_service.get_backend_info() or {}
+        except Exception as exc:
+            logger.debug("Failed to fetch backend info for URL discovery: %s", exc)
+
+        capabilities = backend_info.get('capabilities') if isinstance(backend_info, dict) else None
+        capability_map = {} if not isinstance(capabilities, dict) else capabilities
+        capability_list = []
+        if isinstance(capabilities, (list, tuple, set)):
+            capability_list = list(capabilities)
+        elif isinstance(capabilities, dict):
+            capability_list = [name for name, enabled in capabilities.items() if enabled]
+
+        has_url_mapping = (
+            (isinstance(capabilities, dict) and bool(capability_map.get('url_mapping')))
+            or ('url_mapping' in capability_list)
+            or ('map_urls' in capability_list)
+        )
+
+        map_urls_callable = getattr(self.scraping_service, 'map_urls', None)
+        if not callable(map_urls_callable) and not has_url_mapping:
+            logger.debug("Scraping backend lacks map_urls capability; skipping URL discovery")
+            return []
+
+        if not callable(map_urls_callable):
+            logger.debug("Scraping service missing callable map_urls; skipping URL discovery")
+            return []
+
+        options = {
+            'search': re.escape(model_number),
+            'limit': 5,
+        }
+
+        try:
+            result = self._run_async(
+                self.scraping_service.map_urls(manufacturer_url, options=options)
+            )
+            if not result.get('success'):
+                logger.debug(
+                    "URL discovery failed for %s: %s",
+                    manufacturer_url,
+                    result.get('error'),
+                )
+                return []
+
+            urls = result.get('urls', [])
+            filtered: List[str] = []
+            model_lower = model_number.lower()
+            for url in urls:
+                if model_lower in url.lower() and url not in filtered:
+                    filtered.append(url)
+
+            if filtered:
+                logger.info(
+                    "Discovered %d URLs for %s via %s",
+                    len(filtered),
+                    model_number,
+                    self.scraping_backend,
+                )
+            return filtered
+        except Exception as exc:
+            logger.debug("URL discovery exception for %s: %s", manufacturer_url, exc)
+            return []
+
+    def get_scraping_info(self) -> Dict[str, Any]:
+        """Return scraping backend diagnostic information."""
+
+        info: Dict[str, Any] = {
+            'backend': self.scraping_backend,
+            'service_available': bool(self.scraping_service),
+        }
+
+        if self.scraping_service:
+            backend_info = self.scraping_service.get_backend_info()
+            info.update(backend_info)
+        else:
+            info['capabilities'] = ['legacy_scrape']
+            info['fallback_count'] = 0
+
+        return info
     
     def _save_to_cache(self, manufacturer: str, model_number: str, analysis: Dict):
         """Save research results to cache"""

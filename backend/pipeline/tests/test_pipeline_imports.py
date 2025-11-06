@@ -100,12 +100,20 @@ class TestPipelineInitialization:
             'SUPABASE_ANON_KEY': 'test_key',
             'SUPABASE_SERVICE_ROLE_KEY': 'test_service_key',
             'POSTGRES_URL': 'postgresql://test',
+            'OBJECT_STORAGE_ACCESS_KEY': 'test',
+            'OBJECT_STORAGE_SECRET_KEY': 'test',
+            'OBJECT_STORAGE_ENDPOINT': 'http://test',
+            'OBJECT_STORAGE_TYPE': 'r2',
+            'UPLOAD_IMAGES_TO_STORAGE': 'true',
+            'UPLOAD_DOCUMENTS_TO_STORAGE': 'true',
             'R2_ACCESS_KEY_ID': 'test',
             'R2_SECRET_ACCESS_KEY': 'test',
             'R2_ENDPOINT_URL': 'http://test',
             'R2_PUBLIC_URL_DOCUMENTS': 'http://test',
             'R2_PUBLIC_URL_ERROR': 'http://test',
             'R2_PUBLIC_URL_PARTS': 'http://test',
+            'UPLOAD_IMAGES_TO_R2': 'true',
+            'UPLOAD_DOCUMENTS_TO_R2': 'true',
             'OLLAMA_URL': 'http://localhost:11434'
         }):
             # Mock service classes

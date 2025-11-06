@@ -41,6 +41,7 @@ from backend.core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
 from backend.pipeline.metrics import metrics
 from backend.processors.logger import sanitize_document_name, text_stats
+from backend.services.context_extraction_service import ContextExtractionService
 
 
 class ImageProcessor(BaseProcessor):
@@ -170,6 +171,11 @@ class ImageProcessor(BaseProcessor):
             self.vision_available = self._check_vision_availability()
         else:
             self.vision_available = False
+        
+        # Phase 5: Context extraction configuration
+        self.context_service = ContextExtractionService()
+        self.enable_context_extraction = os.getenv('ENABLE_CONTEXT_EXTRACTION', 'true').lower() == 'true'
+        self.logger.info(f"Context extraction enabled: {self.enable_context_extraction}")
 
     def _create_session(self) -> requests.Session:
         session = requests.Session()
@@ -372,9 +378,7 @@ class ImageProcessor(BaseProcessor):
             document_type=document_type or 'unknown'
         ) as timer:
             try:
-                result = await loop.run_in_executor(
-                    None,
-                    self.process_document,
+                result = await self.process_document(
                     document_id,
                     pdf_path,
                     output_dir
@@ -390,11 +394,12 @@ class ImageProcessor(BaseProcessor):
 
         return result
 
-    def process_document(
+    async def process_document(
         self,
         document_id: UUID,
         pdf_path: Path,
-        output_dir: Optional[Path] = None
+        output_dir: Optional[Path] = None,
+        context: Optional[Any] = None  # Phase 5: ProcessingContext for page_texts
     ) -> Dict[str, Any]:
         """
         Process all images in a PDF document
@@ -450,6 +455,18 @@ class ImageProcessor(BaseProcessor):
 
                 adapter.info("Extracted %d images", len(extracted_images))
 
+                # Phase 5: Extract context for images (NEW!)
+                if self.enable_context_extraction and context:
+                    page_texts = await self._load_page_texts(context, pdf_path, adapter)
+                    if page_texts:
+                        extracted_images = self._extract_image_contexts(
+                            images=extracted_images,
+                            page_texts=page_texts,
+                            adapter=adapter,
+                            pdf_path=pdf_path,  # Pass PDF path for bbox-aware extraction
+                            document_id=document_id  # Pass document ID for related chunks
+                        )
+
                 # Filter images (skip logos, headers, etc.)
                 filtered_images = self._filter_images(extracted_images)
 
@@ -488,6 +505,7 @@ class ImageProcessor(BaseProcessor):
                             'images_extracted': len(extracted_images),
                             'images_filtered': len(filtered_images),
                             'images_classified': len(classified_images),
+                            'images_with_context': sum(1 for img in classified_images if img.get('context_caption')),
                             'storage_tasks_created': storage_task_count,
                         }
                     )
@@ -577,6 +595,9 @@ class ImageProcessor(BaseProcessor):
                         if width * height < self.min_image_size:
                             continue
                         
+                        # Compute image bounding box using display list
+                        image_bbox = self._get_image_bbox(page, img_index)
+                        
                         # Save image
                         image_filename = f"page_{page_num:04d}_img_{img_index:03d}.{image_ext}"
                         image_path = output_dir / image_filename
@@ -588,11 +609,12 @@ class ImageProcessor(BaseProcessor):
                         images.append({
                             'path': str(image_path),
                             'filename': image_filename,
-                            'page_num': page_num + 1,  # 1-indexed
+                            'page_number': page_num + 1,  # 1-indexed - standardized key
                             'width': width,
                             'height': height,
                             'format': image_ext,
                             'size_bytes': len(image_bytes),
+                            'bbox': image_bbox,  # Add bounding box
                             'extracted_at': datetime.utcnow().isoformat()
                         })
                         
@@ -612,6 +634,59 @@ class ImageProcessor(BaseProcessor):
         except Exception as e:
             self.logger.error(f"Image extraction failed: {e}")
             return []
+            
+    def _get_image_bbox(self, page, img_index: int) -> Optional[tuple]:
+        """
+        Compute bounding box for an image using the page's display list.
+        
+        Args:
+            page: PyMuPDF page object
+            img_index: Index of the image in the page's image list
+            
+        Returns:
+            Bounding box as tuple (x0, y0, x1, y1) or None if not found
+        """
+        try:
+            # Get the display list to find image positions
+            display_list = page.get_displaylist()
+            
+            # Get images on page to match xref
+            image_list = page.get_images(full=True)
+            if img_index >= len(image_list):
+                return None
+                
+            target_xref = image_list[img_index][0]
+            
+            # Search for image in display list
+            for item in display_list:
+                if hasattr(item, 'get_image_bboxs'):
+                    # Try to get image bounding boxes
+                    try:
+                        bbox_list = item.get_image_bboxs()
+                        if bbox_list and len(bbox_list) > img_index:
+                            bbox = bbox_list[img_index]
+                            return (bbox.x0, bbox.y0, bbox.x1, bbox.y1)
+                    except Exception:
+                        pass
+                
+                # Alternative: use page.get_text('rawdict') to find image positions
+                try:
+                    text_dict = page.get_text('rawdict')
+                    for block in text_dict.get('blocks', []):
+                        if block.get('type') == 1 and 'xref' in block:  # Image block
+                            if block['xref'] == target_xref:
+                                bbox = block.get('bbox')
+                                if bbox and len(bbox) == 4:
+                                    return tuple(bbox)
+                except Exception:
+                    pass
+            
+            # If no specific bbox found, return None
+            return None
+            
+        except Exception as e:
+            self.logger.debug(f"Failed to compute image bbox for index {img_index}: {e}")
+            return None
 
     def _queue_storage_tasks(
         self,
@@ -641,10 +716,23 @@ class ImageProcessor(BaseProcessor):
                 payload = {
                     "document_id": str(document_id),
                     "filename": image.get('filename'),
-                    "page_number": image.get('page_num'),
+                    "page_number": image.get('page_number'),  # Use standardized key
                     "image_type": image.get('type', 'unknown'),
                     "content": encoded_content,
                     "content_encoding": "base64",
+                    # Phase 5: Context extraction fields
+                    "context_caption": image.get('context_caption'),
+                    "page_header": image.get('page_header'),
+                    "figure_reference": image.get('figure_reference'),
+                    "related_error_codes": image.get('related_error_codes', []),
+                    "related_products": image.get('related_products', []),
+                    "surrounding_paragraphs": image.get('surrounding_paragraphs', []),
+                    "related_chunks": image.get('related_chunks', []),  # Add related chunks
+                    # AI analysis results (OCR and Vision AI)
+                    "ai_description": image.get('ai_description'),
+                    "ocr_text": image.get('ocr_text'),
+                    "ocr_confidence": image.get('ocr_confidence', 0.0),
+                    "ai_confidence": image.get('ai_confidence', 0.0),
                     "metadata": {
                         "width": image.get('width'),
                         "height": image.get('height'),
@@ -1130,6 +1218,174 @@ class ImageProcessor(BaseProcessor):
             metrics.record_vision_result(model_name if 'model_name' in locals() else None, False, error_label=str(e))
             self.logger.error(f"analyze_page failed: {e}")
             return None
+
+    async def _load_page_texts(self, context, pdf_path: Path, adapter) -> Optional[Dict[int, str]]:
+        """
+        Load page texts for context extraction with three-tier fallback.
+        
+        Args:
+            context: ProcessingContext containing page_texts if available
+            pdf_path: Path to PDF file
+            adapter: Logger adapter
+            
+        Returns:
+            Dict mapping page_number to page_text, or None if not available
+        """
+        # Tier 1: Check context.page_texts (from TextProcessor)
+        if hasattr(context, 'page_texts') and context.page_texts:
+            adapter.debug("Using page_texts from context (%d pages)", len(context.page_texts))
+            return context.page_texts
+        
+        # Tier 2: Rebuild from database chunks
+        if self.database_service:
+            try:
+                adapter.debug("Attempting to rebuild page_texts from database chunks")
+                # Get document_id from context
+                document_id = getattr(context, 'document_id', None)
+                if document_id:
+                    # Query chunks grouped by page
+                    result = self.database_service.client.table('vw_chunks').select(
+                        'page_start, page_end, content'
+                    ).eq('document_id', str(document_id)).execute()
+                    
+                    if result.data:
+                        # Aggregate chunks by page
+                        page_texts = {}
+                        for chunk in result.data:
+                            page_start = chunk.get('page_start', 1)
+                            page_end = chunk.get('page_end', page_start)
+                            content = chunk.get('content', '')
+                            
+                            # Add content to all pages in the range
+                            for page_num in range(page_start, page_end + 1):
+                                if page_num not in page_texts:
+                                    page_texts[page_num] = ''
+                                page_texts[page_num] += content + '\n'
+                        
+                        if page_texts:
+                            adapter.debug("Rebuilt page_texts from %d chunks", len(result.data))
+                            return page_texts
+                else:
+                    adapter.warning("No document_id available for chunk reconstruction")
+            except Exception as e:
+                adapter.warning("Failed to rebuild page_texts from database: %s", e)
+        
+        # Tier 3: Re-extract from PDF using TextExtractor
+        try:
+            adapter.debug("Re-extracting page_texts from PDF")
+            from .text_extractor import TextExtractor
+            
+            text_extractor = TextExtractor()
+            page_texts, metadata = text_extractor.extract_text(pdf_path)
+            
+            if page_texts:
+                adapter.debug("Re-extracted %d pages from PDF", len(page_texts))
+                return page_texts
+            else:
+                adapter.warning("No text extracted from PDF for context")
+                
+        except Exception as e:
+            adapter.error("Failed to re-extract page_texts from PDF: %s", e)
+        
+        return None
+
+    def _extract_image_contexts(
+        self, 
+        images: List[Dict], 
+        page_texts: Dict[int, str], 
+        adapter,
+        pdf_path: Optional[Path] = None,
+        document_id: Optional[UUID] = None
+    ) -> List[Dict]:
+        """
+        Extract context for all images using ContextExtractionService.
+        
+        Args:
+            images: List of image dictionaries
+            page_texts: Dict mapping page_number to page_text
+            adapter: Logger adapter
+            pdf_path: Optional PDF path for bbox-aware extraction
+            document_id: Optional document ID for related chunks extraction
+            
+        Returns:
+            List of images with context metadata added
+        """
+        images_with_context = []
+        
+        for image in images:
+            page_number = image.get('page_number')
+            if not page_number or page_number not in page_texts:
+                adapter.warning("No page text available for image on page %d", page_number)
+                images_with_context.append(image)
+                continue
+            
+            page_text = page_texts[page_number]
+            image_bbox = image.get('bbox')  # Optional bounding box
+            
+            try:
+                # Extract context using ContextExtractionService
+                context_data = self.context_service.extract_image_context(
+                    page_text=page_text,
+                    page_number=page_number,
+                    image_bbox=image_bbox,
+                    page_path=str(pdf_path)  # Pass PDF path for bbox-aware extraction
+                )
+                
+                # Merge context data into image dict
+                image.update({
+                    'context_caption': context_data['context_caption'],
+                    'page_header': context_data['page_header'],
+                    'figure_reference': context_data.get('figure_reference'),
+                    'related_error_codes': context_data['related_error_codes'],
+                    'related_products': context_data['related_products'],
+                    'surrounding_paragraphs': context_data['surrounding_paragraphs'],
+                    'related_chunks': self._get_related_chunks(page_number, document_id, adapter)  # Add related chunks
+                })
+                
+                images_with_context.append(image)
+                
+            except Exception as e:
+                adapter.error("Failed to extract context for image on page %d: %s", page_number, e)
+                images_with_context.append(image)
+        
+        adapter.info("Extracted context for %d images", len(images_with_context))
+        return images_with_context
+    
+    def _get_related_chunks(self, page_number: int, document_id: UUID, adapter) -> List[str]:
+        """
+        Extract related chunk IDs for a given page number.
+        
+        Args:
+            page_number: Page number to find chunks for
+            document_id: Document ID to query chunks
+            adapter: Logger adapter
+            
+        Returns:
+            List of chunk IDs that include the given page
+        """
+        if not self.database_service or not document_id:
+            return []
+        
+        try:
+            # Query chunks that overlap with the given page
+            result = self.database_service.client.table("vw_chunks").select(
+                "id"
+            ).eq(
+                "document_id", str(document_id)
+            ).or_(
+                f"page_start.lte.{page_number},page_end.gte.{page_number}"
+            ).execute()
+            
+            if result.data:
+                chunk_ids = [chunk['id'] for chunk in result.data]
+                adapter.debug(f"Found {len(chunk_ids)} related chunks for page {page_number}")
+                return chunk_ids
+            
+            return []
+            
+        except Exception as e:
+            adapter.warning(f"Failed to get related chunks for page {page_number}: {e}")
+            return []
 
 
 # Example usage

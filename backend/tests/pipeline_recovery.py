@@ -22,6 +22,7 @@ from backend.processors.embedding_processor import EmbeddingProcessor
 from backend.processors.search_processor import SearchProcessor
 from backend.services.ai_service import AIService
 from backend.services.object_storage_service import ObjectStorageService
+from backend.services.storage_factory import create_storage_service
 from backend.config.ai_config import ConfigService
 from backend.core.data_models import ProcessingContext
 
@@ -52,14 +53,7 @@ class PipelineRecovery:
         await self.ai_service.connect()
         
         # Initialize storage service
-        self.storage_service = ObjectStorageService(
-            r2_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
-            r2_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
-            r2_endpoint_url=os.getenv('R2_ENDPOINT_URL'),
-            r2_public_url_documents=os.getenv('R2_PUBLIC_URL_DOCUMENTS'),
-            r2_public_url_error=os.getenv('R2_PUBLIC_URL_ERROR'),
-            r2_public_url_parts=os.getenv('R2_PUBLIC_URL_PARTS')
-        )
+        self.storage_service = create_storage_service()
         await self.storage_service.connect()
         
         # Initialize config service

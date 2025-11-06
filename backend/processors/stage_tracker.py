@@ -5,9 +5,10 @@ Helper class for tracking processing stages per document.
 Enables parallel processing and detailed monitoring.
 """
 
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, Callable
 from datetime import datetime
 from uuid import UUID
+import asyncio
 import logging
 
 from backend.core.base_processor import Stage
@@ -37,10 +38,11 @@ class StageTracker:
     
     STAGES = [stage.value for stage in Stage]
     
-    def __init__(self, supabase_client):
-        """Initialize tracker"""
+    def __init__(self, supabase_client, websocket_callback: Optional[Callable] = None):
+        """Initialize tracker with optional WebSocket callback."""
         self.supabase = supabase_client
         self.logger = logging.getLogger("krai.stage_tracker")
+        self.websocket_callback = websocket_callback
 
     @staticmethod
     def _make_json_safe(value: Any) -> Any:
@@ -189,6 +191,22 @@ class StageTracker:
                 'p_stage_name': stage,
                 'p_metadata': metadata or {}
             }).execute()
+            
+            # Broadcast WebSocket event
+            if self.websocket_callback:
+                try:
+                    from backend.models.monitoring import WebSocketEvent
+                    asyncio.create_task(
+                        self.websocket_callback(
+                            WebSocketEvent.STAGE_COMPLETED,
+                            stage,
+                            document_id,
+                            "completed"
+                        )
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Failed to broadcast stage completion: {e}")
+            
             return True
         except Exception as e:
             self.logger.error(
@@ -228,6 +246,22 @@ class StageTracker:
                 'p_error': error,
                 'p_metadata': metadata or {}
             }).execute()
+            
+            # Broadcast WebSocket event
+            if self.websocket_callback:
+                try:
+                    from backend.models.monitoring import WebSocketEvent
+                    asyncio.create_task(
+                        self.websocket_callback(
+                            WebSocketEvent.STAGE_FAILED,
+                            stage,
+                            document_id,
+                            "failed"
+                        )
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Failed to broadcast stage failure: {e}")
+            
             return True
         except Exception as e:
             self.logger.error(

@@ -1,0 +1,7 @@
+-r backend/requirements.txt
+
+# Firecrawl async SDK and scraping dependencies
+firecrawl-py>=1.2.0
+httpx>=0.26.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0

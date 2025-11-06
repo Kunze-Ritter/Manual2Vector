@@ -125,7 +125,13 @@ class StorageProcessor(BaseProcessor):
             "confidence_score": payload.get("confidence_score", 0.5),
             "manufacturer_id": payload.get("manufacturer_id"),
             "series_id": payload.get("series_id"),
-            "related_error_codes": payload.get("related_error_codes") or []
+            "related_error_codes": payload.get("related_error_codes") or [],
+            # Phase 5: Context extraction fields
+            "context_description": payload.get("context_description"),
+            "page_header": payload.get("page_header"),
+            "related_products": payload.get("related_products", []),
+            "related_chunks": payload.get("related_chunks", [])  # Add related_chunks
+            # Note: context_embedding will be added by EmbeddingProcessor (Stage 9)
         }
 
         self.database_service.client.table("vw_links").insert(link_data).execute()
@@ -148,7 +154,15 @@ class StorageProcessor(BaseProcessor):
             "platform": payload.get("platform", "youtube"),
             "metadata": payload.get("metadata") or {},
             "manufacturer_id": payload.get("manufacturer_id"),
-            "series_id": payload.get("series_id")
+            "series_id": payload.get("series_id"),
+            # Phase 5: Context extraction fields
+            "context_description": payload.get("context_description"),
+            "page_number": payload.get("page_number"),
+            "page_header": payload.get("page_header"),  # Add page_header field
+            "related_error_codes": payload.get("related_error_codes", []),
+            "related_products": payload.get("related_products", []),
+            "related_chunks": payload.get("related_chunks", [])  # Add related_chunks
+            # Note: context_embedding will be added by EmbeddingProcessor (Stage 9)
         }
 
         self.database_service.client.table("vw_videos").insert(video_data).execute()
@@ -231,7 +245,21 @@ class StorageProcessor(BaseProcessor):
                 "storage_url": result.get("url"),
                 "storage_path": result.get("storage_path"),
                 "file_hash": result.get("file_hash"),
+                # AI analysis results (OCR and Vision AI)
+                "ai_description": payload.get("ai_description"),
+                "ocr_text": payload.get("ocr_text"),
+                "ocr_confidence": payload.get("ocr_confidence", 0.0),
+                "ai_confidence": payload.get("ai_confidence", 0.0),
+                # Phase 5: Context extraction fields
+                "context_caption": payload.get("context_caption"),
+                "page_header": payload.get("page_header"),
+                "figure_reference": payload.get("figure_reference"),
+                "related_error_codes": payload.get("related_error_codes", []),
+                "related_products": payload.get("related_products", []),
+                "surrounding_paragraphs": payload.get("surrounding_paragraphs", []),
+                "related_chunks": payload.get("related_chunks", []),  # Add related chunks
                 "metadata": metadata
+                # Note: context_embedding will be added by EmbeddingProcessor (Stage 9)
             }
             self.database_service.client.table("vw_images").insert(image_record).execute()
             adapter.debug("Stored image artifact %s", artifact.get("id"))

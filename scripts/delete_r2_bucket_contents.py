@@ -1,7 +1,7 @@
 """
-R2 Bucket Bulk Delete Script
+Object Storage Bucket Bulk Delete Script
 
-Delete ALL objects from a specific R2 bucket.
+Delete ALL objects from a specific storage bucket.
 Useful when you want to delete a bucket but it contains too many files.
 
 Cloudflare UI limits: 25 objects per delete
@@ -16,14 +16,14 @@ Usage:
     python delete_r2_bucket_contents.py --bucket ai-technik-agent --delete \
         --access-key YOUR_KEY \
         --secret-key YOUR_SECRET \
-        --endpoint https://YOUR_ACCOUNT.r2.cloudflarestorage.com
+        --endpoint https://YOUR_ACCOUNT.storage.example.com
 
 Getting Credentials:
-    1. Go to Cloudflare Dashboard
+    1. Go to your storage provider dashboard
     2. Select the account where bucket is located
-    3. R2 → Manage R2 API Tokens
+    3. Find API tokens/credentials section
     4. Create new token with Read & Write permissions
-    5. Copy Access Key ID, Secret Access Key, and Account ID from URL
+    5. Copy Access Key ID, Secret Access Key, and endpoint URL
 
 Safety:
     - Dry-run by default
@@ -50,22 +50,29 @@ import boto3
 from botocore.client import Config
 
 
-class R2BucketCleaner:
-    """Delete all objects from R2 bucket"""
+class ObjectStorageBucketCleaner:
+    """Delete all objects from storage bucket"""
     
     def __init__(self, bucket_name: str, dry_run=True, access_key=None, secret_key=None, endpoint_url=None):
         self.bucket_name = bucket_name
         self.dry_run = dry_run
         
-        # R2 Configuration - use provided or fall back to .env
-        self.access_key = access_key or os.getenv('R2_ACCESS_KEY_ID')
-        self.secret_key = secret_key or os.getenv('R2_SECRET_ACCESS_KEY')
-        self.endpoint_url = endpoint_url or os.getenv('R2_ENDPOINT_URL')
+        # Helper function to get env var with fallback and deprecation warning
+        def get_env_var(new_var: str, old_var: str, default: str = None) -> str:
+            value = os.getenv(new_var) or os.getenv(old_var) or default
+            if not os.getenv(new_var) and os.getenv(old_var):
+                print(f"⚠️  Environment variable {old_var} is deprecated. Use {new_var} instead.")
+            return value
+        
+        # Storage Configuration - use provided or fall back to .env
+        self.access_key = access_key or get_env_var('OBJECT_STORAGE_ACCESS_KEY', 'R2_ACCESS_KEY_ID')
+        self.secret_key = secret_key or get_env_var('OBJECT_STORAGE_SECRET_KEY', 'R2_SECRET_ACCESS_KEY')
+        self.endpoint_url = endpoint_url or get_env_var('OBJECT_STORAGE_ENDPOINT', 'R2_ENDPOINT_URL')
         
         if not all([self.access_key, self.secret_key, self.endpoint_url]):
-            raise ValueError("Missing R2 credentials. Provide via arguments or .env file")
+            raise ValueError("Missing storage credentials. Provide via arguments or .env file")
         
-        # Initialize R2 client
+        # Initialize storage client
         self.r2_client = boto3.client(
             's3',
             endpoint_url=self.endpoint_url,
@@ -84,7 +91,7 @@ class R2BucketCleaner:
         }
         
         print(f"\n{'='*80}")
-        print(f"  R2 BUCKET BULK DELETE")
+        print(f"  OBJECT STORAGE BUCKET BULK DELETE")
         print(f"{'='*80}")
         print(f"\nBucket: {self.bucket_name}")
         print(f"Mode: {'DRY RUN (preview only)' if dry_run else 'DELETE MODE'}")
@@ -248,7 +255,7 @@ class R2BucketCleaner:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='R2 Bucket Bulk Delete - Delete all objects from bucket',
+        description='Object Storage Bucket Bulk Delete - Delete all objects from bucket',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -259,7 +266,7 @@ Examples:
   python delete_r2_bucket_contents.py --bucket ai-technik-agent --delete \\
     --access-key YOUR_KEY \\
     --secret-key YOUR_SECRET \\
-    --endpoint https://YOUR_ACCOUNT.r2.cloudflarestorage.com
+    --endpoint https://YOUR_ACCOUNT.storage.example.com
   
   # Delete with .env credentials
   python delete_r2_bucket_contents.py --bucket ai-technik-agent --delete
@@ -267,7 +274,7 @@ Examples:
     )
     
     parser.add_argument('--bucket', required=True,
-                       help='R2 bucket name to clean')
+                       help='Object Storage bucket name to clean')
     parser.add_argument('--dry-run', action='store_true', default=True,
                        help='Preview only, no changes (default)')
     parser.add_argument('--delete', action='store_true',
@@ -275,11 +282,11 @@ Examples:
     
     # Optional credentials (if different from .env)
     parser.add_argument('--access-key',
-                       help='R2 Access Key ID (defaults to R2_ACCESS_KEY_ID from .env)')
+                       help='Storage Access Key ID (defaults to OBJECT_STORAGE_ACCESS_KEY from .env)')
     parser.add_argument('--secret-key',
-                       help='R2 Secret Access Key (defaults to R2_SECRET_ACCESS_KEY from .env)')
+                       help='Storage Secret Access Key (defaults to OBJECT_STORAGE_SECRET_KEY from .env)')
     parser.add_argument('--endpoint',
-                       help='R2 Endpoint URL (defaults to R2_ENDPOINT_URL from .env)')
+                       help='Storage Endpoint URL (defaults to OBJECT_STORAGE_ENDPOINT from .env)')
     
     args = parser.parse_args()
     
@@ -287,7 +294,7 @@ Examples:
     dry_run = not args.delete
     
     try:
-        cleaner = R2BucketCleaner(
+        cleaner = ObjectStorageBucketCleaner(
             bucket_name=args.bucket,
             dry_run=dry_run,
             access_key=args.access_key,

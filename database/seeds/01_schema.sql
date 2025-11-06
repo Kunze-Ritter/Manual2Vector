@@ -1927,7 +1927,14 @@ CREATE TABLE krai_content.images (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     figure_number character varying(50),
-    figure_context text
+    figure_context text,
+    context_caption text,
+    page_header text,
+    surrounding_paragraphs text[],
+    related_error_codes text[],
+    related_products text[],
+    related_chunks uuid[],
+    context_embedding extensions.vector(768)
 );
 
 
@@ -1974,6 +1981,9 @@ CREATE TABLE krai_content.links (
     manufacturer_id uuid,
     series_id uuid,
     related_error_codes text[],
+    context_description text,
+    related_chunks uuid[],
+    context_embedding extensions.vector(768),
     CONSTRAINT link_type_check CHECK (((link_type)::text = ANY ((ARRAY['video'::character varying, 'external'::character varying, 'tutorial'::character varying, 'support'::character varying, 'download'::character varying, 'email'::character varying, 'phone'::character varying])::text[])))
 );
 
@@ -2098,7 +2108,12 @@ CREATE TABLE krai_content.videos (
     metadata jsonb,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    enriched_at timestamp with time zone DEFAULT now()
+    enriched_at timestamp with time zone DEFAULT now(),
+    context_description text,
+    related_products text[],
+    related_chunks uuid[],
+    page_number integer,
+    context_embedding extensions.vector(768)
 );
 
 
@@ -2771,6 +2786,52 @@ CREATE TABLE krai_intelligence.chunks (
     page_label_start character varying(20),
     page_label_end character varying(20),
     CONSTRAINT chunks_processing_status_check CHECK (((processing_status)::text = ANY ((ARRAY['pending'::character varying, 'completed'::character varying, 'failed'::character varying])::text[])))
+);
+
+--
+-- Name: embeddings_v2; Type: TABLE; Schema: krai_intelligence; Owner: -
+--
+
+CREATE TABLE krai_intelligence.embeddings_v2 (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    source_id uuid NOT NULL,
+    source_type character varying(20) NOT NULL,
+    embedding extensions.vector(768) NOT NULL,
+    model_name character varying(100) NOT NULL,
+    embedding_context text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT embeddings_v2_source_type_check CHECK ((source_type)::text = ANY ((ARRAY['text'::character varying, 'image'::character varying, 'table'::character varying, 'caption'::character varying, 'context'::character varying])::text[]))
+);
+
+--
+-- Name: structured_tables; Type: TABLE; Schema: krai_intelligence; Owner: -
+--
+
+CREATE TABLE krai_intelligence.structured_tables (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    document_id uuid NOT NULL,
+    chunk_id uuid,
+    page_number integer,
+    table_index integer,
+    table_type character varying(50),
+    column_headers text[],
+    row_count integer,
+    column_count integer,
+    table_data jsonb,
+    table_markdown text,
+    caption text,
+    context_text text,
+    related_error_codes text[],
+    related_products text[],
+    related_chunks uuid[],
+    table_embedding extensions.vector(768),
+    context_embedding extensions.vector(768),
+    column_embeddings jsonb,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT structured_tables_type_check CHECK ((table_type)::text = ANY ((ARRAY['specification'::character varying, 'comparison'::character varying, 'parts_list'::character varying, 'error_codes'::character varying, 'other'::character varying])::text[]))
 );
 
 
@@ -4133,6 +4194,150 @@ CREATE INDEX idx_products_type ON krai_core.products USING btree (product_type);
 
 CREATE INDEX chunks_embedding_hnsw_idx ON krai_intelligence.chunks USING hnsw (embedding extensions.vector_cosine_ops);
 
+--
+-- Name: idx_images_context_embedding_hnsw; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_images_context_embedding_hnsw ON krai_content.images USING hnsw (context_embedding extensions.vector_cosine_ops);
+
+--
+-- Name: idx_images_related_error_codes_gin; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_images_related_error_codes_gin ON krai_content.images USING gin (related_error_codes);
+
+--
+-- Name: idx_images_related_products_gin; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_images_related_products_gin ON krai_content.images USING gin (related_products);
+
+--
+-- Name: idx_images_related_chunks_gin; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_images_related_chunks_gin ON krai_content.images USING gin (related_chunks);
+
+--
+-- Name: idx_images_surrounding_paragraphs_gin; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_images_surrounding_paragraphs_gin ON krai_content.images USING gin (surrounding_paragraphs);
+
+--
+-- Name: idx_videos_context_embedding_hnsw; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_videos_context_embedding_hnsw ON krai_content.videos USING hnsw (context_embedding extensions.vector_cosine_ops);
+
+--
+-- Name: idx_videos_related_products_gin; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_videos_related_products_gin ON krai_content.videos USING gin (related_products);
+
+--
+-- Name: idx_videos_related_chunks_gin; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_videos_related_chunks_gin ON krai_content.videos USING gin (related_chunks);
+
+--
+-- Name: idx_links_context_embedding_hnsw; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_links_context_embedding_hnsw ON krai_content.links USING hnsw (context_embedding extensions.vector_cosine_ops);
+
+--
+-- Name: idx_links_related_chunks_gin; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_links_related_chunks_gin ON krai_content.links USING gin (related_chunks);
+
+--
+-- Name: idx_embeddings_v2_source; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_embeddings_v2_source ON krai_intelligence.embeddings_v2 USING btree (source_id, source_type);
+
+--
+-- Name: idx_embeddings_v2_source_type; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_embeddings_v2_source_type ON krai_intelligence.embeddings_v2 USING btree (source_type);
+
+--
+-- Name: idx_embeddings_v2_model; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_embeddings_v2_model ON krai_intelligence.embeddings_v2 USING btree (model_name);
+
+--
+-- Name: idx_embeddings_v2_embedding_hnsw; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_embeddings_v2_embedding_hnsw ON krai_intelligence.embeddings_v2 USING hnsw (embedding extensions.vector_cosine_ops);
+
+--
+-- Name: idx_embeddings_v2_created_at; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_embeddings_v2_created_at ON krai_intelligence.embeddings_v2 USING btree (created_at DESC);
+
+--
+-- Name: idx_structured_tables_document; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_document ON krai_intelligence.structured_tables USING btree (document_id);
+
+--
+-- Name: idx_structured_tables_page; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_page ON krai_intelligence.structured_tables USING btree (page_number);
+
+--
+-- Name: idx_structured_tables_type; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_type ON krai_intelligence.structured_tables USING btree (table_type);
+
+--
+-- Name: idx_structured_tables_table_embedding_hnsw; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_table_embedding_hnsw ON krai_intelligence.structured_tables USING hnsw (table_embedding extensions.vector_cosine_ops);
+
+--
+-- Name: idx_structured_tables_context_embedding_hnsw; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_context_embedding_hnsw ON krai_intelligence.structured_tables USING hnsw (context_embedding extensions.vector_cosine_ops);
+
+--
+-- Name: idx_structured_tables_error_codes_gin; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_error_codes_gin ON krai_intelligence.structured_tables USING gin (related_error_codes);
+
+--
+-- Name: idx_structured_tables_products_gin; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_products_gin ON krai_intelligence.structured_tables USING gin (related_products);
+
+--
+-- Name: idx_structured_tables_table_data_gin; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_table_data_gin ON krai_intelligence.structured_tables USING gin (table_data);
+
+--
+-- Name: idx_structured_tables_column_headers_gin; Type: INDEX; Schema: krai_intelligence; Owner: -
+--
+
+CREATE INDEX idx_structured_tables_column_headers_gin ON krai_intelligence.structured_tables USING gin (column_headers);
+
 
 --
 -- Name: idx_chunks_document; Type: INDEX; Schema: krai_intelligence; Owner: -
@@ -4955,6 +5160,42 @@ CREATE POLICY service_role_links_all ON krai_content.links USING (true);
 
 CREATE POLICY service_role_print_defects_all ON krai_content.print_defects USING (true);
 
+--
+-- Name: embeddings_v2; Type: ROW SECURITY; Schema: krai_intelligence; Owner: -
+--
+
+ALTER TABLE krai_intelligence.embeddings_v2 ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: structured_tables; Type: ROW SECURITY; Schema: krai_intelligence; Owner: -
+--
+
+ALTER TABLE krai_intelligence.structured_tables ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: embeddings_v2 service_role_embeddings_v2_all; Type: POLICY; Schema: krai_intelligence; Owner: -
+--
+
+CREATE POLICY service_role_embeddings_v2_all ON krai_intelligence.embeddings_v2 USING (true);
+
+--
+-- Name: embeddings_v2 authenticated_embeddings_v2_read; Type: POLICY; Schema: krai_intelligence; Owner: -
+--
+
+CREATE POLICY authenticated_embeddings_v2_read ON krai_intelligence.embeddings_v2 FOR SELECT USING (true);
+
+--
+-- Name: structured_tables service_role_structured_tables_all; Type: POLICY; Schema: krai_intelligence; Owner: -
+--
+
+CREATE POLICY service_role_structured_tables_all ON krai_intelligence.structured_tables USING (true);
+
+--
+-- Name: structured_tables authenticated_structured_tables_read; Type: POLICY; Schema: krai_intelligence; Owner: -
+--
+
+CREATE POLICY authenticated_structured_tables_read ON krai_intelligence.structured_tables FOR SELECT USING (true);
+
 
 --
 -- Name: document_relationships; Type: ROW SECURITY; Schema: krai_core; Owner: -
@@ -5210,4 +5451,221 @@ ALTER TABLE krai_system.system_metrics ENABLE ROW LEVEL SECURITY;
 --
 
 \unrestrict 5X9cwO3NO9w7pMsdZXbLWTzQG6eW842hPNcxu5oTIbFX1K9K9jn0psYZlvYScVz
+
+--
+-- Additional Functions for Phase 2 Migrations
+--
+
+-- Helper function for embedding lookup
+CREATE OR REPLACE FUNCTION krai_intelligence.get_embeddings_by_source(
+    p_source_id uuid, 
+    p_source_type character varying DEFAULT NULL
+)
+RETURNS TABLE (
+    id uuid, 
+    source_type character varying, 
+    embedding extensions.vector(768), 
+    model_name character varying, 
+    created_at timestamp with time zone
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        e.id,
+        e.source_type,
+        e.embedding,
+        e.model_name,
+        e.created_at
+    FROM krai_intelligence.embeddings_v2 e
+    WHERE e.source_id = p_source_id
+    AND (p_source_type IS NULL OR e.source_type = p_source_type)
+    ORDER BY e.created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Unified multimodal search RPC function
+CREATE OR REPLACE FUNCTION krai_intelligence.match_multimodal(
+    query_embedding extensions.vector(768), 
+    match_threshold double precision DEFAULT 0.5, 
+    match_count integer DEFAULT 10
+)
+RETURNS TABLE (
+    source_type text, 
+    source_id uuid, 
+    content text, 
+    context text, 
+    similarity double precision, 
+    metadata jsonb
+) AS $$
+BEGIN
+    RETURN QUERY
+    -- Search text chunks
+    SELECT 
+        'text'::text as source_type,
+        c.id as source_id,
+        c.text_chunk as content,
+        c.metadata->>'page_header' as context,
+        1 - (c.embedding <=> query_embedding) as similarity,
+        c.metadata as metadata
+    FROM krai_intelligence.chunks c
+    WHERE c.embedding IS NOT NULL 
+    AND 1 - (c.embedding <=> query_embedding) > match_threshold
+    
+    UNION ALL
+    
+    -- Search images by context
+    SELECT 
+        'image'::text as source_type,
+        i.id as source_id,
+        i.ai_description as content,
+        i.context_caption as context,
+        1 - (i.context_embedding <=> query_embedding) as similarity,
+        jsonb_build_object(
+            'storage_url', i.storage_url,
+            'page_number', i.page_number,
+            'filename', i.filename
+        ) as metadata
+    FROM krai_content.images i
+    WHERE i.context_embedding IS NOT NULL 
+    AND 1 - (i.context_embedding <=> query_embedding) > match_threshold
+    
+    UNION ALL
+    
+    -- Search videos by context
+    SELECT 
+        'video'::text as source_type,
+        v.id as source_id,
+        v.description as content,
+        v.context_description as context,
+        1 - (v.context_embedding <=> query_embedding) as similarity,
+        jsonb_build_object(
+            'youtube_id', v.youtube_id,
+            'thumbnail_url', v.thumbnail_url,
+            'page_number', v.page_number
+        ) as metadata
+    FROM krai_content.videos v
+    WHERE v.context_embedding IS NOT NULL 
+    AND 1 - (v.context_embedding <=> query_embedding) > match_threshold
+    
+    UNION ALL
+    
+    -- Search links by context
+    SELECT 
+        'link'::text as source_type,
+        l.id as source_id,
+        l.description as content,
+        l.context_description as context,
+        1 - (l.context_embedding <=> query_embedding) as similarity,
+        jsonb_build_object(
+            'url', l.url,
+            'page_number', l.page_number
+        ) as metadata
+    FROM krai_content.links l
+    WHERE l.context_embedding IS NOT NULL 
+    AND 1 - (l.context_embedding <=> query_embedding) > match_threshold
+    
+    UNION ALL
+    
+    -- Search structured tables
+    SELECT 
+        'table'::text as source_type,
+        t.id as source_id,
+        t.table_markdown as content,
+        t.context_text as context,
+        1 - (t.table_embedding <=> query_embedding) as similarity,
+        jsonb_build_object(
+            'table_type', t.table_type,
+            'page_number', t.page_number,
+            'row_count', t.row_count,
+            'column_count', t.column_count
+        ) as metadata
+    FROM krai_intelligence.structured_tables t
+    WHERE t.table_embedding IS NOT NULL 
+    AND 1 - (t.table_embedding <=> query_embedding) > match_threshold
+    
+    ORDER BY similarity DESC
+    LIMIT match_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Context-aware image search RPC function
+CREATE OR REPLACE FUNCTION krai_intelligence.match_images_by_context(
+    query_embedding extensions.vector(768), 
+    match_threshold double precision DEFAULT 0.5, 
+    match_count integer DEFAULT 5
+)
+RETURNS TABLE (
+    id uuid, 
+    storage_url text, 
+    context_caption text, 
+    ai_description text, 
+    page_number integer, 
+    similarity double precision
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        i.id,
+        i.storage_url,
+        i.context_caption,
+        i.ai_description,
+        i.page_number,
+        1 - (i.context_embedding <=> query_embedding) as similarity
+    FROM krai_content.images i
+    WHERE i.context_embedding IS NOT NULL 
+    AND 1 - (i.context_embedding <=> query_embedding) > match_threshold
+    ORDER BY similarity DESC
+    LIMIT match_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Comments for new functions
+COMMENT ON FUNCTION krai_intelligence.get_embeddings_by_source(p_source_id uuid, p_source_type character varying) IS 'Helper function to retrieve all embeddings for a given source entity, optionally filtered by type';
+COMMENT ON FUNCTION krai_intelligence.match_multimodal(query_embedding extensions.vector(768), match_threshold double precision, match_count integer) IS 'Unified semantic search across all modalities: text chunks, images, videos, links, and structured tables';
+COMMENT ON FUNCTION krai_intelligence.match_images_by_context(query_embedding extensions.vector(768), match_threshold double precision, match_count integer) IS 'Context-aware image search using image context embeddings for semantic similarity';
+
+-- Foreign key constraints for new tables
+ALTER TABLE ONLY krai_intelligence.structured_tables
+    ADD CONSTRAINT structured_tables_document_id_fkey FOREIGN KEY (document_id) REFERENCES krai_core.documents(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY krai_intelligence.structured_tables
+    ADD CONSTRAINT structured_tables_chunk_id_fkey FOREIGN KEY (chunk_id) REFERENCES krai_intelligence.chunks(id) ON DELETE SET NULL;
+
+-- Add column comments for new context fields (matching migration 116)
+COMMENT ON COLUMN krai_content.images.context_caption IS 'Surrounding text (±200 characters) extracted from page where image appears';
+COMMENT ON COLUMN krai_content.images.page_header IS 'Page header/title where image appears';
+COMMENT ON COLUMN krai_content.images.surrounding_paragraphs IS 'Array of paragraphs before/after image';
+COMMENT ON COLUMN krai_content.images.related_error_codes IS 'Error codes mentioned on same page as image';
+COMMENT ON COLUMN krai_content.images.related_products IS 'Products mentioned on same page as image';
+COMMENT ON COLUMN krai_content.images.related_chunks IS 'Array of chunk IDs where image is referenced';
+COMMENT ON COLUMN krai_content.images.context_embedding IS 'Embedding of image context for semantic search';
+
+COMMENT ON COLUMN krai_content.videos.context_description IS 'Context from PDF where video link was found';
+COMMENT ON COLUMN krai_content.videos.related_products IS 'Products mentioned in video context';
+COMMENT ON COLUMN krai_content.videos.related_chunks IS 'Chunks where video is referenced';
+COMMENT ON COLUMN krai_content.videos.page_number IS 'Page number where video link was found (if from PDF)';
+COMMENT ON COLUMN krai_content.videos.context_embedding IS 'Embedding of video context for semantic search';
+
+COMMENT ON COLUMN krai_content.links.context_description IS 'Context from PDF where link was found';
+COMMENT ON COLUMN krai_content.links.related_chunks IS 'Chunks where link is referenced';
+COMMENT ON COLUMN krai_content.links.context_embedding IS 'Embedding of link context for semantic search';
+
+-- Grant permissions for new tables (matching migrations)
+GRANT SELECT, INSERT, UPDATE, DELETE ON krai_intelligence.embeddings_v2 TO krai_user;
+GRANT SELECT ON krai_intelligence.embeddings_v2 TO authenticated;
+GRANT SELECT ON krai_intelligence.embeddings_v2 TO anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON krai_intelligence.structured_tables TO krai_user;
+GRANT SELECT ON krai_intelligence.structured_tables TO authenticated;
+GRANT SELECT ON krai_intelligence.structured_tables TO anon;
+
+-- Grant execute permissions on new functions (matching migrations)
+GRANT EXECUTE ON FUNCTION krai_intelligence.get_embeddings_by_source(p_source_id uuid, p_source_type character varying) TO authenticated;
+GRANT EXECUTE ON FUNCTION krai_intelligence.get_embeddings_by_source(p_source_id uuid, p_source_type character varying) TO anon;
+
+GRANT EXECUTE ON FUNCTION krai_intelligence.match_multimodal(query_embedding extensions.vector(768), match_threshold double precision, match_count integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION krai_intelligence.match_multimodal(query_embedding extensions.vector(768), match_threshold double precision, match_count integer) TO anon;
+
+GRANT EXECUTE ON FUNCTION krai_intelligence.match_images_by_context(query_embedding extensions.vector(768), match_threshold double precision, match_count integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION krai_intelligence.match_images_by_context(query_embedding extensions.vector(768), match_threshold double precision, match_count integer) TO anon;
 

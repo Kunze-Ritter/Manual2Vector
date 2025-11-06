@@ -107,7 +107,7 @@ IMMER am Ende von TODO.md aktualisieren:
 
 **IMMER DATABASE_SCHEMA.md als Referenz nutzen!**
 
-Die Datei `DATABASE_SCHEMA.md` im Root-Verzeichnis enthält die ECHTE, aktuelle Datenbankstruktur direkt aus Supabase.
+Die Datei `DATABASE_SCHEMA.md` im /docs/database Verzeichnis enthält die ECHTE, aktuelle Datenbankstruktur direkt aus Supabase.
 
 ### Regeln:
 

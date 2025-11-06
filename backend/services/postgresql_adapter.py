@@ -6,6 +6,7 @@ No Supabase dependencies - uses only asyncpg for database access.
 """
 
 import logging
+import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -339,6 +340,234 @@ class PostgreSQLAdapter(DatabaseAdapter):
             )
             return [dict(row) for row in rows]
 
+    # Phase 5: Context extraction update methods
+    async def update_image_context(self, image_id: str, context_data: Dict[str, Any]) -> bool:
+        """Update context fields for an image."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            try:
+                # Handle vector field separately
+                vector_value = None
+                if 'context_embedding' in context_data:
+                    vector_value = context_data.pop('context_embedding')
+                
+                # Build SET clause for non-vector fields
+                set_clauses = []
+                values = []
+                param_idx = 1
+                
+                for key, value in context_data.items():
+                    set_clauses.append(f"{key} = ${param_idx}")
+                    values.append(value)
+                    param_idx += 1
+                
+                # Add vector field if present
+                if vector_value is not None:
+                    set_clauses.append(f"context_embedding = ${param_idx}::vector")
+                    values.append(self._vector_literal(vector_value))
+                    param_idx += 1
+                
+                values.append(image_id)  # WHERE clause parameter
+                
+                sql = f"""
+                UPDATE {self._content_schema}.images 
+                SET {', '.join(set_clauses)}
+                WHERE id = ${param_idx}
+                """
+                
+                result = await conn.execute(sql, *values)
+                success = result == "UPDATE 1"
+                
+                if success:
+                    self.logger.info(f"Updated context for image {image_id}")
+                else:
+                    self.logger.warning(f"Failed to update context for image {image_id}")
+                
+                return success
+                
+            except Exception as e:
+                self.logger.error(f"Error updating image context {image_id}: {e}")
+                return False
+
+    async def update_video_context(self, video_id: str, context_data: Dict[str, Any]) -> bool:
+        """Update context fields for a video."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            try:
+                # Handle vector field separately
+                vector_value = None
+                if 'context_embedding' in context_data:
+                    vector_value = context_data.pop('context_embedding')
+                
+                # Build SET clause for non-vector fields
+                set_clauses = []
+                values = []
+                param_idx = 1
+                
+                for key, value in context_data.items():
+                    set_clauses.append(f"{key} = ${param_idx}")
+                    values.append(value)
+                    param_idx += 1
+                
+                # Add vector field if present
+                if vector_value is not None:
+                    set_clauses.append(f"context_embedding = ${param_idx}::vector")
+                    values.append(self._vector_literal(vector_value))
+                    param_idx += 1
+                
+                values.append(video_id)  # WHERE clause parameter
+                
+                sql = f"""
+                UPDATE {self._content_schema}.instructional_videos 
+                SET {', '.join(set_clauses)}
+                WHERE id = ${param_idx}
+                """
+                
+                result = await conn.execute(sql, *values)
+                success = result == "UPDATE 1"
+                
+                if success:
+                    self.logger.info(f"Updated context for video {video_id}")
+                else:
+                    self.logger.warning(f"Failed to update context for video {video_id}")
+                
+                return success
+                
+            except Exception as e:
+                self.logger.error(f"Error updating video context {video_id}: {e}")
+                return False
+
+    async def update_link_context(self, link_id: str, context_data: Dict[str, Any]) -> bool:
+        """Update context fields for a link."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            try:
+                # Handle vector field separately
+                vector_value = None
+                if 'context_embedding' in context_data:
+                    vector_value = context_data.pop('context_embedding')
+                
+                # Build SET clause for non-vector fields
+                set_clauses = []
+                values = []
+                param_idx = 1
+                
+                for key, value in context_data.items():
+                    set_clauses.append(f"{key} = ${param_idx}")
+                    values.append(value)
+                    param_idx += 1
+                
+                # Add vector field if present
+                if vector_value is not None:
+                    set_clauses.append(f"context_embedding = ${param_idx}::vector")
+                    values.append(self._vector_literal(vector_value))
+                    param_idx += 1
+                
+                values.append(link_id)  # WHERE clause parameter
+                
+                sql = f"""
+                UPDATE {self._content_schema}.links 
+                SET {', '.join(set_clauses)}
+                WHERE id = ${param_idx}
+                """
+                
+                result = await conn.execute(sql, *values)
+                success = result == "UPDATE 1"
+                
+                if success:
+                    self.logger.info(f"Updated context for link {link_id}")
+                else:
+                    self.logger.warning(f"Failed to update context for link {link_id}")
+                
+                return success
+                
+            except Exception as e:
+                self.logger.error(f"Error updating link context {link_id}: {e}")
+                return False
+
+    async def update_media_contexts_batch(self, updates: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Update context fields for multiple media items in a batch."""
+        success_count = 0
+        failed_count = 0
+        
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            try:
+                async with conn.transaction():
+                    for update in updates:
+                        media_type = update.get('media_type')
+                        media_id = update.get('media_id')
+                        context_data = update.get('context_data', {})
+                        
+                        if not media_type or not media_id:
+                            failed_count += 1
+                            continue
+                        
+                        try:
+                            if media_type == 'image':
+                                success = await self.update_image_context(media_id, context_data)
+                            elif media_type == 'video':
+                                success = await self.update_video_context(media_id, context_data)
+                            elif media_type == 'link':
+                                success = await self.update_link_context(media_id, context_data)
+                            else:
+                                success = False
+                            
+                            if success:
+                                success_count += 1
+                            else:
+                                failed_count += 1
+                                
+                        except Exception as e:
+                            self.logger.error(f"Error in batch update for {media_type} {media_id}: {e}")
+                            failed_count += 1
+                
+            except Exception as e:
+                self.logger.error(f"Transaction failed in batch context update: {e}")
+                failed_count += len(updates)
+        
+        self.logger.info(f"Batch context update completed: {success_count} success, {failed_count} failed")
+        return {'success_count': success_count, 'failed_count': failed_count}
+
+    async def get_media_without_context(self, media_type: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get media items without context extraction for backfill."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            try:
+                if media_type == 'image':
+                    sql = f"""
+                    SELECT id, document_id, page_number 
+                    FROM {self._content_schema}.images 
+                    WHERE context_caption IS NULL 
+                    ORDER BY created_at DESC 
+                    LIMIT ${limit}
+                    """
+                elif media_type == 'video':
+                    sql = f"""
+                    SELECT id, document_id, page_number 
+                    FROM {self._content_schema}.instructional_videos 
+                    WHERE context_description IS NULL 
+                    ORDER BY created_at DESC 
+                    LIMIT ${limit}
+                    """
+                elif media_type == 'link':
+                    sql = f"""
+                    SELECT id, document_id, page_number 
+                    FROM {self._content_schema}.links 
+                    WHERE context_description IS NULL 
+                    ORDER BY created_at DESC 
+                    LIMIT ${limit}
+                    """
+                else:
+                    return []
+                
+                rows = await conn.fetch(sql, limit)
+                return [dict(row) for row in rows]
+                
+            except Exception as e:
+                self.logger.error(f"Error getting media without context for {media_type}: {e}")
+                return []
+
     async def create_intelligence_chunk(self, chunk: IntelligenceChunkModel) -> str:
         pool = self._ensure_pool()
         chunk_data = chunk.model_dump(mode='python', exclude_none=True)
@@ -369,6 +598,109 @@ class PostgreSQLAdapter(DatabaseAdapter):
             embedding_id = await conn.fetchval(sql, *values)
             self.logger.info(f"Created embedding {embedding_id}")
             return str(embedding_id)
+
+    async def create_embedding_v2(
+        self,
+        source_id: str,
+        source_type: str,
+        embedding: List[float],
+        model_name: str,
+        embedding_context: str = None,
+        metadata: Dict[str, Any] = None
+    ) -> str:
+        """Create embedding in embeddings_v2 table"""
+        pool = self._ensure_pool()
+        
+        # Prepare data
+        embedding_data = {
+            'source_id': source_id,
+            'source_type': source_type,
+            'model_name': model_name,
+            'embedding_context': embedding_context,
+            'metadata': json.dumps(metadata or {})
+        }
+        
+        # Prepare vector literal
+        vector_literal = self._vector_literal(embedding)
+        
+        # Build SQL
+        columns, placeholders, values = self._prepare_insert(embedding_data)
+        columns.append('embedding')
+        placeholders.append(f'${len(values) + 1}::vector')
+        values.append(vector_literal)
+        
+        sql = (
+            f"INSERT INTO {self._intelligence_schema}.embeddings_v2 "
+            f"({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING id"
+        )
+        
+        async with pool.acquire() as conn:
+            embedding_id = await conn.fetchval(sql, *values)
+            self.logger.info(f"Created embedding_v2 {embedding_id} (type={source_type})")
+            return str(embedding_id)
+
+    async def create_embeddings_v2_batch(
+        self,
+        embeddings: List[Dict[str, Any]]
+    ) -> List[str]:
+        """Create multiple embeddings in embeddings_v2 table (batch)"""
+        pool = self._ensure_pool()
+        embedding_ids = []
+        
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                for emb_data in embeddings:
+                    embedding_id = await self.create_embedding_v2(
+                        source_id=emb_data['source_id'],
+                        source_type=emb_data['source_type'],
+                        embedding=emb_data['embedding'],
+                        model_name=emb_data['model_name'],
+                        embedding_context=emb_data.get('embedding_context'),
+                        metadata=emb_data.get('metadata')
+                    )
+                    embedding_ids.append(embedding_id)
+        
+        self.logger.info(f"Created {len(embedding_ids)} embeddings_v2 in batch")
+        return embedding_ids
+
+    async def create_structured_table(
+        self,
+        table_data: Dict[str, Any]
+    ) -> str:
+        """Create structured table in krai_intelligence.structured_tables"""
+        pool = self._ensure_pool()
+        
+        # Handle JSONB fields
+        if 'table_data' in table_data and isinstance(table_data['table_data'], (list, dict)):
+            table_data['table_data'] = json.dumps(table_data['table_data'])
+        if 'metadata' in table_data and isinstance(table_data['metadata'], dict):
+            table_data['metadata'] = json.dumps(table_data['metadata'])
+        
+        # Handle vector field (table_embedding)
+        table_embedding = table_data.pop('table_embedding', None)
+        context_embedding = table_data.pop('context_embedding', None)
+        
+        columns, placeholders, values = self._prepare_insert(table_data)
+        
+        # Add vector fields if present
+        if table_embedding:
+            columns.append('table_embedding')
+            placeholders.append(f'${len(values) + 1}::vector')
+            values.append(self._vector_literal(table_embedding))
+        if context_embedding:
+            columns.append('context_embedding')
+            placeholders.append(f'${len(values) + 1}::vector')
+            values.append(self._vector_literal(context_embedding))
+        
+        sql = (
+            f"INSERT INTO {self._intelligence_schema}.structured_tables "
+            f"({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING id"
+        )
+        
+        async with pool.acquire() as conn:
+            table_id = await conn.fetchval(sql, *values)
+            self.logger.info(f"Created structured table {table_id}")
+            return str(table_id)
 
     async def get_embedding_by_chunk_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
         pool = self._ensure_pool()
@@ -486,6 +818,33 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.info(f"Logged audit event {event.action} ({event_id})")
             return str(event_id)
 
+    async def get_embeddings_by_source(
+        self,
+        source_id: str,
+        source_type: str = None
+    ) -> List[Dict[str, Any]]:
+        """Get embeddings from embeddings_v2 by source_id and optional source_type"""
+        pool = self._ensure_pool()
+        
+        if source_type:
+            sql = f"""
+                SELECT * FROM {self._intelligence_schema}.embeddings_v2
+                WHERE source_id = $1 AND source_type = $2
+                ORDER BY created_at DESC
+            """
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, source_id, source_type)
+        else:
+            sql = f"""
+                SELECT * FROM {self._intelligence_schema}.embeddings_v2
+                WHERE source_id = $1
+                ORDER BY created_at DESC
+            """
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, source_id)
+        
+        return [dict(row) for row in rows]
+
     async def get_system_status(self) -> Dict[str, Any]:
         pool = self._ensure_pool()
         async with pool.acquire() as conn:
@@ -586,4 +945,241 @@ class PostgreSQLAdapter(DatabaseAdapter):
             defect_id = await conn.fetchval(sql, *values)
             self.logger.info(f"Created print defect {defect_id}")
             return str(defect_id)
+    
+    async def execute_rpc_function(
+        self,
+        function_name: str,
+        params: Dict[str, Any] = None,
+        schema: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Execute PostgreSQL function (RPC equivalent)
+        
+        Args:
+            function_name: Name of the function to execute
+            params: Parameters to pass to the function
+            schema: Schema name (default: intelligence schema)
+            
+        Returns:
+            List of results as dictionaries
+        """
+        try:
+            pool = self._ensure_pool()
+            schema = schema or self._intelligence_schema
+            params = params or {}
+            
+            # Build parameter list and placeholders
+            param_values = list(params.values())
+            param_placeholders = [f"${i+1}" for i in range(len(param_values))]
+            
+            # Build function call
+            if param_values:
+                sql = f"SELECT * FROM {schema}.{function_name}({', '.join(param_placeholders)})"
+            else:
+                sql = f"SELECT * FROM {schema}.{function_name}()"
+            
+            async with pool.acquire() as conn:
+                results = await conn.fetch(sql, *param_values)
+                
+                # Convert to list of dicts
+                return [dict(result) for result in results]
+                
+        except Exception as e:
+            self.logger.error(f"Failed to execute RPC function {function_name}: {e}")
+            return []
+    
+    async def match_multimodal(
+        self,
+        query_embedding: List[float],
+        match_threshold: float = 0.5,
+        match_count: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Wrapper for match_multimodal RPC function
+        
+        Args:
+            query_embedding: Query embedding vector
+            match_threshold: Similarity threshold
+            match_count: Maximum number of results
+            
+        Returns:
+            List of multimodal search results
+        """
+        try:
+            pool = self._ensure_pool()
+            vector_literal = self._vector_literal(query_embedding)
+            
+            async with pool.acquire() as conn:
+                results = await conn.fetch(
+                    f"SELECT * FROM {self._intelligence_schema}.match_multimodal($1::vector, $2, $3)",
+                    vector_literal,
+                    match_threshold,
+                    match_count
+                )
+                
+                return [dict(result) for result in results]
+                
+        except Exception as e:
+            self.logger.error(f"Failed to execute match_multimodal: {e}")
+            return []
+    
+    async def match_images_by_context(
+        self,
+        query_embedding: List[float],
+        match_threshold: float = 0.5,
+        match_count: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Wrapper for match_images_by_context RPC function
+        
+        Args:
+            query_embedding: Query embedding vector
+            match_threshold: Similarity threshold
+            match_count: Maximum number of results
+            
+        Returns:
+            List of image search results
+        """
+        try:
+            pool = self._ensure_pool()
+            vector_literal = self._vector_literal(query_embedding)
+            
+            async with pool.acquire() as conn:
+                results = await conn.fetch(
+                    f"SELECT * FROM {self._intelligence_schema}.match_images_by_context($1::vector, $2, $3)",
+                    vector_literal,
+                    match_threshold,
+                    match_count
+                )
+                
+                return [dict(result) for result in results]
+                
+        except Exception as e:
+            self.logger.error(f"Failed to execute match_images_by_context: {e}")
+            return []
+    
+    async def store_image_context(self, document_id: str, context_data: Dict[str, Any]) -> bool:
+        """Store image context for a document"""
+        try:
+            pool = self._ensure_pool()
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    f"""
+                    INSERT INTO {self._intelligence_schema}.image_contexts 
+                    (document_id, context_data, created_at) 
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (document_id) DO UPDATE SET 
+                    context_data = $2, updated_at = $3
+                    """,
+                    document_id,
+                    json.dumps(context_data),
+                    datetime.now()
+                )
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to store image context: {e}")
+            return False
+    
+    async def store_video_context(self, document_id: str, context_data: Dict[str, Any]) -> bool:
+        """Store video context for a document"""
+        try:
+            pool = self._ensure_pool()
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    f"""
+                    INSERT INTO {self._intelligence_schema}.video_contexts 
+                    (document_id, context_data, created_at) 
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (document_id) DO UPDATE SET 
+                    context_data = $2, updated_at = $3
+                    """,
+                    document_id,
+                    json.dumps(context_data),
+                    datetime.now()
+                )
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to store video context: {e}")
+            return False
+    
+    async def store_link_context(self, document_id: str, context_data: Dict[str, Any]) -> bool:
+        """Store link context for a document"""
+        try:
+            pool = self._ensure_pool()
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    f"""
+                    INSERT INTO {self._intelligence_schema}.link_contexts 
+                    (document_id, context_data, created_at) 
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (document_id) DO UPDATE SET 
+                    context_data = $2, updated_at = $3
+                    """,
+                    document_id,
+                    json.dumps(context_data),
+                    datetime.now()
+                )
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to store link context: {e}")
+            return False
+    
+    async def store_table_context(self, document_id: str, context_data: Dict[str, Any]) -> bool:
+        """Store table context for a document"""
+        try:
+            pool = self._ensure_pool()
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    f"""
+                    INSERT INTO {self._intelligence_schema}.table_contexts 
+                    (document_id, context_data, created_at) 
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (document_id) DO UPDATE SET 
+                    context_data = $2, updated_at = $3
+                    """,
+                    document_id,
+                    json.dumps(context_data),
+                    datetime.now()
+                )
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to store table context: {e}")
+            return False
+    
+    async def get_image_contexts_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all image contexts for a document"""
+        try:
+            pool = self._ensure_pool()
+            async with pool.acquire() as conn:
+                results = await conn.fetch(
+                    f"""
+                    SELECT document_id, context_data, created_at, updated_at 
+                    FROM {self._intelligence_schema}.image_contexts 
+                    WHERE document_id = $1
+                    ORDER BY created_at DESC
+                    """,
+                    document_id
+                )
+                return [dict(result) for result in results]
+        except Exception as e:
+            self.logger.error(f"Failed to get image contexts: {e}")
+            return []
+    
+    async def delete_document(self, document_id: str) -> bool:
+        """Delete a document and all related data"""
+        try:
+            pool = self._ensure_pool()
+            async with pool.acquire() as conn:
+                # Delete from all tables in reverse order of dependencies
+                await conn.execute(f"DELETE FROM {self._intelligence_schema}.chunks WHERE document_id = $1", document_id)
+                await conn.execute(f"DELETE FROM {self._intelligence_schema}.image_contexts WHERE document_id = $1", document_id)
+                await conn.execute(f"DELETE FROM {self._intelligence_schema}.video_contexts WHERE document_id = $1", document_id)
+                await conn.execute(f"DELETE FROM {self._intelligence_schema}.link_contexts WHERE document_id = $1", document_id)
+                await conn.execute(f"DELETE FROM {self._intelligence_schema}.table_contexts WHERE document_id = $1", document_id)
+                await conn.execute(f"DELETE FROM {self._content_schema}.documents WHERE id = $1", document_id)
+                await conn.execute(f"DELETE FROM {self._parts_schema}.products WHERE document_id = $1", document_id)
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to delete document: {e}")
+            return False
 

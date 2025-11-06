@@ -48,13 +48,13 @@ DECLARE
     new_id UUID;
 BEGIN
     INSERT INTO krai_content.videos (
-        link_id, youtube_id, title, description, thumbnail_url,
-        duration, view_count, like_count, comment_count,
-        channel_id, channel_title, published_at, metadata
+        id, link_id, youtube_id, title, description, thumbnail_url,
+        manufacturer_id, series_id, document_id, metadata,
+        context_description, related_products, related_chunks, page_number, context_embedding
     ) VALUES (
-        NEW.link_id, NEW.youtube_id, NEW.title, NEW.description, NEW.thumbnail_url,
-        NEW.duration, NEW.view_count, NEW.like_count, NEW.comment_count,
-        NEW.channel_id, NEW.channel_title, NEW.published_at, NEW.metadata
+        NEW.id, NEW.link_id, NEW.youtube_id, NEW.title, NEW.description, NEW.thumbnail_url,
+        NEW.manufacturer_id, NEW.series_id, NEW.document_id, NEW.metadata,
+        NEW.context_description, NEW.related_products, NEW.related_chunks, NEW.page_number, NEW.context_embedding
     ) RETURNING id INTO new_id;
     
     NEW.id := new_id;
@@ -70,23 +70,22 @@ FOR EACH ROW EXECUTE FUNCTION public.videos_insert();
 CREATE OR REPLACE FUNCTION public.videos_update()
 RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE krai_content.videos
-    SET 
+    UPDATE krai_content.videos SET
         link_id = NEW.link_id,
         youtube_id = NEW.youtube_id,
         title = NEW.title,
         description = NEW.description,
         thumbnail_url = NEW.thumbnail_url,
-        duration = NEW.duration,
-        view_count = NEW.view_count,
-        like_count = NEW.like_count,
-        comment_count = NEW.comment_count,
-        channel_id = NEW.channel_id,
-        channel_title = NEW.channel_title,
-        published_at = NEW.published_at,
+        manufacturer_id = NEW.manufacturer_id,
+        series_id = NEW.series_id,
+        document_id = NEW.document_id,
         metadata = NEW.metadata,
-        updated_at = NEW.updated_at
-    WHERE id = NEW.id;
+        context_description = NEW.context_description,
+        related_products = NEW.related_products,
+        related_chunks = NEW.related_chunks,
+        page_number = NEW.page_number,
+        context_embedding = NEW.context_embedding
+    WHERE id = OLD.id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -115,13 +114,11 @@ DECLARE
     new_id UUID;
 BEGIN
     INSERT INTO krai_content.links (
-        document_id, url, link_type, description, page_number,
-        is_active, video_id, manufacturer_id, series_id,
-        related_error_codes, metadata
+        id, document_id, url, page_number, description, manufacturer_id,
+        series_id, related_error_codes, context_description, related_chunks, context_embedding
     ) VALUES (
-        NEW.document_id, NEW.url, NEW.link_type, NEW.description, NEW.page_number,
-        NEW.is_active, NEW.video_id, NEW.manufacturer_id, NEW.series_id,
-        NEW.related_error_codes, NEW.metadata
+        NEW.id, NEW.document_id, NEW.url, NEW.page_number, NEW.description, NEW.manufacturer_id,
+        NEW.series_id, NEW.related_error_codes, NEW.context_description, NEW.related_chunks, NEW.context_embedding
     ) RETURNING id INTO new_id;
     
     NEW.id := new_id;
@@ -137,22 +134,18 @@ FOR EACH ROW EXECUTE FUNCTION public.links_insert();
 CREATE OR REPLACE FUNCTION public.links_update()
 RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE krai_content.links
-    SET 
+    UPDATE krai_content.links SET
         document_id = NEW.document_id,
         url = NEW.url,
-        link_type = NEW.link_type,
-        description = NEW.description,
         page_number = NEW.page_number,
-        is_active = NEW.is_active,
-        video_id = NEW.video_id,
+        description = NEW.description,
         manufacturer_id = NEW.manufacturer_id,
         series_id = NEW.series_id,
         related_error_codes = NEW.related_error_codes,
-        metadata = NEW.metadata,
-        created_at = NEW.created_at,
-        updated_at = NEW.updated_at
-    WHERE id = NEW.id;
+        context_description = NEW.context_description,
+        related_chunks = NEW.related_chunks,
+        context_embedding = NEW.context_embedding
+    WHERE id = OLD.id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

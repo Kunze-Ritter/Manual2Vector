@@ -170,6 +170,16 @@ class ImageModel(BaseModel):
     figure_context: Optional[str] = None  # Context text around figure
     manual_description: Optional[str] = None  # Manual description override
     chunk_id: Optional[str] = None  # Link to chunk if extracted from chunk
+    
+    # Phase 2: Context extraction fields
+    context_caption: Optional[str] = None  # Extracted caption/description
+    page_header: Optional[str] = None  # Page header text
+    figure_reference: Optional[str] = None  # Figure reference like "Fig. 1.2"
+    related_error_codes: List[str] = Field(default_factory=list)  # Error codes in context
+    related_products: List[str] = Field(default_factory=list)  # Product models in context
+    surrounding_paragraphs: List[str] = Field(default_factory=list)  # Text around image
+    context_embedding: Optional[List[float]] = None  # Context embedding vector
+    
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Intelligence Models
@@ -318,3 +328,44 @@ class DefectDetectionResponse(BaseModel):
     required_parts: List[str] = Field(default_factory=list)
     difficulty_level: str = "easy"
     related_error_codes: List[str] = Field(default_factory=list)
+
+# Multimodal Search Models
+class MultimodalSearchRequest(BaseModel):
+    """Multimodal search request model"""
+    query: str
+    content_types: List[str] = Field(default=["text", "image", "video", "table"], description="Content types to search")
+    threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    limit: int = Field(default=10, ge=1, le=100)
+    include_context: bool = Field(default=True)
+    enable_two_stage: bool = Field(default=True)
+    filters: Dict[str, Any] = Field(default_factory=dict)
+
+class MultimodalSearchResponse(BaseModel):
+    """Multimodal search response model"""
+    query: str
+    results: List[Dict[str, Any]]
+    total_count: int
+    processing_time_ms: float
+    content_type_counts: Dict[str, int]
+    two_stage_used: bool
+    context_enriched: bool
+
+class TwoStageSearchRequest(BaseModel):
+    """Two-stage search request model"""
+    query: str
+    first_stage_limit: int = Field(default=50, ge=10, le=200)
+    final_limit: int = Field(default=10, ge=1, le=50)
+    content_types: List[str] = Field(default=["text", "image"], description="Content types for two-stage")
+    threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    rerank_enabled: bool = Field(default=True)
+    context_boost: float = Field(default=0.2, ge=0.0, le=1.0)
+
+class TwoStageSearchResponse(BaseModel):
+    """Two-stage search response model"""
+    query: str
+    first_stage_count: int
+    final_results: List[Dict[str, Any]]
+    total_count: int
+    processing_time_ms: float
+    reranking_time_ms: float
+    threshold_used: float

@@ -25,9 +25,9 @@ class DocumentAPI:
     - LLM-based product extraction (configurable via LLM_MAX_PAGES)
     - OCR optimization (2x faster, no duplicate calls)
     - Series detection and product type mapping
-    - Image processing with Vision AI
+    - Image processing with computer vision
     - Embeddings generation
-    - R2 storage integration
+    - Object storage integration (MinIO, S3, R2, etc.)
     
     Endpoints:
     - POST /documents/upload: Upload document

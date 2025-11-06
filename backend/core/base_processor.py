@@ -48,7 +48,13 @@ class ProcessingResult:
 
 @dataclass
 class ProcessingContext:
-    """Context information for processing operations"""
+    """Context information for processing operations
+    
+    Extended with Phase 5 context extraction support:
+    - page_texts: Page text from TextProcessor (key: page_number, value: text)
+    - images/tables/links/videos: Extracted media with context metadata
+    - pdf_path: Alias for file_path for clarity
+    """
     document_id: str
     file_path: str
     file_hash: str
@@ -60,17 +66,30 @@ class ProcessingContext:
     language: str = "en"
     processing_config: Dict[str, Any] = None
     file_size: Optional[int] = None
+    # Phase 5: Context extraction fields
+    page_texts: Optional[Dict[int, str]] = None  # Page text from TextProcessor
+    pdf_path: Optional[str] = None  # PDF path (alias for file_path)
+    images: Optional[List[Dict[str, Any]]] = None  # Extracted images with context
+    tables: Optional[List[Dict[str, Any]]] = None  # Extracted tables with context
+    links: Optional[List[Dict[str, Any]]] = None  # Extracted links with context
+    videos: Optional[List[Dict[str, Any]]] = None  # Extracted videos with context
     
     def __post_init__(self):
         if self.processing_config is None:
             self.processing_config = {}
+        # Auto-populate pdf_path from file_path for clarity
+        if self.pdf_path is None:
+            self.pdf_path = self.file_path
 
 class Stage(Enum):
     """Canonical stage names for pipeline processors."""
 
     UPLOAD = "upload"
     TEXT_EXTRACTION = "text_extraction"
+    TABLE_EXTRACTION = "table_extraction"  # Stage 2b: Table Processor → krai_intelligence.structured_tables
+    SVG_PROCESSING = "svg_processing"  # Stage 3a: SVG Processor → Convert vector graphics to PNG
     IMAGE_PROCESSING = "image_processing"
+    VISUAL_EMBEDDING = "visual_embedding"  # Stage 3b: Visual Embedding Processor → krai_intelligence.embeddings_v2 (images)
     LINK_EXTRACTION = "link_extraction"
     CHUNK_PREPROCESSING = "chunk_prep"
     CLASSIFICATION = "classification"
@@ -78,7 +97,7 @@ class Stage(Enum):
     PARTS_EXTRACTION = "parts_extraction"
     SERIES_DETECTION = "series_detection"
     STORAGE = "storage"
-    EMBEDDING = "embedding"
+    EMBEDDING = "embedding"  # Stage 7: Embedding Processor → krai_intelligence.chunks (legacy) + embeddings_v2 (new)
     SEARCH_INDEXING = "search_indexing"
 
 
@@ -86,15 +105,18 @@ class BaseProcessor(ABC):
     """
     Base class for all processors in the KR-AI-Engine pipeline
     
-    Follows the 9-stage processing pipeline:
+    Follows the enhanced processing pipeline with multi-modal support:
     1. Upload Processor → krai_core.documents (Database only)
     2. Text Processor → krai_content.chunks + krai_intelligence.chunks
+    2b. Table Processor → krai_intelligence.structured_tables
+    3a. SVG Processor → Convert vector graphics to PNG for Vision AI
     3. Image Processor → krai_content.images (Object Storage)
+    3b. Visual Embedding Processor → krai_intelligence.embeddings_v2 (images)
     4. Classification Processor → krai_core.manufacturers, products, product_series
     5. Metadata Processor → krai_intelligence.error_codes
     6. Storage Processor → Cloudflare R2 (NUR Bilder)
     7. Text Chunking → krai_intelligence.chunks
-    8. Embedding Processor → krai_intelligence.embeddings
+    8. Embedding Processor → krai_intelligence.chunks (legacy) + embeddings_v2 (new)
     9. Finalization → krai_system.processing_queue
     """
     

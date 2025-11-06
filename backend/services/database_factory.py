@@ -2,7 +2,8 @@
 Database Adapter Factory
 
 Factory pattern for creating database adapters based on configuration.
-Supports multiple database backends: Supabase, PostgreSQL, Docker PostgreSQL.
+Supports multiple database backends: Supabase, PostgreSQL (local or remote).
+Note: Docker PostgreSQL is now handled by postgresql type with environment-based defaults.
 """
 
 import os
@@ -32,12 +33,12 @@ def create_database_adapter(
     Create a database adapter based on the specified type.
     
     Args:
-        database_type: Type of database adapter ('supabase', 'postgresql', 'docker_postgresql')
+        database_type: Type of database adapter ('supabase', 'postgresql')
                       If None, reads from DATABASE_TYPE environment variable (default: 'supabase')
         supabase_url: Supabase project URL (for Supabase adapter)
         supabase_key: Supabase anon key (for Supabase adapter)
         supabase_service_role_key: Supabase service role key (for cross-schema queries)
-        postgres_url: PostgreSQL connection URL (for PostgreSQL/Docker adapters)
+        postgres_url: PostgreSQL connection URL (for PostgreSQL adapter)
         postgres_host: PostgreSQL host (alternative to postgres_url)
         postgres_port: PostgreSQL port (alternative to postgres_url)
         postgres_db: PostgreSQL database name (alternative to postgres_url)
@@ -64,6 +65,8 @@ def create_database_adapter(
         POSTGRES_USER: PostgreSQL user
         POSTGRES_PASSWORD: PostgreSQL password
         DATABASE_SCHEMA_PREFIX: Schema prefix (default: 'krai')
+        
+    Note: For Docker PostgreSQL, use type='postgresql' with POSTGRES_HOST=krai-postgres
     """
     
     # Determine database type from parameter or environment
@@ -71,6 +74,9 @@ def create_database_adapter(
         database_type = os.getenv("DATABASE_TYPE", "supabase").lower()
     else:
         database_type = database_type.lower()
+    
+    # Check for deprecated database type
+    database_type = _check_deprecated_database_type(database_type)
     
     logger.info(f"Creating database adapter: {database_type}")
     
@@ -94,21 +100,10 @@ def create_database_adapter(
             schema_prefix=schema_prefix
         )
     
-    elif database_type == "docker_postgresql":
-        return _create_docker_postgresql_adapter(
-            postgres_url=postgres_url,
-            postgres_host=postgres_host,
-            postgres_port=postgres_port,
-            postgres_db=postgres_db,
-            postgres_user=postgres_user,
-            postgres_password=postgres_password,
-            schema_prefix=schema_prefix
-        )
-    
     else:
         raise ValueError(
             f"Invalid database_type: {database_type}. "
-            f"Must be one of: 'supabase', 'postgresql', 'docker_postgresql'"
+            f"Must be one of: 'supabase', 'postgresql'"
         )
 
 
@@ -159,12 +154,30 @@ def _create_postgresql_adapter(
     
     # Get configuration from parameters or environment
     pg_url = postgres_url or os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL")
-    host = postgres_host or os.getenv("POSTGRES_HOST", "localhost")
+    host = postgres_host or os.getenv("POSTGRES_HOST")
     port = postgres_port or int(os.getenv("POSTGRES_PORT", "5432"))
     database = postgres_db or os.getenv("POSTGRES_DB", "krai")
     user = postgres_user or os.getenv("POSTGRES_USER", "postgres")
     password = postgres_password or os.getenv("POSTGRES_PASSWORD")
     prefix = schema_prefix or os.getenv("DATABASE_SCHEMA_PREFIX", "krai")
+    
+    # Detect Docker environment and set defaults
+    if not host:
+        # Check if we're in a Docker environment
+        if os.getenv("DATABASE_TYPE") == "postgresql":
+            # Default to Docker service name for PostgreSQL
+            host = "krai-postgres"
+            logger.info("Detected potential Docker PostgreSQL environment, using host: krai-postgres")
+        else:
+            host = "localhost"
+    
+    # Special handling for Docker PostgreSQL defaults
+    if host in ["krai-postgres", "postgres"]:
+        logger.info("Detected Docker PostgreSQL environment")
+        if not user:
+            user = "krai_user"
+        if not password:
+            password = "krai_password"
     
     # Build connection URL if not provided
     if not pg_url:
@@ -181,35 +194,21 @@ def _create_postgresql_adapter(
     )
 
 
-def _create_docker_postgresql_adapter(
-    postgres_url: Optional[str] = None,
-    postgres_host: Optional[str] = None,
-    postgres_port: Optional[int] = None,
-    postgres_db: Optional[str] = None,
-    postgres_user: Optional[str] = None,
-    postgres_password: Optional[str] = None,
-    schema_prefix: Optional[str] = None
-) -> DatabaseAdapter:
-    """Create a Docker PostgreSQL adapter with Docker-specific defaults."""
-    from backend.services.docker_postgresql_adapter import DockerPostgreSQLAdapter
+def _check_deprecated_database_type(database_type: str) -> str:
+    """
+    Check for deprecated database types and map them to current types.
     
-    # Get configuration from parameters or environment (Docker defaults)
-    pg_url = postgres_url or os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL")
-    host = postgres_host or os.getenv("POSTGRES_HOST", "krai-postgres")  # Docker service name
-    port = postgres_port or int(os.getenv("POSTGRES_PORT", "5432"))
-    database = postgres_db or os.getenv("POSTGRES_DB", "krai")
-    user = postgres_user or os.getenv("POSTGRES_USER", "krai_user")
-    password = postgres_password or os.getenv("POSTGRES_PASSWORD", "krai_password")
-    prefix = schema_prefix or os.getenv("DATABASE_SCHEMA_PREFIX", "krai")
+    Args:
+        database_type: The database type to check
+        
+    Returns:
+        The updated database type
+    """
+    if database_type == 'docker_postgresql':
+        logger.warning(
+            "Database type 'docker_postgresql' is deprecated. "
+            "Using 'postgresql' instead. Update your configuration to use 'postgresql'."
+        )
+        return 'postgresql'
     
-    # Build connection URL if not provided
-    if not pg_url:
-        pg_url = f"postgresql://{user}:{password}@{host}:{port}/{database}"
-    
-    logger.info(f"Creating Docker PostgreSQL adapter: {host}:{port}/{database}")
-    logger.info(f"Schema prefix: {prefix}")
-    
-    return DockerPostgreSQLAdapter(
-        postgres_url=pg_url,
-        schema_prefix=prefix
-    )
+    return database_type

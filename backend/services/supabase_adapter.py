@@ -429,6 +429,101 @@ class SupabaseAdapter(DatabaseAdapter):
             self.logger.error(f"Failed to create embedding: {e}")
             raise RuntimeError(f"Cannot create embedding in database: {e}")
 
+    async def create_embedding_v2(
+        self,
+        source_id: str,
+        source_type: str,
+        embedding: List[float],
+        model_name: str,
+        embedding_context: str = None,
+        metadata: Dict[str, Any] = None
+    ) -> str:
+        """Create embedding in embeddings_v2 table via Supabase REST API"""
+        
+        # Prepare record
+        record = {
+            'source_id': source_id,
+            'source_type': source_type,
+            'embedding': embedding,  # Supabase handles vector type
+            'model_name': model_name,
+            'embedding_context': embedding_context,
+            'metadata': metadata or {}
+        }
+        
+        # Insert via Supabase client
+        result = self.client.table('embeddings_v2').insert(record).execute()
+        
+        if result.data:
+            embedding_id = result.data[0]['id']
+            self.logger.info(f"Created embedding_v2 {embedding_id} (type={source_type})")
+            return str(embedding_id)
+        else:
+            self.logger.error(f"Failed to create embedding_v2: {result}")
+            raise RuntimeError(f"Failed to create embedding_v2")
+
+    async def create_embeddings_v2_batch(
+        self,
+        embeddings: List[Dict[str, Any]]
+    ) -> List[str]:
+        """Create multiple embeddings in embeddings_v2 table (batch)"""
+        
+        # Prepare records
+        records = [
+            {
+                'source_id': emb['source_id'],
+                'source_type': emb['source_type'],
+                'embedding': emb['embedding'],
+                'model_name': emb['model_name'],
+                'embedding_context': emb.get('embedding_context'),
+                'metadata': emb.get('metadata', {})
+            }
+            for emb in embeddings
+        ]
+        
+        # Batch insert
+        result = self.client.table('embeddings_v2').insert(records).execute()
+        
+        if result.data:
+            embedding_ids = [str(row['id']) for row in result.data]
+            self.logger.info(f"Created {len(embedding_ids)} embeddings_v2 in batch")
+            return embedding_ids
+        else:
+            self.logger.error(f"Failed to create embeddings_v2 batch: {result}")
+            return []
+
+    async def create_structured_table(
+        self,
+        table_data: Dict[str, Any]
+    ) -> str:
+        """Create structured table in krai_intelligence.structured_tables"""
+        
+        # Supabase handles JSONB and vector types automatically
+        result = self.client.table('structured_tables').insert(table_data).execute()
+        
+        if result.data:
+            table_id = result.data[0]['id']
+            self.logger.info(f"Created structured table {table_id}")
+            return str(table_id)
+        else:
+            self.logger.error(f"Failed to create structured table: {result}")
+            raise RuntimeError(f"Failed to create structured table")
+
+    async def get_embeddings_by_source(
+        self,
+        source_id: str,
+        source_type: str = None
+    ) -> List[Dict[str, Any]]:
+        """Get embeddings from embeddings_v2 by source_id and optional source_type"""
+        
+        query = self.client.table('embeddings_v2').select('*').eq('source_id', source_id)
+        
+        if source_type:
+            query = query.eq('source_type', source_type)
+        
+        result = query.order('created_at', desc=True).execute()
+        
+        return result.data if result.data else []
+
     async def search_embeddings(self, query_embedding: List[float], limit: int = 10, match_threshold: float = 0.7, match_count: int = 10) -> List[Dict[str, Any]]:
         """Search embeddings using vector similarity"""
         try:
@@ -949,3 +1044,167 @@ class SupabaseAdapter(DatabaseAdapter):
         except Exception as e:
             self.logger.error(f"Failed to get chunk by document and index: {e}")
             return None
+
+    # Phase 5: Context extraction update methods
+    async def update_image_context(self, image_id: str, context_data: Dict[str, Any]) -> bool:
+        """Update context fields for an image."""
+        try:
+            # Supabase auto-converts lists to vectors, so no special handling needed
+            result = self.client.table('images').update(context_data).eq('id', image_id).execute()
+            
+            if result.data:
+                self.logger.info(f"Updated context for image {image_id}")
+                return True
+            else:
+                self.logger.warning(f"Failed to update context for image {image_id}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error updating image context {image_id}: {e}")
+            return False
+
+    async def update_video_context(self, video_id: str, context_data: Dict[str, Any]) -> bool:
+        """Update context fields for a video."""
+        try:
+            result = self.client.table('instructional_videos').update(context_data).eq('id', video_id).execute()
+            
+            if result.data:
+                self.logger.info(f"Updated context for video {video_id}")
+                return True
+            else:
+                self.logger.warning(f"Failed to update context for video {video_id}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error updating video context {video_id}: {e}")
+            return False
+
+    async def update_link_context(self, link_id: str, context_data: Dict[str, Any]) -> bool:
+        """Update context fields for a link."""
+        try:
+            result = self.client.table('links').update(context_data).eq('id', link_id).execute()
+            
+            if result.data:
+                self.logger.info(f"Updated context for link {link_id}")
+                return True
+            else:
+                self.logger.warning(f"Failed to update context for link {link_id}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error updating link context {link_id}: {e}")
+            return False
+
+    async def update_media_contexts_batch(self, updates: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Update context fields for multiple media items in a batch."""
+        success_count = 0
+        failed_count = 0
+        
+        # Group by media type for batch operations
+        grouped_updates = {}
+        for update in updates:
+            media_type = update.get('media_type')
+            if media_type not in grouped_updates:
+                grouped_updates[media_type] = []
+            grouped_updates[media_type].append(update)
+        
+        for media_type, media_updates in grouped_updates.items():
+            table_name = {
+                'image': 'images',
+                'video': 'instructional_videos', 
+                'link': 'links'
+            }.get(media_type)
+            
+            if not table_name:
+                failed_count += len(media_updates)
+                continue
+            
+            for update in media_updates:
+                media_id = update.get('media_id')
+                context_data = update.get('context_data', {})
+                
+                if not media_id:
+                    failed_count += 1
+                    continue
+                
+                try:
+                    if media_type == 'image':
+                        success = await self.update_image_context(media_id, context_data)
+                    elif media_type == 'video':
+                        success = await self.update_video_context(media_id, context_data)
+                    elif media_type == 'link':
+                        success = await self.update_link_context(media_id, context_data)
+                    else:
+                        success = False
+                    
+                    if success:
+                        success_count += 1
+                    else:
+                        failed_count += 1
+                        
+                except Exception as e:
+                    self.logger.error(f"Error in batch update for {media_type} {media_id}: {e}")
+                    failed_count += 1
+        
+        self.logger.info(f"Batch context update completed: {success_count} success, {failed_count} failed")
+        return {'success_count': success_count, 'failed_count': failed_count}
+    
+    async def match_multimodal(
+        self,
+        query_embedding: List[float],
+        match_threshold: float = 0.5,
+        match_count: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Wrapper for match_multimodal RPC function
+        
+        Args:
+            query_embedding: Query embedding vector
+            match_threshold: Similarity threshold
+            match_count: Maximum number of results
+            
+        Returns:
+            List of multimodal search results
+        """
+        try:
+            result = self.client.rpc('match_multimodal', {
+                'query_embedding': query_embedding,
+                'match_threshold': match_threshold,
+                'match_count': match_count
+            }).execute()
+            
+            return result.data or []
+            
+        except Exception as e:
+            self.logger.error(f"Failed to execute match_multimodal RPC: {e}")
+            return []
+    
+    async def match_images_by_context(
+        self,
+        query_embedding: List[float],
+        match_threshold: float = 0.5,
+        match_count: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Wrapper for match_images_by_context RPC function
+        
+        Args:
+            query_embedding: Query embedding vector
+            match_threshold: Similarity threshold
+            match_count: Maximum number of results
+            
+        Returns:
+            List of image search results
+        """
+        try:
+            result = self.client.rpc('match_images_by_context', {
+                'query_embedding': query_embedding,
+                'match_threshold': match_threshold,
+                'match_count': match_count
+            }).execute()
+            
+            return result.data or []
+            
+        except Exception as e:
+            self.logger.error(f"Failed to execute match_images_by_context RPC: {e}")
+            return []

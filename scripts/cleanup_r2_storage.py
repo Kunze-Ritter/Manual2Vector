@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Cloudflare R2 Storage Cleanup Script
-Deletes ALL objects from R2 buckets (individually, as R2 doesn't support bulk delete)
+Object Storage Cleanup Script
+Deletes ALL objects from storage buckets (individually, as some storage doesn't support bulk delete)
 
 Usage:
     python cleanup_r2_storage.py --all           # Delete from all buckets
@@ -32,14 +32,21 @@ env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 
 # Get from environment variables or .env file
-R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
-R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
-R2_ENDPOINT = os.getenv('R2_ENDPOINT_URL')  # Use endpoint from .env
+# Helper function to get env var with fallback and deprecation warning
+def get_env_var(new_var: str, old_var: str, default: str = None) -> str:
+    value = os.getenv(new_var) or os.getenv(old_var) or default
+    if not os.getenv(new_var) and os.getenv(old_var):
+        print(f"⚠️  Environment variable {old_var} is deprecated. Use {new_var} instead.")
+    return value
 
-if not R2_ENDPOINT:
+STORAGE_ACCESS_KEY_ID = get_env_var('OBJECT_STORAGE_ACCESS_KEY', 'R2_ACCESS_KEY_ID')
+STORAGE_SECRET_ACCESS_KEY = get_env_var('OBJECT_STORAGE_SECRET_KEY', 'R2_SECRET_ACCESS_KEY')
+STORAGE_ENDPOINT = get_env_var('OBJECT_STORAGE_ENDPOINT', 'R2_ENDPOINT_URL')  # Use endpoint from .env
+
+if not STORAGE_ENDPOINT:
     # Fallback: extract from access key or use default
-    print("⚠️  R2_ENDPOINT_URL not found in .env, using hardcoded endpoint")
-    R2_ENDPOINT = 'https://a88f92c913c232559845adb9001a5d14.eu.r2.cloudflarestorage.com'
+    print("⚠️  OBJECT_STORAGE_ENDPOINT not found in .env, using hardcoded endpoint")
+    STORAGE_ENDPOINT = 'https://a88f92c913c232559845adb9001a5d14.eu.r2.cloudflarestorage.com'
 
 # Bucket names (from your .env)
 BUCKETS = [
@@ -50,30 +57,30 @@ BUCKETS = [
 # FUNCTIONS
 # ============================================
 
-def get_r2_client():
-    """Initialize R2 client (S3-compatible)"""
-    if not all([R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY]):
-        print("❌ ERROR: Missing R2 credentials!")
+def get_storage_client():
+    """Initialize object storage client (S3-compatible)"""
+    if not all([STORAGE_ENDPOINT, STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY]):
+        print("❌ ERROR: Missing storage credentials!")
         print("\nMissing values:")
-        if not R2_ENDPOINT:
-            print("  - R2_ENDPOINT_URL")
-        if not R2_ACCESS_KEY_ID:
-            print("  - R2_ACCESS_KEY_ID")
-        if not R2_SECRET_ACCESS_KEY:
-            print("  - R2_SECRET_ACCESS_KEY")
+        if not STORAGE_ENDPOINT:
+            print("  - OBJECT_STORAGE_ENDPOINT")
+        if not STORAGE_ACCESS_KEY_ID:
+            print("  - OBJECT_STORAGE_ACCESS_KEY")
+        if not STORAGE_SECRET_ACCESS_KEY:
+            print("  - OBJECT_STORAGE_SECRET_KEY")
         print("\nMake sure .env file exists in project root with these values")
         sys.exit(1)
     
     return boto3.client(
         's3',
-        endpoint_url=R2_ENDPOINT,
-        aws_access_key_id=R2_ACCESS_KEY_ID,
-        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
-        region_name='auto'  # R2 uses 'auto' region
+        endpoint_url=STORAGE_ENDPOINT,
+        aws_access_key_id=STORAGE_ACCESS_KEY_ID,
+        aws_secret_access_key=STORAGE_SECRET_ACCESS_KEY,
+        region_name='auto'  # Storage uses 'auto' region
     )
 
 def list_all_buckets(client) -> List[str]:
-    """List all R2 buckets"""
+    """List all storage buckets"""
     try:
         response = client.list_buckets()
         return [bucket['Name'] for bucket in response.get('Buckets', [])]
@@ -185,7 +192,7 @@ def delete_bucket(client, bucket_name: str, dry_run: bool = False) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Cleanup Cloudflare R2 Storage',
+        description='Cleanup Object Storage',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
@@ -203,8 +210,8 @@ def main():
     args = parser.parse_args()
     
     # Initialize client
-    print("🔌 Connecting to Cloudflare R2...")
-    client = get_r2_client()
+    print("🔌 Connecting to object storage...")
+    client = get_storage_client()
     print("✅ Connected!")
     
     # List mode

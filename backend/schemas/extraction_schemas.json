@@ -1,0 +1,364 @@
+{
+  "version": "1.0",
+  "schemas": {
+    "product_specs": {
+      "version": "1.0",
+      "description": "Extract product specifications from manufacturer pages",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "model_number": {
+            "type": "string",
+            "description": "Product model number (e.g., C750i, LaserJet Pro M454dw)"
+          },
+          "series_name": {
+            "type": "string",
+            "description": "Product series name (e.g., bizhub i-Series, LaserJet Pro)"
+          },
+          "product_type": {
+            "type": "string",
+            "enum": [
+              "laser_printer",
+              "inkjet_printer",
+              "laser_multifunction",
+              "inkjet_multifunction",
+              "production_printer",
+              "wide_format"
+            ],
+            "description": "Product category"
+          },
+          "speed_mono": {
+            "type": "number",
+            "description": "Monochrome print speed in pages per minute (ppm)"
+          },
+          "speed_color": {
+            "type": "number",
+            "description": "Color print speed in pages per minute (ppm)"
+          },
+          "resolution": {
+            "type": "string",
+            "description": "Print resolution (e.g., 1200x1200 dpi)"
+          },
+          "paper_sizes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Supported paper sizes (e.g., A4, A3, Letter, Legal)"
+          },
+          "duplex": {
+            "type": "string",
+            "enum": [
+              "automatic",
+              "manual",
+              "none"
+            ],
+            "description": "Duplex printing capability"
+          },
+          "memory": {
+            "type": "string",
+            "description": "System memory (e.g., 8192 MB, 16 GB)"
+          },
+          "storage": {
+            "type": "string",
+            "description": "Internal storage (e.g., 256 GB SSD, 500 GB HDD)"
+          },
+          "connectivity": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Connectivity options (e.g., USB 2.0, Ethernet, WiFi, NFC)"
+          },
+          "scan_speed": {
+            "type": "string",
+            "description": "Scan speed (e.g., 240 ipm, 80 ppm)"
+          },
+          "monthly_duty": {
+            "type": "number",
+            "description": "Maximum monthly duty cycle in pages"
+          },
+          "dimensions": {
+            "type": "object",
+            "properties": {
+              "width": {
+                "type": "number",
+                "description": "Width in mm"
+              },
+              "depth": {
+                "type": "number",
+                "description": "Depth in mm"
+              },
+              "height": {
+                "type": "number",
+                "description": "Height in mm"
+              }
+            }
+          },
+          "weight": {
+            "type": "number",
+            "description": "Weight in kg"
+          },
+          "power_consumption": {
+            "type": "number",
+            "description": "Power consumption in watts (W)"
+          }
+        },
+        "required": [
+          "model_number"
+        ]
+      }
+    },
+    "error_codes": {
+      "version": "1.0",
+      "description": "Extract error codes and solutions from support pages",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "error_codes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "description": "Error code (e.g., C-2801, E-1234, 49.4C02)"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Error description or message"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "critical",
+                    "warning",
+                    "info"
+                  ],
+                  "description": "Error severity level"
+                },
+                "solution": {
+                  "type": "string",
+                  "description": "Solution steps or troubleshooting instructions"
+                },
+                "requires_technician": {
+                  "type": "boolean",
+                  "description": "Whether technician service is required"
+                },
+                "requires_parts": {
+                  "type": "boolean",
+                  "description": "Whether replacement parts are needed"
+                },
+                "related_parts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Part numbers or names related to this error"
+                },
+                "affected_models": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Product models affected by this error"
+                }
+              },
+              "required": [
+                "code",
+                "description"
+              ]
+            }
+          }
+        },
+        "required": [
+          "error_codes"
+        ]
+      }
+    },
+    "service_manual": {
+      "version": "1.0",
+      "description": "Extract service manual metadata from download pages",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "manual_type": {
+            "type": "string",
+            "enum": [
+              "service_manual",
+              "parts_catalog",
+              "user_guide",
+              "quick_reference",
+              "installation_guide"
+            ],
+            "description": "Type of manual"
+          },
+          "product_models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Product models covered by this manual"
+          },
+          "version": {
+            "type": "string",
+            "description": "Manual version or revision number"
+          },
+          "publish_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Publication date (YYYY-MM-DD)"
+          },
+          "page_count": {
+            "type": "number",
+            "description": "Number of pages in manual"
+          },
+          "language": {
+            "type": "string",
+            "description": "Manual language (e.g., en, de, fr)"
+          },
+          "download_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Direct download URL for PDF"
+          },
+          "file_size": {
+            "type": "string",
+            "description": "File size (e.g., 15.2 MB, 3.5 GB)"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Major sections or chapters in manual"
+          }
+        },
+        "required": [
+          "manual_type",
+          "product_models"
+        ]
+      }
+    },
+    "parts_list": {
+      "version": "1.0",
+      "description": "Extract parts list from parts catalog pages",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "parts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "part_number": {
+                  "type": "string",
+                  "description": "Manufacturer part number"
+                },
+                "part_name": {
+                  "type": "string",
+                  "description": "Part name or description"
+                },
+                "category": {
+                  "type": "string",
+                  "description": "Part category (e.g., Fuser Unit, Transfer Belt, Drum)"
+                },
+                "compatible_models": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Compatible product models"
+                },
+                "price": {
+                  "type": "string",
+                  "description": "Part price if available"
+                },
+                  "availability": {
+                  "type": "string",
+                  "enum": [
+                    "in_stock",
+                    "out_of_stock",
+                    "discontinued",
+                    "unknown"
+                  ],
+                  "description": "Availability status"
+                }
+              },
+              "required": [
+                "part_number",
+                "part_name"
+              ]
+            }
+          }
+        },
+        "required": [
+          "parts"
+        ]
+      }
+    },
+    "troubleshooting": {
+      "version": "1.0",
+      "description": "Extract troubleshooting guides from support pages",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "issue_title": {
+                  "type": "string",
+                  "description": "Issue or problem title"
+                },
+                "symptoms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Symptoms or indicators of the issue"
+                },
+                "causes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Possible causes"
+                },
+                "solutions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Solution steps"
+                },
+                "related_error_codes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Related error codes"
+                },
+                "affected_models": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Affected product models"
+                }
+              },
+              "required": [
+                "issue_title",
+                "solutions"
+              ]
+            }
+          }
+        },
+        "required": [
+          "issues"
+        ]
+      }
+    }
+  }
+}

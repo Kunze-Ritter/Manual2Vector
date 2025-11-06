@@ -1,22 +1,23 @@
 """
 Image Storage Processor V2 - WITH HASH DEDUPLICATION
 
-Handles EXTRACTED IMAGE storage on Cloudflare R2 with:
+Handles EXTRACTED IMAGE storage on S3-compatible storage with:
 - MD5 hash-based deduplication (no duplicate uploads!)
 - Flat storage structure: {hash}.{extension}
 - Database tracking in krai_content.images
 - Automatic metadata extraction
 - Integration with Supabase
+- Supports MinIO, AWS S3, Cloudflare R2, Wasabi, Backblaze B2
 
 Storage Structure:
     OLD: documents/{doc_id}/images/page_0001_diagram_img.png
-    NEW: a1b2c3d4e5f6.png (just the hash!)
+    NEW: a1b2c0d0f.png (just the hash!)
 
 Deduplication Flow:
     1. Calculate MD5 hash of image
     2. Check if hash exists in DB
     3. If exists: Return existing URL (skip upload)
-    4. If new: Upload to R2 + Insert to DB
+    4. If new: Upload to object storage + Insert to DB
 """
 
 import os
@@ -51,7 +52,7 @@ class ImageStorageProcessor:
     Features:
     - MD5 hash calculation
     - Automatic deduplication
-    - R2 storage (Cloudflare)
+    - S3-compatible storage (MinIO, S3, R2, etc.)
     - Database tracking (krai_content.images)
     - Flat structure (no folders)
     """
@@ -66,18 +67,31 @@ class ImageStorageProcessor:
         self.logger = get_logger()
         self.supabase = supabase_client
         
-        # R2 Configuration
-        self.access_key = os.getenv('R2_ACCESS_KEY_ID')
-        self.secret_key = os.getenv('R2_SECRET_ACCESS_KEY')
-        self.endpoint_url = os.getenv('R2_ENDPOINT_URL')
-        self.bucket_name = os.getenv('R2_BUCKET_NAME_DOCUMENTS')
-        self.public_url = os.getenv('R2_PUBLIC_URL_DOCUMENTS')
+        # Object Storage Configuration
+        self.access_key = (os.getenv('OBJECT_STORAGE_ACCESS_KEY') or 
+                          os.getenv('R2_ACCESS_KEY_ID'))
+        self.secret_key = (os.getenv('OBJECT_STORAGE_SECRET_KEY') or 
+                          os.getenv('R2_SECRET_ACCESS_KEY'))
+        self.endpoint_url = (os.getenv('OBJECT_STORAGE_ENDPOINT') or 
+                           os.getenv('R2_ENDPOINT_URL'))
+        self.bucket_name = (os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS') or 
+                           os.getenv('R2_BUCKET_NAME_DOCUMENTS'))
+        self.public_url = (os.getenv('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS') or 
+                         os.getenv('R2_PUBLIC_URL_DOCUMENTS'))
         
-        # Initialize R2 client
-        self.r2_client = None
+        # Log deprecation warnings if old variables are used
+        if not os.getenv('OBJECT_STORAGE_ACCESS_KEY') and os.getenv('R2_ACCESS_KEY_ID'):
+            self.logger.warning("R2_ACCESS_KEY_ID is deprecated. Use OBJECT_STORAGE_ACCESS_KEY instead.")
+        if not os.getenv('OBJECT_STORAGE_SECRET_KEY') and os.getenv('R2_SECRET_ACCESS_KEY'):
+            self.logger.warning("R2_SECRET_ACCESS_KEY is deprecated. Use OBJECT_STORAGE_SECRET_KEY instead.")
+        if not os.getenv('OBJECT_STORAGE_ENDPOINT') and os.getenv('R2_ENDPOINT_URL'):
+            self.logger.warning("R2_ENDPOINT_URL is deprecated. Use OBJECT_STORAGE_ENDPOINT instead.")
+        
+        # Initialize S3-compatible client
+        self.storage_client = None
         if all([self.access_key, self.secret_key, self.endpoint_url, self.bucket_name]):
             try:
-                self.r2_client = boto3.client(
+                self.storage_client = boto3.client(
                     's3',
                     endpoint_url=self.endpoint_url,
                     aws_access_key_id=self.access_key,
@@ -85,15 +99,15 @@ class ImageStorageProcessor:
                     config=Config(signature_version='s3v4'),
                     region_name='auto'
                 )
-                self.logger.info("R2 client initialized successfully")
+                self.logger.info("S3-compatible storage client initialized successfully")
             except Exception as e:
-                self.logger.warning(f"Failed to initialize R2 client: {e}")
+                self.logger.warning(f"Failed to initialize storage client: {e}")
         else:
-            self.logger.warning("R2 credentials incomplete - storage disabled")
+            self.logger.warning("Object storage credentials incomplete - storage disabled")
     
     def is_configured(self) -> bool:
-        """Check if R2 and Supabase are configured"""
-        return self.r2_client is not None and self.supabase is not None
+        """Check if object storage and Supabase are configured"""
+        return self.storage_client is not None and self.supabase is not None
     
     def calculate_image_hash(self, image_path: Path) -> str:
         """
@@ -192,13 +206,13 @@ class ImageStorageProcessor:
                     'existing_id': existing['id']
                 }
             
-            # 3. New image - upload to R2
+            # 3. New image - upload to object storage
             extension = image_path.suffix.lstrip('.')
             storage_path = f"{file_hash}.{extension}"
             
-            # Upload to R2
+            # Upload to object storage
             with open(image_path, 'rb') as f:
-                self.r2_client.upload_fileobj(
+                self.storage_client.upload_fileobj(
                     f,
                     self.bucket_name,
                     storage_path,
@@ -303,7 +317,7 @@ class ImageStorageProcessor:
         failed_count = 0
         urls = []
         
-        self.logger.info(f"Uploading {len(images)} images to R2 (with deduplication)...")
+        self.logger.info(f"Uploading {len(images)} images to object storage (with deduplication)...")
         
         for idx, image_info in enumerate(images):
             image_path = Path(image_info.get('path'))
@@ -410,13 +424,13 @@ class ImageStorageProcessor:
 
 
 # Convenience function
-def upload_images_to_r2(
+def upload_images_to_storage(
     document_id: UUID,
     images: List[Dict[str, Any]],
     supabase_client=None
 ) -> Dict[str, Any]:
     """
-    Convenience function to upload images
+    Convenience function to upload images to object storage
     
     Args:
         document_id: Document UUID

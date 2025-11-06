@@ -8,6 +8,8 @@ import sys
 import os
 from typing import Optional, Dict, Any
 
+logger = logging.getLogger(__name__)
+
 # Add scripts directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 
@@ -16,8 +18,6 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️ VideoEnricher not available: {e}")
     VideoEnricher = None
-
-logger = logging.getLogger(__name__)
 
 
 class VideoEnrichmentService:

@@ -26,8 +26,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 
 # Import services
-from backend.services.database_service_production import DatabaseService
+from backend.services.database_service import DatabaseService
 from backend.services.object_storage_service import ObjectStorageService
+from backend.services.storage_factory import create_storage_service
 from backend.services.ai_service import AIService
 from backend.services.config_service import ConfigService
 from backend.services.features_service import FeaturesService
@@ -37,6 +38,7 @@ from backend.utils.colored_logging import apply_colored_logging_globally
 
 from backend.processors.upload_processor import UploadProcessor
 from backend.processors.text_processor_optimized import OptimizedTextProcessor
+from backend.processors.svg_processor import SVGProcessor
 from backend.processors.image_processor import ImageProcessor
 from backend.processors.classification_processor import ClassificationProcessor
 from backend.processors.chunk_preprocessor import ChunkPreprocessor
@@ -45,6 +47,8 @@ from backend.processors.link_extraction_processor_ai import LinkExtractionProces
 from backend.processors.storage_processor import StorageProcessor
 from backend.processors.embedding_processor import EmbeddingProcessor
 from backend.processors.search_processor import SearchProcessor
+from backend.processors.visual_embedding_processor import VisualEmbeddingProcessor
+from backend.processors.table_processor import TableProcessor
 
 from backend.core.base_processor import ProcessingContext
 
@@ -73,13 +77,10 @@ class KRMasterPipeline:
         self.max_concurrent = max(4, int(cpu_count * 0.75))  # Min 4, max 75% of cores
         
         self.logger.info(
-            "performance",
-            concurrent_documents=self.max_concurrent,
-            cpu_cores=cpu_count
+            f"Performance settings: concurrent_documents={self.max_concurrent}, cpu_cores={cpu_count}"
         )
         self.logger.info(
-            "initialized",
-            concurrent_documents=self.max_concurrent
+            f"KR Master Pipeline initialized with {self.max_concurrent} concurrent document capacity"
         )
         
     async def initialize_services(self):
@@ -93,6 +94,7 @@ class KRMasterPipeline:
         
         # Define specific .env files to load
         env_files = [
+            '.env.test',         # Test configuration (prioritized)
             'env.database',      # Database configuration
             'env.storage',       # Storage configuration  
             'env.ai',           # AI configuration
@@ -136,9 +138,7 @@ class KRMasterPipeline:
         
         if loaded_files:
             self.logger.info(
-                "environment_loaded",
-                num_files=len(loaded_files),
-                files="; ".join(loaded_files)
+                f"Environment loaded: {len(loaded_files)} files - {'; '.join(loaded_files)}"
             )
         else:
             env_loaded = False
@@ -258,24 +258,18 @@ class KRMasterPipeline:
         else:
             self.logger.warning("POSTGRES_URL not found - using PostgREST only")
         
-        # Initialize database service with multiple connection options
+        # Initialize database service with PostgreSQL adapter
         self.database_service = DatabaseService(
-            supabase_url=supabase_url,
-            supabase_key=supabase_key,
-            postgres_url=postgres_url,  # asyncpg (if connection works)
-            service_role_key=service_role_key  # PostgREST with elevated permissions
+            supabase_url=None,  # Force PostgreSQL adapter
+            supabase_key=None,
+            postgres_url=postgres_url,
+            database_type='postgresql'  # Explicitly use PostgreSQL
         )
         await self.database_service.connect()
         
         # Initialize object storage service
-        self.storage_service = ObjectStorageService(
-            r2_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
-            r2_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
-            r2_endpoint_url=os.getenv('R2_ENDPOINT_URL'),
-            r2_public_url_documents=os.getenv('R2_PUBLIC_URL_DOCUMENTS'),
-            r2_public_url_error=os.getenv('R2_PUBLIC_URL_ERROR'),
-            r2_public_url_parts=os.getenv('R2_PUBLIC_URL_PARTS')
-        )
+        self.storage_service = create_storage_service()
+        # Storage service factory supports MinIO, S3, R2, etc.
         await self.storage_service.connect()
         
         # Initialize AI service
@@ -294,17 +288,23 @@ class KRMasterPipeline:
         # Initialize file locator service
         self.file_locator = FileLocatorService()
         
-        # Initialize all processors
+        # Initialize all processors - use sequential variables to avoid initialization ordering issues
+        embedding_processor = EmbeddingProcessor(self.database_service, self.ai_service)
+        table_processor = TableProcessor(self.database_service, embedding_processor)
+        
         self.processors = {
             'upload': UploadProcessor(self.database_service),
             'text': OptimizedTextProcessor(self.database_service, self.config_service),
+            'svg': SVGProcessor(self.database_service, self.storage_service, self.ai_service) if os.getenv('ENABLE_SVG_EXTRACTION', 'false').lower() == 'true' else None,
+            'embedding': embedding_processor,
+            'table': table_processor,
             'image': ImageProcessor(self.database_service, self.storage_service, self.ai_service),
+            'visual_embedding': VisualEmbeddingProcessor(self.database_service),
             'classification': ClassificationProcessor(self.database_service, self.ai_service, self.features_service),
             'chunk_prep': ChunkPreprocessor(self.database_service),
             'links': LinkExtractionProcessorAI(self.database_service, self.ai_service),
             'metadata': MetadataProcessorAI(self.database_service, self.ai_service, self.config_service),
             'storage': StorageProcessor(self.database_service, self.storage_service),
-            'embedding': EmbeddingProcessor(self.database_service, self.ai_service),
             'search': SearchProcessor(self.database_service, self.ai_service)
         }
         self.logger.info("All services initialized!")
@@ -399,6 +399,7 @@ class KRMasterPipeline:
         stage_status = {
             'upload': False,
             'text': False,
+            'svg': False,
             'image': False,
             'classification': False,
             'chunk_prep': False,
@@ -427,6 +428,19 @@ class KRMasterPipeline:
             chunks_count = await self.database_service.count_chunks_by_document(document_id)
             if chunks_count > 0:
                 stage_status['text'] = True
+            
+            # Check if SVG processing completed (svg stage) - krai_content.images with image_type='vector_graphic'
+            if hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
+                try:
+                    async with self.database_service.pg_pool.acquire() as conn:
+                        svg_count = await conn.fetchval(
+                            "SELECT COUNT(*) FROM krai_content.images WHERE document_id = $1 AND image_type = 'vector_graphic'",
+                            document_id
+                        )
+                        if svg_count > 0:
+                            stage_status['svg'] = True
+                except:
+                    pass
             
             # Check if images exist (image stage) - krai_content.images
             images_count = await self.database_service.count_images_by_document(document_id)
@@ -511,6 +525,7 @@ class KRMasterPipeline:
 
             stage_sequence = [
                 ("text", "[2/10] Text Processing:", 'text'),
+                ("svg", "[3a/10] SVG Processing:", 'svg'),
                 ("image", "[3/10] Image Processing:", 'image'),
                 ("classification", "[4/10] Classification:", 'classification'),
                 ("chunk_prep", "[5/10] Chunk Preprocessing:", 'chunk_prep'),
@@ -523,6 +538,7 @@ class KRMasterPipeline:
 
             success_messages = {
                 'text': lambda res: "Text processing completed",
+                'svg': lambda res: f"SVG processing completed: {res.data.get('svgs_extracted', 0)} SVGs, {res.data.get('images_queued', 0)} images queued",
                 'image': lambda res: f"Image processing completed: {res.data.get('images_processed', 0)} images",
                 'chunk_prep': lambda res: f"Chunk preprocessing completed: {res.data.get('chunks_preprocessed', 0)} chunks",
                 'links': lambda res: (
@@ -542,6 +558,15 @@ class KRMasterPipeline:
             for stage_name, label, processor_key in stage_sequence:
                 if stage_name not in missing_stages:
                     continue
+
+                # SVG stage gating with feature flag
+                if stage_name == 'svg':
+                    if os.getenv('ENABLE_SVG_EXTRACTION', 'false').lower() != 'true':
+                        self.logger.info("  %s %s (SKIPPED: SVG extraction disabled)", label, filename)
+                        continue
+                    if self.processors.get('svg') is None:
+                        self.logger.info("  %s %s (SKIPPED: SVG processor not available)", label, filename)
+                        continue
 
                 self.logger.info("  %s %s", label, filename)
                 try:
@@ -700,10 +725,31 @@ class KRMasterPipeline:
             result2 = await self.processors['text'].process(context)
             chunks_count = result2.data.get('chunks_created', 0)
             
+            # Stage 2b: Table Processor (NEW! - Multi-modal support)
+            self.logger.info("  [%s] Table Extraction: %s", doc_index, filename)
+            result2b = await self.processors['table'].process(context)
+            tables_count = result2b.data.get('tables_extracted', 0) if result2b.success else 0
+            
+            # Stage 3a: SVG Processor (NEW! - Vector graphics extraction)
+            if self.processors['svg'] is not None:
+                self.logger.info("  [%s] SVG Processing: %s", doc_index, filename)
+                result3a = await self.processors['svg'].process(context)
+                svg_count = result3a.data.get('svgs_extracted', 0) if result3a.success else 0
+                svg_converted = result3a.data.get('svgs_converted', 0) if result3a.success else 0
+                self.logger.info("    → %s SVGs extracted, %s converted", svg_count, svg_converted)
+            else:
+                svg_count = 0
+                svg_converted = 0
+            
             # Stage 3: Image Processor
             self.logger.info("  [%s] Image Processing: %s", doc_index, filename)
             result3 = await self.processors['image'].process(context)
             images_count = result3.data.get('images_processed', 0)
+            
+            # Stage 3b: Visual Embedding Processor (NEW! - Multi-modal support)
+            self.logger.info("  [%s] Visual Embeddings: %s", doc_index, filename)
+            result3b = await self.processors['visual_embedding'].process(context)
+            visual_embeddings_count = result3b.data.get('embeddings_created', 0) if result3b.success else 0
             
             # Stage 4: Classification Processor
             self.logger.info("  [%s] Classification: %s", doc_index, filename)
@@ -748,7 +794,11 @@ class KRMasterPipeline:
                 'filename': filename,
                 'file_size': file_size,
                 'chunks': chunks_count,
+                'tables': tables_count,
+                'svgs_extracted': svg_count,
+                'svgs_converted': svg_converted,
                 'images': images_count,
+                'visual_embeddings': visual_embeddings_count,
                 'smart_processing': False
             }
             

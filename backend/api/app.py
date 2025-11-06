@@ -4,17 +4,27 @@ KRAI Processing Pipeline API
 FastAPI app for monitoring, managing, and controlling the document processing pipeline.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Depends, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-from datetime import datetime
+from typing import Optional, List, Dict, Any, Union
+from datetime import datetime, timedelta
 from pathlib import Path
 import os
+import secrets
 from dotenv import load_dotenv
 from supabase import create_client
 import sys
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,9 +32,26 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backend.processors.upload_processor import UploadProcessor, BatchUploadProcessor
 from backend.processors.document_processor import DocumentProcessor
 from backend.processors.stage_tracker import StageTracker
+from backend.api.dependencies.auth import set_auth_service
+from backend.api.dependencies.auth_factory import create_auth_service
+from backend.api.middleware.auth_middleware import AuthMiddleware, require_permission
+from backend.services.database_service import DatabaseService
+from backend.services.auth_service import AuthService, AuthenticationError
+from backend.services.supabase_adapter import SupabaseAdapter
+from backend.services.batch_task_service import BatchTaskService
+from backend.services.transaction_manager import TransactionManager
 
 # Import API routers
 from backend.api.agent_api import create_agent_api
+from backend.api.routes import documents, products
+from backend.api.routes.error_codes import router as error_codes_router
+from backend.api.routes.videos import router as videos_router
+from backend.api.routes.images import router as images_router
+from backend.api.routes.batch import router as batch_router
+from backend.api.routes.search import router as search_router
+from backend.api import websocket as websocket_api
+from backend.services.metrics_service import MetricsService
+from backend.services.alert_service import AlertService
 
 # Load ALL environment files (they are in project root)
 project_root = Path(__file__).parent.parent.parent
@@ -33,28 +60,87 @@ load_dotenv(project_root / '.env.database')
 load_dotenv(project_root / '.env.external')
 load_dotenv(project_root / '.env.pipeline')
 load_dotenv(project_root / '.env.storage')
+load_dotenv(project_root / '.env.auth')
 
-# Initialize FastAPI
+# Security configuration
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+
+# Default admin configuration
+DEFAULT_ADMIN_EMAIL = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
+DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+DEFAULT_ADMIN_FIRST_NAME = os.getenv("DEFAULT_ADMIN_FIRST_NAME", "System")
+DEFAULT_ADMIN_LAST_NAME = os.getenv("DEFAULT_ADMIN_LAST_NAME", "Administrator")
+
+# CORS configuration
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "https://krai.example.com",
+]
+
+# Initialize FastAPI with security settings
 app = FastAPI(
     title="KRAI Processing Pipeline API",
     description="Document processing pipeline with monitoring and management",
-    version="2.0.0"
+    version="2.0.0",
+    docs_url=None,  # Disable default docs to add auth
+    redoc_url=None,  # Disable default redoc to add auth
+    openapi_url="/openapi.json"
 )
 
-# CORS
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"]
 )
+
+# Security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    
+    return response
+
+security_scheme = HTTPBearer(auto_error=False)
 
 # Global state
 supabase_client = None
+supabase_adapter: SupabaseAdapter | None = None
 upload_processor = None
 document_processor = None
 agent_app = None
+auth_service: AuthService | None = None
+batch_task_service: BatchTaskService | None = None
+transaction_manager: TransactionManager | None = None
+metrics_service: MetricsService | None = None
+alert_service: AlertService | None = None
+websocket_manager: websocket_api.WebSocketManager | None = None
+
+
+# === AUTH SERVICE INITIALIZATION ===
+
+def ensure_auth_service() -> AuthService:
+    """Ensure the singleton AuthService is available and registered."""
+    global auth_service
+    if auth_service is None:
+        service = create_auth_service()
+        set_auth_service(service)
+        auth_service = service
+    return auth_service
 
 
 # === DEPENDENCY INJECTION ===
@@ -68,6 +154,20 @@ def get_supabase():
             os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         )
     return supabase_client
+
+
+def get_supabase_adapter() -> SupabaseAdapter:
+    """Provide shared SupabaseAdapter instance."""
+
+    global supabase_adapter
+    if supabase_adapter is None:
+        database_service = DatabaseService(
+            supabase_url=os.getenv("SUPABASE_URL"),
+            supabase_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+            postgres_url=os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL"),
+        )
+        supabase_adapter = database_service
+    return supabase_adapter
 
 
 def get_upload_processor():
@@ -99,6 +199,56 @@ def get_agent_app():
     if agent_app is None:
         agent_app = create_agent_api(get_supabase())
     return agent_app
+
+
+async def get_batch_task_service() -> BatchTaskService:
+    """Return singleton BatchTaskService."""
+
+    global batch_task_service
+    if batch_task_service is None:
+        adapter = get_supabase_adapter()
+        batch_task_service = BatchTaskService(adapter)
+    return batch_task_service
+
+
+async def get_transaction_manager() -> TransactionManager:
+    """Return singleton TransactionManager."""
+
+    global transaction_manager
+    if transaction_manager is None:
+        adapter = get_supabase_adapter()
+        transaction_manager = TransactionManager(adapter)
+    return transaction_manager
+
+
+async def get_metrics_service() -> MetricsService:
+    """Return singleton MetricsService."""
+    global metrics_service
+    if metrics_service is None:
+        adapter = get_supabase_adapter()
+        # Import broadcast function for WebSocket integration
+        from backend.api.websocket import broadcast_stage_event
+        stage_tracker = StageTracker(get_supabase(), websocket_callback=broadcast_stage_event)
+        metrics_service = MetricsService(adapter, stage_tracker)
+    return metrics_service
+
+
+async def get_alert_service() -> AlertService:
+    """Return singleton AlertService."""
+    global alert_service
+    if alert_service is None:
+        adapter = get_supabase_adapter()
+        metrics_svc = await get_metrics_service()
+        alert_service = AlertService(adapter, metrics_svc)
+    return alert_service
+
+
+def get_websocket_manager() -> websocket_api.WebSocketManager:
+    """Return singleton WebSocketManager."""
+    global websocket_manager
+    if websocket_manager is None:
+        websocket_manager = websocket_api.WebSocketManager()
+    return websocket_manager
 
 
 # === PYDANTIC MODELS ===
@@ -137,21 +287,61 @@ class StageStatistics(BaseModel):
     average_processing_time: Optional[float]
 
 
+# === AUTHENTICATION ===
+
+# OAuth2 scheme for token authentication
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+# Custom docs endpoints with auth
+@app.get("/docs", include_in_schema=False)
+async def get_documentation(request: Request):
+    """Custom Swagger UI secured by bearer authentication."""
+    credentials = await security_scheme(request)
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    ensure_auth_service()
+    claims = await AuthMiddleware(ensure_auth_service())(request, allow_expired=True)
+    if claims.get("role") not in {"admin", "editor"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title=app.title,
+        swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png"
+    )
+
+@app.get("/redoc", include_in_schema=False)
+async def get_redoc_documentation(request: Request):
+    """Custom ReDoc secured by bearer authentication."""
+    credentials = await security_scheme(request)
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    ensure_auth_service()
+    claims = await AuthMiddleware(ensure_auth_service())(request, allow_expired=True)
+    if claims.get("role") not in {"admin", "editor"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title=f"{app.title} - ReDoc",
+        swagger_ui_parameters={"docExpansion": "none"},
+        swagger_js_url="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
+    )
+
+
 # === HEALTH & STATUS ===
 
-@app.get("/", tags=["System"])
+@app.get("/", include_in_schema=False)
 async def root():
-    """Root endpoint"""
+    """Root endpoint with API information"""
     return {
-        "service": "KRAI Processing Pipeline API",
+        "name": "KRAI Processing Pipeline",
         "version": "2.0.0",
-        "status": "running",
-        "documentation": "/docs"
+        "status": "operational"
     }
 
-
 @app.get("/health", response_model=HealthResponse, tags=["System"])
-async def health_check(supabase=Depends(get_supabase)):
+async def health_check(
+    supabase=Depends(get_supabase),
+):
     """
     Health check endpoint
     
@@ -161,11 +351,15 @@ async def health_check(supabase=Depends(get_supabase)):
     - Ollama status
     - Storage access
     """
+    adapter = get_supabase_adapter()
+    transaction_support = adapter.pg_pool is not None
+
     services = {
         "api": {"status": "healthy", "message": "API is running"},
         "database": {"status": "unknown", "message": ""},
         "ollama": {"status": "unknown", "message": ""},
-        "storage": {"status": "unknown", "message": ""}
+        "storage": {"status": "unknown", "message": ""},
+        "batch_operations": {"status": "unknown", "message": ""},
     }
     
     # Check database
@@ -205,23 +399,63 @@ async def health_check(supabase=Depends(get_supabase)):
             "message": f"Ollama error: {str(e)}"
         }
     
-    # Check storage (R2)
+    # Check storage (Object Storage)
     try:
-        # Test R2 credentials exist
-        if os.getenv("R2_ACCESS_KEY_ID") and os.getenv("R2_SECRET_ACCESS_KEY"):
+        # Test object storage credentials exist with fallback to R2
+        storage_key = os.getenv("OBJECT_STORAGE_ACCESS_KEY") or os.getenv("R2_ACCESS_KEY_ID")
+        storage_secret = os.getenv("OBJECT_STORAGE_SECRET_KEY") or os.getenv("R2_SECRET_ACCESS_KEY")
+        storage_type = os.getenv("OBJECT_STORAGE_TYPE", "r2")
+        
+        if storage_key and storage_secret:
             services["storage"] = {
                 "status": "configured",
-                "message": "R2 credentials present"
+                "message": f"Object storage credentials present ({storage_type})",
+                "type": storage_type
             }
         else:
             services["storage"] = {
                 "status": "unconfigured",
-                "message": "R2 credentials missing"
+                "message": "Object storage credentials missing"
             }
     except Exception as e:
         services["storage"] = {
             "status": "error",
             "message": f"Storage error: {str(e)}"
+        }
+
+    # Batch operations health
+    try:
+        task_service = await get_batch_task_service()
+        services["batch_operations"] = {
+            "status": "healthy",
+            "message": "Task service initialized",
+            "transaction_support": transaction_support,
+        }
+    except Exception as exc:
+        services["batch_operations"] = {
+            "status": "unhealthy",
+            "message": f"Batch services unavailable: {exc}",
+            "transaction_support": transaction_support,
+        }
+    
+    # Monitoring services health
+    try:
+        metrics_svc = await get_metrics_service()
+        alert_svc = await get_alert_service()
+        ws_mgr = get_websocket_manager()
+        
+        services["monitoring"] = {
+            "status": "healthy",
+            "message": "Monitoring services active",
+            "metrics_service": "initialized",
+            "alert_service": "initialized",
+            "websocket_connections": len(ws_mgr.active_connections),
+        }
+    except Exception as exc:
+        services["monitoring"] = {
+            "status": "unhealthy",
+            "message": f"Monitoring services unavailable: {exc}",
+            "websocket_connections": 0,
         }
     
     # Overall status
@@ -245,7 +479,8 @@ async def upload_document(
     file: UploadFile = File(...),
     document_type: str = "service_manual",
     force_reprocess: bool = False,
-    processor: UploadProcessor = Depends(get_upload_processor)
+    processor: UploadProcessor = Depends(get_upload_processor),
+    current_user: dict = Depends(require_permission('documents:write'))
 ):
     """
     Upload a document for processing
@@ -292,13 +527,56 @@ async def upload_document(
             temp_path.unlink()
 
 
+@app.on_event("startup")
+async def startup_events():
+    """Initialize shared services and verify default admin user."""
+    service = ensure_auth_service()
+    admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
+
+    try:
+        await service.ensure_default_admin(
+            email=DEFAULT_ADMIN_EMAIL,
+            username=DEFAULT_ADMIN_USERNAME,
+            first_name=DEFAULT_ADMIN_FIRST_NAME,
+            last_name=DEFAULT_ADMIN_LAST_NAME,
+            password=admin_password
+        )
+    except AuthenticationError as exc:
+        logger.error("Failed to ensure default admin user: %s", exc)
+        raise
+
+    adapter = get_supabase_adapter()
+    if hasattr(adapter, "connect"):
+        try:
+            await adapter.connect()
+        except Exception as exc:  # pragma: no cover - startup logging
+            logger.warning("Supabase adapter connection failed: %s", exc)
+
+    await get_batch_task_service()
+    await get_transaction_manager()
+    logger.info("Batch services initialized (transaction support=%s)", adapter.pg_pool is not None)
+    
+    # Initialize monitoring services
+    metrics_svc = await get_metrics_service()
+    alert_svc = await get_alert_service()
+    ws_manager = get_websocket_manager()
+    
+    # Start background tasks
+    import asyncio
+    asyncio.create_task(alert_svc.start_alert_monitoring())
+    asyncio.create_task(websocket_api.start_periodic_broadcast(metrics_svc))
+    
+    logger.info("Monitoring services initialized (metrics, alerts, websocket)")
+
+
 @app.post("/upload/directory", tags=["Upload"])
 async def upload_directory(
     directory_path: str,
     document_type: str = "service_manual",
     recursive: bool = False,
     force_reprocess: bool = False,
-    supabase=Depends(get_supabase)
+    supabase=Depends(get_supabase),
+    current_user: dict = Depends(require_permission('documents:write'))
 ):
     """
     Upload all PDFs from a directory
@@ -332,7 +610,11 @@ async def upload_directory(
 # === PROCESSING STATUS ===
 
 @app.get("/status/{document_id}", response_model=ProcessingStatus, tags=["Status"])
-async def get_document_status(document_id: str, supabase=Depends(get_supabase)):
+async def get_document_status(
+    document_id: str,
+    supabase=Depends(get_supabase),
+    current_user: dict = Depends(require_permission('documents:read'))
+):
     """
     Get processing status for a document
     
@@ -399,8 +681,11 @@ async def get_document_status(document_id: str, supabase=Depends(get_supabase)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/status", tags=["Status"])
-async def get_pipeline_status(supabase=Depends(get_supabase)):
+@app.get("/status/pipeline", response_model=List[StageStatistics], tags=["Status"])
+async def get_pipeline_status(
+    supabase=Depends(get_supabase),
+    current_user: dict = Depends(require_permission('documents:read'))
+):
     """
     Get overall pipeline status
     
@@ -440,7 +725,11 @@ async def get_pipeline_status(supabase=Depends(get_supabase)):
 # === LOGS & MONITORING ===
 
 @app.get("/logs/{document_id}", tags=["Monitoring"])
-async def get_document_logs(document_id: str, supabase=Depends(get_supabase)):
+async def get_document_logs(
+    document_id: str,
+    supabase=Depends(get_supabase),
+    current_user: dict = Depends(require_permission('monitoring:read'))
+):
     """
     Get processing logs for a document
     
@@ -470,8 +759,11 @@ async def get_document_logs(document_id: str, supabase=Depends(get_supabase)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/stages/statistics", tags=["Monitoring"])
-async def get_stage_statistics(supabase=Depends(get_supabase)):
+@app.get("/stages/statistics", response_model=List[StageStatistics], tags=["Monitoring"])
+async def get_stage_statistics(
+    supabase=Depends(get_supabase),
+    current_user: dict = Depends(require_permission('monitoring:read'))
+):
     """
     Get statistics for all processing stages
     
@@ -491,8 +783,11 @@ async def get_stage_statistics(supabase=Depends(get_supabase)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/metrics", tags=["Monitoring"])
-async def get_system_metrics(supabase=Depends(get_supabase)):
+@app.get("/monitoring/system", tags=["Monitoring"])
+async def get_system_metrics(
+    supabase=Depends(get_supabase),
+    current_user: dict = Depends(require_permission('monitoring:read'))
+):
     """
     Get system performance metrics
     
@@ -519,9 +814,62 @@ async def get_system_metrics(supabase=Depends(get_supabase)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Include API routes
+from backend.api.routes import auth as auth_routes
+
+# Initialize auth routes
+auth_router = auth_routes.initialize_auth_routes(DatabaseService())
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(documents.router, prefix="/api/v1")
+app.include_router(products.router, prefix="/api/v1")
+app.include_router(error_codes_router, prefix="/api/v1")
+app.include_router(videos_router, prefix="/api/v1")
+app.include_router(images_router, prefix="/api/v1")
+app.include_router(batch_router, prefix="/api/v1")
+app.include_router(search_router, prefix="/api/v1")
+
+# Mount Monitoring API
+from backend.api import monitoring_api
+app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
+
+# Mount WebSocket API
+app.include_router(websocket_api.router, tags=["WebSocket"])
+
 # Mount Agent API
 agent_api = get_agent_app()
 app.mount("/agent", agent_api)
+
+# Custom OpenAPI schema
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # Add security schemes
+    openapi_schema["components"]["securitySchemes"] = {
+        "HTTPBearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT"
+        }
+    }
+    
+    # Secure all endpoints by default
+    for path in openapi_schema.get("paths", {}).values():
+        for method in path.values():
+            if method.get("tags") != ["authentication"]:
+                method["security"] = [{"HTTPBearer": []}]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 
 if __name__ == "__main__":

@@ -6,7 +6,8 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 
 ### 📁 File Structure
 
-```
+```text
+.env.auth        # Authentication service & admin bootstrap
 .env.database    # Database configuration (Supabase)
 .env.storage     # Object storage (Cloudflare R2)
 .env.ai          # AI services (Ollama)
@@ -19,8 +20,24 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 
 ## 📋 File Details
 
+### `.env.auth` - Authentication Service
+
+Use this file to configure JWT signing keys and the bootstrap admin account.
+
+#### Key Variables
+
+- `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` - RS256 key pair
+- `JWT_ALGORITHM` - Token signing algorithm
+- `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_USERNAME` - Bootstrap admin account
+- `DEFAULT_ADMIN_FIRST_NAME` / `DEFAULT_ADMIN_LAST_NAME`
+- `DEFAULT_ADMIN_PASSWORD` - Optional (leave blank to prompt)
+
 ### `.env.database` - Database Configuration
-**Supabase Cloud Connection**
+
+This file stores credentials for the primary database connection.
+
+#### Connection Values
+
 - `SUPABASE_URL` - Supabase project URL
 - `SUPABASE_ANON_KEY` - Public anon key
 - `SUPABASE_SERVICE_ROLE_KEY` - Service role key (full access)
@@ -28,7 +45,11 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 - `DATABASE_PASSWORD` - Database password
 
 ### `.env.storage` - Object Storage
-**Cloudflare R2 Configuration**
+
+Holds credentials and settings for Cloudflare R2 object storage.
+
+#### Storage Settings
+
 - `R2_ACCESS_KEY_ID` - R2 access key
 - `R2_SECRET_ACCESS_KEY` - R2 secret key
 - `R2_BUCKET_NAME_DOCUMENTS` - Bucket name
@@ -38,7 +59,11 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 - `UPLOAD_DOCUMENTS_TO_R2` - Enable/disable document upload
 
 ### `.env.ai` - AI Services
-**Ollama Configuration**
+
+Contains Ollama model selections and AI runtime tuning.
+
+#### AI Settings
+
 - `OLLAMA_URL` - Ollama server URL
 - `OLLAMA_MODEL_EMBEDDING` - Embedding model
 - `OLLAMA_MODEL_TEXT` - Text generation model
@@ -47,7 +72,11 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 - `MAX_VISION_IMAGES` - Max images to process
 
 ### `.env.pipeline` - Processing Pipeline
-**Extraction Settings**
+
+Controls which processing pipeline features are enabled.
+
+#### Pipeline Settings
+
 - `ENABLE_PRODUCT_EXTRACTION` - Extract products
 - `ENABLE_PARTS_EXTRACTION` - Extract spare parts
 - `ENABLE_ERROR_CODE_EXTRACTION` - Extract error codes
@@ -59,7 +88,11 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 - `ENABLE_EMBEDDINGS` - Generate embeddings
 
 ### `.env.external` - External APIs
-**Third-Party Services**
+
+Captures API keys and integration URLs for external services.
+
+#### External Settings
+
 - `YOUTUBE_API_KEY` - YouTube Data API key
 - `CLOUDFLARE_TUNNEL_TOKEN` - N8N tunnel token
 - `CLOUDFLARE_TUNNEL_TOKEN_OLLAMA` - Ollama tunnel token
@@ -73,12 +106,13 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 
 Files are loaded in this order (later files can override earlier ones):
 
-1. `.env.database` - Core database config
-2. `.env.storage` - Storage configuration
-3. `.env.ai` - AI services
-4. `.env.pipeline` - Pipeline settings
-5. `.env.external` - External APIs
-6. `.env` - Main config (optional overrides)
+1. `.env.auth` - Authentication keys & admin defaults
+2. `.env.database` - Core database config
+3. `.env.storage` - Storage configuration
+4. `.env.ai` - AI services
+5. `.env.pipeline` - Pipeline settings
+6. `.env.external` - External APIs
+7. `.env` - Main config (optional overrides)
 
 ---
 
@@ -114,12 +148,15 @@ print(summary)
 ## 🔒 Security
 
 ### Private Repository
+
 - ✅ All `.env.*` files are tracked in git
 - ✅ Repository is private
 - ✅ Team members get full config automatically
 
 ### Local Overrides
+
 Create `.env.*.local` files for local overrides (not tracked):
+
 - `.env.database.local` - Override database config
 - `.env.storage.local` - Override storage config
 - etc.
@@ -165,11 +202,10 @@ print(summary)
 ### Missing Settings
 
 If settings are missing, check:
+
 1. All `.env.*` files exist
 2. Files are in project root
 3. No syntax errors in files
 4. Run `python backend/scripts/check_config.py`
-
----
 
 **Last Updated:** 2025-10-09

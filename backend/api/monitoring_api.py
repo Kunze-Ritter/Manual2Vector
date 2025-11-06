@@ -6,11 +6,38 @@ import asyncio
 import psutil
 import time
 from datetime import datetime
-from typing import Dict, Any, List
-from fastapi import APIRouter, HTTPException
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from backend.api.middleware.auth_middleware import require_permission
+from backend.models.monitoring import (
+    Alert,
+    AlertListResponse,
+    AlertRule,
+    AlertSeverity,
+    CreateAlertRule,
+    DataQualityResponse,
+    PipelineStatusResponse,
+    QueueStatusResponse,
+)
+from backend.services.alert_service import AlertService
+from backend.services.metrics_service import MetricsService
+
 router = APIRouter()
+
+# Global service instances will be initialized by app.py
+# These functions are used as dependencies
+async def get_metrics_service() -> MetricsService:
+    """Get metrics service instance from app.py."""
+    from backend.api.app import get_metrics_service as app_get_metrics
+    return await app_get_metrics()
+
+
+async def get_alert_service() -> AlertService:
+    """Get alert service instance from app.py."""
+    from backend.api.app import get_alert_service as app_get_alert
+    return await app_get_alert()
 
 class StageStatus(BaseModel):
     stage_name: str
@@ -139,8 +166,10 @@ def estimate_completion() -> str:
         return f"{hours:.1f} hours"
 
 @router.get("/status", response_model=PipelineStatus)
-async def get_pipeline_status():
-    """Get current pipeline status"""
+async def get_pipeline_status(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read"))
+):
+    """Get current pipeline status (DEPRECATED: Use /pipeline instead)"""
     global monitoring_data
     
     # Get hardware status
@@ -171,8 +200,10 @@ async def get_pipeline_status():
     )
 
 @router.get("/stages", response_model=List[StageStatus])
-async def get_stage_status():
-    """Get detailed stage status"""
+async def get_stage_status(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read"))
+):
+    """Get detailed stage status (DEPRECATED: Use /pipeline instead)"""
     global monitoring_data
     
     stages = []
@@ -188,13 +219,17 @@ async def get_stage_status():
     return stages
 
 @router.get("/hardware", response_model=HardwareStatus)
-async def get_hardware_status_endpoint():
-    """Get current hardware status"""
+async def get_hardware_status_endpoint(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read"))
+):
+    """Get current hardware status (DEPRECATED: Use /metrics instead)"""
     return get_hardware_status()
 
 @router.post("/reset")
-async def reset_monitoring():
-    """Reset monitoring data"""
+async def reset_monitoring(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:write"))
+):
+    """Reset monitoring data (DEPRECATED: Admin only)"""
     global monitoring_data
     
     for stage_data in monitoring_data['stages'].values():
@@ -211,8 +246,11 @@ async def reset_monitoring():
     return {"message": "Monitoring data reset"}
 
 @router.post("/start")
-async def start_monitoring(total_documents: int):
-    """Start monitoring for a batch"""
+async def start_monitoring(
+    total_documents: int,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:write"))
+):
+    """Start monitoring for a batch (DEPRECATED: Admin only)"""
     global monitoring_data
     
     monitoring_data['total_documents'] = total_documents
@@ -229,3 +267,164 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "monitoring_active": monitoring_data['start_time'] is not None
     }
+
+
+# New monitoring endpoints
+
+@router.get("/pipeline", response_model=PipelineStatusResponse)
+async def get_pipeline_monitoring(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+):
+    """Get comprehensive pipeline monitoring data."""
+    pipeline_metrics = await metrics_svc.get_pipeline_metrics()
+    stage_metrics = await metrics_svc.get_stage_metrics()
+    hardware_status = await metrics_svc.get_hardware_metrics()
+    
+    return PipelineStatusResponse(
+        pipeline_metrics=pipeline_metrics,
+        stage_metrics=stage_metrics,
+        hardware_status=hardware_status,
+    )
+
+
+@router.get("/queue", response_model=QueueStatusResponse)
+async def get_queue_monitoring(
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+):
+    """Get queue monitoring data."""
+    queue_metrics = await metrics_svc.get_queue_metrics()
+    queue_items = await metrics_svc.get_queue_items(limit, status_filter)
+    
+    return QueueStatusResponse(
+        queue_metrics=queue_metrics,
+        queue_items=queue_items,
+    )
+
+
+@router.get("/metrics")
+async def get_aggregated_metrics(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+) -> Dict[str, Any]:
+    """Get aggregated metrics for all systems."""
+    pipeline_metrics = await metrics_svc.get_pipeline_metrics()
+    queue_metrics = await metrics_svc.get_queue_metrics()
+    hardware_metrics = await metrics_svc.get_hardware_metrics()
+    
+    return {
+        "pipeline": pipeline_metrics.model_dump(),
+        "queue": queue_metrics.model_dump(),
+        "hardware": hardware_metrics.model_dump(),
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+@router.get("/data-quality", response_model=DataQualityResponse)
+async def get_data_quality_metrics(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+):
+    """Get data quality metrics."""
+    return await metrics_svc.get_data_quality_metrics()
+
+
+# Alert endpoints
+
+@router.get("/alerts", response_model=AlertListResponse)
+async def list_alerts(
+    limit: int = 50,
+    severity: Optional[AlertSeverity] = None,
+    acknowledged: Optional[bool] = None,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    alert_svc: AlertService = Depends(get_alert_service),
+):
+    """List alerts with optional filtering."""
+    return await alert_svc.get_alerts(limit, severity, acknowledged)
+
+
+@router.post("/alerts/{alert_id}/acknowledge")
+async def acknowledge_alert(
+    alert_id: str,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:write")),
+    alert_svc: AlertService = Depends(get_alert_service),
+) -> Dict[str, Any]:
+    """Acknowledge an alert."""
+    user_id = current_user.get("id", "unknown")
+    success = await alert_svc.acknowledge_alert(alert_id, user_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    return {"success": True, "message": "Alert acknowledged"}
+
+
+@router.delete("/alerts/{alert_id}")
+async def dismiss_alert(
+    alert_id: str,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:write")),
+    alert_svc: AlertService = Depends(get_alert_service),
+) -> Dict[str, Any]:
+    """Dismiss (delete) an alert."""
+    success = await alert_svc.dismiss_alert(alert_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    return {"success": True, "message": "Alert dismissed"}
+
+
+# Alert rules endpoints
+
+@router.get("/alert-rules", response_model=List[AlertRule])
+async def list_alert_rules(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    alert_svc: AlertService = Depends(get_alert_service),
+):
+    """List all alert rules."""
+    return await alert_svc.load_alert_rules()
+
+
+@router.post("/alert-rules")
+async def create_alert_rule(
+    rule: CreateAlertRule,
+    current_user: Dict[str, Any] = Depends(require_permission("alerts:manage")),
+    alert_svc: AlertService = Depends(get_alert_service),
+) -> Dict[str, Any]:
+    """Create new alert rule (requires alerts:manage permission)."""
+    rule_id = await alert_svc.add_alert_rule(rule)
+    return {"success": True, "rule_id": rule_id}
+
+
+@router.put("/alert-rules/{rule_id}")
+async def update_alert_rule(
+    rule_id: str,
+    updates: Dict[str, Any],
+    current_user: Dict[str, Any] = Depends(require_permission("alerts:manage")),
+    alert_svc: AlertService = Depends(get_alert_service),
+) -> Dict[str, Any]:
+    """Update alert rule (requires alerts:manage permission)."""
+    success = await alert_svc.update_alert_rule(rule_id, updates)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Alert rule not found")
+    
+    return {"success": True}
+
+
+@router.delete("/alert-rules/{rule_id}")
+async def delete_alert_rule(
+    rule_id: str,
+    current_user: Dict[str, Any] = Depends(require_permission("alerts:manage")),
+    alert_svc: AlertService = Depends(get_alert_service),
+) -> Dict[str, Any]:
+    """Delete alert rule (requires alerts:manage permission)."""
+    success = await alert_svc.delete_alert_rule(rule_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Alert rule not found")
+    
+    return {"success": True}

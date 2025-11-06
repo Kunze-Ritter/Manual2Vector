@@ -17,6 +17,7 @@ import re
 import json
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
+from uuid import UUID
 from multiprocessing import Pool, cpu_count
 from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
@@ -1004,6 +1005,176 @@ class ErrorCodeExtractor:
         
         return list(seen.values())
     
+    def extract_from_structured_data(
+        self,
+        structured_data: Dict[str, Any],
+        manufacturer: Optional[str],
+        document_id: Optional[UUID] = None,
+        source_url: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Extract error codes from Firecrawl structured extraction payloads."""
+
+        error_codes = structured_data.get("error_codes") or []
+        if not error_codes:
+            return []
+
+        dedup: Dict[str, Dict[str, Any]] = {}
+        for code_data in error_codes:
+            code = (code_data or {}).get("code")
+            if not code:
+                continue
+
+            if not self._validate_code_format(code, manufacturer):
+                self.logger.debug("Skipping invalid code format: %s", code)
+                continue
+
+            confidence = float(
+                code_data.get("confidence")
+                or structured_data.get("confidence")
+                or 0.8
+            )
+
+            entry = {
+                "code": code,
+                "manufacturer": manufacturer,
+                "description": code_data.get("description", ""),
+                "solution": code_data.get("solution", ""),
+                "severity": code_data.get("severity", "warning"),
+                "requires_technician": bool(code_data.get("requires_technician", False)),
+                "requires_parts": bool(code_data.get("requires_parts", False)),
+                "related_parts": code_data.get("related_parts") or [],
+                "confidence": confidence,
+                "extraction_method": "firecrawl_structured",
+                "source_url": source_url,
+                "document_id": str(document_id) if document_id else None,
+                "related_error_codes": code_data.get("related_error_codes") or [],
+                "affected_models": code_data.get("affected_models") or [],
+            }
+
+            existing = dedup.get(code)
+            if not existing or confidence > existing.get("confidence", 0.0):
+                dedup[code] = entry
+
+        return list(dedup.values())
+
+    def _validate_code_format(self, code: str, manufacturer: Optional[str]) -> bool:
+        """Validate error code format against manufacturer validation regex."""
+
+        if not manufacturer:
+            # Without manufacturer context accept the code
+            return True
+
+        validation_regex = self._get_validation_regex(manufacturer, manufacturer)
+        if not validation_regex:
+            return True
+
+        try:
+            return bool(re.match(validation_regex, code))
+        except re.error as exc:
+            self.logger.debug("Invalid validation regex '%s': %s", validation_regex, exc)
+            return True
+
+    def enrich_from_link_content(
+        self,
+        link_id: UUID,
+        database_service: Any,
+    ) -> List[Dict[str, Any]]:
+        """Extract error codes from enriched link content or structured data."""
+
+        client = getattr(database_service, "service_client", None) or getattr(database_service, "client", None)
+        if client is None:
+            self.logger.warning("Database service client unavailable for link enrichment")
+            return []
+
+        response = (
+            client.table("vw_links")
+            .select(
+                "id, url, scraped_content, manufacturer_id, document_id"
+            )
+            .eq("id", str(link_id))
+            .limit(1)
+            .execute()
+        )
+
+        if not response.data:
+            self.logger.warning("Link %s not found", link_id)
+            return []
+
+        link = response.data[0]
+        content = link.get("scraped_content")
+
+        manufacturer_id = link.get("manufacturer_id")
+        manufacturer_name = self._get_manufacturer_name(manufacturer_id, client)
+
+        structured_result = (
+            client.table("structured_extractions", schema="krai_intelligence")
+            .select("extracted_data, confidence")
+            .eq("source_type", "link")
+            .eq("source_id", str(link_id))
+            .eq("extraction_type", "error_code")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if structured_result.data:
+            payload = structured_result.data[0]
+            return self.extract_from_structured_data(
+                structured_data=payload.get("extracted_data", {}),
+                manufacturer=manufacturer_name,
+                document_id=link.get("document_id"),
+                source_url=link.get("url"),
+            )
+
+        if not content:
+            self.logger.debug("Link %s has no scraped content to extract from", link_id)
+            return []
+
+        extracted = self.extract_from_text(
+            text=content,
+            page_number=0,
+            manufacturer_name=manufacturer_name,
+        )
+
+        return [
+            {
+                "code": ec.error_code,
+                "manufacturer": manufacturer_name,
+                "description": ec.error_description,
+                "solution": ec.solution_text,
+                "severity": ec.severity_level,
+                "requires_technician": ec.requires_technician,
+                "requires_parts": ec.requires_parts,
+                "related_parts": [],
+                "confidence": ec.confidence,
+                "extraction_method": ec.extraction_method,
+                "source_url": link.get("url"),
+                "document_id": str(link.get("document_id")) if link.get("document_id") else None,
+                "related_error_codes": [],
+                "affected_models": [],
+            }
+            for ec in extracted
+        ]
+
+    def _get_manufacturer_name(self, manufacturer_id: Optional[str], client: Any) -> Optional[str]:
+        if not manufacturer_id:
+            return None
+
+        try:
+            result = (
+                client.table("vw_manufacturers")
+                .select("name")
+                .eq("id", str(manufacturer_id))
+                .limit(1)
+                .execute()
+            )
+            if result.data:
+                return result.data[0].get("name")
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.debug("Failed to load manufacturer name for %s: %s", manufacturer_id, exc)
+
+        return None
+
     def _get_validation_regex(
         self,
         manufacturer_name: Optional[str],

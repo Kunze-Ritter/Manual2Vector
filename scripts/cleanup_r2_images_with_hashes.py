@@ -1,11 +1,11 @@
 """
-R2 Image Cleanup Script - DELETE OLD IMAGES
+Object Storage Image Cleanup Script - DELETE OLD IMAGES
 
-This script simply deletes ALL images from R2 bucket.
+This script simply deletes ALL images from object storage bucket.
 New images with hash-based naming will be uploaded on next processing run.
 
 What it does:
-1. Lists all images in R2 bucket
+1. Lists all images in storage bucket
 2. Deletes them
 3. That's it!
 
@@ -39,17 +39,24 @@ import boto3
 from botocore.client import Config
 
 
-class R2ImageCleanup:
-    """Delete all old images from R2 bucket"""
+class ObjectStorageImageCleanup:
+    """Delete all old images from object storage bucket"""
     
     def __init__(self, dry_run=True):
         self.dry_run = dry_run
         
-        # R2 Configuration
-        self.access_key = os.getenv('R2_ACCESS_KEY_ID')
-        self.secret_key = os.getenv('R2_SECRET_ACCESS_KEY')
-        self.endpoint_url = os.getenv('R2_ENDPOINT_URL')
-        self.bucket_name = os.getenv('R2_BUCKET_NAME_DOCUMENTS')
+        # Helper function to get env var with fallback and deprecation warning
+        def get_env_var(new_var: str, old_var: str, default: str = None) -> str:
+            value = os.getenv(new_var) or os.getenv(old_var) or default
+            if not os.getenv(new_var) and os.getenv(old_var):
+                print(f"⚠️  Environment variable {old_var} is deprecated. Use {new_var} instead.")
+            return value
+        
+        # Object Storage Configuration
+        self.access_key = get_env_var('OBJECT_STORAGE_ACCESS_KEY', 'R2_ACCESS_KEY_ID')
+        self.secret_key = get_env_var('OBJECT_STORAGE_SECRET_KEY', 'R2_SECRET_ACCESS_KEY')
+        self.endpoint_url = get_env_var('OBJECT_STORAGE_ENDPOINT', 'R2_ENDPOINT_URL')
+        self.bucket_name = os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS') or os.getenv('R2_BUCKET_NAME_DOCUMENTS')
         
         # Initialize R2 client
         self.r2_client = boto3.client(
@@ -70,7 +77,7 @@ class R2ImageCleanup:
         }
         
         print(f"\n{'='*80}")
-        print(f"  R2 IMAGE CLEANUP - DELETE ALL IMAGES")
+        print(f"  OBJECT STORAGE IMAGE CLEANUP - DELETE ALL IMAGES")
         print(f"{'='*80}")
         print(f"\nMode: {'DRY RUN (preview only)' if dry_run else 'DELETE MODE (will delete all images!)'}")
         print(f"Bucket: {self.bucket_name}")
@@ -78,7 +85,7 @@ class R2ImageCleanup:
     
     def list_all_images(self):
         """List all images in R2 bucket"""
-        print(f"\n📋 Listing all images in R2...")
+        print(f"\n📋 Listing all images in object storage...")
         
         images = []
         paginator = self.r2_client.get_paginator('list_objects_v2')
@@ -105,7 +112,7 @@ class R2ImageCleanup:
         
         try:
             if not self.dry_run:
-                # Delete from R2
+                # Delete from object storage
                 self.r2_client.delete_object(Bucket=self.bucket_name, Key=key)
                 self.stats['deleted'] += 1
                 print(f"🗑️  Deleted: {key}")
@@ -179,15 +186,15 @@ class R2ImageCleanup:
             print(f"\n💡 This was a DRY RUN - no changes were made!")
             print(f"   Run with --delete to execute cleanup")
         else:
-            print(f"\n✅ CLEANUP COMPLETE!")
-            print(f"   All old images deleted from R2")
-            print(f"   New images with hashes will be uploaded on next processing run")
+            print(f"✅ CLEANUP COMPLETE!")
+        print(f"   All old images deleted from object storage")
+        print(f"   New images with hashes will be uploaded on next processing run")
         
         print(f"\n{'='*80}\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='R2 Image Cleanup - Delete All Images')
+    parser = argparse.ArgumentParser(description='Object Storage Image Cleanup - Delete All Images')
     parser.add_argument('--dry-run', action='store_true', default=True,
                        help='Preview only, no changes (default)')
     parser.add_argument('--delete', action='store_true',
@@ -198,7 +205,7 @@ def main():
     # If --delete is set, disable dry-run
     dry_run = not args.delete
     
-    cleanup = R2ImageCleanup(dry_run=dry_run)
+    cleanup = ObjectStorageImageCleanup(dry_run=dry_run)
     cleanup.run()
 
 

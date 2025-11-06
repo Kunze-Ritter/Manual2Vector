@@ -8,10 +8,22 @@ from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from datetime import datetime
+from pydantic import BaseModel
 
-from backend.core.data_models import SearchRequest, SearchResponse
+from backend.core.data_models import (
+    SearchRequest, SearchResponse,
+    MultimodalSearchRequest, MultimodalSearchResponse,
+    TwoStageSearchRequest, TwoStageSearchResponse
+)
 from backend.services.database_service import DatabaseService
 from backend.services.ai_service import AIService
+from backend.services.multimodal_search_service import MultimodalSearchService
+
+# Pydantic model for image context search request
+class ImageContextSearchRequest(BaseModel):
+    query: str
+    threshold: Optional[float] = 0.5
+    limit: Optional[int] = 5
 
 class SearchAPI:
     """
@@ -27,6 +39,7 @@ class SearchAPI:
     def __init__(self, database_service: DatabaseService, ai_service: AIService):
         self.database_service = database_service
         self.ai_service = ai_service
+        self.multimodal_service = MultimodalSearchService(database_service, ai_service)
         self.logger = logging.getLogger("krai.api.search")
         self._setup_logging()
         
@@ -380,6 +393,103 @@ class SearchAPI:
                 
             except Exception as e:
                 self.logger.error(f"Videos search failed: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.router.post("/multimodal", response_model=MultimodalSearchResponse)
+        async def multimodal_search(request: MultimodalSearchRequest):
+            """Perform multimodal search across all content types"""
+            try:
+                start_time = datetime.utcnow()
+                
+                # Perform multimodal search
+                results = await self.multimodal_service.search_multimodal(
+                    query=request.query,
+                    content_types=request.content_types,
+                    threshold=request.threshold,
+                    limit=request.limit,
+                    include_context=request.include_context,
+                    enable_two_stage=request.enable_two_stage,
+                    filters=request.filters
+                )
+                
+                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                
+                return MultimodalSearchResponse(
+                    query=request.query,
+                    results=results.get("results", []),
+                    total_count=results.get("total_count", 0),
+                    processing_time_ms=processing_time,
+                    content_type_counts=results.get("content_type_counts", {}),
+                    two_stage_used=results.get("two_stage_used", False),
+                    context_enriched=results.get("context_enriched", False)
+                )
+                
+            except Exception as e:
+                self.logger.error(f"Multimodal search failed: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.router.post("/two-stage", response_model=TwoStageSearchResponse)
+        async def two_stage_search(request: TwoStageSearchRequest):
+            """Perform two-stage search with reranking"""
+            try:
+                start_time = datetime.utcnow()
+                
+                # Perform two-stage search
+                results = await self.multimodal_service.search_two_stage(
+                    query=request.query,
+                    first_stage_limit=request.first_stage_limit,
+                    final_limit=request.final_limit,
+                    content_types=request.content_types,
+                    threshold=request.threshold,
+                    rerank_enabled=request.rerank_enabled,
+                    context_boost=request.context_boost
+                )
+                
+                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                reranking_time = results.get("reranking_time_ms", 0.0)
+                
+                return TwoStageSearchResponse(
+                    query=request.query,
+                    first_stage_count=results.get("first_stage_count", 0),
+                    final_results=results.get("final_results", []),
+                    total_count=len(results.get("final_results", [])),
+                    processing_time_ms=processing_time,
+                    reranking_time_ms=reranking_time,
+                    threshold_used=request.threshold
+                )
+                
+            except Exception as e:
+                self.logger.error(f"Two-stage search failed: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.router.post("/images/context")
+        async def search_images_by_context(request: ImageContextSearchRequest):
+            """Context-aware image search"""
+            try:
+                start_time = datetime.utcnow()
+                
+                # Perform context-aware image search
+                results = await self.multimodal_service.search_images_by_context(
+                    query=request.query,
+                    threshold=request.threshold,
+                    limit=request.limit
+                )
+                
+                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                
+                # Return the service response with additional metadata
+                return {
+                    "query": request.query,
+                    "images": results.get("images", []),
+                    "total_count": results.get("total_count", 0),
+                    "processing_time_ms": processing_time,
+                    "threshold_used": request.threshold,
+                    "limit_used": request.limit,
+                    "context_enriched": True
+                }
+                
+            except Exception as e:
+                self.logger.error(f"Context-aware image search failed: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.router.get("/health")

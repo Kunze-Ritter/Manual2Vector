@@ -2,7 +2,8 @@
 Research Integration Helper
 ============================
 
-Integrates ProductResearcher into existing pipeline
+Integrates ProductResearcher into existing pipeline and automatically applies
+the configured web scraping backend (Firecrawl or BeautifulSoup).
 """
 
 import logging
@@ -10,6 +11,7 @@ from typing import Optional, Dict, Any
 from uuid import UUID
 
 from research.product_researcher import ProductResearcher
+from services.config_service import ConfigService
 
 
 logger = logging.getLogger(__name__)
@@ -20,19 +22,34 @@ class ResearchIntegration:
     Helper class to integrate research into product processing
     """
     
-    def __init__(self, supabase, enabled: bool = True):
+    def __init__(
+        self,
+        supabase,
+        enabled: bool = True,
+        config_service: Optional[ConfigService] = None,
+    ):
         """
         Initialize integration
         
         Args:
             supabase: Supabase client
             enabled: Enable/disable research (can be controlled via env var)
+            config_service: Optional configuration service for scraping settings
         """
         self.supabase = supabase
         self.enabled = enabled
-        self.researcher = ProductResearcher(supabase=supabase) if enabled else None
+        self.config_service = config_service or ConfigService()
+        self.researcher = (
+            ProductResearcher(supabase=supabase, config_service=self.config_service)
+            if enabled
+            else None
+        )
         
-        logger.info(f"ResearchIntegration initialized (enabled: {enabled})")
+        logger.info(
+            "ResearchIntegration initialized (enabled: %s, scraping: %s)",
+            enabled,
+            self.researcher.scraping_backend if self.researcher else "disabled",
+        )
     
     def enrich_product(
         self,
@@ -105,6 +122,22 @@ class ResearchIntegration:
         except Exception as e:
             logger.error(f"Failed to enrich product: {e}")
             return False
+
+    def get_scraping_stats(self) -> Dict[str, Any]:
+        """Return scraping backend statistics for monitoring."""
+
+        if not self.researcher:
+            return {
+                'enabled': False,
+                'backend': None,
+                'scraping_info': {},
+            }
+
+        return {
+            'enabled': self.enabled,
+            'backend': self.researcher.scraping_backend,
+            'scraping_info': self.researcher.get_scraping_info(),
+        }
     
     def _apply_research_to_product(self, product_id: UUID, research: Dict[str, Any]):
         """

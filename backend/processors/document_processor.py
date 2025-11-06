@@ -80,8 +80,26 @@ class DocumentProcessor:
         self.version_extractor = VersionExtractor()
         self.image_storage = ImageStorageProcessor(supabase_client=supabase_client)
         self.embedding_processor = EmbeddingProcessor(supabase_client=supabase_client)  # FIXED: Pass supabase client!
-        self.chunker = SmartChunker(chunk_size=chunk_size, overlap_size=chunk_overlap)
+        
+        # Read hierarchical chunking feature flags from environment
+        enable_hier = os.getenv('ENABLE_HIERARCHICAL_CHUNKING', 'false').lower() == 'true'
+        detect_err = os.getenv('DETECT_ERROR_CODE_SECTIONS', 'true').lower() == 'true'
+        link_chunks = os.getenv('LINK_CHUNKS', 'true').lower() == 'true'
+        
+        self.chunker = SmartChunker(
+            chunk_size=chunk_size, 
+            overlap_size=chunk_overlap,
+            enable_hierarchical_chunking=enable_hier,
+            detect_error_code_sections=detect_err,
+            link_chunks=link_chunks
+        )
         self.link_extractor = LinkExtractor(youtube_api_key=youtube_api_key)
+        
+        # Log chunker configuration for debugging
+        self.logger.info(
+            f"SmartChunker initialized: size={chunk_size}, overlap={chunk_overlap}, "
+            f"hierarchical={enable_hier}, error_sections={detect_err}, link_chunks={link_chunks}"
+        )
         
         # LLM extractor (optional, for specification sections)
         # DISABLED: LLM extraction is slower and less reliable than regex

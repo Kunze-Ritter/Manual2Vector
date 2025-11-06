@@ -35,11 +35,15 @@ class ModelConfig:
     text_classification: str
     embeddings: str
     vision: str
+    visual_embeddings: str  # Visual embeddings for images (ColQwen2.5)
+    table_embeddings: str   # Table embeddings for structured data
     tier: ModelTier
     estimated_ram_usage_gb: float
     parallel_processing: bool
     gpu_acceleration: bool = True
     estimated_gpu_usage_gb: float = 0.0
+    visual_embedding_dimension: int = 768
+    table_embedding_dimension: int = 768
 
 class HardwareDetector:
     """Hardware detection and model recommendation"""
@@ -244,6 +248,50 @@ class HardwareDetector:
             pass
         return None
     
+    def _check_colqwen_requirements(self) -> bool:
+        """Check if system meets ColQwen2.5 requirements"""
+        try:
+            import torch
+            import transformers
+            
+            # Check torch version >= 2.2.0
+            torch_version = torch.__version__.split('.')
+            if int(torch_version[0]) < 2 or (int(torch_version[0]) == 2 and int(torch_version[1]) < 2):
+                print(f"   [REQ] PyTorch version too old: {torch.__version__} (need >= 2.2.0)")
+                return False
+            
+            # Check transformers version >= 4.45.0
+            transformers_version = transformers.__version__.split('.')
+            if int(transformers_version[0]) < 4 or (int(transformers_version[0]) == 4 and int(transformers_version[1]) < 45):
+                print(f"   [REQ] Transformers version too old: {transformers.__version__} (need >= 4.45.0)")
+                return False
+            
+            # Check GPU VRAM >= 4GB (if GPU available)
+            if self.specs.gpu_available and self.specs.gpu_memory_gb:
+                if self.specs.gpu_memory_gb < 4.0:
+                    print(f"   [REQ] GPU VRAM insufficient: {self.specs.gpu_memory_gb:.1f} GB (need >= 4GB)")
+                    return False
+            
+            print(f"   [REQ] ColQwen2.5 requirements met")
+            return True
+            
+        except ImportError as e:
+            print(f"   [REQ] Missing dependencies for ColQwen2.5: {e}")
+            return False
+    
+    def _get_visual_embedding_model(self) -> str:
+        """Get visual embedding model based on hardware"""
+        # Read from environment or use default
+        model = os.getenv('AI_VISUAL_EMBEDDING_MODEL', 'vidore/colqwen2.5-v0.2')
+        
+        # Check if requirements are met
+        if self._check_colqwen_requirements():
+            print(f"   [VIS] Using visual embedding model: {model}")
+            return model
+        else:
+            print(f"   [VIS] ColQwen2.5 requirements not met, visual embeddings disabled")
+            return None
+    
     def recommend_model_tier(self) -> ModelTier:
         """Recommend model tier based on hardware"""
         ram_gb = self.specs.total_ram_gb
@@ -280,31 +328,37 @@ class HardwareDetector:
                 text_classification="llama3.2:3b",
                 embeddings=embedding_model, 
                 vision="llava:7b",
+                visual_embeddings=os.getenv('AI_VISUAL_EMBEDDING_MODEL', 'vidore/colqwen2.5-v0.2'),
+                table_embeddings=embedding_model,
                 tier=ModelTier.CONSERVATIVE,
                 estimated_ram_usage_gb=8.0,
                 parallel_processing=True,
                 gpu_acceleration=gpu_available,
-                estimated_gpu_usage_gb=4.0 if gpu_available else 0.0
+                estimated_gpu_usage_gb=6.0 if gpu_available else 0.0  # +2GB for visual embeddings
             ),
             ModelTier.BALANCED: ModelConfig(
                 text_classification="llama3.2:latest",
                 embeddings=embedding_model,
                 vision="llava:latest", 
+                visual_embeddings=os.getenv('AI_VISUAL_EMBEDDING_MODEL', 'vidore/colqwen2.5-v0.2'),
+                table_embeddings=embedding_model,
                 tier=ModelTier.BALANCED,
                 estimated_ram_usage_gb=16.0,
                 parallel_processing=True,
                 gpu_acceleration=gpu_available,
-                estimated_gpu_usage_gb=6.0 if gpu_available else 0.0
+                estimated_gpu_usage_gb=8.0 if gpu_available else 0.0  # +2GB for visual embeddings
             ),
                    ModelTier.HIGH_PERFORMANCE: ModelConfig(
                        text_classification="llama3.2:latest",
                        embeddings=embedding_model,
                        vision="llava:latest",
+                       visual_embeddings=os.getenv('AI_VISUAL_EMBEDDING_MODEL', 'vidore/colqwen2.5-v0.2'),
+                       table_embeddings=embedding_model,
                        tier=ModelTier.HIGH_PERFORMANCE,
                        estimated_ram_usage_gb=16.0,
                        parallel_processing=True,
                        gpu_acceleration=gpu_available,
-                       estimated_gpu_usage_gb=6.0 if gpu_available else 0.0
+                       estimated_gpu_usage_gb=10.0 if gpu_available else 0.0  # +4GB for visual embeddings
                    )
         }
         
@@ -344,7 +398,9 @@ class AIConfigManager:
         return {
             'text_classification': self.config.text_classification,
             'embeddings': self.config.embeddings,
-            'vision': self.config.vision
+            'vision': self.config.vision,
+            'visual_embeddings': self.config.visual_embeddings,
+            'table_embeddings': self.config.table_embeddings
         }
     
     def get_model_requirements(self) -> Dict[str, any]:
@@ -425,6 +481,28 @@ OLLAMA_MODELS = {
             'languages': ['en', 'de'],
             'specialization': 'general_vision'
         }
+    }
+}
+
+# Visual embedding models (ColQwen2.5)
+VISUAL_EMBEDDING_MODELS = {
+    'colqwen2.5-v0.2': {
+        'ram_usage_gb': 4.0,
+        'gpu_vram_gb': 4.0,
+        'embedding_dimensions': 768,  # After mean pooling
+        'languages': ['multilingual'],
+        'specialization': 'visual_document_retrieval',
+        'model_type': 'colbert_style_multi_vector'
+    }
+}
+
+# Table embedding models (reuse text models)
+TABLE_EMBEDDING_MODELS = {
+    'nomic-embed-text:latest': {
+        'ram_usage_gb': 2.0,
+        'embedding_dimensions': 768,
+        'languages': ['en', 'de'],
+        'specialization': 'structured_data'
     }
 }
 

@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 # Import services
 from backend.services.database_service_production import DatabaseService
 from backend.services.object_storage_service import ObjectStorageService
+from backend.services.storage_factory import create_storage_service
 from backend.services.ai_service import AIService
 from backend.services.config_service import ConfigService
 from backend.services.features_service import FeaturesService
@@ -75,14 +76,8 @@ class KRSmartProcessor:
         )
         await self.database_service.connect()
         
-        self.storage_service = ObjectStorageService(
-            r2_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
-            r2_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
-            r2_endpoint_url=os.getenv('R2_ENDPOINT_URL'),
-            r2_public_url_documents=os.getenv('R2_PUBLIC_URL_DOCUMENTS'),
-            r2_public_url_error=os.getenv('R2_PUBLIC_URL_ERROR'),
-            r2_public_url_parts=os.getenv('R2_PUBLIC_URL_PARTS')
-        )
+        self.storage_service = create_storage_service()
+        # Storage service factory supports MinIO, S3, R2, etc.
         await self.storage_service.connect()
         
         self.ai_service = AIService(ollama_url=os.getenv('OLLAMA_URL', 'http://localhost:11434'))

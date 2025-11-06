@@ -54,9 +54,23 @@ class OptimizedTextProcessor(BaseProcessor):
             chunk_size = settings.get('chunk_size', 1000)
             chunk_overlap = settings.get('chunk_overlap', 100)
         
-        self.chunker = SmartChunker(chunk_size=chunk_size, overlap_size=chunk_overlap)
+        # Read hierarchical chunking feature flags from environment
+        enable_hier = os.getenv('ENABLE_HIERARCHICAL_CHUNKING', 'false').lower() == 'true'
+        detect_err = os.getenv('DETECT_ERROR_CODE_SECTIONS', 'true').lower() == 'true'
+        link_chunks = os.getenv('LINK_CHUNKS', 'true').lower() == 'true'
         
-        self.logger.info(f"OptimizedTextProcessor initialized (chunk_size={chunk_size}, overlap={chunk_overlap})")
+        self.chunker = SmartChunker(
+            chunk_size=chunk_size, 
+            overlap_size=chunk_overlap,
+            enable_hierarchical_chunking=enable_hier,
+            detect_error_code_sections=detect_err,
+            link_chunks=link_chunks
+        )
+        
+        self.logger.info(
+            f"OptimizedTextProcessor initialized (chunk_size={chunk_size}, overlap={chunk_overlap}, "
+            f"hierarchical={enable_hier}, error_sections={detect_err}, link_chunks={link_chunks})"
+        )
     
     async def process(self, context) -> Any:
         """
@@ -94,6 +108,10 @@ class OptimizedTextProcessor(BaseProcessor):
                         data={'pages_processed': 0}
                     )
 
+                # Attach page_texts to context for downstream processors (Phase 5)
+                context.page_texts = page_texts
+                adapter.debug("Attached page_texts to context (%d pages)", len(page_texts))
+
                 self.logger.success(f"✅ Extracted text from {len(page_texts)} pages")
 
                 adapter.info("Creating chunks...")
@@ -128,6 +146,7 @@ class OptimizedTextProcessor(BaseProcessor):
                         'chunks_created': len(chunks),
                         'chunks_saved': chunks_saved,
                         'total_characters': sum(len(chunk.content) for chunk in chunks),
+                        'page_texts_attached': True,  # Signal downstream processors
                         'metadata': metadata
                     }
                 )

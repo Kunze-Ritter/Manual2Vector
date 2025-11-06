@@ -423,6 +423,65 @@ class AIService:
             self.logger.error(f"Failed to generate embeddings: {e}")
             raise
     
+    async def generate_text(
+        self,
+        prompt: str,
+        context: List[str] = None,
+        max_tokens: int = 500,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        Generate text response using LLM (for RAG, two-stage retrieval)
+        
+        Args:
+            prompt: User prompt or question
+            context: Optional list of text chunks for context
+            max_tokens: Maximum tokens to generate (default: 500)
+            temperature: Generation temperature (default: 0.7)
+            
+        Returns:
+            Generated text response
+        """
+        try:
+            # Build prompt with context
+            if context:
+                context_text = '\n\n'.join(context[:5])  # Max 5 chunks
+                full_prompt = f"""Context:
+{context_text}
+
+Question: {prompt}
+
+Answer:"""
+            else:
+                full_prompt = prompt
+            
+            # Get text model
+            model = self.models.get('text_classification', 'llama3.2:latest')
+            
+            # Call Ollama
+            result = await self._call_ollama(
+                model=model,
+                prompt=full_prompt,
+                options={
+                    'num_predict': max_tokens,
+                    'temperature': temperature
+                }
+            )
+            
+            # Extract response
+            response_text = result.get('response', '')
+            
+            self.logger.info(
+                f"Generated text response ({len(response_text)} chars) "
+                f"using model {model}"
+            )
+            
+            return response_text
+            
+        except Exception as e:
+            self.logger.error(f"Failed to generate text: {e}")
+            return ""  # Return empty string on error
+    
     async def analyze_image(self, image: bytes, description: str = None) -> Dict[str, Any]:
         """
         Analyze image using vision model
@@ -724,6 +783,49 @@ class AIService:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
+    def convert_svg_to_png(self, svg_content: str, dpi: int = 300, max_dimension: int = 2048) -> bytes | None:
+        """
+        Public API to convert SVG content to PNG for vision model processing.
+        
+        This method provides a stable public interface that delegates to the internal
+        SVG conversion logic, maintaining backwards compatibility while exposing
+        the functionality for external use.
+        
+        Args:
+            svg_content: SVG content as string (not bytes)
+            dpi: Resolution for conversion (default: 300)
+            max_dimension: Maximum width/height for output PNG (default: 2048)
+            
+        Returns:
+            PNG image as bytes, or None if conversion fails
+            
+        Example:
+            >>> ai_service = AIService()
+            >>> svg_content = "<svg>...</svg>"
+            >>> png_bytes = ai_service.convert_svg_to_png(svg_content, dpi=300, max_dimension=1024)
+            >>> if png_bytes:
+            ...     # Use PNG bytes for vision analysis
+            ...     with open("output.png", "wb") as f:
+            ...         f.write(png_bytes)
+        """
+        try:
+            # Convert string to bytes for internal method
+            if isinstance(svg_content, str):
+                svg_bytes = svg_content.encode('utf-8')
+            else:
+                svg_bytes = svg_content
+            
+            # Delegate to internal converter with appropriate dimensions
+            return self._convert_svg_to_png(
+                svg_bytes=svg_bytes,
+                max_width=max_dimension,
+                max_height=max_dimension
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Public SVG to PNG conversion failed: {e}")
+            return None
+    
     def _convert_svg_to_png(self, svg_bytes: bytes, max_width: int = 1024, max_height: int = 1024) -> bytes:
         """
         Convert SVG to PNG for vision model processing (Windows-compatible)
@@ -811,3 +913,16 @@ class AIService:
                     f"   → Common for: SVGs with embedded base64 data, Adobe Illustrator SVGs, or complex filters"
                 )
                 raise Exception(f"SVG conversion skipped (format not supported) - Original SVG preserved in storage")
+
+
+def create_ai_service(ollama_url: str = "http://localhost:11434") -> AIService:
+    """
+    Factory function to create AIService instance.
+    
+    Args:
+        ollama_url: Ollama service URL
+        
+    Returns:
+        AIService: Configured AI service instance
+    """
+    return AIService(ollama_url=ollama_url)

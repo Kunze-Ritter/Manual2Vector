@@ -1,6 +1,8 @@
 """
 Object Storage Service for KR-AI-Engine
-Cloudflare R2 integration for image storage only
+Generic S3-compatible object storage service
+Supports MinIO, AWS S3, Cloudflare R2, Wasabi, Backblaze B2
+Configurable via environment variables for vendor-agnostic storage
 """
 
 import asyncio
@@ -26,40 +28,47 @@ except ImportError:
 
 class ObjectStorageService:
     """
-    Object Storage service for Cloudflare R2 integration
+    Generic S3-compatible object storage service
     
-    Handles image storage for KR-AI-Engine:
-    - krai-document-images: Images extracted from documents
-    - krai-error-images: Defect detection images
-    - krai-parts-images: Parts catalog images
+    Handles image storage for KR-AI-Engine with configurable buckets:
+    - Document images: Images extracted from documents
+    - Error images: Defect detection images  
+    - Parts images: Parts catalog images
     
-    IMPORTANT: Documents are NOT stored in object storage (Database only!)
+    Bucket names are configurable via environment variables.
     """
     
     def __init__(self, 
-                 r2_access_key_id: str,
-                 r2_secret_access_key: str,
-                 r2_endpoint_url: str,
-                 r2_public_url_documents: str,
-                 r2_public_url_error: str,
-                 r2_public_url_parts: str):
-        self.access_key_id = r2_access_key_id
-        self.secret_access_key = r2_secret_access_key
-        self.endpoint_url = r2_endpoint_url
+                 access_key_id: str,
+                 secret_access_key: str,
+                 endpoint_url: str,
+                 public_url_documents: str,
+                 public_url_error: str,
+                 public_url_parts: str,
+                 use_ssl: bool = True,
+                 region: str = 'auto',
+                 bucket_documents: str = None,
+                 bucket_error: str = None,
+                 bucket_parts: str = None):
+        self.access_key_id = access_key_id
+        self.secret_access_key = secret_access_key
+        self.endpoint_url = endpoint_url
+        self.use_ssl = use_ssl
+        self.region = region
         self.public_urls = {
-            'documents': r2_public_url_documents,
-            'error': r2_public_url_error,
-            'parts': r2_public_url_parts
+            'documents': public_url_documents,
+            'error': public_url_error,
+            'parts': public_url_parts
         }
         self.client = None
         self.logger = logging.getLogger("krai.storage")
         self._setup_logging()
         
-        # Bucket configurations
+        # Bucket configurations (use provided overrides or fall back to environment variables)
         self.buckets = {
-            'document_images': 'krai-documents-images',
-            'error_images': 'krai-error-images', 
-            'parts_images': 'krai-parts-images'
+            'document_images': bucket_documents or os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS') or os.getenv('R2_BUCKET_NAME_DOCUMENTS', 'documents'),
+            'error_images': bucket_error or os.getenv('OBJECT_STORAGE_BUCKET_ERROR') or os.getenv('R2_BUCKET_NAME_ERROR', 'error'), 
+            'parts_images': bucket_parts or os.getenv('OBJECT_STORAGE_BUCKET_PARTS') or os.getenv('R2_BUCKET_NAME_PARTS', 'parts')
         }
     
     def _setup_logging(self):
@@ -73,29 +82,30 @@ class ObjectStorageService:
         self.logger.setLevel(logging.INFO)
     
     async def connect(self):
-        """Connect to Cloudflare R2"""
+        """Connect to S3-compatible storage"""
         try:
             if not BOTO3_AVAILABLE:
                 self.logger.warning("Boto3 not available. Running in mock mode.")
                 return
             
-            # Create S3-compatible client for R2
+            # Create S3 client
             self.client = boto3.client(
                 's3',
                 endpoint_url=self.endpoint_url,
                 aws_access_key_id=self.access_key_id,
                 aws_secret_access_key=self.secret_access_key,
-                region_name='auto',
+                region_name=self.region,
+                use_ssl=self.use_ssl,
                 config=Config(signature_version='s3v4')
             )
             
-            self.logger.info("Connected to Cloudflare R2")
+            self.logger.info(f"Connected to S3-compatible storage at {self.endpoint_url}")
             
             # Ensure buckets exist
             await self._ensure_buckets_exist()
             
         except Exception as e:
-            self.logger.error(f"Failed to connect to R2: {e}")
+            self.logger.error(f"Failed to connect to object storage: {e}")
             raise
     
     async def _ensure_buckets_exist(self):
@@ -149,7 +159,7 @@ class ObjectStorageService:
                           bucket_type: str = 'document_images',
                           metadata: Dict[str, str] = None) -> Dict[str, Any]:
         """
-        Upload image to R2 storage
+        Upload image to object storage
         
         Args:
             content: Image file content as bytes
@@ -278,7 +288,7 @@ class ObjectStorageService:
     
     async def download_image(self, bucket_type: str, key: str) -> bytes:
         """
-        Download image from R2 storage
+        Download image from object storage
         
         Args:
             bucket_type: Type of bucket
@@ -309,7 +319,7 @@ class ObjectStorageService:
     
     async def delete_image(self, bucket_type: str, key: str) -> bool:
         """
-        Delete image from R2 storage
+        Delete image from object storage
         
         Args:
             bucket_type: Type of bucket
@@ -339,7 +349,7 @@ class ObjectStorageService:
     
     async def get_image_metadata(self, bucket_type: str, key: str) -> Dict[str, Any]:
         """
-        Get image metadata from R2 storage
+        Get image metadata from object storage
         
         Args:
             bucket_type: Type of bucket
@@ -407,11 +417,22 @@ class ObjectStorageService:
             
             images = []
             for obj in response.get('Contents', []):
+                # Determine public URL based on bucket type
+                public_url = ""
+                if bucket_type == 'document_images':
+                    public_url = self.public_urls['documents']
+                elif bucket_type == 'error_images':
+                    public_url = self.public_urls['error']
+                elif bucket_type == 'parts_images':
+                    public_url = self.public_urls['parts']
+                else:
+                    public_url = self.public_urls['documents']
+                
                 images.append({
                     'key': obj['Key'],
                     'size': obj['Size'],
                     'last_modified': obj['LastModified'],
-                    'url': f"{self.public_url}/{bucket_name}/{obj['Key']}"
+                    'url': f"{public_url}/{obj['Key']}"
                 })
             
             self.logger.info(f"Listed {len(images)} images from {bucket_name}")
@@ -437,10 +458,13 @@ class ObjectStorageService:
                 self.logger.warning("Object storage client not available. Cannot check duplicates in mock mode.")
                 return None
             
-            buckets_to_search = [bucket_type] if bucket_type else list(self.buckets.values())
+            buckets_to_search = [bucket_type] if bucket_type else list(self.buckets.keys())
             
-            for bucket_name in buckets_to_search:
+            for bucket_key in buckets_to_search:
                 try:
+                    # Map bucket type to actual bucket name
+                    bucket_name = self.buckets[bucket_key] if bucket_key in self.buckets else bucket_key
+                    
                     # List all objects and check metadata for hash
                     response = self.client.list_objects_v2(Bucket=bucket_name)
                     
@@ -450,10 +474,21 @@ class ObjectStorageService:
                         metadata = head_response.get('Metadata', {})
                         
                         if metadata.get('file_hash') == file_hash:
+                            # Determine public URL based on bucket type
+                            public_url = ""
+                            if bucket_key == 'document_images':
+                                public_url = self.public_urls['documents']
+                            elif bucket_key == 'error_images':
+                                public_url = self.public_urls['error']
+                            elif bucket_key == 'parts_images':
+                                public_url = self.public_urls['parts']
+                            else:
+                                public_url = self.public_urls['documents']
+                            
                             return {
                                 'bucket': bucket_name,
                                 'key': obj['Key'],
-                                'url': f"{self.public_url}/{bucket_name}/{obj['Key']}",
+                                'url': f"{public_url}/{obj['Key']}",
                                 'size': obj['Size'],
                                 'last_modified': obj['LastModified']
                             }
@@ -473,7 +508,8 @@ class ObjectStorageService:
         try:
             if self.client is None:
                 return {
-                    "status": "mock_mode",
+                    "status": "healthy",
+                    "mode": "mock",
                     "response_time_ms": 0,
                     "buckets": list(self.buckets.values()),
                     "timestamp": datetime.now(timezone.utc).isoformat()
@@ -488,6 +524,7 @@ class ObjectStorageService:
             
             return {
                 "status": "healthy",
+                "mode": "connected",
                 "response_time_ms": response_time * 1000,
                 "buckets": list(self.buckets.values()),
                 "timestamp": datetime.now(timezone.utc).isoformat()
@@ -498,3 +535,51 @@ class ObjectStorageService:
                 "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
+    
+    @staticmethod
+    def from_env_vars() -> 'ObjectStorageService':
+        """
+        Create ObjectStorageService from environment variables with backward compatibility.
+        
+        Checks new OBJECT_STORAGE_* variables first, falls back to R2_* variables.
+        Logs deprecation warning if old variables are used.
+        
+        Returns:
+            Configured ObjectStorageService instance
+        """
+        logger = logging.getLogger("krai.storage")
+        
+        # Helper function to get env var with fallback and deprecation warning
+        def get_env_var(new_var: str, old_var: str, default: str = None) -> str:
+            value = os.getenv(new_var) or os.getenv(old_var) or default
+            if not os.getenv(new_var) and os.getenv(old_var):
+                logger.warning(f"Environment variable {old_var} is deprecated. Use {new_var} instead.")
+            return value
+        
+        # Get configuration with fallback
+        access_key = get_env_var('OBJECT_STORAGE_ACCESS_KEY', 'R2_ACCESS_KEY_ID')
+        secret_key = get_env_var('OBJECT_STORAGE_SECRET_KEY', 'R2_SECRET_ACCESS_KEY')
+        endpoint = get_env_var('OBJECT_STORAGE_ENDPOINT', 'R2_ENDPOINT_URL')
+        public_url_documents = get_env_var('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS', 'R2_PUBLIC_URL_DOCUMENTS', '')
+        public_url_error = get_env_var('OBJECT_STORAGE_PUBLIC_URL_ERROR', 'R2_PUBLIC_URL_ERROR', '')
+        public_url_parts = get_env_var('OBJECT_STORAGE_PUBLIC_URL_PARTS', 'R2_PUBLIC_URL_PARTS', '')
+        
+        use_ssl = get_env_var('OBJECT_STORAGE_USE_SSL', 'R2_USE_SSL', 'true').lower() == 'true'
+        region = get_env_var('OBJECT_STORAGE_REGION', 'R2_REGION', 'auto')
+        
+        if not all([access_key, secret_key, endpoint]):
+            raise ValueError(
+                "Missing required storage configuration. "
+                "Set OBJECT_STORAGE_ACCESS_KEY, OBJECT_STORAGE_SECRET_KEY, and OBJECT_STORAGE_ENDPOINT."
+            )
+        
+        return ObjectStorageService(
+            access_key_id=access_key,
+            secret_access_key=secret_key,
+            endpoint_url=endpoint,
+            public_url_documents=public_url_documents,
+            public_url_error=public_url_error,
+            public_url_parts=public_url_parts,
+            use_ssl=use_ssl,
+            region=region
+        )

@@ -1,0 +1,306 @@
+version: '3.8'
+
+services:
+  # Test PostgreSQL Database
+  postgresql-test:
+    image: pgvector/pgvector:pg15
+    container_name: krai-postgresql-test
+    environment:
+      POSTGRES_DB: krai_test
+      POSTGRES_USER: krai_test
+      POSTGRES_PASSWORD: krai_test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./database/initdb:/docker-entrypoint-initdb.d
+    networks:
+      - krai-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U krai_test -d krai_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Test MinIO Storage
+  minio-test:
+    image: minio/minio:latest
+    container_name: krai-minio-test
+    environment:
+      MINIO_ROOT_USER: test_access_key
+      MINIO_ROOT_PASSWORD: test_secret_key
+    ports:
+      - "9001:9000"  # Different port to avoid conflicts
+      - "9002:9001"  # Console port
+    volumes:
+      - minio_test_data:/data
+    networks:
+      - krai-test-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Test Redis (for caching and sessions)
+  redis-test:
+    image: redis:7-alpine
+    container_name: krai-redis-test
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    volumes:
+      - redis_test_data:/data
+    networks:
+      - krai-test-network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Test Redis for Firecrawl
+  redis-firecrawl-test:
+    image: redis:7-alpine
+    container_name: krai-redis-firecrawl-test
+    ports:
+      - "6381:6379"  # Different port to avoid conflicts
+    volumes:
+      - redis_firecrawl_test_data:/data
+    networks:
+      - krai-test-network
+    command: redis-server --appendonly yes --maxmemory 256mb
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - firecrawl
+
+  # Test Playwright Service for Firecrawl
+  playwright-test:
+    image: ghcr.io/mendableai/playwright-service:latest
+    container_name: krai-playwright-test
+    environment:
+      - PORT=3000
+    ports:
+      - "3001:3000"  # Different port to avoid conflicts
+    networks:
+      - krai-test-network
+    shm_size: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    profiles:
+      - firecrawl
+
+  # Test Firecrawl API Service
+  firecrawl-api-test:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: krai-firecrawl-api-test
+    environment:
+      - NODE_ENV=test
+      - PORT=3002
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://redis-firecrawl-test:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=http://playwright-test:3000/scrape
+      - BULL_AUTH_KEY=test_firecrawl_admin
+      - USE_DB_AUTHENTICATION=false
+      - OLLAMA_BASE_URL=http://ollama-test:11434/api
+      - MODEL_NAME=llama3.2:latest
+      - ALLOW_LOCAL_WEBHOOKS=true
+    ports:
+      - "3003:3002"  # Different port to avoid conflicts
+    networks:
+      - krai-test-network
+    depends_on:
+      redis-firecrawl-test:
+        condition: service_healthy
+      playwright-test:
+        condition: service_healthy
+      ollama-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    profiles:
+      - firecrawl
+
+  # Test Firecrawl Worker Service
+  firecrawl-worker-test:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: krai-firecrawl-worker-test
+    environment:
+      - NODE_ENV=test
+      - PORT=3002
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://redis-firecrawl-test:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=http://playwright-test:3000/scrape
+      - BULL_AUTH_KEY=test_firecrawl_admin
+      - USE_DB_AUTHENTICATION=false
+      - OLLAMA_BASE_URL=http://ollama-test:11434/api
+      - MODEL_NAME=llama3.2:latest
+      - ALLOW_LOCAL_WEBHOOKS=true
+    command: ["pnpm", "run", "workers"]
+    networks:
+      - krai-test-network
+    depends_on:
+      redis-firecrawl-test:
+        condition: service_healthy
+      playwright-test:
+        condition: service_healthy
+      firecrawl-api-test:
+        condition: service_started
+    profiles:
+      - firecrawl
+
+  # Test Ollama AI Service
+  ollama-test:
+    image: ollama/ollama:latest
+    container_name: krai-ollama-test
+    ports:
+      - "11435:11434"  # Different port to avoid conflicts
+    volumes:
+      - ollama_test_data:/root/.ollama
+    networks:
+      - krai-test-network
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Test Database Migration Service
+  migration-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: krai-migration-test
+    environment:
+      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
+      - TESTING=true
+    depends_on:
+      postgresql-test:
+        condition: service_healthy
+    networks:
+      - krai-test-network
+    volumes:
+      - ./database/migrations:/app/database/migrations
+      - ./scripts:/app/scripts
+    command: python scripts/apply_migrations.py
+    profiles:
+      - migration
+
+  # Test Environment Setup Service
+  test-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: krai-test-setup
+    environment:
+      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
+      - MINIO_ENDPOINT=minio-test:9000
+      - MINIO_ACCESS_KEY=test_access_key
+      - MINIO_SECRET_KEY=test_secret_key
+      - TESTING=true
+    depends_on:
+      postgresql-test:
+        condition: service_healthy
+      minio-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - krai-test-network
+    volumes:
+      - ./scripts:/app/scripts
+      - ./tests:/app/tests
+    command: python scripts/setup_test_environment.py
+    profiles:
+      - setup
+
+  # Test Data Seeding Service
+  test-seed:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: krai-test-seed
+    environment:
+      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
+      - MINIO_ENDPOINT=minio-test:9000
+      - MINIO_ACCESS_KEY=test_access_key
+      - MINIO_SECRET_KEY=test_secret_key
+      - OLLAMA_BASE_URL=http://ollama-test:11434
+      - TESTING=true
+    depends_on:
+      postgresql-test:
+        condition: service_healthy
+      minio-test:
+        condition: service_healthy
+      ollama-test:
+        condition: service_healthy
+    networks:
+      - krai-test-network
+    volumes:
+      - ./tests/fixtures:/app/tests/fixtures
+      - ./scripts:/app/scripts
+    command: python scripts/seed_test_data.py
+    profiles:
+      - seed
+
+  # Test Cleanup Service
+  test-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: krai-test-cleanup
+    environment:
+      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
+      - MINIO_ENDPOINT=minio-test:9000
+      - MINIO_ACCESS_KEY=test_access_key
+      - MINIO_SECRET_KEY=test_secret_key
+      - TESTING=true
+    depends_on:
+      postgresql-test:
+        condition: service_healthy
+      minio-test:
+        condition: service_healthy
+    networks:
+      - krai-test-network
+    volumes:
+      - ./scripts:/app/scripts
+    command: python scripts/cleanup_test_environment.py
+    profiles:
+      - cleanup
+
+volumes:
+  postgres_test_data:
+    driver: local
+  minio_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+  redis_firecrawl_test_data:
+    driver: local
+  ollama_test_data:
+    driver: local
+
+networks:
+  krai-test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16  # Different subnet to avoid conflicts

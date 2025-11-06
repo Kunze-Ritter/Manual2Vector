@@ -1,4 +1,7 @@
-"""Link Extraction Processor (AI) - Extract links using AI assistance."""
+"""Link Extraction Processor (AI) - Extract links using AI assistance and enrichment.
+
+Supports Firecrawl-based link enrichment for improved context and structured extraction.
+"""
 
 from __future__ import annotations
 
@@ -11,16 +14,29 @@ from typing import Any, Dict, List, Optional, Tuple
 from backend.core.base_processor import BaseProcessor, Stage
 from .link_extractor import LinkExtractor
 from .text_extractor import TextExtractor
+from backend.services.context_extraction_service import ContextExtractionService
+from backend.services.link_enrichment_service import LinkEnrichmentService
+from backend.services.config_service import ConfigService
+from backend.services.web_scraping_service import create_web_scraping_service
+from backend.services.structured_extraction_service import StructuredExtractionService
 
 
 class LinkExtractionProcessorAI(BaseProcessor):
     """Stage 6 processor: Extract links and videos using heuristics + AI support."""
 
-    def __init__(self, database_service=None, ai_service=None, youtube_api_key: Optional[str] = None):
+    def __init__(
+        self,
+        database_service=None,
+        ai_service=None,
+        youtube_api_key: Optional[str] = None,
+        link_enrichment_service: Optional[LinkEnrichmentService] = None,
+        config_service: Optional[ConfigService] = None,
+    ):
         super().__init__(name="link_extraction_processor")
         self.stage = Stage.LINK_EXTRACTION
         self.database_service = database_service
         self.ai_service = ai_service
+        self.config_service = config_service
 
         # Prefer explicit API key, fallback to environment variable
         self.youtube_api_key = youtube_api_key or os.getenv("YOUTUBE_API_KEY")
@@ -29,6 +45,40 @@ class LinkExtractionProcessorAI(BaseProcessor):
         enable_ocr = os.getenv("ENABLE_OCR_FALLBACK", "false").lower() in {"1", "true", "yes", "on"}
         pdf_engine = os.getenv("PDF_ENGINE", "pymupdf")
         self.text_extractor = TextExtractor(prefer_engine=pdf_engine, enable_ocr_fallback=enable_ocr)
+
+        # Phase 5: Context extraction configuration
+        self.context_service = ContextExtractionService()
+        self.enable_context_extraction = os.getenv('ENABLE_CONTEXT_EXTRACTION', 'true').lower() == 'true'
+
+        self.enable_link_enrichment = os.getenv('ENABLE_LINK_ENRICHMENT', 'false').lower() == 'true'
+        self.link_enrichment_service = link_enrichment_service
+
+        if self.enable_link_enrichment and not self.link_enrichment_service and self.database_service:
+            scraper_service = create_web_scraping_service(config_service=self.config_service)
+            self.link_enrichment_service = LinkEnrichmentService(
+                web_scraping_service=scraper_service,
+                database_service=self.database_service,
+                config_service=self.config_service,
+            )
+
+        # Initialize structured extraction service if enrichment is enabled
+        self.enable_structured_extraction = os.getenv('ENABLE_STRUCTURED_EXTRACTION', 'false').lower() == 'true'
+        self.structured_extraction_service: Optional[StructuredExtractionService] = None
+        if self.enable_structured_extraction and self.enable_link_enrichment and self.link_enrichment_service:
+            self.structured_extraction_service = StructuredExtractionService(
+                web_scraping_service=self.link_enrichment_service._scraper,
+                database_service=self.database_service,
+                config_service=self.config_service,
+            )
+
+        self.logger.info(
+            "Link enrichment: %s",
+            "enabled" if self.enable_link_enrichment and self.link_enrichment_service else "disabled",
+        )
+        self.logger.info(
+            "Structured extraction: %s",
+            "enabled" if self.enable_structured_extraction and self.structured_extraction_service else "disabled",
+        )
 
         if not self.database_service:
             self.logger.warning("LinkExtractionProcessorAI initialized without database service")
@@ -74,8 +124,32 @@ class LinkExtractionProcessorAI(BaseProcessor):
             enriched_links = self._enrich_links(links, context, manufacturer_id, series_id)
             enriched_videos = self._enrich_videos(videos, manufacturer_id, series_id, document_id)
 
+            # Phase 5: Extract context for links and videos (NEW!)
+            if self.enable_context_extraction and context:
+                page_texts = await self._load_page_texts(context, file_path, adapter)
+                if page_texts:
+                    enriched_links = self._extract_link_contexts(
+                        links=enriched_links,
+                        page_texts=page_texts,
+                        adapter=adapter,
+                        document_id=document_id  # Pass document ID for related chunks
+                    )
+
+            # Phase 5: Extract context for videos (NEW!)
+            if self.enable_context_extraction and page_texts:
+                enriched_videos = self._extract_video_contexts(
+                    videos=enriched_videos,
+                    page_texts=page_texts,
+                    adapter=adapter,
+                    document_id=document_id  # Pass document ID for related chunks
+                )
+
             link_id_map = await self._save_links_to_db(enriched_links, str(document_id), adapter)
             await self._save_videos_to_db(enriched_videos, link_id_map, adapter)
+
+            if self.enable_link_enrichment and self.link_enrichment_service:
+                await self._enrich_document_links(enriched_links, adapter)
+                adapter.info("Link enrichment completed")
 
             return self._create_result(
                 True,
@@ -85,6 +159,77 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     "videos_found": len(enriched_videos)
                 }
             )
+    async def _enrich_document_links(
+        self,
+        links: List[Dict],
+        adapter,
+    ) -> None:
+        """Enrich links with scraped content using LinkEnrichmentService."""
+
+        if not self.link_enrichment_service:
+            return
+
+        link_data = [
+            (link.get("id"), link.get("url"))
+            for link in links
+            if link.get("id") and link.get("url")
+        ]
+
+        if not link_data:
+            adapter.debug("No links to enrich")
+            return
+
+        adapter.info("Enriching %s links with scraped content", len(link_data))
+
+        try:
+            result = await self.link_enrichment_service.enrich_links_batch(
+                link_ids=[link_id for link_id, _ in link_data],
+                max_concurrent=3,
+            )
+
+            adapter.info(
+                "Link enrichment complete: %s enriched, %s failed, %s skipped",
+                result.get("enriched", 0),
+                result.get("failed", 0),
+                result.get("skipped", 0),
+            )
+
+            # Trigger structured extraction for enriched links if enabled
+            if self.enable_structured_extraction and self.structured_extraction_service:
+                await self._run_structured_extraction_on_links(link_data, adapter)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            adapter.error(f"Link enrichment failed: {exc}")
+
+    async def _run_structured_extraction_on_links(
+        self,
+        link_data: List[Tuple[str, str]],
+        adapter,
+    ) -> None:
+        """Run structured extraction batch on enriched links."""
+        if not self.structured_extraction_service:
+            return
+
+        link_ids = [link_id for link_id, _ in link_data if link_id]
+        if not link_ids:
+            adapter.debug("No link IDs available for structured extraction")
+            return
+
+        adapter.info("Running structured extraction on %s enriched links", len(link_ids))
+
+        try:
+            extraction_result = await self.structured_extraction_service.batch_extract(
+                source_ids=link_ids,
+                source_type="link",
+                max_concurrent=2,
+            )
+            adapter.info(
+                "Structured extraction complete: %s completed, %s failed, %s total",
+                extraction_result.get("completed", 0),
+                extraction_result.get("failed", 0),
+                extraction_result.get("total", 0),
+            )
+        except Exception as exc:
+            adapter.error("Structured extraction batch failed: %s", exc)
 
     async def _load_page_texts(self, context, file_path: Path, adapter) -> Dict[int, str]:
         """Load page texts from context, database, or by re-extracting from PDF."""
@@ -233,7 +378,16 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     "confidence_score": link.get("confidence_score", 0.5),
                     "manufacturer_id": link.get("manufacturer_id"),
                     "series_id": link.get("series_id"),
-                    "related_error_codes": link.get("related_error_codes") or []
+                    "related_error_codes": link.get("related_error_codes") or [],
+                    # Phase 5: Context extraction fields
+                    "context_description": link.get("context_description"),
+                    "page_header": link.get("page_header"),
+                    "related_products": link.get("related_products", []),
+                    "related_chunks": link.get("related_chunks", []),  # Add related chunks
+                    "scrape_status": link.get("scrape_status", "pending"),
+                    "scraped_at": link.get("scraped_at"),
+                    "scraped_content": link.get("scraped_content"),
+                    "scraped_metadata": link.get("scraped_metadata", {}),
                 }
 
                 if existing.data:
@@ -258,8 +412,10 @@ class LinkExtractionProcessorAI(BaseProcessor):
 
                 if existing.data:
                     link_id_map[url] = existing.data[0]["id"]
+                    link["id"] = existing.data[0]["id"]
                 elif link_id:
                     link_id_map[url] = link_id
+                    link["id"] = link_id
 
             except Exception as exc:
                 adapter.warning("Failed to persist link %s: %s", link.get("url"), exc)
@@ -289,7 +445,14 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     "platform": video.get("link_category") or video.get("platform") or "youtube",
                     "metadata": video.get("metadata") or {},
                     "manufacturer_id": video.get("manufacturer_id"),
-                    "series_id": video.get("series_id")
+                    "series_id": video.get("series_id"),
+                    # Phase 5: Context extraction fields
+                    "context_description": video.get("context_description"),
+                    "page_number": video.get("page_number"),
+                    "page_header": video.get('page_header'),  # Add page_header field
+                    "related_error_codes": video.get("related_error_codes", []),
+                    "related_products": video.get("related_products", []),
+                    "related_chunks": video.get("related_chunks", [])  # Add related chunks
                 }
 
                 if video.get("youtube_id"):
@@ -302,6 +465,152 @@ class LinkExtractionProcessorAI(BaseProcessor):
 
             except Exception as exc:
                 adapter.warning("Failed to persist video %s: %s", video.get("title"), exc)
+
+    def _extract_link_contexts(
+        self, 
+        links: List[Dict], 
+        page_texts: Dict[int, str], 
+        adapter,
+        document_id: Optional[UUID] = None
+    ) -> List[Dict]:
+        """
+        Extract context for all links using ContextExtractionService.
+        
+        Args:
+            links: List of link dictionaries
+            page_texts: Dict mapping page_number to page_text
+            adapter: Logger adapter
+            document_id: Optional document ID for related chunks extraction
+            
+        Returns:
+            List of links with context metadata added
+        """
+        links_with_context = []
+        
+        for link in links:
+            page_number = link.get('page_number')
+            if not page_number or page_number not in page_texts:
+                adapter.warning("No page text available for link on page %d", page_number)
+                links_with_context.append(link)
+                continue
+            
+            page_text = page_texts[page_number]
+            link_url = link.get('url')
+            
+            try:
+                # Extract context using ContextExtractionService
+                context_data = self.context_service.extract_link_context(
+                    page_text=page_text,
+                    page_number=page_number,
+                    link_url=link_url
+                )
+                
+                # Add context data to link dict
+                link['context_description'] = context_data['context_description']
+                link['page_header'] = context_data['page_header']
+                link['related_products'] = context_data.get('related_products', [])
+                link['related_chunks'] = self._get_related_chunks(page_number, document_id, adapter)  # Add related chunks
+                # related_error_codes already exists in link enrichment
+                
+                links_with_context.append(link)
+                
+            except Exception as e:
+                adapter.error("Failed to extract context for link on page %d: %s", page_number, e)
+                links_with_context.append(link)
+        
+        adapter.info("Extracted context for %d links", len(links_with_context))
+        return links_with_context
+    
+    def _get_related_chunks(self, page_number: int, document_id: UUID, adapter) -> List[str]:
+        """
+        Extract related chunk IDs for a given page number.
+        
+        Args:
+            page_number: Page number to find chunks for
+            document_id: Document ID to query chunks
+            adapter: Logger adapter
+            
+        Returns:
+            List of chunk IDs that include the given page
+        """
+        if not self.database_service or not document_id:
+            return []
+        
+        try:
+            # Query chunks that overlap with the given page
+            result = self.database_service.client.table("vw_chunks").select(
+                "id"
+            ).eq(
+                "document_id", str(document_id)
+            ).or_(
+                f"page_start.lte.{page_number},page_end.gte.{page_number}"
+            ).execute()
+            
+            if result.data:
+                chunk_ids = [chunk['id'] for chunk in result.data]
+                adapter.debug(f"Found {len(chunk_ids)} related chunks for page {page_number}")
+                return chunk_ids
+            
+            return []
+            
+        except Exception as e:
+            adapter.warning(f"Failed to get related chunks for page {page_number}: {e}")
+            return []
+
+    def _extract_video_contexts(
+        self, 
+        videos: List[Dict], 
+        page_texts: Dict[int, str], 
+        adapter,
+        document_id: Optional[UUID] = None
+    ) -> List[Dict]:
+        """
+        Extract context for all videos using ContextExtractionService.
+        
+        Args:
+            videos: List of video dictionaries
+            page_texts: Dict mapping page_number to page_text
+            adapter: Logger adapter
+            document_id: Optional document ID for related chunks extraction
+            
+        Returns:
+            List of videos with context metadata added
+        """
+        videos_with_context = []
+        
+        for video in videos:
+            page_number = video.get('page_number')
+            if not page_number or page_number not in page_texts:
+                adapter.warning("No page text available for video on page %d", page_number)
+                videos_with_context.append(video)
+                continue
+            
+            page_text = page_texts[page_number]
+            video_url = video.get('source_url') or video.get('url')
+            
+            try:
+                # Extract context using ContextExtractionService
+                context_data = self.context_service.extract_video_context(
+                    page_text=page_text,
+                    page_number=page_number,
+                    video_url=video_url
+                )
+                
+                # Add context data to video dict
+                video['context_description'] = context_data['context_description']
+                video['page_header'] = context_data['page_header']
+                video['related_error_codes'] = context_data.get('related_error_codes', [])
+                video['related_products'] = context_data.get('related_products', [])
+                video['related_chunks'] = self._get_related_chunks(page_number, document_id, adapter)  # Add related chunks
+                
+                videos_with_context.append(video)
+                
+            except Exception as e:
+                adapter.error("Failed to extract context for video on page %d: %s", page_number, e)
+                videos_with_context.append(video)
+        
+        adapter.info("Extracted context for %d videos", len(videos_with_context))
+        return videos_with_context
 
     def _create_result(self, success: bool, message: str, data: Dict) -> Any:
         class Result:

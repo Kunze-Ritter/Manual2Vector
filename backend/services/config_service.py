@@ -5,6 +5,7 @@ Manages all configuration files and settings
 
 import json
 import logging
+import os
 from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
 from datetime import datetime
@@ -88,6 +89,75 @@ class ConfigService:
         
         return self._configs['model_placeholder_patterns']
     
+    def get_scraping_config(self) -> Dict[str, Any]:
+        """Return cached scraping configuration derived from environment variables.
+
+        Example:
+            >>> config = config_service.get_scraping_config()
+            >>> if config["backend"] == "firecrawl":
+            ...     # initialise Firecrawl backend
+            ...     pass
+
+        Returns:
+            Dict[str, Any]: Normalised scraping configuration.
+        """
+
+        if 'scraping_config' in self._configs:
+            return self._configs['scraping_config']
+
+        def _to_bool(value: Optional[str], default: bool) -> bool:
+            if value is None:
+                return default
+            return value.lower() in {"1", "true", "yes", "on"}
+
+        backend = os.getenv('SCRAPING_BACKEND', 'beautifulsoup').lower()
+        firecrawl_api_url = os.getenv('FIRECRAWL_API_URL', 'http://localhost:3002')
+        llm_provider = os.getenv('FIRECRAWL_LLM_PROVIDER', 'ollama')
+        config = {
+            'backend': backend,
+            'firecrawl_api_url': firecrawl_api_url,
+            'firecrawl_llm_provider': llm_provider,
+            'firecrawl_model_name': os.getenv('FIRECRAWL_MODEL_NAME', 'llama3.2:latest'),
+            'firecrawl_embedding_model': os.getenv('FIRECRAWL_EMBEDDING_MODEL', 'nomic-embed-text:latest'),
+            'openai_api_key': os.getenv('OPENAI_API_KEY'),
+            'max_concurrency': int(os.getenv('FIRECRAWL_MAX_CONCURRENCY', '4') or 4),
+            'block_media': _to_bool(os.getenv('FIRECRAWL_BLOCK_MEDIA'), True),
+            'allow_local_webhooks': _to_bool(os.getenv('FIRECRAWL_ALLOW_LOCAL_WEBHOOKS'), True),
+            'proxy_server': os.getenv('FIRECRAWL_PROXY_SERVER'),
+            'proxy_username': os.getenv('FIRECRAWL_PROXY_USERNAME'),
+            'proxy_password': os.getenv('FIRECRAWL_PROXY_PASSWORD'),
+            'scrape_timeout': float(os.getenv('FIRECRAWL_SCRAPE_TIMEOUT', '30.0') or 30.0),
+            'crawl_timeout': float(os.getenv('FIRECRAWL_CRAWL_TIMEOUT', '300.0') or 300.0),
+            'retries': int(os.getenv('FIRECRAWL_RETRIES', '3') or 3),
+            'enable_link_enrichment': _to_bool(os.getenv('ENABLE_LINK_ENRICHMENT'), False),
+            'enable_manufacturer_crawling': _to_bool(os.getenv('ENABLE_MANUFACTURER_CRAWLING'), False),
+        }
+
+        if backend == 'firecrawl' and not firecrawl_api_url:
+            self.logger.warning(
+                "Firecrawl backend selected but FIRECRAWL_API_URL is missing; using default"
+            )
+
+        self._configs['scraping_config'] = config
+        self._last_loaded['scraping_config'] = datetime.utcnow()
+        self.logger.info(
+            "Loaded scraping configuration: backend=%s, llm_provider=%s",
+            backend,
+            llm_provider,
+        )
+
+        return config
+
+    def get_scraping_backend(self) -> str:
+        """Return the active scraping backend name."""
+
+        return self.get_scraping_config().get('backend', 'beautifulsoup')
+
+    def is_firecrawl_enabled(self) -> bool:
+        """Return True when Firecrawl is the active scraping backend."""
+
+        return self.get_scraping_backend() == 'firecrawl'
+
     def get_chunking_strategy(self, document_type: str, manufacturer: str = None) -> Dict[str, Any]:
         """
         Get chunking strategy for document type and manufacturer
@@ -232,6 +302,7 @@ class ConfigService:
             self.get_error_code_patterns()
             self.get_version_patterns()
             self.get_model_placeholder_patterns()
+            self.get_scraping_config()
             
             self.logger.info("All configurations reloaded")
             
@@ -258,6 +329,10 @@ class ConfigService:
                 'model_placeholder_patterns': {
                     'loaded': 'model_placeholder_patterns' in self._configs,
                     'patterns': len(self.get_model_placeholder_patterns().get('model_placeholder_patterns', {}))
+                },
+                'scraping_config': {
+                    'loaded': 'scraping_config' in self._configs,
+                    'backend': self.get_scraping_backend()
                 }
             }
             
