@@ -7,7 +7,7 @@ Advanced Multimodal AI Document Processing Pipeline with Local-First Architectur
 ### ⚡ One-Command Setup (Linux/macOS)
 
 ```bash
-git clone <repository-url>
+git clone [<repository-url>](https://github.com/Kunze-Ritter/Manual2Vector)
 cd Manual2Vector
 ./setup.sh
 docker-compose -f docker-compose.simple.yml up --build -d
@@ -16,7 +16,7 @@ docker-compose -f docker-compose.simple.yml up --build -d
 ### ⚡ One-Command Setup with Firecrawl (Advanced Web Scraping)
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
 ./setup.sh
 docker-compose -f docker-compose.with-firecrawl.yml up --build -d
@@ -25,7 +25,7 @@ docker-compose -f docker-compose.with-firecrawl.yml up --build -d
 ### ⚡ One-Command Setup (Windows)
 
 ```cmd
-git clone <repository-url>
+git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
 setup.bat
 docker-compose -f docker-compose.simple.yml up --build -d
@@ -34,7 +34,7 @@ docker-compose -f docker-compose.simple.yml up --build -d
 ### ⚡ One-Command Setup with Firecrawl (Windows)
 
 ```cmd
-git clone <repository-url>
+git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
 setup.bat
 docker-compose -f docker-compose.with-firecrawl.yml up --build -d
@@ -54,7 +54,7 @@ docker-compose -f docker-compose.with-firecrawl.yml up --build -d
 ### 📋 Manual Setup (Alternative)
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
 cp .env.example .env
 docker-compose -f docker-compose.simple.yml up --build -d
