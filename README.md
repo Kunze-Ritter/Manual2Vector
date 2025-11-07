@@ -7,7 +7,7 @@ Advanced Multimodal AI Document Processing Pipeline with Local-First Architectur
 ### ⚡ One-Command Setup (Linux/macOS)
 
 ```bash
-git clone [<repository-url>](https://github.com/Kunze-Ritter/Manual2Vector)
+git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
 ./setup.sh
 docker-compose -f docker-compose.simple.yml up --build -d
