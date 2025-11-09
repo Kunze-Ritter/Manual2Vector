@@ -1,5 +1,112 @@
 # KRAI TODO List
 
+- [x] **Setup Script Parity & RSA Encoding** ✅ (11:35)
+  - Set PowerShell password complexity flags to true, matched README Windows instructions to PowerShell, and aligned both setup scripts to emit DER-encoded JWT keys.
+  - Replaced non-ASCII console lines in `setup.ps1` to ensure legacy hosts parse strings correctly; run now falls back to OpenSSL when cryptography APIs missing.
+  - **Files:** `setup.ps1`, `setup.sh`, `README.md`, `.env.example`
+  - **Result:** Windows/Linux setup now produce consistent password policies and JWT key formats with documentation in sync.
+
+- [x] **PowerShell Setup Documentation Alignment** ✅ (11:20)
+  - Updated `setup.ps1` messaging to English, added `.env` validation, and aligned credential output with Linux script.
+  - Added cross-script recommendations in `setup.sh` and `setup.bat` to steer users toward PowerShell on Windows 10/11.
+  - Documented PowerShell workflow in README and DOCKER setup guides as the primary Windows path with troubleshooting tips.
+  - **Files:** `setup.ps1`, `setup.sh`, `setup.bat`, `README.md`, `DOCKER_SETUP.md`
+  - **Result:** Windows onboarding now highlights the modern PowerShell setup with consistent validation, credential guidance, and documentation.
+
+- [x] **Environment Validation Script Added** ✅ (22:55)
+  - Created `scripts/validate_env.py` with password complexity, base64 key verification, conditional Firecrawl checks, Docker hostname warnings, and CLI entry point.
+  - **File:** `scripts/validate_env.py`
+  - **Result:** Environment completeness can be validated before running Docker services.
+
+- [x] **Env Validator & Docs Alignment** ✅ (08:55)
+  - Made password rules configurable via `.env` flags, added `--no-complexity` and Docker context toggles, and expanded env-file discovery.
+  - Documented `OLLAMA_URL` usage, MinIO credential handling, validator flags, and Firecrawl API key conditions across README/DOCKER docs.
+  - **Files:** `scripts/validate_env.py`, `.env.example`, `README.md`, `DOCKER_SETUP.md`
+  - **Result:** Environment validation and documentation now match runtime expectations and reviewer guidance.
+
+- [x] **PowerShell Setup Script Added** ✅ (09:45)
+  - Ported `.env` generator to PowerShell (`setup.ps1`) with secure secret generation, RSA handling, and ASCII-friendly output.
+  - Ensured existing batch logic is preserved, added `-Force` flag, and addressed Windows console encoding issues.
+  - **Files:** `setup.ps1`
+  - **Result:** Windows users can bootstrap environments via PowerShell without cmd.exe compatibility problems.
+
+- [x] **Docker Setup Documentation Overhaul** ✅ (22:57)
+  - Rewrote `DOCKER_SETUP.md` to cover the 10-section `.env`, validation workflow, service matrix, troubleshooting, and health check references.
+  - **File:** `DOCKER_SETUP.md`
+  - **Result:** Operators have an up-to-date Docker playbook aligned with automated secret generation.
+
+- [x] **README Setup Guidance Updated** ✅ (22:58)
+  - Added setup script capabilities, manual variable warnings, validation commands, and troubleshooting links to the README quick start and configuration sections.
+  - **File:** `README.md`
+  - **Result:** Main onboarding guide reflects consolidated configuration and validation workflow.
+
+- [x] **Setup Scripts Secret Automation** ✅ (21:45)
+  - Expanded Linux and Windows setup bootstraps to generate all secrets, JWT keypairs, and run post-creation validation with operator guidance.
+  - **Files:** `setup.sh`, `setup.bat`
+  - **Result:** `.env` bootstrapping now delivers complete credential coverage with clear follow-up actions for optional keys.
+
+- [x] **Setup Scripts URL Safety & Overwrite Guards** ✅ (22:40)
+  - Added URL-safe test DB password handling, interactive/backed-up `.env` overwrites, and contextual validation for generated service secrets.
+  - Implemented PowerShell capability probing with OpenSSL fallback and consistent RSA exports for Windows environments.
+  - **Files:** `setup.sh`, `setup.bat`
+  - **Result:** Cross-platform setup scripts now avoid unsafe credentials, protect existing configuration, and fail-fast when required secrets are missing.
+
+- [x] **Env Example Back-Compat Guidance** ✅ (12:52)
+  - Added root `.env` loading guidance and legacy `.env.database` notes to `.env.example`
+  - Documented deprecated aliases for `DATABASE_URL` and `MINIO_ENDPOINT`, plus optional Supabase DB password
+  - Updated default visual embedding model to match backend fallback
+  - **File:** `.env.example`
+  - **Result:** Environment template now covers backward compatibility needs without touching runtime code
+
+- [x] **Script Env Loader Migration (Phase 1)** ✅ (13:08)
+  - Introduced shared `scripts/_env.py` helper around `load_all_env_files`
+  - Replaced direct `.env.database` loads with centralized loader across Supabase scripts and backend API tools
+  - Preserved optional overrides via `extra_files=['.env.database']` where legacy behavior needed
+  - **Files:** `scripts/_env.py`, `scripts/*.py`, `backend/api/check_*.py`, `backend/api/test_*.py`, `backend/api/tools/error_code_search.py`
+  - **Result:** Scripts now honor unified environment hierarchy while keeping backwards-compatible overrides
+
+- [x] **Script Env Loader Migration (Legacy Diagnostics)** ✅ (14:12)
+  - Updated `scripts/search_similar_codes.py` to import `scripts._env.load_env`
+  - Removed ad-hoc `load_dotenv(Path(".env.database"))` usage in favor of centralized loader with legacy override
+  - **File:** `scripts/search_similar_codes.py`
+  - **Result:** Diagnostic search tool now aligns with standardized environment bootstrapping
+
+- [x] **Script Env Loader Migration (Chunk Checks)** ✅ (14:16)
+  - Swapped `scripts/check_chunks.py` to the shared `scripts._env.load_env` helper
+  - Dropped direct `load_dotenv(Path(".env.database"))` call while preserving optional legacy override
+  - **File:** `scripts/check_chunks.py`
+  - **Result:** Chunk sizing probe now uses centralized environment bootstrapping
+
+- [x] **Script Env Loader Migration (C9402 Inspector)** ✅ (14:18)
+  - Refactored `scripts/check_chunks_for_c9402.py` to use the shared loader helper
+  - Removed direct `load_dotenv(Path(".env.database"))` call while keeping optional legacy override
+  - **File:** `scripts/check_chunks_for_c9402.py`
+  - **Result:** C9402 diagnostics now align with centralized environment bootstrapping
+
+- [x] **Script Env Loader Migration (66.60 Diagnostics)** ✅ (14:20)
+  - Updated `scripts/check_66_60_32_images.py` to call `load_env(extra_files=['.env.database'])`
+  - Ensured legacy `.env.database` overrides remain optional while standardizing bootstrap path
+  - **File:** `scripts/check_66_60_32_images.py`
+  - **Result:** 66.60 image diagnostics now use consistent environment loading
+
+- [x] **Script Env Loader Migration (Video Overview)** ✅ (14:22)
+  - Refactored `scripts/check_all_videos_detail.py` to use shared `load_env`
+  - Removed direct `load_dotenv(Path(".env.database"))` while leaving legacy override support
+  - **File:** `scripts/check_all_videos_detail.py`
+  - **Result:** Video detail diagnostics now follow centralized environment initialization
+
+- [x] **Script Env Loader Migration (Image Diagnostics)** ✅ (14:24)
+  - Updated `scripts/find_error_with_image.py` to import the shared load helper
+  - Eliminated direct `load_dotenv(Path(".env.database"))` while preserving optional override behavior
+  - **File:** `scripts/find_error_with_image.py`
+  - **Result:** Image-focused diagnostics now use centralized environment bootstrapping
+
+- [x] **Script Env Loader Migration (11.00.02 Inspector)** ✅ (14:26)
+  - Refactored `scripts/check_chunks_11_00_02.py` to rely on `scripts._env.load_env`
+  - Removed direct `.env.database` loading while preserving optional override support
+  - **File:** `scripts/check_chunks_11_00_02.py`
+  - **Result:** 11.00.02 chunk diagnostics now follow centralized environment configuration
+
 - [x] **Authentication System Fixed & Login Working** ✅ (00:12)
   - Created `krai_users` schema with full authentication tables (migration 200)
   - Implemented missing database methods: `fetch_one`, `fetch_all`, `execute_query` in PostgreSQLAdapter
@@ -10,6 +117,12 @@
   - **Files:** `database/migrations/200_create_auth_tables.sql`, `backend/services/postgresql_adapter.py`, `main.py`, `backend/requirements.txt`
   - **Result:** Core authentication working - login endpoint functional
   - **Remaining:** `/api/v1/auth/me` endpoint returns 401 after login (token validation issue)
+
+- [x] **Environment Configuration Consolidation** ✅ (10:25)
+  - Expanded `.env.example` to centralize ten configuration sections with full documentation
+  - Removed obsolete `.env.ai/.database/.storage/.auth/.pipeline/.external` example files to prevent drift
+  - **File:** `.env.example`
+  - **Result:** Single authoritative environment template simplifies setup and Docker integration
 
 - [x] **Complete Repository Synchronization** ✅ (17:46)
   - Merged all development features into master branch
@@ -121,6 +234,21 @@
   - Added action menu test IDs to all entity pages (Products, Manufacturers, ErrorCodes, Videos)
   - **Files:** `frontend/src/components/shared/DataTable.tsx`, `frontend/src/components/ui/alert-dialog.tsx`, `frontend/src/pages/DocumentsPage.tsx`, `frontend/playwright.config.ts`, `frontend/tests/setup/global-setup.ts`, `frontend/tests/setup/global-teardown.ts`, `frontend/tests/e2e/auth.spec.ts`, `frontend/tests/e2e/documents-crud.spec.ts`, `frontend/tests/e2e/products-crud.spec.ts`, `frontend/tests/e2e/permissions.spec.ts`, `frontend/src/pages/ProductsPage.tsx`, `frontend/src/pages/ManufacturersPage.tsx`, `frontend/src/pages/ErrorCodesPage.tsx`, `frontend/src/pages/VideosPage.tsx`
   - **Result:** Production-ready E2E testing infrastructure with proper accessibility hooks, confirmation dialogs, comprehensive configuration, and full Page Object Model integration
+
+- [x] **Docker Compose Env Consolidation & Security Hardening** ✅ (14:45)
+  - Switched all docker-compose variants to load `.env`, replaced hardcoded credentials with `${VAR:-default}` patterns, and added clarity comments per service
+  - Updated enterprise compose to mix `.env` for non-secret config with Docker Secrets for credentials, including Grafana signup toggle
+  - Removed insecure `.env` copy from Dockerfile.production and documented runtime env injection strategy
+  - Extended `.env.example` with compose-specific variables (n8n, pgAdmin, Playwright, test creds, Grafana, Redis) and clarified OLLAMA URL usage
+  - **Files:** `docker-compose.yml`, `docker-compose.simple.yml`, `docker-compose.production.yml`, `docker-compose.production-final.yml`, `docker-compose.production-complete.yml`, `docker-compose.with-firecrawl.yml`, `docker-compose.prod.yml`, `docker-compose.infrastructure.yml`, `docker-compose-ollama-tunnel.yml`, `docker-compose.test.yml`, `Dockerfile.production`, `.env.example`
+  - **Result:** All deployment stacks now draw config from `.env`, minimize secrets exposure, and use consistent variable names across backend and orchestration
+
+- [x] **Standardize Test MinIO Image** ✅ (21:40)
+  - Switched `docker-compose.test.yml` MinIO service to `cgr.dev/chainguard/minio:latest`
+  - Updated testing and deployment documentation to reference the Chainguard MinIO image uniformly
+  - Ensured GitHub Actions testing guide reflects Chainguard image usage for CI MinIO service
+  - **Files:** `docker-compose.test.yml`, `docs/PHASE6_DEPLOYMENT_GUIDE.md`, `docs/TESTING_GUIDE_PHASES_1_6.md`, `DOCKER_SETUP.md`
+  - **Result:** MinIO image usage is consistent across test, documentation, and CI references, reducing drift between environments
 
 - [x] **Lint Error Fixes - Round 1** ✅ (15:15)
   - Fixed Node.js type definition issues in playwright.config.ts by replacing require.resolve with path.resolve
@@ -2431,9 +2559,27 @@ All verification comments implemented, all lint errors fixed, documentation perf
 
 ---
 
-**Last Updated:** 2025-11-06 (23:04)
-**Current Focus:** Validate frontend authentication flow after hook fix
-**Next Session:** Retest Firecrawl-enabled stack and monitor auth regressions
+### 📊 Session Statistics (2025-11-08)
+
+**Time:** 21:40-22:10 (30 minutes)
+**Commits:** 0 commits
+**Files Changed:** 3 files
+**Migrations Created:** 0
+**Bugs Fixed:** 0
+**Features Added:** 1 (Automated secret generation and validation in setup scripts)
+
+**Key Achievements:**
+1. ✅ Automated full secret and RSA key generation with validation in `setup.sh`.
+2. ✅ Overhauled `setup.bat` with secure RNG, RSA export, and onboarding guidance.
+3. ✅ Documented session progress and governance updates in TODO.md.
+
+**Next Focus:** Audit CI workflows and docker-compose stacks for alignment with new secret generation.
+
+---
+
+**Last Updated:** 2025-11-09 (11:20)
+**Current Focus:** Ensure CI workflows reflect PowerShell-first Windows onboarding.
+**Next Session:** Review docker-compose secret usage and update remaining documentation accordingly.
 
 ---
 
@@ -2471,6 +2617,6 @@ All verification comments implemented, all lint errors fixed, documentation perf
 
 ---
 
-**Last Updated:** 2025-11-07 (00:12)
-**Current Focus:** Authentication system fixed - login working, need to fix /me endpoint token validation
-**Next Session:** Investigate and fix /api/v1/auth/me 401 error for complete login flow
+**Last Updated:** 2025-11-09 (11:20)
+**Current Focus:** Validate CI workflows follow updated environment rules.
+**Next Session:** Review docker-compose secret usage and update remaining documentation accordingly.

@@ -1,13 +1,9 @@
 """
-Environment Loader - Loads all .env.* files
+Environment Loader - Loads project environment configuration.
 
-Loads configuration from modular .env files:
-- .env.database - Database configuration
-- .env.storage - Object storage (R2)
-- .env.pipeline - Processing pipeline settings
-- .env.ai - AI service configuration
-- .env.external - External APIs and tunnels
-- .env - Main config (fallback, loads all if modular files don't exist)
+Prefers the consolidated `.env` file but will also load legacy modular files
+when present so existing deployments remain compatible. Optional extra files
+can be appended (e.g., `.env.test`) to override defaults for specific flows.
 """
 
 import os
@@ -15,7 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-def load_all_env_files(project_root: Path = None):
+def load_all_env_files(project_root: Path = None, extra_files: list[str] | None = None):
     """
     Load all .env.* files in order
     
@@ -34,15 +30,26 @@ def load_all_env_files(project_root: Path = None):
         if project_root is None:
             project_root = Path.cwd()
     
-    # Order matters: later files can override earlier ones
+    # Order matters: legacy modular files load first, consolidated .env overrides,
+    # and developer-specific .env.local has highest priority. Additional files are
+    # appended so they override everything else.
     env_files = [
-        '.env.database',   # Database first (core dependency)
-        '.env.storage',    # Storage configuration
-        '.env.ai',         # AI services
-        '.env.pipeline',   # Pipeline settings
-        '.env.external',   # External APIs
-        '.env',            # Main config (fallback/overrides)
+        '.env.database',   # Legacy database overrides
+        '.env.storage',    # Legacy storage overrides
+        '.env.ai',         # Legacy AI overrides
+        '.env.pipeline',   # Legacy pipeline overrides
+        '.env.external',   # Legacy external service overrides
+        '.env.auth',       # Legacy auth overrides
+        '.env',            # Primary consolidated configuration
+        '.env.local',      # Developer-specific overrides (optional)
     ]
+
+    if extra_files:
+        insert_index = env_files.index('.env.local') if '.env.local' in env_files else len(env_files)
+        for file_name in extra_files:
+            if file_name not in env_files:
+                env_files.insert(insert_index, file_name)
+                insert_index += 1
     
     loaded_files = []
     

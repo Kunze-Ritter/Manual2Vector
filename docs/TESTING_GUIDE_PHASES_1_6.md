@@ -502,7 +502,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: test_password
       minio:
-        image: minio/minio
+        image: cgr.dev/chainguard/minio:latest
         env:
           MINIO_ROOT_PASSWORD: test_password
     steps:

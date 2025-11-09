@@ -1,74 +1,359 @@
 # Docker Setup für KRAI Engine
 
-## Schnellstart für andere PCs
+## 🐳 Überblick
 
-### 🚀 Methode 1: Automatisches Setup (empfohlen)
+Dieses Handbuch beschreibt das vollständige Docker-Setup für die KRAI Engine. Es basiert auf der konsolidierten `.env`-Struktur mit 10 Sektionen und mehr als 15 automatisch generierten Secrets. Für einen schnellen Einstieg nutze die Setup-Skripte und validiere anschließend die Umgebung, bevor du Docker-Services startest.
 
-**Linux/macOS:**
+Weitere Einstiegsinformationen findest du im [README.md](README.md). Dieses Dokument konzentriert sich ausschließlich auf Docker.
+
+---
+
+## 🚀 Schnellstart
+
+### Methode 1 – Automatisches Setup (empfohlen)
+
+**Linux/macOS**
+
 ```bash
 ./setup.sh
 ```
 
-**Windows:**
+**Windows (Empfohlen: PowerShell)**
+
+```powershell
+./setup.ps1
+```
+
+**Windows (Legacy: Batch)**
+
 ```cmd
 setup.bat
 ```
 
-Das Skript generiert automatisch sichere Passwörter und erstellt die `.env` Datei!
+**Welches Skript soll ich verwenden?**
 
-### 📋 Methode 2: Manuelle Einrichtung
+- **Linux/macOS:** `./setup.sh` (Bash)
+- **Windows 10/11:** `./setup.ps1` (PowerShell) – **Empfohlen**
+- **Ältere Windows-Versionen:** `setup.bat` (Batch) – Nur als Fallback
 
-1. **Environment Datei kopieren:**
+**Warum setup.ps1 statt setup.bat?**
+- ✅ Kürzer und wartbarer (299 vs. 744 Zeilen)
+- ✅ Nutzt moderne .NET Crypto APIs
+- ✅ Bessere Fehlerbehandlung (Try-Catch)
+- ✅ Klarere Syntax (PowerShell vs. Batch)
+- ✅ Gleiche Funktionalität wie setup.sh
+
+Beide Skripte generieren:
+
+- 15+ kryptographisch sichere Passwörter
+- Ein RSA-2048 Keypair für JWT-Authentifizierung
+- Eine vollständige `.env` Datei mit allen 10 Sektionen
+- Eine Validierung über `scripts/validate_env.py`
+
+### Methode 2 – Manuelle Einrichtung (nur wenn zwingend nötig)
 
 ```bash
 cp .env.example .env
+# ⚠️ 15+ Secrets müssen händisch nachgetragen werden – nur verwenden, wenn Setup-Skript nicht möglich ist!
 ```
 
-2. **Passwörter anpassen** (optional - die Standardwerte funktionieren für Docker)
-
-3. **Docker starten:**
+### Validierung durchführen
 
 ```bash
-docker-compose -f docker-compose.simple.yml up --build -d
+python scripts/validate_env.py          # Pflichtvariablen prüfen
+python scripts/validate_env.py --strict # Warnungen als Fehler behandeln
+python scripts/validate_env.py --no-complexity   # Nur Mindestlänge erzwingen
+python scripts/validate_env.py --docker-context off  # Docker-spezifische Checks überspringen
 ```
 
-## Zugängliche Dienste
+> ℹ️  Der Validator sucht automatisch nach `.env`, `.env.local` und `.env.database` (in dieser Reihenfolge). Bei Bedarf kannst du mit `--env-file path/to/custom.env` eine konkrete Datei prüfen.
 
-- **KRAI Engine API**: `http://localhost:8000`
-- **Health Check**: `http://localhost:8000/health`
-- **Frontend**: `http://localhost:80`
-- **MinIO Console**: `http://localhost:9001` (minioadmin/minioadmin123)
+### Docker starten
 
-## Environment Variables
+- Entwicklung (minimal):
 
-Die `.env` Datei enthält alle notwendigen Konfigurationen für Docker:
+  ```bash
+  docker-compose -f docker-compose.simple.yml up -d
+  ```
 
-- **DATABASE_HOST=krai-postgres** (intern für Docker)
-- **OBJECT_STORAGE_ENDPOINT=`http://krai-minio:9000`** (intern für Docker)
-- **AI_SERVICE_URL=`http://krai-ollama:11434`** (intern für Docker)
+- Mit Firecrawl:
 
-Diese Werte sind für Docker-Container optimiert und sollten nicht geändert werden.
+  ```bash
+  docker-compose -f docker-compose.with-firecrawl.yml up -d
+  ```
 
-## 🔐 Setup-Skripte
+- Production-Parität:
+
+  ```bash
+  docker-compose -f docker-compose.production.yml up -d
+  ```
+
+---
+
+## 🧩 Struktur der `.env` Datei
+
+Die konsolidierte `.env` enthält 10 Sektionen mit 60+ Variablen. Die folgenden Bereiche werden automatisch befüllt:
+
+| Sektion | Umfang | Secrets |
+| ------- | ------ | ------- |
+| 1. Application Settings | 4 Variablen | – |
+| 2. Database Configuration | 16 Variablen | `DATABASE_PASSWORD` |
+| 3. Object Storage | 28 Variablen | `OBJECT_STORAGE_SECRET_KEY`, `R2_SECRET_ACCESS_KEY` |
+| 4. AI Service | 58 Variablen | – |
+| 5. Authentication & Security | 64 Variablen | `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `DEFAULT_ADMIN_PASSWORD` |
+| 6. Processing Pipeline | 27 Variablen | – |
+| 7. Web Scraping | 45 Variablen | `OPENAI_API_KEY` (optional) |
+| 8. External API Keys | 19 Variablen | `YOUTUBE_API_KEY`, `CLOUDFLARE_TUNNEL_TOKEN` |
+| 9. Docker Compose | 64 Variablen | n8n, pgAdmin, Firecrawl, Test-Credentials |
+| 10. Security Reminders | Hinweise | – |
+
+### Kritische Variablen (müssen gesetzt sein)
+
+- `DATABASE_PASSWORD`
+- `OBJECT_STORAGE_SECRET_KEY`
+- `JWT_PRIVATE_KEY` & `JWT_PUBLIC_KEY`
+- `DEFAULT_ADMIN_PASSWORD`
+- `OLLAMA_URL`
+
+Diese Werte werden durch die Setup-Skripte erzeugt und sollten nicht manuell geändert werden.
+
+### Optionale Variablen (Warnungen bei fehlender Konfiguration)
+
+- `YOUTUBE_API_KEY` → Google Cloud Console
+- `CLOUDFLARE_TUNNEL_TOKEN` → Cloudflare Dashboard
+- `OPENAI_API_KEY` → Nur erforderlich, wenn `FIRECRAWL_LLM_PROVIDER=openai`
+
+### Docker-spezifische Standardwerte (nicht anpassen)
+
+- `DATABASE_HOST=krai-postgres`
+- `OBJECT_STORAGE_ENDPOINT=http://krai-minio:9000`
+- `OLLAMA_URL=http://krai-ollama:11434`
+
+Für lokale Host-Verbindungen separate `.env.local` oder Overrides nutzen.
+
+---
+
+## 🌐 Zugängliche Dienste
+
+| Service | URL | Benutzer | Credentials | Compose-Profile |
+| ------- | --- | -------- | ----------- | --------------- |
+| Frontend | http://localhost | – | – | simple, production |
+| Backend API | http://localhost:8000 | – | – | alle |
+| API Docs | http://localhost:8000/docs | – | – | alle |
+| Health Check | http://localhost:8000/health | – | – | alle |
+| MinIO Console | http://localhost:9001 | minioadmin | aus `.env` | simple, production |
+| pgAdmin | http://localhost:5050 | admin@krai.local | aus `.env` | default, production |
+| n8n | http://localhost:5678 | admin | aus `.env` | default |
+| Ollama API | http://localhost:11434 | – | – | alle |
+
+---
+
+## 🛠️ Setup-Skripte im Detail
+
+### setup.ps1 (Windows 10/11 - Empfohlen)
+
+- Generiert 15+ sichere Passwörter mit .NET `RNGCryptoServiceProvider`
+- Generiert RSA 2048-bit Schlüsselpaar mit .NET Crypto API
+- Fallback zu OpenSSL wenn .NET APIs nicht verfügbar
+- Erstellt vollständige `.env` mit allen 10 Sektionen
+- Zeigt generierte Credentials strukturiert an
+- Validiert `.env` nach Erstellung
+- Warnt bei fehlenden optionalen Variablen
+- **Vorteile:** Modern, wartbar, sicher, kurz (299 Zeilen)
+- **Anforderungen:** PowerShell 5.0+ (in Windows 10/11 enthalten)
+
+**Ausführung:**
+
+```powershell
+# Standard-Ausführung
+./setup.ps1
+
+# Mit Force-Flag (überschreibt .env ohne Nachfrage)
+./setup.ps1 -Force
+```
+
+**Troubleshooting:**
+- **Execution Policy blockiert:** `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+- **OpenSSL nicht gefunden:** Installiere OpenSSL oder nutze PowerShell 7+
+- **Skript nicht gefunden:** Nutze `./setup.ps1` (mit Backslash in PowerShell: `.\setup.ps1`)
 
 ### setup.sh (Linux/macOS)
-- Generiert 25-stellige, sichere Passwörter mit OpenSSL
-- Erstellt `.env` Datei automatisch
-- Zeigt generierte Zugangsdaten an
 
-### setup.bat (Windows)
-- Generiert sichere Passwörter mit PowerShell
-- Erstellt `.env` Datei automatisch
-- Benutzerfreundliche Ausgabe
+- Passwörter per `openssl rand -base64`
+- RSA-2048 Keypair für JWT
+- Vollständige `.env` mit allen Sektionen
+- Automatische Validierung via `scripts/validate_env.py`
+- Hinweise auf fehlende optionale Variablen
 
-**Sicherheit:** Die Passwörter werden kryptographisch sicher generiert und nur lokal gespeichert.
+### setup.bat (Windows - Legacy Fallback)
 
-## Fertig! 🎉
+- Gleiche Funktionalität wie setup.ps1
+- Nutzt PowerShell-Aufrufe für Passwort-Generierung
+- RSA-Keys via PowerShell Crypto API oder OpenSSL
+- **Nachteile:** Komplex (744 Zeilen), schwer zu debuggen, Batch-Syntax fehleranfällig
+- **Nur verwenden wenn:** PowerShell 5.0+ nicht verfügbar (sehr alte Windows-Versionen)
 
-Die Anwendung läuft mit allen Services:
+**Ausführung:**
 
-- ✅ PostgreSQL (krai-postgres)
-- ✅ MinIO Object Storage (krai-minio)
-- ✅ Ollama AI Service (krai-ollama)
-- ✅ KRAI Engine API (krai-engine)
-- ✅ Frontend (krai-frontend)
+```cmd
+REM Standard-Ausführung
+setup.bat
+
+REM Mit Force-Flag
+set FORCE=1
+setup.bat
+```
+
+### Sicherheitshinweise
+
+- Secrets werden nur lokal erzeugt
+- `.env` steht in `.gitignore` (niemals committen)
+- Kopiere `.env` nur auf vertrauenswürdige Systeme
+
+---
+
+## ✅ Validierung & Healthchecks
+
+### Automatische Validierung
+
+```bash
+python scripts/validate_env.py          # Pflichtvariablen prüfen
+python scripts/validate_env.py --verbose
+python scripts/validate_env.py --strict
+```
+
+Der Validator prüft u. a.:
+
+- Vollständigkeit aller kritischen Variablen
+- Passwortlängen & optional aktivierte Komplexitätsregeln (`PASSWORD_REQUIRE_*`, `PASSWORD_MIN_LENGTH`)
+- Base64-Format der JWT-Keys
+- Docker-Service-Namen (`krai-postgres`, `krai-minio`, `krai-ollama`) – nur im Docker-Kontext aktiv
+- Optionale Variablen mit Warnungen
+- Firecrawl API Key Pflicht nur, wenn `FIRECRAWL_REQUIRE_API_KEY=true` oder `FIRECRAWL_API_URL` auf eine externe Domain zeigt
+
+Exit-Codes: `0` (OK), `1` (Warnungen), `2` (Fehler oder Warnungen in `--strict`).
+
+### Service-Validierung nach dem Start
+
+```bash
+python scripts/verify_local_setup.py
+python scripts/verify_local_setup.py --service postgresql
+```
+
+Der Service-Checker nutzt Healthchecks aus `docker-compose.*`:
+
+- PostgreSQL → `pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"`
+- MinIO → `wget -qO- http://localhost:9000/minio/health/live`
+- Ollama → `curl -f http://localhost:11434/api/tags`
+- Redis → `redis-cli PING`
+- Frontend → `wget --spider http://localhost/`
+- Backend → `curl -f http://localhost:8000/health`
+
+---
+
+## 🆘 Troubleshooting
+
+### Häufige Probleme & Lösungen
+
+1. **`.env` fehlt oder ist unvollständig**
+   - Symptom: Container starten nicht, Fehler wie `DATABASE_PASSWORD not set`
+   - Lösung: `./setup.sh` bzw. `setup.bat` ausführen oder `.env.example` kopieren
+   - Validierung: `python scripts/validate_env.py`
+
+2. **Port-Konflikte (5432, 9000, 11434, 8000)**
+   - Symptom: "port already in use"
+   - Lösung: `netstat -tulpn | grep :5432` (Linux) oder `netstat -ano | findstr :5432` (Windows)
+   - Alternative: Ports in `docker-compose.*` anpassen
+
+3. **Falsche Credentials**
+   - Symptom: "Authentication failed"
+   - Lösung: Docker-Hostnamen beibehalten (`krai-postgres`, `krai-minio`, `krai-ollama`)
+   - Für Host-Zugriff separate `.env.local` nutzen
+
+4. **GPU wird nicht erkannt**
+   - Symptom: Ollama läuft nur auf CPU
+   - Lösung: NVIDIA Container Toolkit installieren, `docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi`
+   - Fallback: `USE_GPU=false`
+
+5. **Out-of-Memory (OOM)**
+   - Symptom: Container `OOMKilled`
+   - Lösung: Kleinere Ollama-Modelle (`llama3.2:1b`), Docker Memory Limit erhöhen, Batch-Sizes reduzieren
+
+6. **MinIO-Buckets fehlen**
+   - Symptom: "Bucket not found"
+   - Lösung: `python scripts/init_minio.py` oder manuell über http://localhost:9001
+
+7. **Ollama-Modelle fehlen**
+   - Symptom: "Model not found"
+   - Lösung: `docker exec krai-ollama ollama pull nomic-embed-text:latest`
+   - Überprüfen mit `docker exec krai-ollama ollama list`
+
+8. **Vision-Model stürzt ab**
+   - Symptom: CUDA Out-of-memory
+   - Lösung: `DISABLE_VISION_PROCESSING=true`, `MAX_VISION_IMAGES=1`, kleineres Modell (`llava:7b`)
+
+9. **Firecrawl startet nicht**
+   - Symptom: "Firecrawl API not reachable"
+   - Lösung: `SCRAPING_BACKEND=firecrawl`, `FIRECRAWL_API_URL=http://krai-firecrawl-api:3002`, `FIRECRAWL_BULL_AUTH_KEY`
+   - Logs: `docker-compose logs krai-firecrawl-api`
+
+10. **JWT-Authentifizierung schlägt fehl**
+    - Symptom: "Invalid token"
+    - Lösung: `JWT_PRIVATE_KEY` & `JWT_PUBLIC_KEY` prüfen, Base64-Format sicherstellen, bei Bedarf `./setup.sh`
+
+11. **PowerShell-Skript wird nicht ausgeführt**
+    - Symptom: "setup.ps1 cannot be loaded because running scripts is disabled"
+    - Lösung: Execution Policy anpassen:
+      ```powershell
+      Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+      ```
+    - Alternative: Batch-Skript verwenden: `setup.bat`
+    - Dokumentation: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-executionpolicy
+
+12. **setup.bat schlägt fehl mit "RSA key generation failed"**
+    - Symptom: Fehler bei RSA-Key-Generierung in setup.bat
+    - Lösung: Nutze setup.ps1 statt setup.bat:
+      ```powershell
+      ./setup.ps1
+      ```
+    - Oder: Installiere OpenSSL und füge zu PATH hinzu
+    - Grund: setup.bat ist komplexer und fehleranfälliger als setup.ps1
+
+13. **"setup.ps1 not found" auf Windows**
+    - Symptom: PowerShell findet setup.ps1 nicht
+    - Lösung: Nutze `./setup.ps1` (oder `.\setup.ps1`) statt `setup.ps1`
+    - Grund: PowerShell erfordert expliziten Pfad für lokale Skripte
+
+### Diagnosebefehle
+
+- `docker-compose ps`
+- `docker-compose logs -f [service]`
+- `docker stats`
+- `docker inspect [container]`
+- `python scripts/validate_env.py --verbose`
+- `python scripts/verify_local_setup.py --verbose`
+
+### Reset-Prozeduren
+
+- **Soft Reset:** `docker-compose restart`
+- **Hard Reset:** `docker-compose down && docker-compose up -d`
+- **Full Reset (löscht Daten!):** `docker-compose down -v && docker-compose up -d --build`
+
+---
+
+## 📚 Weiterführende Links
+
+- [README.md](README.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+- [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
+- [docs/ENVIRONMENT_VARIABLES_REFERENCE.md](docs/ENVIRONMENT_VARIABLES_REFERENCE.md)
+- [docs/DOCKER_SETUP_GUIDE.md](docs/DOCKER_SETUP_GUIDE.md)
+
+### Hilfreiche Skripte
+
+- `setup.sh` – Linux/macOS Setup (Bash)
+- `setup.ps1` – Windows 10/11 Setup (PowerShell) – **Empfohlen**
+- `setup.bat` – Windows Legacy Setup (Batch) – Nur als Fallback
+- `scripts/validate_env.py`
+- `scripts/verify_local_setup.py`
+- `scripts/init_minio.py`

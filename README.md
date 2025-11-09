@@ -9,7 +9,7 @@ Advanced Multimodal AI Document Processing Pipeline with Local-First Architectur
 ```bash
 git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
-./setup.sh
+./setup.sh  # Generates all 15+ secrets, RSA keys, and passwords automatically
 docker-compose -f docker-compose.simple.yml up --build -d
 ```
 
@@ -18,7 +18,7 @@ docker-compose -f docker-compose.simple.yml up --build -d
 ```bash
 git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
-./setup.sh
+./setup.sh  # Generates all 15+ secrets, RSA keys, and passwords automatically
 docker-compose -f docker-compose.with-firecrawl.yml up --build -d
 ```
 
@@ -27,6 +27,10 @@ docker-compose -f docker-compose.with-firecrawl.yml up --build -d
 ```cmd
 git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
+# Recommended: PowerShell (Windows 10/11)
+.\setup.ps1  # Modern, secure, and maintainable
+
+# Alternative: Batch (legacy fallback for older Windows)
 setup.bat
 docker-compose -f docker-compose.simple.yml up --build -d
 ```
@@ -36,6 +40,10 @@ docker-compose -f docker-compose.simple.yml up --build -d
 ```cmd
 git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
+# Recommended: PowerShell (Windows 10/11)
+.\setup.ps1  # Modern, secure, and maintainable
+
+# Alternative: Batch (legacy fallback for older Windows)
 setup.bat
 docker-compose -f docker-compose.with-firecrawl.yml up --build -d
 ```
@@ -48,17 +56,44 @@ docker-compose -f docker-compose.with-firecrawl.yml up --build -d
 - ⚙️ **API**: `http://localhost:8000`
 - 📊 **API Docs**: `http://localhost:8000/docs`
 - 🏥 **Health Check**: `http://localhost:8000/health`
-- 💾 **MinIO Console**: `http://localhost:9001` (minioadmin/minioadmin)
+- 💾 **MinIO Console**: `http://localhost:9001` (credentials from `.env`)
+  - Setup scripts may randomize MinIO credentials—check your `.env` for the current values.
 - 🔥 **Firecrawl API**: `http://localhost:9002` (nur mit Firecrawl-Setup)
+
+**🔐 What the setup script does:**
+- ✅ Generates 15+ cryptographically secure passwords
+- ✅ Creates RSA 2048-bit keypair for JWT authentication
+- ✅ Consolidates all configuration into single `.env` file (10 sections)
+- ✅ Validates all required variables are set
+- ✅ Shows generated credentials for your reference
+
+**📋 Manual configuration required:**
+- YouTube API Key (optional): Get from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+- Cloudflare Tunnel Token (optional): Get from [Cloudflare Dashboard](https://dash.cloudflare.com/)
 
 ### 📋 Manual Setup (Alternative)
 
 ```bash
 git clone https://github.com/Kunze-Ritter/Manual2Vector
 cd Manual2Vector
-cp .env.example .env
+cp .env.example .env  # Contains 10 sections with 60+ configuration variables
 docker-compose -f docker-compose.simple.yml up --build -d
 ```
+
+# ⚠️ Warning: Manual setup requires editing 15+ secrets - use setup.sh instead!
+
+**Windows Setup Scripts:**
+
+- **setup.ps1** (Recommended): Modern PowerShell script for Windows 10/11
+  - Uses .NET Crypto APIs for secure secret generation
+  - Shorter and more maintainable than setup.bat (299 vs. 744 lines)
+  - Requires PowerShell 5.0+ (included in Windows 10/11)
+  - Fallback to OpenSSL if .NET APIs unavailable
+
+- **setup.bat** (Legacy): Batch script for older Windows versions
+  - Use only if PowerShell 5.0+ is not available
+  - More complex and harder to debug
+  - Requires PowerShell for password generation
 
 ## 🏗️ What's Included
 
@@ -78,14 +113,16 @@ docker-compose -f docker-compose.simple.yml up --build -d
 ## 📖 Documentation
 
 - 🐳 **[Docker Setup Guide](DOCKER_SETUP.md)** - Complete installation instructions
-- 🔐 **Setup Scripts** - Automatic password generation (`./setup.sh` or `setup.bat`)
+- 🔐 **Setup Scripts** - Automatic password generation (`./setup.sh`, `./setup.ps1`, or `setup.bat`)
 - 🏗️ **[Architecture](docs/architecture/)** - System design and components
 - 🔧 **[API Documentation](docs/api/)** - REST API reference
 - 🧪 **[Testing](tests/)** - Test suites and E2E tests
 
 ## 🔐 Security Features
 
-- **Automatic Password Generation**: Setup scripts create cryptographically secure passwords
+- **Automatic Password Generation**: Setup scripts (setup.sh, setup.ps1, setup.bat) create 15+ cryptographically secure passwords and RSA keys
+- **Consolidated Configuration**: Single `.env` file with 10 logical sections for easy management
+- **Environment Validation**: Built-in validation script checks all required variables before startup
 - **Local-First Architecture**: All data stays on your infrastructure
 - **Docker Isolation**: Services run in isolated containers
 - **Environment Variables**: Sensitive configuration stored securely in `.env` file
@@ -169,9 +206,16 @@ cd Manual2Vector
 # Linux/macOS
 ./setup.sh
 
-# Windows
-setup.bat
+# Windows (PowerShell 5+ recommended)
+# Run from an elevated PowerShell prompt if required by your environment
 ```
+
+```powershell
+cd Manual2Vector
+.\setup.ps1
+```
+
+> **Note:** `setup.bat` remains available as a legacy fallback for Windows versions without PowerShell 5+.
 
 - **Start the services:**
 
@@ -204,7 +248,7 @@ curl http://localhost:8000/health
 
 ### Environment Variables
 
-Key configuration options in `.env`:
+Key configuration options in `.env` (10 sections, 60+ variables):
 
 ```bash
 # Database Configuration
@@ -221,7 +265,52 @@ OBJECT_STORAGE_ACCESS_KEY=minioadmin
 OBJECT_STORAGE_SECRET_KEY=<generated-password>
 
 # AI Service
+OLLAMA_URL=http://krai-ollama:11434
 AI_SERVICE_URL=http://krai-ollama:11434
+```
+
+> **Note:** The backend reads `OLLAMA_URL`. Keep `AI_SERVICE_URL` for tooling only if needed, and ensure both values stay synchronized.
+
+### Setup Script Comparison
+
+| Feature | setup.sh | setup.ps1 | setup.bat |
+|---------|----------|-----------|----------|
+| Platform | Linux/macOS | Windows 10/11 | Windows (all) |
+| Lines of Code | 855 | 299 | 744 |
+| Crypto API | OpenSSL | .NET + OpenSSL | PowerShell + OpenSSL |
+| Maintainability | ✅ High | ✅ High | ⚠️ Medium |
+| Recommended | ✅ Yes | ✅ Yes | ⚠️ Legacy only |
+
+**Recommendation:**
+- **Linux/macOS:** Use `./setup.sh` 
+- **Windows 10/11:** Use `.\setup.ps1` (PowerShell)
+- **Older Windows:** Use `setup.bat` as fallback
+
+### Environment Validation
+
+Validate your `.env` file before starting Docker:
+
+```bash
+# Check all required variables are set
+python scripts/validate_env.py
+
+# Verbose output with detailed checks
+python scripts/validate_env.py --verbose
+
+# Treat warnings as errors (strict mode)
+python scripts/validate_env.py --strict
+```
+
+### Service Verification
+
+After starting Docker, verify all services are healthy:
+
+```bash
+# Check all Docker services
+python scripts/verify_local_setup.py
+
+# Check specific service
+python scripts/verify_local_setup.py --service postgresql
 ```
 
 ### Custom Models
@@ -308,6 +397,31 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **API Reference**: `http://localhost:8000/docs`
 - **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions)
+- **Environment Validation**: `python scripts/validate_env.py`
+- **Service Verification**: `python scripts/verify_local_setup.py`
+- **Troubleshooting**: [DOCKER_SETUP.md](DOCKER_SETUP.md#troubleshooting)
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Environment Configuration:**
+- **Missing `.env` file**: Run `./setup.sh` or `.\setup.ps1` to generate
+- **Invalid credentials**: Check `python scripts/validate_env.py` output
+- **Port conflicts**: See [DOCKER_SETUP.md](DOCKER_SETUP.md#troubleshooting) for solutions
+
+**Docker Services:**
+- **Container not starting**: Check logs with `docker-compose logs [service]`
+- **Out of memory**: Reduce model sizes or increase Docker memory limit
+- **GPU not detected**: Install NVIDIA Container Toolkit (see [DOCKER_SETUP.md](DOCKER_SETUP.md))
+
+**Setup Script Issues:**
+- **PowerShell script not found**: Ensure you're using `.\setup.ps1` (with backslash) on Windows
+- **PowerShell execution policy**: Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` if blocked
+- **setup.bat fails**: Try `.\setup.ps1` instead (recommended for Windows 10/11)
+- **OpenSSL not found**: Install OpenSSL or use PowerShell 7+ (includes .NET Crypto APIs)
+
+**For detailed troubleshooting, see [DOCKER_SETUP.md](DOCKER_SETUP.md#troubleshooting)**
 
 ## 🎉 Acknowledgments
 

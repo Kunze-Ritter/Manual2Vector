@@ -1,10 +1,11 @@
 """Find error codes with images where manufacturer has videos"""
 import os
-from dotenv import load_dotenv
 from pathlib import Path
 from supabase import create_client
 
-load_dotenv(Path(__file__).parent / '.env.database')
+from backend.processors.env_loader import load_all_env_files
+
+load_all_env_files(Path(__file__).parent.parent)
 
 client = create_client(
     os.getenv('SUPABASE_URL'),

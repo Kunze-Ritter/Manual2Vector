@@ -23,7 +23,7 @@ import psutil
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dotenv import load_dotenv
+from processors.env_loader import load_all_env_files
 
 # Import services
 from services.database_service import DatabaseService
@@ -87,70 +87,22 @@ class KRMasterPipeline:
         """Initialize all services"""
         self.logger.info("Initializing KR Master Pipeline services")
         
-        # Load environment variables from specific .env files
-        # Try multiple possible locations for .env files (universal approach)
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        current_dir = os.getcwd()
-        
-        # Define specific .env files to load
-        env_files = [
-            '.env.test',         # Test configuration (prioritized)
-            'env.database',      # Database configuration
-            'env.storage',       # Storage configuration  
-            'env.ai',           # AI configuration
-            'env.system',       # System configuration
-            '.env'              # Legacy fallback
-        ]
-        
-        # Build search paths for each .env file
-        base_paths = [
-            # Relative to script location
-            script_dir,                                         # Same as script
-            os.path.join(script_dir, '..'),                     # Parent of script
-            os.path.join(script_dir, '..', '..'),               # Two levels up from script
-            os.path.join(script_dir, '..', '..', '..'),         # Three levels up from script
-            
-            # Relative to current working directory
-            current_dir,                                        # Current directory
-            os.path.join(current_dir, '..'),                    # Parent of current
-            os.path.join(current_dir, '..', '..'),              # Two levels up from current
-            
-            # Absolute paths (fallback)
-            '.',                                                # Same directory (relative)
-            '..',                                               # Parent directory (relative)
-            '../..',                                            # Two levels up (relative)
-        ]
-        
-        env_paths = []
-        for env_file in env_files:
-            for base_path in base_paths:
-                env_paths.append(os.path.join(base_path, env_file))
-        
-        env_loaded = False
-        loaded_files = []
-        
-        # Load all found .env files (not just the first one)
-        for env_path in env_paths:
-            if os.path.exists(env_path):
-                load_dotenv(env_path)
-                loaded_files.append(os.path.abspath(env_path))
-                env_loaded = True
-        
+        project_root = Path(__file__).resolve().parents[2]
+        extra_env_files = ['.env.test', 'env.database', 'env.storage', 'env.ai', 'env.system']
+
+        loaded_files = load_all_env_files(project_root, extra_files=extra_env_files)
+
         if loaded_files:
+            resolved_paths = [str(project_root / env_file) for env_file in loaded_files]
             self.logger.info(
-                f"Environment loaded: {len(loaded_files)} files - {'; '.join(loaded_files)}"
+                "Environment loaded: %s files - %s",
+                len(loaded_files),
+                '; '.join(resolved_paths)
             )
         else:
-            env_loaded = False
-        
-        if not env_loaded:
-            self.logger.warning("No .env file found in expected locations")
-            self.logger.info("Searched for env files: %s", ", ".join(env_files))
-            self.logger.info(
-                "Search base paths (sample): %s",
-                ", ".join(os.path.abspath(path) for path in base_paths[:3])
-            )
-            
+            self.logger.warning("No .env files found in project root: %s", project_root)
+            self.logger.info("Attempted to load files: %s", ', '.join(extra_env_files + ['.env', '.env.local']))
+
             # Try to create .env files from templates if available
             self._try_create_env_from_templates()
             raise RuntimeError("Environment files not found")

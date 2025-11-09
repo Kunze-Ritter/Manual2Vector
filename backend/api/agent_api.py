@@ -35,18 +35,15 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 import sys
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from supabase import Client
+from processors.env_loader import load_all_env_files
 
-# Load ALL environment files (they are in project root)
+# Load consolidated environment configuration (supports legacy overrides)
 project_root = Path(__file__).parent.parent.parent
-load_dotenv(project_root / '.env.ai')
-load_dotenv(project_root / '.env.database')
-load_dotenv(project_root / '.env.external')
-load_dotenv(project_root / '.env.pipeline')
-load_dotenv(project_root / '.env.storage')
+load_all_env_files(project_root)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

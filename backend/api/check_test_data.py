@@ -3,13 +3,19 @@ Quick check if test data exists in Supabase
 """
 
 import os
+import sys
 from pathlib import Path
-from dotenv import load_dotenv
+
 from supabase import create_client
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.processors.env_loader import load_all_env_files
+
 # Load environment
-project_root = Path(__file__).parent.parent.parent
-load_dotenv(project_root / '.env.database')
+load_all_env_files(PROJECT_ROOT)
 
 # Connect to Supabase
 supabase = create_client(

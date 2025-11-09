@@ -1616,8 +1616,8 @@ UPLOAD_DOCUMENTS_TO_R2=false
 
 - [x] **Lösungsübersetzung per Env togglebar** ✅ (12:45)
   - Übersetzung nur noch bei `ENABLE_SOLUTION_TRANSLATION=true`; Standard bleibt Originalsprache
-  - Env-Beispiele in `.env.ai.example` dokumentiert (`SOLUTION_TRANSLATION_LANGUAGE`)
-  - **Files:** `backend/services/ai_service.py`, `backend/api/progressive_search.py`, `.env.ai.example`
+  - Env-Beispiele in konsolidierter `.env.example` dokumentiert (`SOLUTION_TRANSLATION_LANGUAGE`)
+  - **Files:** `backend/services/ai_service.py`, `backend/api/progressive_search.py`, `.env.example`
   - **Result:** Agent-Suche bleibt schnell, Übersetzung lässt sich bei Bedarf aktivieren
 
 - [x] **Accessory-Linker DNS Retry** ✅ (12:47)

@@ -5,12 +5,13 @@ Shows size and potential use cases
 """
 
 import os
-from pathlib import Path
-from dotenv import load_dotenv
+
 from supabase import create_client
 
+from scripts._env import load_env
+
 # Load env
-load_dotenv(Path(__file__).parent.parent / '.env.database')
+load_env()
 
 client = create_client(
     os.getenv('SUPABASE_URL'),

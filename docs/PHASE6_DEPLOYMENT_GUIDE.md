@@ -464,7 +464,7 @@ services:
     restart: unless-stopped
     
   krai-minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=secure_minio_password

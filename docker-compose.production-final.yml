@@ -1,5 +1,5 @@
 services:
-  # KRAI Frontend Dashboard
+  # KRAI Frontend Dashboard - production
   krai-frontend:
     build:
       context: .
@@ -19,7 +19,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # KRAI Engine API
+  # KRAI Engine API - all config from .env
   krai-engine:
     build:
       context: .
@@ -29,16 +29,6 @@ services:
     restart: always
     ports:
       - "8000:8000"
-    environment:
-      - ENV=production
-      - API_HOST=0.0.0.0
-      - API_PORT=8000
-      - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql://krai_user:krai_secure_password@krai-postgres:5432/krai
-      - MINIO_ENDPOINT=krai-minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - OLLAMA_BASE_URL=http://krai-ollama:11434
     env_file:
       - .env
     volumes:
@@ -61,10 +51,12 @@ services:
         --error-logfile /app/logs/error.log
         --timeout 300
 
-  # PostgreSQL Database
+  # PostgreSQL Database - credentials from .env
   krai-postgres:
     image: pgvector/pgvector:pg16
     container_name: krai-postgres-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "5432:5432"
@@ -82,9 +74,9 @@ services:
       -c min_wal_size=2GB
       -c max_wal_size=8GB
     environment:
-      - POSTGRES_DB=krai
-      - POSTGRES_USER=krai_user
-      - POSTGRES_PASSWORD=krai_secure_password
+      - POSTGRES_DB=${DATABASE_NAME:-krai}
+      - POSTGRES_USER=${DATABASE_USER:-krai_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
     volumes:
       - krai_postgres_data:/var/lib/postgresql/data
@@ -92,23 +84,25 @@ services:
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U krai_user -d krai"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 20s
       timeout: 5s
       retries: 5
 
-  # MinIO Object Storage (simplified)
+  # MinIO Object Storage (simplified) - credentials from .env
   krai-minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: krai-minio-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    command: server /data --console-address ":9000"
+      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY:-minioadmin123}
+    command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
     networks:
@@ -119,10 +113,12 @@ services:
       timeout: 10s
       retries: 3
 
-  # Ollama AI Service
+  # Ollama AI Service - production with GPU
   krai-ollama:
     image: ollama/ollama:latest
     container_name: krai-ollama-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "11434:11434"
@@ -135,6 +131,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    # GPU support - production
     deploy:
       resources:
         reservations:

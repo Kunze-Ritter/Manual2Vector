@@ -1,15 +1,14 @@
-"""
-Apply Migration 82: Cleanup duplicate views and rules
-"""
+"""Apply Migration 82: Cleanup duplicate views and rules"""
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+
 from supabase import create_client
 
+from scripts._env import load_env
+
 # Load environment
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env.database')
+load_env()
 
 # Connect to Supabase
 supabase = create_client(
@@ -22,7 +21,7 @@ print("APPLYING MIGRATION 82: Cleanup duplicate views and rules")
 print("="*60)
 
 # Read migration file
-migration_file = project_root / 'database' / 'migrations' / '82_cleanup_duplicate_views_and_rules.sql'
+migration_file = Path(__file__).resolve().parent.parent / 'database' / 'migrations' / '82_cleanup_duplicate_views_and_rules.sql'
 with open(migration_file, 'r', encoding='utf-8') as f:
     sql = f.read()
 

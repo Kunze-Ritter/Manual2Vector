@@ -5,12 +5,13 @@ Export Database Schema for Migration 123 Documentation
 import os
 import csv
 from pathlib import Path
-from dotenv import load_dotenv
+
 from supabase import create_client
 
+from scripts._env import load_env
+
 # Load environment
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env.database')
+load_env(extra_files=['.env.database'])
 
 # Connect to Supabase
 supabase = create_client(

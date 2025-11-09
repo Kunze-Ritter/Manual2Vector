@@ -7,15 +7,14 @@ import sys
 import os
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from supabase import create_client
-from dotenv import load_dotenv
+from backend.processors.env_loader import load_all_env_files
 
 # Load environment
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env')
-load_dotenv(project_root / '.env.database', override=True)
+load_all_env_files(project_root)
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY')

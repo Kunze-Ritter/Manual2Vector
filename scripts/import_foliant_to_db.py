@@ -8,13 +8,12 @@ import re
 from pathlib import Path
 from supabase import create_client
 import os
-from dotenv import load_dotenv
 from uuid import uuid4
 
-# Load environment variables from multiple .env files
-load_dotenv()  # Load .env
-load_dotenv('.env.database')  # Load .env.database
-load_dotenv('.env.ai')  # Load .env.ai if exists
+from backend.processors.env_loader import load_all_env_files
+
+# Load environment variables via centralized loader
+load_all_env_files(Path(__file__).parent.parent)
 
 def extract_foliant_data(pdf_path):
     """Extract compatibility data from Foliant PDF"""

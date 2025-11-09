@@ -18,13 +18,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# Load environment variables
+# Load environment variables via centralized loader
 try:
-    from dotenv import load_dotenv
-    load_dotenv(PROJECT_ROOT / '.env')
-    load_dotenv(PROJECT_ROOT / '.env.database', override=True)
+    from backend.processors.env_loader import load_all_env_files
+    loaded_files = load_all_env_files(PROJECT_ROOT)
+    if loaded_files:
+        print(f"Loaded environment files: {', '.join(loaded_files)}")
+    else:
+        print("⚠️  No .env files found - relying on system environment variables")
 except ImportError:
-    print("⚠️  python-dotenv not installed, using system environment variables")
+    print("⚠️  Environment loader not available, using system environment variables")
 
 
 class Colors:

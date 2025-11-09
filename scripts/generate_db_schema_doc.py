@@ -6,14 +6,19 @@ in the KRAI database for reference.
 """
 
 import os
+import sys
 from pathlib import Path
-from dotenv import load_dotenv
 from supabase import create_client
 import json
 
-# Load environment
 project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env.database')
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from backend.processors.env_loader import load_all_env_files
+
+# Load environment via centralized loader
+load_all_env_files(project_root)
 
 # Connect to Supabase
 supabase = create_client(

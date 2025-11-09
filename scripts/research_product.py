@@ -28,19 +28,16 @@ backend_path = Path(__file__).parent.parent / 'backend'
 sys.path.insert(0, str(backend_path))
 
 from supabase import create_client
-from dotenv import load_dotenv
+from backend.processors.env_loader import load_all_env_files
 from research.product_researcher import ProductResearcher
 from research.research_integration import ResearchIntegration
 
 # Load environment variables
 project_root = Path(__file__).parent.parent
-env_files = ['.env', '.env.database', '.env.external', '.env.ai']
 print("Loading environment variables...")
-for env_file in env_files:
-    env_path = project_root / env_file
-    if env_path.exists():
-        load_dotenv(env_path, override=True)
-        print(f"  ✓ Loaded: {env_file}")
+loaded_env_files = load_all_env_files(project_root)
+for env_file in loaded_env_files:
+    print(f"  ✓ Loaded: {env_file}")
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv('SUPABASE_URL')

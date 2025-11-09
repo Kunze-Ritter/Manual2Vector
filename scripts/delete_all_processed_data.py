@@ -1,16 +1,17 @@
-"""
-Delete ALL processed data from database
+"""Delete ALL processed data from database.
+
 WARNING: This will delete EVERYTHING except manufacturers!
 """
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+
 from supabase import create_client
 
-# Load environment
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env.database')
+from scripts._env import load_env
+
+# Load environment (allow legacy overrides while migrating)
+load_env(extra_files=['.env.database'])
 
 # Connect to Supabase
 supabase = create_client(

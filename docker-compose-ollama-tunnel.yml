@@ -1,10 +1,12 @@
 version: '3.8'
 
 services:
-  # Cloudflare Tunnel für Ollama
+  # Cloudflare Tunnel for Ollama - config from .env
   cloudflared-ollama:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared-ollama-tunnel
+    env_file:
+      - .env
     restart: unless-stopped
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN_OLLAMA}
     environment:

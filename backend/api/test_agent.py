@@ -7,15 +7,12 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Load ALL environment files (they are in project root)
+from processors.env_loader import load_all_env_files
+
+# Load environment files via centralized loader
 project_root = Path(__file__).parent.parent.parent
-load_dotenv(project_root / '.env.ai')
-load_dotenv(project_root / '.env.database')
-load_dotenv(project_root / '.env.external')
-load_dotenv(project_root / '.env.pipeline')
-load_dotenv(project_root / '.env.storage')
+load_all_env_files(project_root)
 
 BASE_URL = "http://localhost:8000/agent"
 SESSION_ID = f"test-{int(time.time())}"

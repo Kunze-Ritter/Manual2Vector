@@ -6,24 +6,25 @@ FastAPI endpoint for the search_error_code_multi_source tool.
 Implements the exact response format specified in Agent System Message V2.4.
 """
 import logging
-import json
-import re
-from typing import Dict, List, Optional, Any
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
-import sys
 import os
+import sys
 from pathlib import Path
+from typing import Dict, List
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
+from supabase import Client, create_client
 
-from supabase import Client
-from dotenv import load_dotenv
+from backend.api.check_error_code_in_db import normalize_error_code
+from backend.api.check_db_schema import SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL
 
-# Load environment variables
-load_dotenv(project_root / '.env.database')
+logger = logging.getLogger(__name__)
+
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from backend.processors.env_loader import load_all_env_files
+
+load_all_env_files(project_root)
 
 logger = logging.getLogger(__name__)
 

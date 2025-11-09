@@ -7,22 +7,37 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 ### 📁 File Structure
 
 ```text
-.env.auth        # Authentication service & admin bootstrap
-.env.database    # Database configuration (Supabase)
-.env.storage     # Object storage (Cloudflare R2)
-.env.ai          # AI services (Ollama)
-.env.pipeline    # Processing pipeline settings
+.env             # Primary configuration (recommended)
+.env.local       # Developer-specific overrides (ignored by git)
+
+# Optional legacy overrides for historic deployments
+.env.auth        # Authentication service & admin bootstrap overrides
+.env.database    # Database overrides (Supabase credentials etc.)
+.env.storage     # Object storage overrides (Cloudflare R2)
+.env.ai          # AI service overrides (Ollama)
+.env.pipeline    # Processing pipeline overrides
 .env.external    # External APIs (YouTube, Cloudflare Tunnels)
-.env             # Main config (optional, for overrides)
 ```
 
 ---
 
 ## 📋 File Details
 
-### `.env.auth` - Authentication Service
+### `.env` - Primary Configuration
 
-Use this file to configure JWT signing keys and the bootstrap admin account.
+The consolidated `.env` now contains all sections (application, database, storage, AI, authentication, pipeline, scraping, external APIs). Copy `.env.example`, adjust values, and keep it synchronized with your deployment secrets manager.
+
+### `.env.local` - Developer Overrides *(Optional)*
+
+Use this file for local tweaks (e.g., alternate ports, mock credentials). It is ignored by git and loaded last so the values override everything else.
+
+### Legacy Override Files *(Optional)*
+
+Existing deployments may still rely on modular files. They continue to load before `.env`, so migrating can be incremental.
+
+#### `.env.auth` - Authentication Service Overrides
+
+Contains JWT signing keys and the bootstrap admin account when not using the consolidated file yet.
 
 #### Key Variables
 
@@ -104,15 +119,11 @@ Captures API keys and integration URLs for external services.
 
 ## 🔄 Loading Order
 
-Files are loaded in this order (later files can override earlier ones):
+Files are loaded in this order (later files override earlier ones):
 
-1. `.env.auth` - Authentication keys & admin defaults
-2. `.env.database` - Core database config
-3. `.env.storage` - Storage configuration
-4. `.env.ai` - AI services
-5. `.env.pipeline` - Pipeline settings
-6. `.env.external` - External APIs
-7. `.env` - Main config (optional overrides)
+1. Legacy override files (`.env.database`, `.env.storage`, `.env.external`, `.env.pipeline`, `.env.ai`, `.env.auth`)
+2. Consolidated `.env`
+3. Developer-specific `.env.local`
 
 ---
 

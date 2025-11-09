@@ -8,23 +8,23 @@ This document provides a comprehensive reference for all environment variables u
 
 ### Primary Configuration Files
 
-- `.env` - Main application configuration
-- `.env.database` - Database and connection settings
-- `.env.ai` - AI service and model configuration
-- `.env.storage` - Object storage and file handling
-- `.env.auth` - Authentication and authorization
-- `.env.external` - External service integrations
-- `.env.pipeline` - Document processing pipeline settings
+- `.env` - Central application configuration (covers database, storage, AI, auth, scraping, and feature toggles)
+- `.env.local` *(optional)* - Developer-specific overrides that stay untracked
+
+### Legacy Modular Overrides *(optional)*
+
+- `.env.database` - Database-specific overrides for historic deployments
+- `.env.storage` - Object storage overrides (MinIO / R2)
+- `.env.ai` - AI service overrides
+- `.env.pipeline` - Processing pipeline overrides
+- `.env.external` - External service overrides
+- `.env.auth` - Authentication overrides
+
+These legacy files remain supported for backwards compatibility but should be merged into `.env` for new setups.
 
 ### Template Files
 
-- `.env.example` - Main configuration template
-- `.env.database.example` - Database configuration template
-- `.env.ai.example` - AI service configuration template
-- `.env.storage.example` - Storage configuration template
-- `.env.auth.example` - Authentication configuration template
-- `.env.external.example` - External services template
-- `.env.pipeline.example` - Pipeline configuration template
+- `.env.example` - Comprehensive configuration template covering all sections (includes database, storage, AI, authentication, pipeline, scraping, and external APIs)
 
 ## Core Application Configuration (.env)
 

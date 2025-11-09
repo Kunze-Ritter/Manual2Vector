@@ -1,9 +1,12 @@
+"""Check unknown videos in Supabase"""
+
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+
 from supabase import create_client
 
-load_dotenv(Path('.env.database'))
+from scripts._env import load_env
+
+load_env()
 client = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_SERVICE_ROLE_KEY'))
 
 # Get unknown platform videos

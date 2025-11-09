@@ -29,18 +29,16 @@ from datetime import datetime
 from typing import List, Optional
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from supabase import create_client
-from dotenv import load_dotenv
+from backend.processors.env_loader import load_all_env_files
 
 # Load environment variables
-project_root = Path(__file__).parent.parent
-env_files = ['.env', '.env.database']
-for env_file in env_files:
-    env_path = project_root / env_file
-    if env_path.exists():
-        load_dotenv(env_path, override=True)
+loaded_env_files = load_all_env_files(project_root)
+for env_file in loaded_env_files:
+    print(f"Loaded environment file: {env_file}")
 
 # Initialize Supabase
 SUPABASE_URL = os.getenv('SUPABASE_URL')

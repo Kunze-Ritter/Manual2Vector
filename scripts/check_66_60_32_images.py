@@ -1,10 +1,12 @@
 """Check if 66.60.32 has images"""
+
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+
 from supabase import create_client
 
-load_dotenv(Path('.env.database'))
+from scripts._env import load_env
+
+load_env(extra_files=['.env.database'])
 client = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_SERVICE_ROLE_KEY'))
 
 code = "66.60.32"

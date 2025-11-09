@@ -1,10 +1,18 @@
 """Check error code data in database"""
 import os
-from dotenv import load_dotenv
+import sys
 from pathlib import Path
 import requests
 
-load_dotenv(Path(__file__).parent / '.env.database')
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.processors.env_loader import load_all_env_files
+
+loaded_env_files = load_all_env_files(PROJECT_ROOT)
+if not loaded_env_files:
+    print("⚠️  No .env files found - relying on system environment variables")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")

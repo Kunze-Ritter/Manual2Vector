@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import os
 import secrets
-from dotenv import load_dotenv
 from supabase import create_client
 import sys
 import logging
@@ -52,15 +51,11 @@ from api.routes.search import router as search_router
 from api import websocket as websocket_api
 from services.metrics_service import MetricsService
 from services.alert_service import AlertService
+from processors.env_loader import load_all_env_files
 
-# Load ALL environment files (they are in project root)
+# Load consolidated environment configuration
 project_root = Path(__file__).parent.parent.parent
-load_dotenv(project_root / '.env.ai')
-load_dotenv(project_root / '.env.database')
-load_dotenv(project_root / '.env.external')
-load_dotenv(project_root / '.env.pipeline')
-load_dotenv(project_root / '.env.storage')
-load_dotenv(project_root / '.env.auth')
+load_all_env_files(project_root)
 
 # Security configuration
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))

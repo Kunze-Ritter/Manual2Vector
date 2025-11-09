@@ -1,4 +1,6 @@
 # Production Dockerfile for KRAI Engine
+# Security: No secrets are baked into this image
+# All configuration is provided at runtime via environment variables
 FROM python:3.11-slim
 
 # Set working directory
@@ -28,9 +30,12 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY backend/ /app/
 COPY scripts/ /app/scripts/
 COPY main.py /app/main.py
-COPY .env /app/.env
 
 # Create necessary directories
+# Runtime environment variables:
+# - Injected via docker-compose 'env_file: - .env'
+# - Or via Kubernetes ConfigMaps/Secrets
+# - Or via docker run -e or --env-file flags
 RUN mkdir -p /app/data /app/logs /app/temp
 
 # Expose port

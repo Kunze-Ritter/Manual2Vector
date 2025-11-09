@@ -1,10 +1,10 @@
 """Search for similar error codes"""
 import os
-from dotenv import load_dotenv
-from pathlib import Path
 from supabase import create_client
 
-load_dotenv(Path(__file__).parent / '.env.database')
+from scripts._env import load_env
+
+load_env(extra_files=['.env.database'])
 
 client = create_client(
     os.getenv('SUPABASE_URL'),

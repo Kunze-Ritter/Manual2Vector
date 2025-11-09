@@ -1,14 +1,16 @@
 version: '3.8'
 
 services:
-  # Test PostgreSQL Database
+  # Test PostgreSQL Database - separate test credentials
   postgresql-test:
     image: pgvector/pgvector:pg15
     container_name: krai-postgresql-test
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: krai_test
-      POSTGRES_USER: krai_test
-      POSTGRES_PASSWORD: krai_test_password
+      POSTGRES_DB: ${TEST_DATABASE_NAME:-krai_test}
+      POSTGRES_USER: ${TEST_DATABASE_USER:-krai_test}
+      POSTGRES_PASSWORD: ${TEST_DATABASE_PASSWORD:-krai_test_password}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
       - "5433:5432"  # Different port to avoid conflicts
@@ -18,19 +20,21 @@ services:
     networks:
       - krai-test-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U krai_test -d krai_test"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  # Test MinIO Storage
+  # Test MinIO Storage - separate test credentials
   minio-test:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: krai-minio-test
+    env_file:
+      - .env
     environment:
-      MINIO_ROOT_USER: test_access_key
-      MINIO_ROOT_PASSWORD: test_secret_key
+      MINIO_ROOT_USER: ${TEST_STORAGE_ACCESS_KEY:-test_access_key}
+      MINIO_ROOT_PASSWORD: ${TEST_STORAGE_SECRET_KEY:-test_secret_key}
     ports:
       - "9001:9000"  # Different port to avoid conflicts
       - "9002:9001"  # Console port
@@ -45,10 +49,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # Test Redis (for caching and sessions)
+  # Test Redis - for caching and sessions
   redis-test:
     image: redis:7-alpine
     container_name: krai-redis-test
+    env_file:
+      - .env
     ports:
       - "6380:6379"  # Different port to avoid conflicts
     volumes:
@@ -62,10 +68,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # Test Redis for Firecrawl
+  # Test Redis for Firecrawl - separate instance
   redis-firecrawl-test:
     image: redis:7-alpine
     container_name: krai-redis-firecrawl-test
+    env_file:
+      - .env
     ports:
       - "6381:6379"  # Different port to avoid conflicts
     volumes:
@@ -81,10 +89,12 @@ services:
     profiles:
       - firecrawl
 
-  # Test Playwright Service for Firecrawl
+  # Test Playwright Service - for Firecrawl testing
   playwright-test:
     image: ghcr.io/mendableai/playwright-service:latest
     container_name: krai-playwright-test
+    env_file:
+      - .env
     environment:
       - PORT=3000
     ports:
@@ -101,20 +111,22 @@ services:
     profiles:
       - firecrawl
 
-  # Test Firecrawl API Service
+  # Test Firecrawl API - test environment
   firecrawl-api-test:
     image: ghcr.io/firecrawl/firecrawl:latest
     container_name: krai-firecrawl-api-test
+    env_file:
+      - .env
     environment:
       - NODE_ENV=test
       - PORT=3002
       - HOST=0.0.0.0
       - REDIS_URL=redis://redis-firecrawl-test:6379
       - PLAYWRIGHT_MICROSERVICE_URL=http://playwright-test:3000/scrape
-      - BULL_AUTH_KEY=test_firecrawl_admin
+      - BULL_AUTH_KEY=${TEST_FIRECRAWL_BULL_AUTH_KEY:-test_firecrawl_admin}
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_BASE_URL=http://ollama-test:11434/api
-      - MODEL_NAME=llama3.2:latest
+      - OLLAMA_URL=${OLLAMA_URL:-http://ollama-test:11434}
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - ALLOW_LOCAL_WEBHOOKS=true
     ports:
       - "3003:3002"  # Different port to avoid conflicts
@@ -136,20 +148,22 @@ services:
     profiles:
       - firecrawl
 
-  # Test Firecrawl Worker Service
+  # Test Firecrawl Worker - test environment
   firecrawl-worker-test:
     image: ghcr.io/firecrawl/firecrawl:latest
     container_name: krai-firecrawl-worker-test
+    env_file:
+      - .env
     environment:
       - NODE_ENV=test
       - PORT=3002
       - HOST=0.0.0.0
       - REDIS_URL=redis://redis-firecrawl-test:6379
       - PLAYWRIGHT_MICROSERVICE_URL=http://playwright-test:3000/scrape
-      - BULL_AUTH_KEY=test_firecrawl_admin
+      - BULL_AUTH_KEY=${TEST_FIRECRAWL_BULL_AUTH_KEY:-test_firecrawl_admin}
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_BASE_URL=http://ollama-test:11434/api
-      - MODEL_NAME=llama3.2:latest
+      - OLLAMA_URL=${OLLAMA_URL:-http://ollama-test:11434}
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - ALLOW_LOCAL_WEBHOOKS=true
     command: ["pnpm", "run", "workers"]
     networks:
@@ -168,6 +182,8 @@ services:
   ollama-test:
     image: ollama/ollama:latest
     container_name: krai-ollama-test
+    env_file:
+      - .env
     ports:
       - "11435:11434"  # Different port to avoid conflicts
     volumes:
@@ -175,7 +191,7 @@ services:
     networks:
       - krai-test-network
     environment:
-      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 10s
@@ -189,8 +205,10 @@ services:
       context: .
       dockerfile: Dockerfile.test
     container_name: krai-migration-test
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
+      - DATABASE_URL=${TEST_DATABASE_URL:-postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test}
       - TESTING=true
     depends_on:
       postgresql-test:
@@ -210,11 +228,13 @@ services:
       context: .
       dockerfile: Dockerfile.test
     container_name: krai-test-setup
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
-      - MINIO_ENDPOINT=minio-test:9000
-      - MINIO_ACCESS_KEY=test_access_key
-      - MINIO_SECRET_KEY=test_secret_key
+      - DATABASE_URL=${TEST_DATABASE_URL:-postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test}
+      - MINIO_ENDPOINT=${TEST_STORAGE_ENDPOINT:-minio-test:9000}
+      - MINIO_ACCESS_KEY=${TEST_STORAGE_ACCESS_KEY:-test_access_key}
+      - MINIO_SECRET_KEY=${TEST_STORAGE_SECRET_KEY:-test_secret_key}
       - TESTING=true
     depends_on:
       postgresql-test:
@@ -238,12 +258,14 @@ services:
       context: .
       dockerfile: Dockerfile.test
     container_name: krai-test-seed
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
-      - MINIO_ENDPOINT=minio-test:9000
-      - MINIO_ACCESS_KEY=test_access_key
-      - MINIO_SECRET_KEY=test_secret_key
-      - OLLAMA_BASE_URL=http://ollama-test:11434
+      - DATABASE_URL=${TEST_DATABASE_URL:-postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test}
+      - MINIO_ENDPOINT=${TEST_STORAGE_ENDPOINT:-minio-test:9000}
+      - MINIO_ACCESS_KEY=${TEST_STORAGE_ACCESS_KEY:-test_access_key}
+      - MINIO_SECRET_KEY=${TEST_STORAGE_SECRET_KEY:-test_secret_key}
+      - OLLAMA_BASE_URL=${OLLAMA_URL:-http://ollama-test:11434}
       - TESTING=true
     depends_on:
       postgresql-test:
@@ -267,11 +289,13 @@ services:
       context: .
       dockerfile: Dockerfile.test
     container_name: krai-test-cleanup
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test
-      - MINIO_ENDPOINT=minio-test:9000
-      - MINIO_ACCESS_KEY=test_access_key
-      - MINIO_SECRET_KEY=test_secret_key
+      - DATABASE_URL=${TEST_DATABASE_URL:-postgresql://krai_test:krai_test_password@postgresql-test:5432/krai_test}
+      - MINIO_ENDPOINT=${TEST_STORAGE_ENDPOINT:-minio-test:9000}
+      - MINIO_ACCESS_KEY=${TEST_STORAGE_ACCESS_KEY:-test_access_key}
+      - MINIO_SECRET_KEY=${TEST_STORAGE_SECRET_KEY:-test_secret_key}
       - TESTING=true
     depends_on:
       postgresql-test:

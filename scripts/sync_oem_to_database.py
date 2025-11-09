@@ -25,21 +25,18 @@ backend_path = Path(__file__).parent.parent / 'backend'
 sys.path.insert(0, str(backend_path))
 
 from supabase import create_client
-from dotenv import load_dotenv
+from processors.env_loader import load_all_env_files
 from utils.oem_sync import (
     sync_oem_relationships_to_db,
     batch_update_products_oem_info
 )
 
-# Load environment variables
+# Load environment variables (consolidated + legacy overrides)
 project_root = Path(__file__).parent.parent
-env_files = ['.env', '.env.database', '.env.storage', '.env.external', '.env.pipeline', '.env.ai']
+loaded_env_files = load_all_env_files(project_root)
 print("Loading environment variables...")
-for env_file in env_files:
-    env_path = project_root / env_file
-    if env_path.exists():
-        load_dotenv(env_path, override=True)
-        print(f"  ✓ Loaded: {env_file}")
+for env_file in loaded_env_files:
+    print(f"  ✓ Loaded: {env_file}")
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv('SUPABASE_URL')

@@ -1,8 +1,10 @@
-import os
-from pathlib import Path
-from dotenv import load_dotenv
+"""Check whether the YouTube API key is configured."""
 
-load_dotenv(Path('.env.database'))
+import os
+
+from scripts._env import load_env
+
+load_env()
 key = os.getenv('YOUTUBE_API_KEY')
 print(f'YouTube API Key: {"SET ✅" if key else "NOT SET ❌"}')
 if key:

@@ -1,10 +1,10 @@
 """Check chunks for C9402 to find full solution text"""
 import os
-from dotenv import load_dotenv
-from pathlib import Path
 import requests
 
-load_dotenv(Path(__file__).parent / '.env.database')
+from scripts._env import load_env
+
+load_env(extra_files=['.env.database'])
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")

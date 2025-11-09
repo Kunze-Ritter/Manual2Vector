@@ -22,7 +22,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # KRAI Engine API
+  # KRAI Engine API - all config from .env
   krai-engine:
     build:
       context: .
@@ -55,10 +55,12 @@ services:
     command: >
       python main.py
 
-  # PostgreSQL Database
+  # PostgreSQL Database - credentials from .env
   krai-postgres:
     image: pgvector/pgvector:pg16
     container_name: krai-postgres-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "5432:5432"
@@ -76,9 +78,9 @@ services:
       -c min_wal_size=2GB
       -c max_wal_size=8GB
     environment:
-      - POSTGRES_DB=krai
-      - POSTGRES_USER=krai_user
-      - POSTGRES_PASSWORD=krai_secure_password
+      - POSTGRES_DB=${DATABASE_NAME:-krai}
+      - POSTGRES_USER=${DATABASE_USER:-krai_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
     volumes:
       - krai_postgres_data:/var/lib/postgresql/data
@@ -86,23 +88,25 @@ services:
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U krai_user -d krai"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 20s
       timeout: 5s
       retries: 5
 
-  # MinIO Object Storage
+  # MinIO Object Storage - credentials from .env
   krai-minio:
     image: cgr.dev/chainguard/minio:latest
     container_name: krai-minio-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "9002:9000"
       - "9003:9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin123
-      - MINIO_BROWSER_REDIRECT_URL=http://localhost:9001
+      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY:-minioadmin123}
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost:9003}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -115,10 +119,12 @@ services:
       retries: 5
       start_period: 30s
 
-  # Ollama AI Service
+  # Ollama AI Service - no GPU in simple setup
   krai-ollama:
     image: ollama/ollama:latest
     container_name: krai-ollama-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "11434:11434"
@@ -132,6 +138,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    # For GPU support, see docker-compose.yml
 
 volumes:
   krai_postgres_data:

@@ -26,38 +26,23 @@ if str(PROJECT_ROOT) not in sys.path:
 # Load environment variables from multiple .env files
 # Priority: Later files override earlier ones
 try:
-    from dotenv import load_dotenv
     from pathlib import Path
-    
+    from processors.env_loader import load_all_env_files
+
     # Determine project root (parent of backend/)
     backend_dir = Path(__file__).parent
     project_root = backend_dir.parent
-    
-    # Load all .env files in priority order (later overrides earlier)
-    env_files = [
-        '.env',           # Base config (lowest priority)
-        '.env.database',  # Database credentials
-        '.env.storage',   # R2/Storage config
-        '.env.external',  # External APIs (YouTube, etc.)
-        '.env.pipeline',  # Pipeline settings
-        '.env.ai',        # AI settings (LLM_MAX_PAGES, OLLAMA models)
-    ]
-    
-    loaded_files = []
-    for env_file in env_files:
-        env_path = PROJECT_ROOT / env_file
-        if env_path.exists():
-            load_dotenv(env_path, override=True)
-            loaded_files.append(env_file)
-            logger.info("Loaded configuration from %s", env_file)
-    
+
+    loaded_files = load_all_env_files(project_root)
     if not loaded_files:
         logger.warning("No .env files found - falling back to system environment variables")
     else:
+        for env_file in loaded_files:
+            logger.info("Loaded configuration from %s", env_file)
         logger.info("Loaded %s configuration file(s)", len(loaded_files))
-    
+
 except ImportError:
-    logger.warning("python-dotenv not installed, using system environment variables only")
+    logger.warning("Environment loader not available, using system environment variables only")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

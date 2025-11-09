@@ -1,30 +1,33 @@
 version: '3.8'
 
 services:
+  # n8n automation platform - credentials from .env
   n8n:
     image: n8nio/n8n:latest
     container_name: krai-n8n-chat-agent
+    env_file:
+      - .env
     restart: unless-stopped
     ports:
       - "5678:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=krai_chat_agent_2024
-      - N8N_HOST=localhost
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-changeme}
+      - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
       - GENERIC_TIMEZONE=Europe/Berlin
       - N8N_LOG_LEVEL=info
       - N8N_METRICS=true
       - N8N_DIAGNOSTICS_ENABLED=true
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434}
       - DATABASE_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=krai-postgres
+      - DB_POSTGRESDB_HOST=n8n-postgres
       - DB_POSTGRESDB_DATABASE=n8n
-      - DB_POSTGRESDB_USER=krai_user
-      - DB_POSTGRESDB_PASSWORD=krai_secure_password
+      - DB_POSTGRESDB_USER=${DATABASE_USER:-krai_user}
+      - DB_POSTGRESDB_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
       - N8N_CUSTOM_EXTENSIONS=@n8n/n8n-nodes-langchain
     volumes:
       - n8n_data:/home/node/.n8n
@@ -33,27 +36,36 @@ services:
     networks:
       - krai-network
     depends_on:
-      krai-postgres:
+      n8n-postgres:
         condition: service_healthy
 
-  # Optional: PostgreSQL for n8n data persistence
+  # Separate PostgreSQL for n8n persistence
   n8n-postgres:
     image: postgres:15
     container_name: krai-n8n-postgres
+    env_file:
+      - .env
     restart: unless-stopped
     environment:
       - POSTGRES_DB=n8n
       - POSTGRES_USER=n8n
-      - POSTGRES_PASSWORD=krai_n8n_db_2024
+      - POSTGRES_PASSWORD=${N8N_DATABASE_PASSWORD:-krai_n8n_db_2024}
     volumes:
       - n8n_postgres_data:/var/lib/postgresql/data
     networks:
       - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # PostgreSQL for KRAI local development
+  # Main KRAI PostgreSQL database - credentials from .env
   krai-postgres:
     image: pgvector/pgvector:pg16
     container_name: krai-postgres
+    env_file:
+      - .env
     restart: unless-stopped
     ports:
       - "5432:5432"
@@ -71,9 +83,9 @@ services:
       -c min_wal_size=1GB
       -c max_wal_size=4GB
     environment:
-      - POSTGRES_DB=krai
-      - POSTGRES_USER=krai_user
-      - POSTGRES_PASSWORD=krai_secure_password
+      - POSTGRES_DB=${DATABASE_NAME:-krai}
+      - POSTGRES_USER=${DATABASE_USER:-krai_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
     volumes:
       - krai_postgres_data:/var/lib/postgresql/data
@@ -81,21 +93,23 @@ services:
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U krai_user -d krai"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # pgAdmin for database management
+  # pgAdmin database management UI - credentials from .env
   krai-pgadmin:
     image: dpage/pgadmin4:latest
     container_name: krai-pgadmin
+    env_file:
+      - .env
     restart: unless-stopped
     ports:
       - "5050:80"
     environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@krai.local
-      - PGADMIN_DEFAULT_PASSWORD=krai_admin_2024
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@krai.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-changeme}
       - PGADMIN_CONFIG_SERVER_MODE=False
     volumes:
       - krai_pgadmin_data:/var/lib/pgadmin
@@ -105,18 +119,20 @@ services:
       krai-postgres:
         condition: service_healthy
 
-  # MinIO S3-compatible object storage
+  # MinIO S3-compatible storage - credentials from .env
   krai-minio:
     image: cgr.dev/chainguard/minio:latest
     container_name: krai-minio
+    env_file:
+      - .env
     restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin123
-      - MINIO_BROWSER_REDIRECT_URL=http://localhost:9001
+      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY:-minioadmin123}
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost:9001}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -128,10 +144,12 @@ services:
       timeout: 10s
       retries: 3
 
-  # Ollama AI service
+  # Ollama AI service - enable GPU via .env
   krai-ollama:
     image: ollama/ollama:latest
     container_name: krai-ollama
+    env_file:
+      - .env
     restart: unless-stopped
     ports:
       - "11434:11434"
@@ -139,6 +157,8 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - krai-network
+    # GPU support - enable if USE_GPU=true in .env
+    # Comment out 'deploy' section if no GPU available
     deploy:
       resources:
         reservations:
@@ -167,6 +187,8 @@ services:
   krai-playwright:
     image: ghcr.io/mendableai/playwright-service:latest
     container_name: krai-playwright
+    env_file:
+      - .env
     restart: unless-stopped
     environment:
       - PORT=3000
@@ -190,6 +212,8 @@ services:
   krai-firecrawl-api:
     image: ghcr.io/firecrawl/firecrawl:latest
     container_name: krai-firecrawl-api
+    env_file:
+      - .env
     restart: unless-stopped
     ports:
       - "3002:3002"
@@ -202,7 +226,7 @@ services:
       - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
       - BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_BASE_URL=http://krai-ollama:11434
+      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -235,6 +259,8 @@ services:
   krai-firecrawl-worker:
     image: ghcr.io/firecrawl/firecrawl:latest
     container_name: krai-firecrawl-worker
+    env_file:
+      - .env
     restart: unless-stopped
     command: ["pnpm", "run", "workers"]
     environment:
@@ -246,7 +272,7 @@ services:
       - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
       - BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_BASE_URL=http://krai-ollama:11434
+      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}

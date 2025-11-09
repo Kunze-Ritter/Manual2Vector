@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Optional
 from getpass import getpass
 
-from dotenv import load_dotenv
+from processors.env_loader import load_all_env_files
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -23,20 +23,7 @@ sys.path.insert(0, str(project_root))
 
 def _load_env_files() -> None:
     """Load environment configuration required for admin creation."""
-    env_files = [
-        ".env",
-        ".env.auth",
-        ".env.database",
-        ".env.external",
-        ".env.pipeline",
-        ".env.storage",
-        ".env.ai",
-    ]
-
-    for env_file in env_files:
-        env_path = project_root / env_file
-        if env_path.exists():
-            load_dotenv(env_path)
+    load_all_env_files(project_root)
 
 
 _load_env_files()

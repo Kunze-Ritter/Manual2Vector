@@ -12,15 +12,13 @@ from pathlib import Path
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts._env import load_env
 
 # Load environment
-try:
-    from dotenv import load_dotenv
-    load_dotenv(PROJECT_ROOT / '.env')
-    load_dotenv(PROJECT_ROOT / '.env.database', override=True)
-except ImportError:
-    pass
+load_env(extra_files=['.env.database'])
 
 
 async def quick_test():

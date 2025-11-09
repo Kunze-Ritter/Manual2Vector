@@ -22,7 +22,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # KRAI Engine API
+  # KRAI Engine API - with Firecrawl integration
   krai-engine:
     build:
       context: .
@@ -34,9 +34,9 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://krai-redis:6379
-      - FIRECRAWL_API_URL=http://krai-firecrawl-api:3002
-      - FIRECRAWL_BULL_AUTH_KEY=changeme_firecrawl_admin
+      - REDIS_URL=${REDIS_URL:-redis://krai-redis:6379}
+      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://krai-firecrawl-api:3002}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -61,15 +61,17 @@ services:
       krai-firecrawl-api:
         condition: service_healthy
 
-  # PostgreSQL Database with pgvector
+  # PostgreSQL Database with pgvector - credentials from .env
   krai-postgres:
     image: pgvector/pgvector:pg16
     container_name: krai-postgres-prod
+    env_file:
+      - .env
     restart: always
     environment:
-      - POSTGRES_DB=krai
-      - POSTGRES_USER=krai_user
-      - POSTGRES_PASSWORD=krai_secure_password
+      - POSTGRES_DB=${DATABASE_NAME:-krai}
+      - POSTGRES_USER=${DATABASE_USER:-krai_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
     ports:
       - "5432:5432"
     volumes:
@@ -77,19 +79,21 @@ services:
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U krai_user -d krai"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 20s
       timeout: 5s
       retries: 5
 
-  # MinIO Object Storage
+  # MinIO Object Storage - credentials from .env
   krai-minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: krai-minio-prod
+    env_file:
+      - .env
     restart: always
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin123
+      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY:-minioadmin123}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -104,10 +108,12 @@ services:
       timeout: 10s
       retries: 3
 
-  # Ollama AI Service
+  # Ollama AI Service - config from .env
   krai-ollama:
     image: ollama/ollama:latest
     container_name: krai-ollama-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "11434:11434"
@@ -116,17 +122,19 @@ services:
     networks:
       - krai-network
     environment:
-      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Redis for Firecrawl
+  # Redis for Firecrawl - no auth needed
   krai-redis:
     image: redis:7-alpine
     container_name: krai-redis-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "6379:6379"
@@ -140,17 +148,19 @@ services:
       timeout: 5s
       retries: 3
 
-  # Playwright for Firecrawl
+  # Playwright (browserless/chrome) - alternative image
   krai-playwright:
     image: browserless/chrome:latest
     container_name: krai-playwright-prod
+    env_file:
+      - .env
     restart: always
     environment:
       - PORT=3000
-      - MAX_CONCURRENCY=4
-      - BLOCK_MEDIA=true
-      - WORKSPACE_DELETE_EXPIRED=true
-      - WORKSPACE_EXPIRY_DAYS=1
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+      - WORKSPACE_DELETE_EXPIRED=${PLAYWRIGHT_WORKSPACE_DELETE_EXPIRED:-true}
+      - WORKSPACE_EXPIRY_DAYS=${PLAYWRIGHT_WORKSPACE_EXPIRY_DAYS:-1}
     expose:
       - "3000"
     shm_size: "2g"
@@ -162,10 +172,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # Firecrawl API
+  # Firecrawl API - config from .env
   krai-firecrawl-api:
     image: ghcr.io/firecrawl/firecrawl:latest
     container_name: krai-firecrawl-api-prod
+    env_file:
+      - .env
     restart: always
     ports:
       - "9002:3002"
@@ -177,13 +189,13 @@ services:
       - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
       - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_BASE_URL=http://krai-ollama:11434
-      - MODEL_NAME=llama3.2:latest
-      - MODEL_EMBEDDING_NAME=nomic-embed-text:latest
-      - ALLOW_LOCAL_WEBHOOKS=true
-      - MAX_CONCURRENCY=4
-      - BLOCK_MEDIA=true
-      - FIRECRAWL_BULL_AUTH_KEY=changeme_firecrawl_admin
+      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
     networks:
       - krai-network
     depends_on:
@@ -197,10 +209,12 @@ services:
       timeout: 10s
       retries: 5
 
-  # Firecrawl Worker
+  # Firecrawl Worker - config from .env
   krai-firecrawl-worker:
     image: ghcr.io/firecrawl/firecrawl:latest
     container_name: krai-firecrawl-worker-prod
+    env_file:
+      - .env
     restart: always
     command: ["pnpm", "run", "workers"]
     environment:
@@ -211,13 +225,13 @@ services:
       - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
       - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_BASE_URL=http://krai-ollama:11434
-      - MODEL_NAME=llama3.2:latest
-      - MODEL_EMBEDDING_NAME=nomic-embed-text:latest
-      - ALLOW_LOCAL_WEBHOOKS=true
-      - MAX_CONCURRENCY=4
-      - BLOCK_MEDIA=true
-      - FIRECRAWL_BULL_AUTH_KEY=changeme_firecrawl_admin
+      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
     networks:
       - krai-network
     depends_on:
