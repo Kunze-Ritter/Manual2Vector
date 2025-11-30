@@ -207,7 +207,7 @@ Welche Fuser Unit passt zum CX963?
 
 ### **Ollama Settings**
 ```bash
-# In docker-compose.yml
+# In docker-compose.yml (available in archive/docker/docker-compose.yml)
 OLLAMA_NUM_PARALLEL=2
 OLLAMA_MAX_LOADED_MODELS=2
 OLLAMA_FLASH_ATTENTION=1

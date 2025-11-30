@@ -34,9 +34,14 @@ from services.object_storage_service import ObjectStorageService
 from services.ai_service import AIService
 from services.config_service import ConfigService
 from services.features_service import FeaturesService
+from services.video_enrichment_service import VideoEnrichmentService
 
 # Import the API app factory and routes
 from api.routes import auth as auth_routes
+from api.document_api import DocumentAPI
+from api.product_api import ProductAPI
+from api.manufacturer_api import ManufacturerAPI
+from api.routes.dashboard import create_dashboard_router
 
 # Configure logging
 logging.basicConfig(
@@ -102,12 +107,17 @@ async def lifespan(app: FastAPI):
         features_service = FeaturesService(ai_service, database_service)
         logger.info("Features service initialized")
         
+        # Initialize video enrichment service
+        video_enrichment_service = VideoEnrichmentService()
+        logger.info("Video enrichment service initialized")
+        
         # Store services in app state
         app.state.database_service = database_service
         app.state.object_storage_service = object_storage_service
         app.state.ai_service = ai_service
         app.state.config_service = config_service
         app.state.features_service = features_service
+        app.state.video_enrichment_service = video_enrichment_service
         
         logger.info("About to load auth routes...")
         
@@ -117,11 +127,41 @@ async def lifespan(app: FastAPI):
             auth_router = auth_routes.initialize_auth_routes(database_service)
             app.include_router(auth_router, prefix="/api/v1")
             logger.info("Auth routes loaded successfully")
+
+            # Initialize document upload and processing routes
+            document_api = DocumentAPI(
+                database_service=database_service,
+                storage_service=object_storage_service,
+                ai_service=ai_service,
+                video_enrichment_service=video_enrichment_service
+            )
+            app.include_router(document_api.router, prefix="/api/v1")
+            logger.info("Document routes loaded successfully")
+
+            # Initialize PostgreSQL-backed product routes
+            product_api = ProductAPI(database_service=database_service)
+            app.include_router(product_api.router, prefix="/api/v1")
+            logger.info("Product routes loaded successfully")
+
+            # Initialize PostgreSQL-backed manufacturer routes
+            manufacturer_api = ManufacturerAPI(database_service=database_service)
+            app.include_router(manufacturer_api.router, prefix="/api/v1")
+            logger.info("Manufacturer routes loaded successfully")
+
+            dashboard_router = create_dashboard_router(database_service)
+            app.include_router(dashboard_router, prefix="/api/v1")
+            logger.info("Dashboard routes loaded successfully")
         except Exception as e:
-            logger.error(f"Failed to load auth routes: {e}")
+            logger.error(f"Failed to load API routes: {e}")
             raise  # Re-raise to see the actual error
         
         # Create default admin user
+        # Deployment verification (Step 6 of production plan):
+        #   1. Ensure DEFAULT_ADMIN_PASSWORD is set before container start.
+        #   2. After startup, run `docker-compose -f docker-compose.production.yml logs krai-engine | grep -i "admin"`
+        #      and look for "✅ Default admin user verified/created".
+        #   3. Confirm via `psql` inside krai-postgres that krai_users.users contains the admin row.
+        #   4. Test login via POST /api/v1/auth/login using the configured credentials.
         try:
             from services.auth_service import AuthService
             auth_service = AuthService(database_service)

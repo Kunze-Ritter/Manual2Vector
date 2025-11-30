@@ -1,5 +1,7 @@
 # KRAI Technician Agent V2.1 - Deployment Guide
 
+> **Note**: n8n is not part of the core KRAI stack. This guide references archived configurations available in `archive/docker/docker-compose.yml`. For the main KRAI system, use the active compose files: `docker-compose.simple.yml`, `docker-compose.with-firecrawl.yml`, or `docker-compose.production.yml`.
+
 ## 🚀 **Production Deployment Checklist**
 
 ### **Phase 1: Database Setup** ✅
