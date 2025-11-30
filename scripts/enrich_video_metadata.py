@@ -23,17 +23,25 @@ import os
 import re
 import sys
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import httpx
-from supabase import create_client, Client
-from postgrest.exceptions import APIError
+from uuid import UUID
+
+from scripts.migration_helpers import (  # type: ignore[import]
+    create_connected_adapter,
+    pg_fetch_all,
+    pg_execute,
+    run_async,
+)
 
 # Setup logging first
 logging.basicConfig(
@@ -59,61 +67,55 @@ except ImportError:
 def get_youtube_api_key():
     return os.getenv('YOUTUBE_API_KEY')
 
-def get_supabase_client():
-    """Lazy initialization of Supabase client"""
-    url = os.getenv('SUPABASE_URL')
-    key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    if not url or not key:
-        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-    return create_client(url, key)
-
 
 class VideoEnricher:
     """Enriches video links with metadata from various sources"""
     
-    def __init__(self):
+    def __init__(self, adapter):
+        self.adapter = adapter
         self.youtube_api_key = get_youtube_api_key()
-        self.supabase = None  # Lazy loaded
         self.http_client = httpx.AsyncClient(timeout=30.0)
         self.processed_count = 0
         self.error_count = 0
-    
-    def _get_supabase(self):
-        """Get or create Supabase client"""
-        if self.supabase is None:
-            self.supabase = get_supabase_client()
-        return self.supabase
 
-    def _insert_video_record(self, video_data: Dict[str, Any], unique_lookup: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    async def _insert_video_record(self, video_data: Dict[str, Any], unique_lookup: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """Insert video record, falling back to existing row on unique constraint."""
-        supabase = self._get_supabase()
         try:
-            result = supabase.schema('krai_content').table('videos').insert(video_data).execute()
-            if not result.data:
-                return None
-            return result.data[0]['id']
-        except APIError as e:
-            if getattr(e, 'code', None) == '23505':
-                logger.info("🔁 Video already stored (unique constraint %s). Reusing existing record.", e.message if hasattr(e, 'message') else '')
-                lookup = unique_lookup.copy() if unique_lookup else {}
-                if not lookup and video_data.get('video_url'):
-                    lookup['video_url'] = video_data['video_url']
-
-                query = supabase.schema('krai_content').table('videos').select('id').limit(1)
-                for column, value in lookup.items():
-                    if column.startswith('metadata->>'):
-                        key = column.split('->>')[1]
-                        query = query.filter(f'metadata->>{key}', 'eq', value)
-                    else:
-                        query = query.eq(column, value)
-
-                existing = query.execute()
-                if existing.data:
-                    return existing.data[0]['id']
-
-                logger.warning("⚠️ Unique constraint triggered but existing video not found for %s", video_data.get('video_url'))
-                return None
-            raise
+            # Convert metadata dict to JSON string for PostgreSQL
+            import json
+            if 'metadata' in video_data and isinstance(video_data['metadata'], dict):
+                video_data['metadata'] = json.dumps(video_data['metadata'])
+            
+            # Build INSERT with ON CONFLICT to handle deduplication
+            columns = ', '.join(video_data.keys())
+            placeholders = ', '.join([f'${i+1}' for i in range(len(video_data))])
+            values = list(video_data.values())
+            
+            # Determine conflict column based on unique_lookup
+            conflict_column = 'video_url'  # default
+            if unique_lookup:
+                if 'youtube_id' in unique_lookup:
+                    conflict_column = 'youtube_id'
+                elif 'video_url' in unique_lookup:
+                    conflict_column = 'video_url'
+            
+            query = f"""
+                INSERT INTO krai_content.videos ({columns})
+                VALUES ({placeholders})
+                ON CONFLICT ({conflict_column}) DO UPDATE SET updated_at = NOW()
+                RETURNING id
+            """
+            
+            result = await pg_fetch_all(self.adapter, query, values)
+            if result:
+                video_id = str(result[0]['id'])
+                logger.debug(f"✅ Video record created/reused: {video_id}")
+                return video_id
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error inserting video record: {e}")
+            return None
         
     async def close(self):
         """Close HTTP client"""
@@ -221,7 +223,7 @@ class VideoEnricher:
     
     async def detect_manufacturer_from_url(self, url: str) -> Optional[str]:
         """
-        Detect manufacturer from URL domain and ensure it exists
+        Detect manufacturer from URL domain
         
         Args:
             url: Video URL
@@ -231,18 +233,34 @@ class VideoEnricher:
         """
         try:
             from urllib.parse import urlparse
+            domain = urlparse(url).netloc.lower()
             
-            # Import centralized manufacturer utils
-            sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
-            from utils.manufacturer_utils import detect_manufacturer_from_domain
+            # Simple domain-to-manufacturer mapping
+            domain_patterns = {
+                'konicaminolta': 'Konica Minolta',
+                'lexmark': 'Lexmark',
+                'kyocera': 'Kyocera',
+                'canon': 'Canon',
+                'xerox': 'Xerox',
+                'brother': 'Brother',
+                'hp.com': 'HP',
+                'epson': 'Epson',
+                'ricoh': 'Ricoh',
+                'sharp': 'Sharp'
+            }
             
-            domain = urlparse(url).netloc
-            supabase = self._get_supabase()
+            for pattern, mfr_name in domain_patterns.items():
+                if pattern in domain:
+                    # Look up manufacturer by name
+                    query = "SELECT id FROM public.vw_manufacturers WHERE LOWER(name) = $1 LIMIT 1"
+                    result = await pg_fetch_all(self.adapter, query, [mfr_name.lower()])
+                    if result:
+                        return str(result[0]['id'])
             
-            return detect_manufacturer_from_domain(domain, supabase)
+            return None
             
         except Exception as e:
-            logger.error(f"Error detecting manufacturer: {e}")
+            logger.error(f"Error detecting manufacturer from URL: {e}")
             return None
     
     async def detect_manufacturer_from_title(self, title: str) -> Optional[str]:
@@ -259,21 +277,20 @@ class VideoEnricher:
             return None
         
         try:
-            supabase = self._get_supabase()
-            
             # Get all manufacturers
-            manufacturers = supabase.table('vw_manufacturers').select('id, name').execute()
+            query = "SELECT id, name FROM public.vw_manufacturers"
+            manufacturers = await pg_fetch_all(self.adapter, query)
             
-            if not manufacturers.data:
+            if not manufacturers:
                 return None
             
             # Check if manufacturer name is in title
             title_upper = title.upper()
-            for mfr in manufacturers.data:
+            for mfr in manufacturers:
                 mfr_name = mfr.get('name', '').upper()
                 if mfr_name and mfr_name in title_upper:
                     logger.debug(f"✅ Detected manufacturer '{mfr['name']}' from title")
-                    return mfr['id']
+                    return str(mfr['id'])
             
             return None
             
@@ -690,7 +707,7 @@ class VideoEnricher:
             logger.error(f"Error fetching Vimeo metadata: {e}")
             return None
     
-    def get_link_context(self, link: Dict[str, Any]) -> Dict[str, Any]:
+    async def get_link_context(self, link: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract manufacturer, series, and error codes from link context
         Returns dict with manufacturer_id, series_id, related_error_codes
@@ -709,13 +726,17 @@ class VideoEnricher:
         # If no manufacturer_id, try to get from document
         if not context['manufacturer_id'] and link.get('document_id'):
             try:
-                doc = self._get_supabase().table('vw_documents').select(
-                    'manufacturer_id, manufacturer'
-                ).eq('id', link['document_id']).limit(1).execute()
+                query = """
+                    SELECT manufacturer_id, manufacturer 
+                    FROM public.vw_documents 
+                    WHERE id = $1 
+                    LIMIT 1
+                """
+                doc = await pg_fetch_all(self.adapter, query, [link['document_id']])
                 
-                if doc.data and doc.data[0].get('manufacturer_id'):
-                    context['manufacturer_id'] = doc.data[0]['manufacturer_id']
-                    logger.debug(f"✅ Got manufacturer_id from document: {doc.data[0].get('manufacturer')}")
+                if doc and doc[0].get('manufacturer_id'):
+                    context['manufacturer_id'] = str(doc[0]['manufacturer_id'])
+                    logger.debug(f"✅ Got manufacturer_id from document: {doc[0].get('manufacturer')}")
             except Exception as e:
                 logger.debug(f"Could not get manufacturer from document: {e}")
         
@@ -734,10 +755,11 @@ class VideoEnricher:
         
         try:
             # DEDUPLICATION: Check if video already exists by youtube_id (from ANY link)
-            existing = self._get_supabase().schema('krai_content').table('videos').select('id').eq('youtube_id', metadata['youtube_id']).limit(1).execute()
+            dedupe_query = "SELECT id FROM krai_content.videos WHERE youtube_id = $1 LIMIT 1"
+            existing = await pg_fetch_all(self.adapter, dedupe_query, [metadata['youtube_id']])
             
             # Get contextual information from link
-            context = self.get_link_context(link)
+            context = await self.get_link_context(link)
             
             # Detect manufacturer from URL if not in context
             if not context['manufacturer_id']:
@@ -747,9 +769,9 @@ class VideoEnricher:
             if not context['manufacturer_id'] and metadata.get('title'):
                 context['manufacturer_id'] = await self.detect_manufacturer_from_title(metadata['title'])
             
-            if existing.data:
+            if existing:
                 # Video exists from another link! Reuse it
-                video_id_to_link = existing.data[0]['id']
+                video_id_to_link = str(existing[0]['id'])
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
@@ -775,7 +797,7 @@ class VideoEnricher:
                     }
                 }
 
-                video_id_to_link = self._insert_video_record(
+                video_id_to_link = await self._insert_video_record(
                     video_data,
                     unique_lookup={'youtube_id': metadata['youtube_id']}
                 )
@@ -785,9 +807,8 @@ class VideoEnricher:
 
             
             # Update link with video_id
-            self._get_supabase().schema('krai_content').table('links').update({
-                'video_id': video_id_to_link
-            }).eq('id', link['id']).execute()
+            update_query = "UPDATE krai_content.links SET video_id = $1, updated_at = NOW() WHERE id = $2"
+            await pg_execute(self.adapter, update_query, [video_id_to_link, link['id']])
             
             logger.info(f"✅ Enriched YouTube video: {metadata['title'][:50]}...")
             return True
@@ -812,10 +833,11 @@ class VideoEnricher:
         try:
             # DEDUPLICATION: Check if video already exists by vimeo_id (from ANY link)
             # Vimeo ID is stored in metadata JSON
-            existing = self._get_supabase().schema('krai_content').table('videos').select('id').filter('metadata->>vimeo_id', 'eq', video_id).limit(1).execute()
+            dedupe_query = "SELECT id FROM krai_content.videos WHERE metadata->>'vimeo_id' = $1 LIMIT 1"
+            existing = await pg_fetch_all(self.adapter, dedupe_query, [video_id])
             
             # Get contextual information from link
-            context = self.get_link_context(link)
+            context = await self.get_link_context(link)
             
             # Detect manufacturer from URL if not in context
             if not context['manufacturer_id']:
@@ -825,9 +847,9 @@ class VideoEnricher:
             if not context['manufacturer_id'] and metadata.get('title'):
                 context['manufacturer_id'] = await self.detect_manufacturer_from_title(metadata['title'])
             
-            if existing.data:
+            if existing:
                 # Video exists from another link! Reuse it
-                video_id_to_link = existing.data[0]['id']
+                video_id_to_link = str(existing[0]['id'])
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
@@ -850,7 +872,7 @@ class VideoEnricher:
                         'vimeo_id': video_id
                     }
                 }
-                video_id_to_link = self._insert_video_record(
+                video_id_to_link = await self._insert_video_record(
                     video_data,
                     unique_lookup={'metadata->>vimeo_id': video_id}
                 )
@@ -859,9 +881,8 @@ class VideoEnricher:
                     return False
             
             # Update link with video_id
-            self._get_supabase().schema('krai_content').table('links').update({
-                'video_id': video_id_to_link
-            }).eq('id', link['id']).execute()
+            update_query = "UPDATE krai_content.links SET video_id = $1, updated_at = NOW() WHERE id = $2"
+            await pg_execute(self.adapter, update_query, [video_id_to_link, link['id']])
             
             logger.info(f"✅ Enriched Vimeo video: {metadata['title'][:50]}...")
             return True
@@ -888,10 +909,11 @@ class VideoEnricher:
         try:
             # DEDUPLICATION: Check if video already exists by brightcove_id (from ANY link)
             # Brightcove ID is stored in metadata JSON
-            existing = self._get_supabase().schema('krai_content').table('videos').select('id').filter('metadata->>brightcove_id', 'eq', metadata['brightcove_id']).limit(1).execute()
+            dedupe_query = "SELECT id FROM krai_content.videos WHERE metadata->>'brightcove_id' = $1 LIMIT 1"
+            existing = await pg_fetch_all(self.adapter, dedupe_query, [metadata['brightcove_id']])
             
             # Get contextual information from link
-            context = self.get_link_context(link)
+            context = await self.get_link_context(link)
             
             # Detect manufacturer from URL if not in context
             if not context['manufacturer_id']:
@@ -901,9 +923,9 @@ class VideoEnricher:
             if not context['manufacturer_id'] and metadata.get('title'):
                 context['manufacturer_id'] = await self.detect_manufacturer_from_title(metadata['title'])
             
-            if existing.data:
+            if existing:
                 # Video exists from another link! Reuse it
-                video_id_to_link = existing.data[0]['id']
+                video_id_to_link = str(existing[0]['id'])
                 logger.info(f"🔗 Video exists from another link, reusing (dedup)...")
             else:
                 # Insert new video
@@ -925,7 +947,7 @@ class VideoEnricher:
                         'account_id': metadata['account_id']
                     }
                 }
-                video_id_to_link = self._insert_video_record(
+                video_id_to_link = await self._insert_video_record(
                     video_data,
                     unique_lookup={'metadata->>brightcove_id': metadata['brightcove_id']}
                 )
@@ -934,9 +956,8 @@ class VideoEnricher:
                     return False
             
             # Update link with video_id
-            self._get_supabase().schema('krai_content').table('links').update({
-                'video_id': video_id_to_link
-            }).eq('id', link['id']).execute()
+            update_query = "UPDATE krai_content.links SET video_id = $1, updated_at = NOW() WHERE id = $2"
+            await pg_execute(self.adapter, update_query, [video_id_to_link, link['id']])
             
             logger.info(f"✅ Enriched Brightcove video: {metadata['title'][:50]}...")
             return True
@@ -972,15 +993,16 @@ class VideoEnricher:
             manufacturer_id = await self.detect_manufacturer_from_url(url)
             
             # Get context from link
-            context = self.get_link_context(link)
+            context = await self.get_link_context(link)
             if not manufacturer_id:
                 manufacturer_id = context['manufacturer_id']
             
             # Check for existing video by URL
-            existing = self._get_supabase().schema('krai_content').table('videos').select('id').eq('video_url', url).limit(1).execute()
+            dedupe_query = "SELECT id FROM krai_content.videos WHERE video_url = $1 LIMIT 1"
+            existing = await pg_fetch_all(self.adapter, dedupe_query, [url])
             
-            if existing.data:
-                video_id_to_link = existing.data[0]['id']
+            if existing:
+                video_id_to_link = str(existing[0]['id'])
                 logger.info(f"🔗 Video exists, reusing (dedup)...")
             else:
                 # Insert new video
@@ -1005,7 +1027,7 @@ class VideoEnricher:
                         'source': 'opencv_extraction'
                     }
                 }
-                video_id_to_link = self._insert_video_record(
+                video_id_to_link = await self._insert_video_record(
                     video_data,
                     unique_lookup={'video_url': url}
                 )
@@ -1014,9 +1036,8 @@ class VideoEnricher:
                     return False
             
             # Update link with video_id
-            self._get_supabase().schema('krai_content').table('links').update({
-                'video_id': video_id_to_link
-            }).eq('id', link['id']).execute()
+            update_query = "UPDATE krai_content.links SET video_id = $1, updated_at = NOW() WHERE id = $2"
+            await pg_execute(self.adapter, update_query, [video_id_to_link, link['id']])
             
             logger.info(f"✅ Enriched direct video: {cleaned_title[:50]}...")
             return True
@@ -1048,18 +1069,25 @@ class VideoEnricher:
         
         try:
             # Query for video links without video_id
-            query = self._get_supabase().schema('krai_content').table('links').select('*')
-            
-            if not force:
-                query = query.is_('video_id', 'null')
-            
-            query = query.in_('link_type', ['video', 'youtube', 'vimeo', 'brightcove'])
-            
-            if limit:
-                query = query.limit(limit)
-            
-            response = query.execute()
-            links = response.data
+            if force:
+                query = """
+                    SELECT * FROM krai_content.links 
+                    WHERE link_type IN ('video', 'youtube', 'vimeo', 'brightcove')
+                    ORDER BY created_at DESC
+                """
+                if limit:
+                    query += f" LIMIT {limit}"
+                links = await pg_fetch_all(self.adapter, query)
+            else:
+                query = """
+                    SELECT * FROM krai_content.links 
+                    WHERE link_type IN ('video', 'youtube', 'vimeo', 'brightcove')
+                    AND video_id IS NULL
+                    ORDER BY created_at DESC
+                """
+                if limit:
+                    query += f" LIMIT {limit}"
+                links = await pg_fetch_all(self.adapter, query)
             
             if not links:
                 logger.info("✅ No video links found to enrich!")
@@ -1252,7 +1280,12 @@ async def main():
         logger.warning("   Vimeo videos will still be processed.")
         logger.warning("")
     
-    enricher = VideoEnricher()
+    # Create database adapter
+    # Note: This script requires PostgreSQL backend (uses pg_fetch_all and pg_execute)
+    logger.info("🔌 Connecting to database...")
+    adapter = await create_connected_adapter(database_type="postgresql")
+    
+    enricher = VideoEnricher(adapter)
     
     try:
         await enricher.process_unenriched_links(limit=args.limit, force=args.force)
@@ -1261,4 +1294,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    run_async(main())

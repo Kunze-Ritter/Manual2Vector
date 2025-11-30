@@ -8,12 +8,19 @@ Usage:
     python scripts/cleanup_database.py
     python scripts/cleanup_database.py --confirm  # Skip confirmation prompt
 """
-
-import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
-from supabase import create_client
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.migration_helpers import (
+    create_connected_adapter,
+    pg_execute,
+    pg_fetch_all,
+    run_async,
+)
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
@@ -22,7 +29,7 @@ from processors.logger import get_logger
 logger = get_logger()
 
 
-def cleanup_database(skip_confirm: bool = False):
+async def cleanup_database(skip_confirm: bool = False) -> bool:
     """
     Delete all processed data from database
     
@@ -38,35 +45,35 @@ def cleanup_database(skip_confirm: bool = False):
     - Product series
     - All views and functions
     """
-    
-    # Load environment from root directory
-    root_dir = Path(__file__).parent.parent
-    env_path = root_dir / '.env'
-    load_dotenv(env_path)
-    
-    supabase_url = os.getenv('SUPABASE_URL')
-    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if not supabase_url or not supabase_key:
-        logger.error("❌ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set!")
+
+    # Create connected PostgreSQL adapter via shared migration helpers
+    try:
+        adapter = await create_connected_adapter(database_type="postgresql")
+    except Exception as e:
+        logger.error(f"❌ Failed to create database adapter: {e}")
         return False
-    
-    supabase = create_client(supabase_url, supabase_key)
-    
-    # Get current counts
+
+    # Get current counts via direct SQL against documented tables
     logger.info("📊 Current database state:")
     try:
-        docs = supabase.table('vw_documents').select('id', count='exact').execute()
-        products = supabase.table('vw_products').select('id', count='exact').execute()
-        videos = supabase.table('vw_videos').select('id', count='exact').execute()
-        links = supabase.table('vw_links').select('id', count='exact').execute()
-        chunks = supabase.table('vw_chunks').select('id', count='exact').execute()
-        
-        logger.info(f"   Documents: {docs.count or 0}")
-        logger.info(f"   Products: {products.count or 0}")
-        logger.info(f"   Videos: {videos.count or 0}")
-        logger.info(f"   Links: {links.count or 0}")
-        logger.info(f"   Chunks: {chunks.count or 0}")
+        counts = {}
+        queries = {
+            "documents": "SELECT COUNT(*) AS count FROM krai_core.documents",
+            "products": "SELECT COUNT(*) AS count FROM krai_core.products",
+            "videos": "SELECT COUNT(*) AS count FROM krai_content.videos",
+            "links": "SELECT COUNT(*) AS count FROM krai_content.links",
+            "chunks": "SELECT COUNT(*) AS count FROM krai_intelligence.chunks",
+        }
+
+        for key, query in queries.items():
+            rows = await pg_fetch_all(adapter, query)
+            counts[key] = rows[0]["count"] if rows else 0
+
+        logger.info(f"   Documents: {counts['documents']}")
+        logger.info(f"   Products: {counts['products']}")
+        logger.info(f"   Videos: {counts['videos']}")
+        logger.info(f"   Links: {counts['links']}")
+        logger.info(f"   Chunks: {counts['chunks']}")
     except Exception as e:
         logger.warning(f"Could not get counts: {e}")
     
@@ -81,54 +88,49 @@ def cleanup_database(skip_confirm: bool = False):
             return False
     
     logger.info("\n🗑️  Starting database cleanup...")
-    
+
     try:
         # 1. Delete content (videos, links, images)
         logger.info("1/8: Deleting videos...")
-        supabase.table('vw_videos').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
+        await pg_execute(adapter, "DELETE FROM krai_content.videos")
+
         logger.info("2/8: Deleting links...")
-        supabase.table('vw_links').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
+        await pg_execute(adapter, "DELETE FROM krai_content.links")
+
         logger.info("3/8: Deleting images...")
-        supabase.table('vw_images').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
-        # 2. Delete intelligence chunks
-        logger.info("4/8: Deleting intelligence chunks...")
-        supabase.table('vw_intelligence_chunks').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
+        await pg_execute(adapter, "DELETE FROM krai_content.images")
+
+        # 2. Delete intelligence chunks (includes embeddings)
+        logger.info("4/8: Deleting intelligence chunks (including embeddings)...")
+        await pg_execute(adapter, "DELETE FROM krai_intelligence.chunks")
+
         # 3. Delete products and relationships
         logger.info("5/8: Deleting document-product relationships...")
-        supabase.table('vw_document_products').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
+        await pg_execute(adapter, "DELETE FROM krai_core.document_products")
+
         logger.info("6/8: Deleting products...")
-        supabase.table('vw_products').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
-        # 4. Delete embeddings
-        logger.info("7/8: Deleting embeddings...")
-        supabase.table('vw_embeddings').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
-        # 5. Delete chunks
-        logger.info("8/8: Deleting chunks...")
-        supabase.table('vw_chunks').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
-        # 6. Delete documents (CASCADE will handle rest)
-        logger.info("9/9: Deleting documents...")
-        supabase.table('vw_documents').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
-        # 7. Clear processing queue
+        await pg_execute(adapter, "DELETE FROM krai_core.products")
+
+        # 4. Delete chunks alias/views are already covered by intelligence.chunks
+        logger.info("7/8: Chunks/embeddings views are backed by krai_intelligence.chunks (already cleared)")
+
+        # 5. Delete documents (CASCADE will handle remaining relations)
+        logger.info("8/8: Deleting documents...")
+        await pg_execute(adapter, "DELETE FROM krai_core.documents")
+
+        # 6. Clear processing queue
         logger.info("Clearing processing queue...")
-        supabase.table('vw_processing_queue').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        
+        await pg_execute(adapter, "DELETE FROM krai_system.processing_queue")
+
         logger.success("\n✅ Database cleanup completed!")
         logger.info("\n📊 What was kept:")
         logger.info("   ✅ Manufacturers")
         logger.info("   ✅ Product Series")
         logger.info("   ✅ All Views and Functions")
-        
+
         logger.info("\n🚀 Ready for fresh processing!")
         return True
-        
+
     except Exception as e:
         logger.error(f"\n❌ Cleanup failed: {e}")
         return False
@@ -136,10 +138,10 @@ def cleanup_database(skip_confirm: bool = False):
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Cleanup database for fresh start")
     parser.add_argument('--confirm', action='store_true', help='Skip confirmation prompt')
     args = parser.parse_args()
-    
-    success = cleanup_database(skip_confirm=args.confirm)
+
+    success = run_async(cleanup_database(skip_confirm=args.confirm))
     sys.exit(0 if success else 1)

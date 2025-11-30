@@ -145,7 +145,8 @@ python scripts/delete_document_data.py
 
 2. **Backup vor Bulk-Deletion:**
    ```sql
-   -- Backup in Supabase Dashboard erstellen
+   -- Backup mit pg_dump erstellen
+   pg_dump -h localhost -U krai_user -d krai > backup_$(date +%Y%m%d_%H%M%S).sql
    ```
 
 3. **Teste mit einem Dokument:**
@@ -166,7 +167,7 @@ python scripts/delete_document_data.py
 python scripts/delete_document_data.py --interactive
 ```
 
-### Fehler: "SUPABASE_URL not found"
+### Fehler: "DATABASE_CONNECTION_URL not found"
 
 **Ursache:** Environment Variables nicht geladen
 
@@ -184,9 +185,9 @@ ls .env*
 
 **Lösung:**
 ```powershell
-# Verwende SUPABASE_SERVICE_KEY (nicht SUPABASE_ANON_KEY)
+# Verwende DATABASE_CONNECTION_URL für PostgreSQL
 # In .env.database:
-SUPABASE_SERVICE_KEY=eyJ...
+DATABASE_CONNECTION_URL=postgresql://krai_user:password@localhost:5432/krai
 ```
 
 ## Technische Details
@@ -266,7 +267,10 @@ A: Nein, nur die Datenbank-Einträge. PDFs in R2/Storage bleiben erhalten.
 A: Nein, Löschung ist permanent. Erstelle vorher ein Backup!
 
 **Q: Wie finde ich die Dokument-ID?**  
-A: Nutze den interaktiven Modus oder schaue in Supabase Dashboard.
+A: Nutze den interaktiven Modus oder frage PostgreSQL direkt:
+```sql
+SELECT id, title FROM krai_core.documents ORDER BY created_at DESC LIMIT 10;
+```
 
 ---
 

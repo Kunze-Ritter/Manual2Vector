@@ -26,44 +26,21 @@ Examples:
 """
 
 import sys
-import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 # Add parent directory to path
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-from supabase import create_client
-from backend.processors.env_loader import load_all_env_files
-
-# Load environment variables
-print("Loading environment variables...")
-loaded_env_files = load_all_env_files(project_root)
-for env_file in loaded_env_files:
-    print(f"  ✓ Loaded: {env_file}")
-
-# Initialize Supabase client
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-# Try both key names (SERVICE_KEY and SERVICE_ROLE_KEY)
-SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("\n❌ Error: SUPABASE_URL or SUPABASE_SERVICE_KEY not found in environment")
-    print("\nDebug info:")
-    print(f"  SUPABASE_URL: {'SET' if SUPABASE_URL else 'NOT SET'}")
-    print(f"  SUPABASE_SERVICE_KEY: {'SET' if os.getenv('SUPABASE_SERVICE_KEY') else 'NOT SET'}")
-    print(f"  SUPABASE_SERVICE_ROLE_KEY: {'SET' if os.getenv('SUPABASE_SERVICE_ROLE_KEY') else 'NOT SET'}")
-    print("\nMake sure .env.database exists with:")
-    print("  SUPABASE_URL=https://...")
-    print("  SUPABASE_SERVICE_KEY=eyJ... (or SUPABASE_SERVICE_ROLE_KEY)")
-    sys.exit(1)
-
-print(f"✓ Connected to Supabase: {SUPABASE_URL}")
-print()
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+from scripts.migration_helpers import (
+    create_connected_adapter,
+    pg_execute,
+    pg_fetch_all,
+    run_async,
+)
 
 
 def validate_uuid(uuid_string: str) -> bool:
@@ -75,55 +52,50 @@ def validate_uuid(uuid_string: str) -> bool:
         return False
 
 
-def get_document_info(document_id: str) -> dict:
+async def get_document_info(adapter, document_id: str) -> Optional[dict]:
     """Get document information"""
     try:
-        result = supabase.table('documents').select('*').eq('id', document_id).execute()
-        if result.data:
-            return result.data[0]
-        return None
+        doc = await adapter.get_document(document_id)
+        if doc is None:
+            return None
+
+        # Convert possible Pydantic model or other representations to dict
+        if hasattr(doc, "model_dump"):
+            return doc.model_dump(mode="python")  # type: ignore[call-arg]
+        if isinstance(doc, dict):
+            return doc
+        try:
+            return dict(doc)
+        except Exception:
+            return None
     except Exception as e:
         print(f"❌ Error fetching document info: {e}")
         return None
 
 
-def count_related_data(document_id: str) -> dict:
+async def count_related_data(adapter, document_id: str) -> dict:
     """Count all related data for a document"""
     counts = {}
-    
-    # Tables with document_id column
-    direct_tables = {
-        'error_codes': 'error_codes',
-        'chunks': 'chunks'
+
+    # Only use documented tables/columns from DATABASE_SCHEMA.md
+    queries = {
+        "chunks": "SELECT COUNT(*) AS count FROM krai_intelligence.chunks WHERE document_id = :document_id",
+        "images": "SELECT COUNT(*) AS count FROM krai_content.images WHERE document_id = :document_id",
+        "links": "SELECT COUNT(*) AS count FROM krai_content.links WHERE document_id = :document_id",
     }
-    
-    # Junction tables (many-to-many)
-    junction_tables = {
-        'document_products': 'document_products'
-    }
-    
-    # Count direct tables
-    for key, table in direct_tables.items():
+
+    for key, query in queries.items():
         try:
-            result = supabase.table(table).select('id', count='exact').eq('document_id', document_id).execute()
-            counts[key] = result.count if hasattr(result, 'count') else len(result.data)
+            rows = await pg_fetch_all(adapter, query, {"document_id": document_id})
+            counts[key] = rows[0]["count"] if rows else 0
         except Exception as e:
             counts[key] = 0
             print(f"⚠️  Warning: Could not count {key}: {e}")
-    
-    # Count junction tables
-    for key, table in junction_tables.items():
-        try:
-            result = supabase.table(table).select('id', count='exact').eq('document_id', document_id).execute()
-            counts[key] = result.count if hasattr(result, 'count') else len(result.data)
-        except Exception as e:
-            counts[key] = 0
-            print(f"⚠️  Warning: Could not count {key}: {e}")
-    
+
     return counts
 
 
-def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
+async def delete_document_data(adapter, document_id: str, dry_run: bool = False) -> bool:
     """
     Delete all data associated with a document
     
@@ -142,7 +114,7 @@ def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
         return False
     
     # Get document info
-    doc_info = get_document_info(document_id)
+    doc_info = await get_document_info(adapter, document_id)
     if not doc_info:
         print(f"❌ Document not found: {document_id}")
         return False
@@ -153,7 +125,7 @@ def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
     
     # Count related data
     print("\n📊 Related data:")
-    counts = count_related_data(document_id)
+    counts = await count_related_data(adapter, document_id)
     total_items = sum(counts.values())
     
     for table, count in counts.items():
@@ -169,153 +141,105 @@ def delete_document_data(document_id: str, dry_run: bool = False) -> bool:
     # Delete data in correct order
     # Strategy: Delete parent first, let CASCADE handle children (faster!)
     # This avoids timeout issues with large tables like chunks
-    deletion_order = [
-        # Delete parent document first - CASCADE will handle all children
-        ('documents', 'id'),
-        # Cleanup any orphaned data (shouldn't be needed if CASCADE works)
-        ('document_products', 'document_id'),
-        ('error_codes', 'document_id'),
-        ('chunks', 'document_id'),
-    ]
-    
     print("\n🗑️  Deleting data...")
-    
-    for table, id_column in deletion_order:
-        try:
-            result = supabase.table(table).delete().eq(id_column, document_id).execute()
-            
-            deleted_count = len(result.data) if result.data else 0
-            if deleted_count > 0:
-                print(f"   ✓ Deleted {deleted_count} items from {table}")
-        
-        except Exception as e:
-            error_msg = str(e)
-            if 'statement timeout' in error_msg.lower() and table == 'chunks':
-                print(f"   ⚠️  Chunks deletion timeout (will be handled by CASCADE)")
-            else:
-                print(f"   ⚠️  Error deleting from {table}: {e}")
+
+    try:
+        result = await pg_execute(
+            adapter,
+            "DELETE FROM krai_core.documents WHERE id = :document_id",
+            {"document_id": document_id},
+        )
+        deleted_count = getattr(result, "rowcount", 0)
+        if deleted_count == 0:
+            print(f"   ⚠️  No document row deleted for id: {document_id}")
+        else:
+            print(f"   ✓ Deleted document row (and cascading related data) for {document_id}")
+    except Exception as e:
+        print(f"   ⚠️  Error deleting document {document_id}: {e}")
+        return False
     
     print(f"\n✅ Successfully deleted all data for document: {document_id}")
     return True
 
 
-def interactive_mode():
+async def interactive_mode(adapter):
     """Interactive mode with document selection"""
     print("=" * 80)
     print("Interactive Document Deletion")
     print("=" * 80)
-    
-    # List recent documents (last session = last 50 or today)
+
     try:
-        result = supabase.table('documents').select('id,filename,original_filename,manufacturer,created_at').order('created_at', desc=True).limit(50).execute()
-        
-        if not result.data:
-            print("\n❌ No documents found in database")
-            return
-        
-        print(f"\nRecent documents (last {len(result.data)}):")
-        print("-" * 80)
-        for idx, doc in enumerate(result.data, 1):
-            filename = doc.get('filename') or doc.get('original_filename', 'Unknown')
-            manufacturer = doc.get('manufacturer', 'Unknown')
-            created = doc.get('created_at', 'Unknown')[:19] if doc.get('created_at') else 'Unknown'
-            print(f"{idx:2}. {filename[:45]:45} | {manufacturer:15} | {created}")
-            print(f"    ID: {doc['id']}")
-        
-        print("\n" + "=" * 80)
-        print("Options:")
-        print("  - Enter numbers (comma-separated): 1,2,3")
-        print("  - Enter range: 1-20")
-        print("  - Enter 'all' to delete all listed documents")
-        print("  - Enter 'q' to quit")
-        print("=" * 80)
-        user_input = input("\nYour selection: ").strip()
-        
-        if user_input.lower() == 'q':
-            print("Cancelled.")
-            return
-        
-        # Parse selection
-        try:
-            if user_input.lower() == 'all':
-                # Select all documents
-                selected_docs = result.data
-            elif '-' in user_input and ',' not in user_input:
-                # Range selection (e.g., "1-20")
-                start, end = user_input.split('-')
-                start_idx = int(start.strip())
-                end_idx = int(end.strip())
-                selected_docs = result.data[start_idx-1:end_idx]
-            else:
-                # Comma-separated numbers
-                indices = [int(x.strip()) for x in user_input.split(',')]
-                selected_docs = [result.data[i-1] for i in indices if 1 <= i <= len(result.data)]
-        except (ValueError, IndexError) as e:
-            print(f"❌ Invalid selection: {e}")
-            return
-        
-        if not selected_docs:
-            print("❌ No valid documents selected")
-            return
-        
-        # Show summary
-        print("\n" + "=" * 80)
-        print("Documents to delete:")
-        for doc in selected_docs:
-            filename = doc.get('filename') or doc.get('original_filename', 'Unknown')
-            print(f"  - {filename} ({doc['id']})")
-        
-        # Confirm
-        print("\n⚠️  WARNING: This will permanently delete all data for these documents!")
-        confirm = input("Type 'DELETE' to confirm: ").strip()
-        
-        if confirm != 'DELETE':
-            print("Cancelled.")
-            return
-        
-        # Delete documents
-        for doc in selected_docs:
-            delete_document_data(doc['id'], dry_run=False)
-    
+        while True:
+            print("\nEnter one or more document IDs (comma-separated), or 'q' to quit.")
+            user_input = input("Your selection: ").strip()
+
+            if not user_input or user_input.lower() == 'q':
+                print("Cancelled.")
+                return
+
+            # Parse IDs
+            raw_ids = [part.strip() for part in user_input.split(',') if part.strip()]
+            if not raw_ids:
+                print("❌ No valid document IDs provided")
+                continue
+
+            print("\n⚠️  WARNING: This will permanently delete all data for these documents!")
+            for doc_id in raw_ids:
+                print(f"  - {doc_id}")
+
+            confirm = input("Type 'DELETE' to confirm: ").strip()
+            if confirm != 'DELETE':
+                print("Cancelled.")
+                continue
+
+            for doc_id in raw_ids:
+                await delete_document_data(adapter, doc_id, dry_run=False)
+
     except Exception as e:
         print(f"❌ Error in interactive mode: {e}")
 
 
-def main():
+async def main():
     """Main entry point"""
+    try:
+        adapter = await create_connected_adapter(database_type="postgresql")
+    except Exception as e:
+        print(f"❌ Failed to create database adapter: {e}")
+        sys.exit(1)
+
     if len(sys.argv) < 2:
         print(__doc__)
         print("\nNo arguments provided. Starting interactive mode...\n")
-        interactive_mode()
+        await interactive_mode(adapter)
         return
-    
+
     # Parse arguments
     args = sys.argv[1:]
     dry_run = '--dry-run' in args
     interactive = '--interactive' in args
-    
+
     if interactive:
-        interactive_mode()
+        await interactive_mode(adapter)
         return
-    
+
     # Remove flags from document IDs
     document_ids = [arg for arg in args if not arg.startswith('--')]
-    
+
     if not document_ids:
         print("❌ No document IDs provided")
         print(__doc__)
         sys.exit(1)
-    
+
     print("=" * 80)
     print(f"Document Data Deletion {'(DRY RUN)' if dry_run else ''}")
     print("=" * 80)
-    
+
     # Process each document
     success_count = 0
     for doc_id in document_ids:
-        if delete_document_data(doc_id, dry_run=dry_run):
+        if await delete_document_data(adapter, doc_id, dry_run=dry_run):
             success_count += 1
-    
+
     # Summary
     print("\n" + "=" * 80)
     print(f"Summary: {success_count}/{len(document_ids)} documents processed successfully")
@@ -323,4 +247,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    run_async(main())
