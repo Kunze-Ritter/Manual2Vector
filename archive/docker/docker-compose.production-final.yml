@@ -1,0 +1,150 @@
+services:
+  # KRAI Frontend Dashboard - production
+  krai-frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: krai-frontend:latest
+    container_name: krai-frontend-prod
+    restart: always
+    ports:
+      - "3000:80"
+    networks:
+      - krai-network
+    depends_on:
+      - krai-engine
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # KRAI Engine API - all config from .env
+  krai-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: krai-engine:latest
+    container_name: krai-engine-prod
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+    networks:
+      - krai-network
+    depends_on:
+      - krai-postgres
+      - krai-minio
+      - krai-ollama
+    command: >
+      gunicorn main:app
+        --workers 4
+        --worker-class uvicorn.workers.UvicornWorker
+        --bind 0.0.0.0:8000
+        --log-level info
+        --access-logfile /app/logs/access.log
+        --error-logfile /app/logs/error.log
+        --timeout 300
+
+  # PostgreSQL Database - credentials from .env
+  krai-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: krai-postgres-prod
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "5432:5432"
+    command: >
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c maintenance_work_mem=256MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=32MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=8MB
+      -c min_wal_size=2GB
+      -c max_wal_size=8GB
+    environment:
+      - POSTGRES_DB=${DATABASE_NAME:-krai}
+      - POSTGRES_USER=${DATABASE_USER:-krai_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
+    volumes:
+      - krai_postgres_data:/var/lib/postgresql/data
+      - ./database/initdb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Object Storage (simplified) - credentials from .env
+  krai-minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: krai-minio-prod
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY:-minioadmin123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Ollama AI Service - production with GPU
+  krai-ollama:
+    image: ollama/ollama:latest
+    container_name: krai-ollama-prod
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # GPU support - production
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  krai_postgres_data:
+  minio_data:
+  ollama_data:
+
+networks:
+  krai-network:
+    driver: bridge
