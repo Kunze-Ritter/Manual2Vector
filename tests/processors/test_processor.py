@@ -1,23 +1,353 @@
 """
 Test script for Processor V2
 
+This module provides unit tests for DocumentProcessor functionality.
+Integrates with conftest.py fixtures for consistent testing infrastructure.
+Also maintains the original CLI interface for backward compatibility.
+
 Usage:
     python test_processor.py path/to/test.pdf
     python test_processor.py path/to/test.pdf --manufacturer Canon
 """
 
+import pytest
+import asyncio
 import sys
 import argparse
 from pathlib import Path
 import json
+from unittest.mock import AsyncMock, MagicMock
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.processors.document_processor import DocumentProcessor
+from backend.core.base_processor import ProcessingResult, ProcessingContext
 from backend.processors.logger import get_logger
 
+
+pytestmark = pytest.mark.processor
+
+
+class TestDocumentProcessorBasic:
+    """Basic unit tests for DocumentProcessor functionality."""
+    
+    @pytest.mark.asyncio
+    async def test_document_processor_initialization(self, mock_database_adapter, processor_test_config):
+        """Test DocumentProcessor initialization with mock database."""
+        # Arrange & Act
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        # Assert
+        assert processor is not None, "Processor should be initialized"
+        assert processor.pdf_engine == processor_test_config['pdf_engine']
+        assert processor.database_adapter == mock_database_adapter
+    
+    @pytest.mark.asyncio
+    async def test_basic_document_processing(self, mock_database_adapter, sample_pdf_files, processor_test_config):
+        """Test basic document processing functionality."""
+        # Arrange
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        valid_pdf = sample_pdf_files['valid_pdf']
+        
+        context = ProcessingContext(
+            document_id="test-doc-id",
+            file_path=valid_pdf['path'],
+            metadata={'filename': valid_pdf['path'].name}
+        )
+        
+        # Act
+        result = await processor.process(context)
+        
+        # Assert
+        assert isinstance(result, ProcessingResult), "Should return ProcessingResult"
+        assert result.success, f"Valid PDF should process successfully: {result.error}"
+        assert result.data is not None, "Should have result data"
+        assert 'page_texts' in result.data, "Should have page texts"
+        assert 'metadata' in result.data, "Should have document metadata"
+    
+    @pytest.mark.asyncio
+    async def test_text_extraction(self, mock_database_adapter, temp_test_pdf, processor_test_config):
+        """Test text extraction from documents."""
+        # Arrange
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        # Create test content
+        test_content = """Test Document for Text Extraction
+====================================
+
+This document tests text extraction functionality.
+It contains multiple lines and paragraphs.
+
+Technical Specifications:
+- Engine: PyMuPDF
+- Purpose: Text extraction testing
+- Expected: Successful extraction
+
+This content should be extracted and preserved."""
+        
+        test_file = temp_test_pdf / "text_extraction_test.pdf"
+        test_file.write_text(test_content)
+        
+        context = ProcessingContext(
+            document_id="test-doc-id",
+            file_path=test_file,
+            metadata={'filename': test_file.name}
+        )
+        
+        # Act
+        result = await processor.process(context)
+        
+        # Assert
+        assert result.success, "Text extraction should succeed"
+        
+        page_texts = result.data['page_texts']
+        assert isinstance(page_texts, dict), "Page texts should be a dictionary"
+        assert len(page_texts) > 0, "Should extract text from at least one page"
+        
+        # Verify content extraction
+        all_text = " ".join(page_texts.values())
+        assert "Test Document for Text Extraction" in all_text, "Should extract title"
+        assert "Technical Specifications" in all_text, "Should extract section headers"
+        assert "PyMuPDF" in all_text, "Should preserve engine name"
+    
+    @pytest.mark.asyncio
+    async def test_metadata_extraction(self, mock_database_adapter, temp_test_pdf, processor_test_config):
+        """Test metadata extraction from documents."""
+        # Arrange
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        # Create content with detectable metadata
+        metadata_content = """Konica Minolta C750i Service Manual
+=====================================
+
+Document Information:
+- Manufacturer: Konica Minolta
+- Model: C750i
+- Document Type: Service Manual
+- Language: English
+
+Technical Details:
+This document contains technical information.
+It should be processed and metadata extracted."""
+        
+        test_file = temp_test_pdf / "metadata_extraction_test.pdf"
+        test_file.write_text(metadata_content)
+        
+        context = ProcessingContext(
+            document_id="test-doc-id",
+            file_path=test_file,
+            metadata={'filename': test_file.name}
+        )
+        
+        # Act
+        result = await processor.process(context)
+        
+        # Assert
+        assert result.success, "Metadata extraction should succeed"
+        
+        document_metadata = result.data['metadata']
+        assert isinstance(document_metadata, dict), "Metadata should be a dictionary"
+        
+        # Verify metadata extraction
+        assert 'manufacturer' in document_metadata, "Should detect manufacturer"
+        assert 'model' in document_metadata, "Should detect model"
+        assert 'document_type' in document_metadata, "Should detect document type"
+        assert 'language' in document_metadata, "Should detect language"
+        
+        # Verify specific values
+        manufacturer = document_metadata.get('manufacturer', '').lower()
+        assert 'konica' in manufacturer or 'minolta' in manufacturer, \
+            f"Should detect Konica Minolta, got {manufacturer}"
+        
+        doc_type = document_metadata.get('document_type', '').lower()
+        assert 'service_manual' in doc_type or 'manual' in doc_type, \
+            f"Should detect service manual, got {doc_type}"
+    
+    @pytest.mark.asyncio
+    async def test_language_detection(self, mock_database_adapter, temp_test_pdf, processor_test_config):
+        """Test language detection functionality."""
+        # Arrange
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        # Create English content
+        english_content = """English Language Test Document
+==================================
+
+This document is written in English.
+It contains technical information and specifications.
+The language detection should identify this as English.
+
+Error Code 900.01: Fuser Unit Error
+Description: The fuser unit has failed to reach operating temperature.
+Solution: Check the fuser lamp and thermal fuse."""
+        
+        test_file = temp_test_pdf / "language_detection_test.pdf"
+        test_file.write_text(english_content)
+        
+        context = ProcessingContext(
+            document_id="test-doc-id",
+            file_path=test_file,
+            metadata={'filename': test_file.name}
+        )
+        
+        # Act
+        result = await processor.process(context)
+        
+        # Assert
+        assert result.success, "Language detection should succeed"
+        
+        document_metadata = result.data['metadata']
+        detected_language = document_metadata.get('language')
+        assert detected_language is not None, "Should detect language"
+        assert detected_language.lower() in ['en', 'english', 'en-us'], \
+            f"Should detect English, got {detected_language}"
+    
+    @pytest.mark.asyncio
+    async def test_error_handling(self, mock_database_adapter, temp_test_pdf, processor_test_config):
+        """Test error handling in document processing."""
+        # Arrange
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        # Create corrupted file
+        corrupted_file = temp_test_pdf / "corrupted_test.pdf"
+        corrupted_file.write_bytes(b"This is not a valid PDF file content")
+        
+        context = ProcessingContext(
+            document_id="test-doc-id",
+            file_path=corrupted_file,
+            metadata={'filename': corrupted_file.name}
+        )
+        
+        # Act
+        result = await processor.process(context)
+        
+        # Assert
+        # Should handle corrupted files gracefully
+        if not result.success:
+            assert "pdf" in result.error.lower() or "corrupted" in result.error.lower() or \
+                   "invalid" in result.error.lower(), "Should provide meaningful error message"
+    
+    @pytest.mark.asyncio
+    async def test_empty_document_handling(self, mock_database_adapter, temp_test_pdf, processor_test_config):
+        """Test handling of empty documents."""
+        # Arrange
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        # Create empty file
+        empty_file = temp_test_pdf / "empty_test.pdf"
+        empty_file.write_bytes(b"")
+        
+        context = ProcessingContext(
+            document_id="test-doc-id",
+            file_path=empty_file,
+            metadata={'filename': empty_file.name}
+        )
+        
+        # Act
+        result = await processor.process(context)
+        
+        # Assert
+        # Should handle empty files gracefully
+        if result.success:
+            page_texts = result.data['page_texts']
+            assert len(page_texts) == 0, "Empty document should have no pages"
+        else:
+            assert "empty" in result.error.lower() or "content" in result.error.lower(), \
+                   "Should provide meaningful error for empty document"
+    
+    @pytest.mark.asyncio
+    async def test_multi_page_document(self, mock_database_adapter, temp_test_pdf, processor_test_config):
+        """Test processing of multi-page documents."""
+        # Arrange
+        processor = DocumentProcessor(
+            database_adapter=mock_database_adapter,
+            pdf_engine=processor_test_config['pdf_engine']
+        )
+        
+        # Create multi-page content
+        multi_page_content = """Page 1: Introduction
+==================
+
+This is the first page of a multi-page test document.
+It contains introductory information and context.
+
+Page 2: Technical Details
+=========================
+
+This is the second page with technical specifications.
+It includes detailed technical information and parameters.
+
+Page 3: Error Codes
+==================
+
+This is the third page containing error codes.
+900.01: Fuser unit error
+900.02: Exposure lamp error
+900.03: High voltage error
+
+Page 4: Troubleshooting
+=====================
+
+This is the fourth page with troubleshooting procedures.
+It provides step-by-step instructions."""
+        
+        test_file = temp_test_pdf / "multi_page_test.pdf"
+        test_file.write_text(multi_page_content)
+        
+        context = ProcessingContext(
+            document_id="test-doc-id",
+            file_path=test_file,
+            metadata={'filename': test_file.name}
+        )
+        
+        # Act
+        result = await processor.process(context)
+        
+        # Assert
+        assert result.success, "Multi-page processing should succeed"
+        
+        page_texts = result.data['page_texts']
+        assert len(page_texts) >= 1, "Should extract text from pages"
+        
+        # Verify page-specific content
+        all_text = " ".join(page_texts.values())
+        assert "Page 1" in all_text, "Should extract page 1 content"
+        assert "Page 2" in all_text, "Should extract page 2 content"
+        assert "Page 3" in all_text, "Should extract page 3 content"
+        assert "Page 4" in all_text, "Should extract page 4 content"
+        assert "900.01" in all_text, "Should preserve error codes"
+
+
+# Legacy CLI interface for backward compatibility
 def main():
+    """Legacy CLI interface for DocumentProcessor testing.
+    
+    Maintains the original command-line interface while integrating
+    with new testing infrastructure where possible.
+    """
     parser = argparse.ArgumentParser(
         description="Test Document Processor V2"
     )
@@ -60,14 +390,46 @@ def main():
     logger = get_logger()
     
     # Initialize processor
-    logger.section("Processor V2 Test")
+    logger.section("Processor V2 Test (Legacy)")
     logger.info(f"PDF: {args.pdf_path}")
     logger.info(f"Manufacturer: {args.manufacturer}")
     
+    # Create mock database adapter for legacy testing
+    class MockDatabaseAdapter:
+        def __init__(self):
+            self.documents = {}
+            self.chunks = {}
+        
+        async def create_document(self, document):
+            doc_id = f"doc-{len(self.documents)}"
+            self.documents[doc_id] = document
+            return doc_id
+        
+        async def get_document_by_hash(self, file_hash):
+            return None  # No duplicates for testing
+        
+        async def create_chunk(self, chunk):
+            chunk_id = f"chunk-{len(self.chunks)}"
+            self.chunks[chunk_id] = chunk
+            return chunk_id
+        
+        async def execute_rpc(self, rpc_name, params):
+            return True  # Mock successful RPC calls
+    
+    mock_db = MockDatabaseAdapter()
+    
     processor = DocumentProcessor(
+        database_adapter=mock_db,
         manufacturer=args.manufacturer,
         chunk_size=args.chunk_size,
         debug=args.debug
+    )
+    
+    # Create processing context
+    context = ProcessingContext(
+        document_id="legacy-test-doc",
+        file_path=args.pdf_path,
+        metadata={'filename': args.pdf_path.name}
     )
     
     # Process
@@ -197,4 +559,5 @@ def save_results(result, output_path: Path):
 
 
 if __name__ == '__main__':
+    # Run legacy CLI interface
     main()
