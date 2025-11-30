@@ -66,9 +66,8 @@ Configure the test environment by editing `.env.test` with your local settings:
 FIRECRAWL_API_KEY=your-test-firecrawl-key
 OLLAMA_BASE_URL=http://localhost:11435
 MINIO_ENDPOINT=localhost:9001
+DATABASE_CONNECTION_URL=postgresql://krai_test:krai_test_password@localhost:5433/krai_test
 DATABASE_URL=postgresql://krai_test:krai_test_password@localhost:5433/krai_test
-SUPABASE_URL=your-test-supabase-url
-SUPABASE_KEY=your-test-supabase-key
 ```
 
 > **Important**: Test environment uses different ports than production to avoid conflicts:
@@ -131,7 +130,7 @@ pytest -m "not slow"
 
 The test suite uses shared fixtures defined in `backend/tests/services/conftest.py`:
 
-- `mock_db_client`: Mock Supabase database client
+- `mock_db_client`: Mock PostgreSQL database client
 - `mock_database_service`: Mock database service wrapper
 - `mock_scraper`: Mock web scraping service
 - `mock_batch_task_service`: Mock batch task service
@@ -164,21 +163,23 @@ CREATE SCHEMA IF NOT EXISTS krai_test;
 
 ### Test Services
 
-The test environment uses `docker-compose.test.yml` with isolated services:
+The test environment uses `docker-compose.test.yml` with isolated services. This file has been moved to `archive/docker/docker-compose.test.yml` but is still available for testing:
 
 ```bash
 # Start basic test services
-docker-compose -f docker-compose.test.yml up -d
+docker-compose -f archive/docker/docker-compose.test.yml up -d
 
 # Start test services with Firecrawl support
-docker-compose -f docker-compose.test.yml --profile firecrawl up -d
+docker-compose -f archive/docker/docker-compose.test.yml --profile firecrawl up -d
 
 # View test service status
-docker-compose -f docker-compose.test.yml ps
+docker-compose -f archive/docker/docker-compose.test.yml ps
 
 # Stop test services
-docker-compose -f docker-compose.test.yml down
+docker-compose -f archive/docker/docker-compose.test.yml down
 ```
+
+> **Note:** The test environment compose file is still available but has been archived as it's not a primary deployment configuration. For basic testing, you can also use `docker-compose.simple.yml` with manual port adjustments.
 
 ### Test Service Ports
 
@@ -199,10 +200,10 @@ Firecrawl services require the `firecrawl` profile:
 
 ```bash
 # Start services with Firecrawl support
-docker-compose -f docker-compose.test.yml --profile firecrawl up -d
+docker-compose -f archive/docker/docker-compose.test.yml --profile firecrawl up -d
 
 # Start only Firecrawl services (if basic services already running)
-docker-compose -f docker-compose.test.yml --profile firecrawl up -d firecrawl-api-test firecrawl-worker-test
+docker-compose -f archive/docker/docker-compose.test.yml --profile firecrawl up -d firecrawl-api-test firecrawl-worker-test
 ```
 
 ### Health Checks
@@ -436,11 +437,11 @@ with patch('module.ClassName') as mock_class:
 
    ```bash
    # Check test database is running
-   docker-compose -f docker-compose.test.yml ps
+   docker-compose -f archive/docker/docker-compose.test.yml ps
    
    # Reset test database
-   docker-compose -f docker-compose.test.yml down -v
-   docker-compose -f docker-compose.test.yml up -d
+   docker-compose -f archive/docker/docker-compose.test.yml down -v
+   docker-compose -f archive/docker/docker-compose.test.yml up -d
    ```
 
 2. **Firecrawl API Errors**

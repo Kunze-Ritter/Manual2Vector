@@ -99,11 +99,9 @@ Ensure `.env` file is configured with:
 
 ```env
 # Database
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-service-role-key
-
-# Optional for specific tests
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DATABASE_CONNECTION_URL=postgresql://krai_user:krai_password@localhost:5432/krai
+DATABASE_URL=postgresql://krai_user:krai_password@localhost:5432/krai
+POSTGRES_URL=postgresql://krai_user:krai_password@localhost:5432/krai
 ```
 
 ### Database Setup
@@ -270,7 +268,7 @@ Total: 4/4 test suites passed
 ```
 ❌ MetricsService: TEST FAILED - Database connection error
 ```
-**Solution:** Check `.env` file has correct `SUPABASE_URL` and `SUPABASE_KEY`
+**Solution:** Check `.env` file has correct `DATABASE_CONNECTION_URL` and `POSTGRES_URL`
 
 **View not found:**
 ```
@@ -297,7 +295,7 @@ If cache tests show poor performance:
 1. Check database connection latency
 2. Verify indexes exist on tables
 3. Check if aggregated views are being used
-4. Monitor database query performance in Supabase dashboard
+4. Monitor database query performance in PostgreSQL logs
 
 ## Adding New Tests
 
@@ -305,10 +303,10 @@ If cache tests show poor performance:
 
 ```python
 @pytest.mark.asyncio
-async def test_new_feature(self, metrics_service, mock_supabase_adapter):
+async def test_new_feature(self, metrics_service, mock_database_adapter):
     """Test description."""
     # Mock database response
-    mock_supabase_adapter.client.table.return_value.select.return_value.execute.return_value.data = [
+    mock_database_adapter.client.table.return_value.select.return_value.execute.return_value.data = [
         {"field": "value"}
     ]
     
@@ -331,7 +329,7 @@ async def test_new_integration():
     
     try:
         # Setup
-        adapter = SupabaseAdapter()
+        adapter = create_database_adapter()
         service = NewService(adapter)
         
         # Test
@@ -374,8 +372,8 @@ jobs:
     
     - name: Run tests
       env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        DATABASE_CONNECTION_URL: ${{ secrets.DATABASE_CONNECTION_URL }}
+        POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
       run: |
         pytest tests/test_monitoring_system.py -v --cov=backend.services
 ```
@@ -401,7 +399,7 @@ For issues with tests:
 1. Check test output for specific error messages
 2. Verify database migration 51 is applied
 3. Ensure all environment variables are set
-4. Check Supabase dashboard for query errors
+4. Check PostgreSQL query logs for query errors
 5. Review logs in `backend/logs/monitoring.log`
 
 ---
