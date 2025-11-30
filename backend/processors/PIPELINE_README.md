@@ -1,35 +1,59 @@
-# Master Pipeline - Complete Document Processing
+# KRAI Pipeline - Modular Document Processing System
 
 ## Overview
 
-The Master Pipeline orchestrates all document processing stages from upload to semantic search enablement.
+The KRAI Pipeline is a modular document processing system that orchestrates all stages from upload to semantic search enablement. The system has been refactored to provide individual stage execution, comprehensive stage tracking, and a powerful CLI interface.
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    MASTER PIPELINE                          │
+│                  KRAI MODULAR PIPELINE                     │
 │                                                             │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ Stage 1  │→ │ Stage 2  │→ │ Stage 3  │→ │ Stage 4  │  │
-│  │  Upload  │  │   Text   │  │  Images  │  │ Products │  │
+│  │ Upload   │→ │ Text     │→ │ Tables   │→ │ SVG      │  │
+│  │Processor │  │Extractor │  │Extractor │  │Processor │  │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
 │                                                             │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ Stage 5  │→ │ Stage 6  │→ │ Stage 7  │→ │ Stage 8  │  │
-│  │ Errors   │  │ Versions │  │ Chunking │  │  R2      │  │
+│  │ Images   │→ │ Visual   │→ │ Links    │→ │ Chunks   │  │
+│  │Processor │  │Embeddings│  │Extractor │  │Processor │  │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
 │                                                             │
-│  ┌──────────┐                                              │
-│  │ Stage 9  │                                              │
-│  │Embeddings│  Semantic Search Enabled!                   │
-│  └──────────┘                                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ Classify  │→ │Metadata  │→ │ Parts    │→ │ Storage  │  │
+│  │Processor │  │Processor │  │Extractor │  │Processor │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│                                                             │
+│  ┌──────────┐  ┌──────────┐                              │
+│  │ Embed    │→ │ Search   │  Full Pipeline Complete!      │
+│  │Processor │  │Processor │                              │
+│  └──────────┘  └──────────┘                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Stages
+## Key Components
+
+### 1. Stage Tracking System
+
+- **File**: `backend/processors/stage_tracker.py`
+- **Database**: PostgreSQL with async RPC calls
+- **Features**: Real-time progress tracking, stage status management, error handling
+
+### 2. Master Pipeline
+
+- **File**: `backend/pipeline/master_pipeline.py`
+- **Features**: Individual stage execution, batch processing, hardware monitoring
+
+### 3. CLI Interface
+
+- **File**: `scripts/pipeline_processor.py`
+- **Features**: Run individual stages, smart processing, status monitoring
+
+## Processing Stages
 
 ### Stage 1: Upload & Validation
+
 - File validation (format, size)
 - Duplicate detection (hash-based)
 - Database record creation
@@ -37,12 +61,14 @@ The Master Pipeline orchestrates all document processing stages from upload to s
 - **Output:** Document ID
 
 ### Stage 2: Text Extraction
+
 - Extract text from all pages
 - PyMuPDF + pdfplumber engines
 - Preserve page structure
 - **Output:** Page texts dictionary
 
 ### Stage 3: Image Processing
+
 - Extract images from PDF
 - Filter relevant images (skip logos, headers)
 - OCR text extraction (Tesseract)
@@ -51,12 +77,14 @@ The Master Pipeline orchestrates all document processing stages from upload to s
 - **Output:** Filtered images with metadata
 
 ### Stage 4: Product Extraction
+
 - Pattern-based extraction
 - Model/serial number detection
 - Specification parsing
 - **Output:** Product entities
 
 ### Stage 5: Error Code Extraction
+
 - Error code pattern matching
 - Description extraction
 - Solution/cause detection
@@ -405,6 +433,96 @@ result = pipeline.process_batch(file_paths)
 # Less efficient: Process individually in loop
 for path in file_paths:
     result = pipeline.process_document(path)
+```
+
+## CLI Usage
+
+The new CLI interface provides powerful command-line access to the pipeline system.
+
+### Installation
+
+```bash
+# From project root
+cd scripts
+python pipeline_processor.py --help
+```
+
+### Common Commands
+
+#### List Available Stages
+
+```bash
+python pipeline_processor.py --list-stages
+```
+
+#### Run Single Stage
+
+```bash
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --stage 5
+# or by name
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --stage image_processing
+```
+
+#### Run Multiple Stages
+
+```bash
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --stages 1,2,3
+# or by names
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --stages upload,text_extraction,image_processing
+```
+
+#### Run All Stages
+```bash
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --all
+```
+
+#### Smart Processing (Recommended)
+Automatically determines which stages need to run based on current status:
+```bash
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --smart
+```
+
+#### Check Document Status
+```bash
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --status
+```
+
+### Advanced Features
+
+#### Verbose Output
+```bash
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --stage 5 --verbose
+```
+
+#### File Path for Upload Stage
+```bash
+python pipeline_processor.py --document-id 123e4567-e89b-12d3-a456-426614174000 --stage upload --file-path /path/to/document.pdf
+```
+
+## Migration from Old System
+
+### Deprecated Components
+- `document_processor.py` - Marked as deprecated, use modular system instead
+- Old synchronous stage tracking - Replaced with async PostgreSQL adapter
+
+### Migration Steps
+1. Use `scripts/pipeline_processor.py` for CLI operations
+2. Use `backend/pipeline/master_pipeline.py` for programmatic access
+3. Update existing code to use async stage tracking methods
+
+### Example Migration
+
+```python
+# Old way (deprecated)
+from backend.processors.document_processor import DocumentProcessor
+processor = DocumentProcessor()
+result = processor.process_document(file_path)
+
+# New way (recommended)
+from backend.pipeline.master_pipeline import KRMasterPipeline
+pipeline = KRMasterPipeline()
+await pipeline.initialize_services()
+result = await pipeline.run_stages(document_id, [Stage.UPLOAD, Stage.TEXT_EXTRACTION])
 ```
 
 ## Performance Optimization

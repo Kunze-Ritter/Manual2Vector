@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 import time
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
 from .search_analytics import SearchAnalytics
 
@@ -13,44 +13,48 @@ from .search_analytics import SearchAnalytics
 class SearchProcessor(BaseProcessor):
     """Stage 10 processor: ensure document is ready for search & log analytics."""
 
-    def __init__(self, database_service=None, ai_service=None):
+    def __init__(self, database_adapter=None, ai_service=None):
         super().__init__(name="search_processor")
         self.stage = Stage.SEARCH_INDEXING
-        self.database_service = database_service
+        self.database_adapter = database_adapter
         self.ai_service = ai_service  # Reserved for future semantic scoring
 
-        supabase_client = getattr(database_service, "client", None)
-        self.stage_tracker: Optional[StageTracker] = StageTracker(supabase_client) if supabase_client else None
-        self.analytics = SearchAnalytics(supabase_client)
+        # Initialize StageTracker with database adapter
+        if database_adapter:
+            from .stage_tracker import StageTracker
+            self.stage_tracker: Optional[StageTracker] = StageTracker(database_adapter)
+        else:
+            self.stage_tracker = None
+            self.logger.warning("SearchProcessor initialized without database adapter")
 
-        if not supabase_client:
-            self.logger.warning("SearchProcessor initialized without Supabase client")
+        # Initialize SearchAnalytics with database adapter
+        from .search_analytics import SearchAnalytics
+        self.analytics = SearchAnalytics(database_adapter)
 
     async def process(self, context) -> Any:
         """Finalize search indexing for the provided processing context."""
         document_id = str(context.document_id)
 
-        supabase = getattr(self.database_service, "client", None)
-        if not supabase:
-            self.logger.error("SearchProcessor requires an active Supabase client")
-            return self._create_result(False, "Supabase client not configured", {})
+        if not self.database_adapter:
+            self.logger.error("SearchProcessor requires a database adapter")
+            return self._create_result(False, "Database adapter not configured", {})
 
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
             start_time = time.time()
 
             if self.stage_tracker:
-                self.stage_tracker.start_stage(document_id, self.stage)
+                await self.stage_tracker.start_stage(document_id, self.stage)
 
             try:
-                chunks_count = self._count_records(supabase, "vw_chunks", document_id)
-                embeddings_count = self._count_records(supabase, "vw_embeddings", document_id)
-                links_count = self._count_records(supabase, "vw_links", document_id)
-                videos_count = self._count_records(supabase, "vw_videos", document_id)
+                chunks_count = await self._count_records("vw_chunks", document_id)
+                embeddings_count = await self._count_records("vw_embeddings", document_id)
+                links_count = await self._count_records("vw_links", document_id)
+                videos_count = await self._count_records("vw_videos", document_id)
 
                 if embeddings_count == 0 and chunks_count > 0:
                     adapter.warning("Embeddings missing - search results may be limited")
 
-                self._update_document_flags(supabase, document_id, embeddings_ready=embeddings_count > 0, adapter=adapter)
+                await self._update_document_flags(document_id, embeddings_ready=embeddings_count > 0, adapter=adapter)
 
                 processing_time = time.time() - start_time
 
@@ -70,7 +74,7 @@ class SearchProcessor(BaseProcessor):
                 }
 
                 if self.stage_tracker:
-                    self.stage_tracker.complete_stage(document_id, self.stage, stage_metadata)
+                    await self.stage_tracker.complete_stage(document_id, self.stage, stage_metadata)
 
                 return self._create_result(
                     success=True,
@@ -82,23 +86,24 @@ class SearchProcessor(BaseProcessor):
                 adapter.error("Search indexing failed: %s", exc)
                 self.logger.error(f"Search indexing failed: {exc}")
                 if self.stage_tracker:
-                    self.stage_tracker.fail_stage(
+                    await self.stage_tracker.fail_stage(
                         document_id,
                         self.stage,
                         error=str(exc)
                     )
                 return self._create_result(False, f"Search indexing error: {exc}", {})
 
-    def _count_records(self, supabase, view_name: str, document_id: str) -> int:
+    async def _count_records(self, view_name: str, document_id: str) -> int:
         """Return exact count of records for a document in the given view."""
         try:
-            response = supabase.table(view_name).select("id", count="exact").eq("document_id", document_id).execute()
-            return response.count or 0
+            query = f"SELECT COUNT(*) as count FROM {view_name} WHERE document_id = $1"
+            result = await self.database_adapter.execute_query(query, [document_id])
+            return result[0]['count'] if result else 0
         except Exception as exc:
             self.logger.debug(f"Failed counting records in {view_name}: {exc}")
             return 0
 
-    def _update_document_flags(self, supabase, document_id: str, embeddings_ready: bool, adapter=None) -> None:
+    async def _update_document_flags(self, document_id: str, embeddings_ready: bool, adapter=None) -> None:
         """Update document level flags to signal search readiness."""
         try:
             update_payload: Dict[str, Any] = {
@@ -110,7 +115,21 @@ class SearchProcessor(BaseProcessor):
             update_payload = {k: v for k, v in update_payload.items() if v is not None}
 
             if update_payload:
-                supabase.table("vw_documents").update(update_payload).eq("id", document_id).execute()
+                # Build UPDATE query
+                set_clauses = []
+                params = []
+                param_index = 1
+                
+                for key, value in update_payload.items():
+                    set_clauses.append(f"{key} = ${param_index}")
+                    params.append(value)
+                    param_index += 1
+                
+                params.append(document_id)  # WHERE clause parameter
+                
+                query = f"UPDATE vw_documents SET {', '.join(set_clauses)} WHERE id = ${param_index}"
+                await self.database_adapter.execute_query(query, params)
+                
         except Exception as exc:
             logger = adapter if adapter else self.logger
             logger.debug("Failed updating document search flags: %s", exc)

@@ -11,21 +11,21 @@ import sys
 
 from core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
-from .imports import get_supabase_client, extract_parts_with_context
+from .imports import get_database_adapter, extract_parts_with_context
 
 
 class PartsProcessor(BaseProcessor):
     """Extract and store parts from document chunks"""
     
-    def __init__(self, supabase_client=None, stage_tracker: Optional[StageTracker] = None):
+    def __init__(self, database_adapter=None, stage_tracker: Optional[StageTracker] = None):
         """Initialize parts processor"""
         super().__init__(name="parts_processor")
         self.stage = Stage.PARTS_EXTRACTION
-        self.supabase = supabase_client or get_supabase_client()
-        self.stage_tracker = stage_tracker or (StageTracker(self.supabase) if self.supabase else None)
+        self.adapter = database_adapter or get_database_adapter()
+        self.stage_tracker = None  # Temporarily disabled due to Supabase dependency
         self.logger.info("PartsProcessor initialized")
         
-    def process_document(self, document_id: str) -> Dict:
+    async def process_document(self, document_id: str) -> Dict:
         """
         Process all chunks of a document to extract parts
         
@@ -46,31 +46,29 @@ class PartsProcessor(BaseProcessor):
 
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
             if self.stage_tracker:
-                self.stage_tracker.start_stage(document_id, self.stage)
+                await self.stage_tracker.start_stage(document_id, self.stage)
 
             try:
-                doc_result = self.supabase.table('vw_documents').select('*').eq('id', document_id).execute()
-                if not doc_result.data:
+                document = await self.adapter.get_document(document_id)
+                if not document:
                     adapter.error("Document %s not found", document_id)
                     stats['errors'] += 1
                     if self.stage_tracker:
-                        self.stage_tracker.fail_stage(document_id, self.stage, error="Document not found")
+                        await self.stage_tracker.fail_stage(document_id, self.stage, error="Document not found")
                     return stats
 
-                document = doc_result.data[0]
                 manufacturer_id = document.get('manufacturer_id')
                 manufacturer_name = (document.get('manufacturer') or '').lower().replace(' ', '_')
 
                 if not manufacturer_id:
                     adapter.warning("No manufacturer_id available, skipping parts extraction")
                     if self.stage_tracker:
-                        self.stage_tracker.skip_stage(document_id, self.stage, reason="Missing manufacturer_id")
+                        await self.stage_tracker.skip_stage(document_id, self.stage, reason="Missing manufacturer_id")
                     return stats
 
                 adapter.info("Extracting parts for manufacturer: %s", manufacturer_name)
 
-                chunks_result = self.supabase.table('vw_chunks').select('*').eq('document_id', document_id).execute()
-                chunks = chunks_result.data or []
+                chunks = await self.adapter.get_chunks_by_document(document_id)
                 adapter.info("Processing %s chunks for parts extraction", len(chunks))
 
                 for chunk in chunks:
@@ -87,7 +85,7 @@ class PartsProcessor(BaseProcessor):
                         stats['parts_found'] += len(parts_found)
 
                         for part_data in parts_found:
-                            result = self._store_part(part_data, adapter)
+                            result = await self._store_part(part_data, adapter)
                             if result == 'created':
                                 stats['parts_created'] += 1
                             elif result == 'updated':
@@ -98,13 +96,13 @@ class PartsProcessor(BaseProcessor):
                         stats['errors'] += 1
 
                 adapter.info("Linking parts to error codes...")
-                linked_count = self._link_parts_to_error_codes(document_id, adapter)
+                linked_count = await self._link_parts_to_error_codes(document_id, adapter)
                 stats['parts_linked_to_error_codes'] = linked_count
 
                 adapter.info("Parts extraction complete: %s", stats)
 
                 if self.stage_tracker:
-                    self.stage_tracker.complete_stage(
+                    await self.stage_tracker.complete_stage(
                         document_id,
                         self.stage,
                         metadata={
@@ -121,7 +119,7 @@ class PartsProcessor(BaseProcessor):
                 adapter.error("Error in parts processing: %s", e)
                 stats['errors'] += 1
                 if self.stage_tracker:
-                    self.stage_tracker.fail_stage(document_id, self.stage, error=str(e))
+                    await self.stage_tracker.fail_stage(document_id, self.stage, error=str(e))
                 return stats
 
     async def process(self, context) -> Dict:
@@ -130,7 +128,7 @@ class PartsProcessor(BaseProcessor):
         if not document_id:
             raise ValueError("Processing context must include 'document_id'")
 
-        stats = self.process_document(str(document_id))
+        stats = await self.process_document(str(document_id))
         metadata = {
             "document_id": str(document_id),
             "stage": self.stage.value,
@@ -250,7 +248,7 @@ class PartsProcessor(BaseProcessor):
         
         return description[:500], category  # Limit length
     
-    def _store_part(self, part_data: Dict, adapter) -> str:
+    async def _store_part(self, part_data: Dict, adapter) -> str:
         """
         Store or update part in database
         
@@ -262,11 +260,10 @@ class PartsProcessor(BaseProcessor):
         """
         try:
             # Check if part already exists
-            existing = self.supabase.table('vw_parts').select('*').eq(
-                'part_number', part_data['part_number']
-            ).eq(
-                'manufacturer_id', part_data['manufacturer_id']
-            ).execute()
+            existing = await self.adapter.get_part_by_number_and_manufacturer(
+                part_data['part_number'], 
+                part_data['manufacturer_id']
+            )
             
             # Prepare data for storage
             store_data = {
@@ -277,21 +274,21 @@ class PartsProcessor(BaseProcessor):
                 'part_category': part_data.get('part_category')
             }
             
-            if existing.data:
+            if existing:
                 # Update existing part if new description is better
-                part_id = existing.data[0]['id']
-                old_desc = existing.data[0].get('part_description', '')
+                part_id = existing['id']
+                old_desc = existing.get('part_description', '')
                 new_desc = store_data.get('part_description', '')
                 
                 # Update if new description is longer/better
                 if len(new_desc) > len(old_desc):
-                    self.supabase.table('vw_parts').update(store_data).eq('id', part_id).execute()
+                    await self.adapter.update_part(part_id, store_data)
                     adapter.debug("Updated part %s", part_data['part_number'])
                     return 'updated'
                 return 'exists'
             else:
                 # Create new part
-                self.supabase.table('vw_parts').insert(store_data).execute()
+                await self.adapter.create_part(store_data)
                 adapter.debug("Created part %s", part_data['part_number'])
                 return 'created'
                 
@@ -299,7 +296,7 @@ class PartsProcessor(BaseProcessor):
             adapter.error("Error storing part %s: %s", part_data['part_number'], e)
             return 'error'
     
-    def _link_parts_to_error_codes(self, document_id: str, adapter) -> int:
+    async def _link_parts_to_error_codes(self, document_id: str, adapter) -> int:
         """
         Link parts to error codes based on chunk proximity and solution text
         
@@ -313,11 +310,7 @@ class PartsProcessor(BaseProcessor):
         
         try:
             # Get all error codes for this document
-            error_codes_result = self.supabase.table('vw_error_codes').select(
-                'id, error_code, solution_text, chunk_id'
-            ).eq('document_id', document_id).execute()
-            
-            error_codes = error_codes_result.data
+            error_codes = await self.adapter.get_error_codes_by_document(document_id)
             
             for error_code in error_codes:
                 ec_id = error_code['id']
@@ -335,9 +328,9 @@ class PartsProcessor(BaseProcessor):
                 
                 # Also check the chunk where error code was found
                 if chunk_id:
-                    chunk_result = self.supabase.table('vw_chunks').select('text').eq('id', chunk_id).execute()
-                    if chunk_result.data:
-                        chunk_text = chunk_result.data[0].get('text', '')
+                    chunk = await self.adapter.get_chunk(chunk_id)
+                    if chunk:
+                        chunk_text = chunk.get('text', '')
                         parts_in_chunk = self._extract_and_link_parts_from_text(
                             text=chunk_text,
                             error_code_id=ec_id,
@@ -353,7 +346,7 @@ class PartsProcessor(BaseProcessor):
             adapter.error("Error linking parts to error codes: %s", e)
             return linked_count
     
-    def _extract_and_link_parts_from_text(
+    async def _extract_and_link_parts_from_text(
         self, 
         text: str, 
         error_code_id: str, 
@@ -382,23 +375,21 @@ class PartsProcessor(BaseProcessor):
                 confidence = part_item.get('confidence', 0.8)
                 
                 # Find part in database
-                part_result = self.supabase.table('vw_parts').select('id').eq(
-                    'part_number', part_number
-                ).execute()
+                part = await self.adapter.get_part_by_number(part_number)
                 
-                if not part_result.data:
+                if not part:
                     continue
                 
-                part_id = part_result.data[0]['id']
+                part_id = part['id']
                 
                 # Create link (ignore if already exists)
                 try:
-                    self.supabase.table('error_code_parts').insert({
+                    await self.adapter.create_error_code_part_link({
                         'error_code_id': error_code_id,
                         'part_id': part_id,
                         'relevance_score': confidence,
                         'extraction_source': source
-                    }).execute()
+                    })
                     
                     linked_count += 1
                     adapter.debug("Linked part %s to error code %s", part_number, error_code_id)
@@ -414,6 +405,9 @@ class PartsProcessor(BaseProcessor):
             return linked_count
 
 
+import asyncio
+
+
 def main():
     """Test parts processor"""
     import sys
@@ -424,15 +418,18 @@ def main():
     
     document_id = sys.argv[1]
     
-    processor = PartsProcessor()
-    stats = processor.process_document(document_id)
+    async def run():
+        processor = PartsProcessor()
+        stats = await processor.process_document(document_id)
+        
+        print(f"\nParts Processing Complete!")
+        print(f"Chunks processed: {stats['chunks_processed']}")
+        print(f"Parts found: {stats['parts_found']}")
+        print(f"Parts created: {stats['parts_created']}")
+        print(f"Parts updated: {stats['parts_updated']}")
+        print(f"Errors: {stats['errors']}")
     
-    print(f"\nParts Processing Complete!")
-    print(f"Chunks processed: {stats['chunks_processed']}")
-    print(f"Parts found: {stats['parts_found']}")
-    print(f"Parts created: {stats['parts_created']}")
-    print(f"Parts updated: {stats['parts_updated']}")
-    print(f"Errors: {stats['errors']}")
+    asyncio.run(run())
 
 
 if __name__ == '__main__':

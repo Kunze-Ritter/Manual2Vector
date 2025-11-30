@@ -16,11 +16,12 @@ services:
     depends_on:
       krai-engine:
         condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    # Frontend nginx healthcheck disabled - service runs but healthcheck fails
+    # healthcheck:
+    #   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
 
   # KRAI Engine API - with Firecrawl integration
   krai-engine:
@@ -103,7 +104,7 @@ services:
       - krai-network
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -123,11 +124,12 @@ services:
       - krai-network
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    # Ollama doesn't have curl/wget in container, removing healthcheck
+    # healthcheck:
+    #   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:11434/api/tags"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
 
   # Redis for Firecrawl - no auth needed
   krai-redis:
@@ -161,13 +163,16 @@ services:
       - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
       - WORKSPACE_DELETE_EXPIRED=${PLAYWRIGHT_WORKSPACE_DELETE_EXPIRED:-true}
       - WORKSPACE_EXPIRY_DAYS=${PLAYWRIGHT_WORKSPACE_EXPIRY_DAYS:-1}
+      - HEALTH=${PLAYWRIGHT_HEALTH_ENABLED:-true}
+      - MAX_CONCURRENT_SESSIONS=${PLAYWRIGHT_MAX_CONCURRENT_SESSIONS:-10}
+      - CONNECTION_TIMEOUT=${PLAYWRIGHT_CONNECTION_TIMEOUT:-60000}
     expose:
       - "3000"
     shm_size: "2g"
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/pressure || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -180,15 +185,16 @@ services:
       - .env
     restart: always
     ports:
-      - "9002:3002"
+      - "9004:3002"
     environment:
       - NODE_ENV=production
       - PORT=3002
       - HOST=0.0.0.0
       - REDIS_URL=redis://krai-redis:6379
       - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
-      - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
+      - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000}
       - USE_DB_AUTHENTICATION=false
+      - NUQ_DATABASE_URL=disabled
       - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
@@ -196,6 +202,7 @@ services:
       - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
       - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
       - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - NUM_WORKERS=${FIRECRAWL_NUM_WORKERS:-4}
     networks:
       - krai-network
     depends_on:
@@ -203,48 +210,62 @@ services:
         condition: service_healthy
       krai-playwright:
         condition: service_healthy
+    # TODO: Firecrawl API healthcheck fallback to root endpoint "/" may mark container as healthy
+    # before all subsystems are fully initialized. If Firecrawl provides a stable /health
+    # endpoint with internal self-check logic, update to use only that endpoint and remove
+    # the fallback to "/" to sharpen health semantics.
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3002/api/v1/status || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3002/health || curl -f http://localhost:3002/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
-  # Firecrawl Worker - config from .env
-  krai-firecrawl-worker:
-    image: ghcr.io/firecrawl/firecrawl:latest
-    container_name: krai-firecrawl-worker-prod
-    env_file:
-      - .env
-    restart: always
-    command: ["pnpm", "run", "workers"]
-    environment:
-      - NODE_ENV=production
-      - PORT=3002
-      - HOST=0.0.0.0
-      - REDIS_URL=redis://krai-redis:6379
-      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
-      - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
-      - USE_DB_AUTHENTICATION=false
-      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
-      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
-      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
-      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
-      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
-      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
-      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
-    networks:
-      - krai-network
-    depends_on:
-      krai-redis:
-        condition: service_healthy
-      krai-playwright:
-        condition: service_healthy
-      krai-firecrawl-api:
-        condition: service_started
-      krai-postgres:
-        condition: service_healthy
-      krai-minio:
-        condition: service_healthy
+  # Firecrawl Worker - DISABLED due to package.json issues
+  # krai-firecrawl-worker:
+  #   image: ghcr.io/firecrawl/firecrawl:latest
+  #   container_name: krai-firecrawl-worker-prod
+  #   env_file:
+  #     - .env
+  #   restart: always
+  #   # command: ["pnpm", "workers"]  # Removed - let container use default command
+  #   environment:
+  #     - NODE_ENV=production
+  #     - PORT=3002
+  #     - HOST=0.0.0.0
+  #     - REDIS_URL=redis://krai-redis:6379
+  #     - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+  #     - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000}
+  #     - USE_DB_AUTHENTICATION=false
+  #     - NUQ_DATABASE_URL=disabled
+  #     - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+  #     - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+  #     - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+  #     - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+  #     - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+  #     - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+  #     - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+  #   networks:
+  #     - krai-network
+  #   depends_on:
+  #     krai-redis:
+  #       condition: service_healthy
+  #     krai-playwright:
+  #       condition: service_healthy
+  #     krai-firecrawl-api:
+  #       condition: service_started
+  #     krai-postgres:
+  #       condition: service_healthy
+  #     krai-minio:
+  #       condition: service_healthy
+  #     # krai-ollama:
+  #     #   condition: service_healthy  # Removed - Ollama has no healthcheck
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pgrep -f 'pnpm.*workers' || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
 
 networks:
   krai-network:

@@ -10,7 +10,6 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -60,6 +59,8 @@ ALTER TABLE IF EXISTS ONLY krai_intelligence.error_code_parts DROP CONSTRAINT IF
 ALTER TABLE IF EXISTS ONLY krai_intelligence.error_code_parts DROP CONSTRAINT IF EXISTS error_code_parts_error_code_id_fkey;
 ALTER TABLE IF EXISTS ONLY krai_intelligence.error_code_images DROP CONSTRAINT IF EXISTS error_code_images_image_id_fkey;
 ALTER TABLE IF EXISTS ONLY krai_intelligence.error_code_images DROP CONSTRAINT IF EXISTS error_code_images_error_code_id_fkey;
+ALTER TABLE IF EXISTS ONLY krai_intelligence.structured_tables DROP CONSTRAINT IF EXISTS structured_tables_chunk_id_fkey;
+ALTER TABLE IF EXISTS ONLY krai_intelligence.structured_tables DROP CONSTRAINT IF EXISTS structured_tables_document_id_fkey;
 ALTER TABLE IF EXISTS ONLY krai_core.products DROP CONSTRAINT IF EXISTS products_series_id_fkey;
 ALTER TABLE IF EXISTS ONLY krai_core.products DROP CONSTRAINT IF EXISTS products_manufacturer_id_fkey;
 ALTER TABLE IF EXISTS ONLY krai_core.product_series DROP CONSTRAINT IF EXISTS product_series_successor_series_id_fkey;
@@ -283,6 +284,8 @@ DROP TABLE IF EXISTS krai_intelligence.error_codes;
 DROP TABLE IF EXISTS krai_intelligence.error_code_parts;
 DROP TABLE IF EXISTS krai_intelligence.error_code_images;
 DROP TABLE IF EXISTS krai_intelligence.chunks;
+DROP TABLE IF EXISTS krai_intelligence.embeddings_v2;
+DROP TABLE IF EXISTS krai_intelligence.structured_tables;
 DROP VIEW IF EXISTS krai_intelligence.agent_performance;
 DROP TABLE IF EXISTS krai_intelligence.tool_usage;
 DROP TABLE IF EXISTS krai_core.products_backup;
@@ -340,6 +343,9 @@ DROP FUNCTION IF EXISTS krai_core.compare_products(product_id_1 uuid, product_id
 DROP FUNCTION IF EXISTS krai_core.check_compatibility(product_1_id uuid, product_2_id uuid);
 DROP FUNCTION IF EXISTS krai_content.update_videos_updated_at();
 DROP FUNCTION IF EXISTS krai_content.find_or_create_video_from_link(p_url text, p_manufacturer_id uuid, p_title text, p_description text, p_metadata jsonb);
+DROP FUNCTION IF EXISTS krai_intelligence.get_embeddings_by_source(p_source_id uuid, p_source_type character varying);
+DROP FUNCTION IF EXISTS krai_intelligence.match_multimodal(query_embedding extensions.vector, match_threshold double precision, match_count integer);
+DROP FUNCTION IF EXISTS krai_intelligence.match_images_by_context(query_embedding extensions.vector, match_threshold double precision, match_count integer);
 DROP SCHEMA IF EXISTS krai_system;
 DROP SCHEMA IF EXISTS krai_parts;
 DROP SCHEMA IF EXISTS krai_intelligence;

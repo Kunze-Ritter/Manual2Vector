@@ -37,11 +37,11 @@ from PIL import Image, ImageOps
 import fitz  # PyMuPDF
 from datetime import datetime
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
-from pipeline.metrics import metrics
-from processors.logger import sanitize_document_name, text_stats
-from services.context_extraction_service import ContextExtractionService
+from backend.pipeline.metrics import metrics
+from backend.processors.logger import sanitize_document_name, text_stats
+from backend.services.context_extraction_service import ContextExtractionService
 
 
 class ImageProcessor(BaseProcessor):
@@ -421,7 +421,7 @@ class ImageProcessor(BaseProcessor):
         
         # Start stage tracking
         if self.stage_tracker:
-            self.stage_tracker.start_stage(str(document_id), self.stage.value)
+            await self.stage_tracker.start_stage(str(document_id), self.stage.value)
         
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
             try:
@@ -439,7 +439,7 @@ class ImageProcessor(BaseProcessor):
 
                 if not extracted_images:
                     if self.stage_tracker:
-                        self.stage_tracker.skip_stage(
+                        await self.stage_tracker.skip_stage(
                             str(document_id),
                             self.stage.value,
                             reason='No images found in document'
@@ -498,7 +498,7 @@ class ImageProcessor(BaseProcessor):
 
                 # Complete stage tracking
                 if self.stage_tracker:
-                    self.stage_tracker.complete_stage(
+                    await self.stage_tracker.complete_stage(
                         str(document_id),
                         self.stage.value,
                         metadata={
@@ -532,7 +532,7 @@ class ImageProcessor(BaseProcessor):
                 adapter.error("Image processing failed: %s", e)
 
                 if self.stage_tracker:
-                    self.stage_tracker.fail_stage(
+                    await self.stage_tracker.fail_stage(
                         str(document_id),
                         self.stage.value,
                         error_msg

@@ -6,21 +6,21 @@ Detects and creates product series, links products to series.
 from typing import Dict, Optional
 
 from core.base_processor import BaseProcessor, Stage
-from .imports import get_supabase_client
+from .imports import get_database_adapter
 from utils.series_detector import detect_series
 
 
 class SeriesProcessor(BaseProcessor):
     """Detect and create product series."""
 
-    def __init__(self, supabase_client=None):
+    def __init__(self, database_adapter=None):
         """Initialize series processor"""
         super().__init__(name="series_processor")
         self.stage = Stage.SERIES_DETECTION
-        self.supabase = supabase_client or get_supabase_client()
+        self.adapter = database_adapter or get_database_adapter()
         self.logger.info("SeriesProcessor initialized")
         
-    def process_all_products(self) -> Dict:
+    async def process_all_products(self) -> Dict:
         """
         Process all products to detect and link series
         
@@ -37,18 +37,14 @@ class SeriesProcessor(BaseProcessor):
 
         with self.logger_context(stage=self.stage) as adapter:
             try:
-                products_result = self.supabase.table('vw_products').select(
-                    '*'
-                ).is_('series_id', 'null').execute()
-
-                products = products_result.data or []
+                products = await self.adapter.get_products_without_series()
                 adapter.info("Processing %s products without series", len(products))
 
                 for product in products:
                     stats['products_processed'] += 1
 
                     try:
-                        result = self._process_product(product, adapter)
+                        result = await self._process_product(product, adapter)
                         if result:
                             stats['series_detected'] += 1
                             if result['series_created']:
@@ -67,7 +63,7 @@ class SeriesProcessor(BaseProcessor):
                 stats['errors'] += 1
                 return stats
     
-    def process_product(self, product_id: str) -> Optional[Dict]:
+    async def process_product(self, product_id: str) -> Optional[Dict]:
         """
         Process a single product to detect and link series
         
@@ -79,22 +75,18 @@ class SeriesProcessor(BaseProcessor):
         """
         with self.logger_context(stage=self.stage, product_id=product_id) as adapter:
             try:
-                product_result = self.supabase.table('vw_products').select(
-                    '*'
-                ).eq('id', product_id).execute()
+                product = await self.adapter.get_product(product_id)
 
-                if not product_result.data:
+                if not product:
                     adapter.warning("Product %s not found", product_id)
                     return None
-
-                product = product_result.data[0]
-                return self._process_product(product, adapter)
+                return await self._process_product(product, adapter)
 
             except Exception as e:
                 adapter.error("Error processing product %s: %s", product_id, e)
                 return None
     
-    def _process_product(self, product: Dict, adapter) -> Optional[Dict]:
+    async def _process_product(self, product: Dict, adapter) -> Optional[Dict]:
         """
         Process a product to detect and link series
         
@@ -112,8 +104,8 @@ class SeriesProcessor(BaseProcessor):
         
         # Get manufacturer name from manufacturers table
         try:
-            mfr_result = self.supabase.table('vw_manufacturers').select('name').eq('id', manufacturer_id).single().execute()
-            manufacturer_name = mfr_result.data.get('name', '') if mfr_result.data else ''
+            manufacturer = await self.adapter.get_manufacturer(manufacturer_id)
+            manufacturer_name = manufacturer.get('name', '') if manufacturer else ''
         except Exception as e:
             adapter.warning("Could not get manufacturer name for %s: %s", manufacturer_id, e)
             manufacturer_name = ''
@@ -140,7 +132,7 @@ class SeriesProcessor(BaseProcessor):
         adapter.info("Detected series for %s: %s", model_number, series_data['series_name'])
         
         # Get or create series
-        series_id, series_created = self._get_or_create_series(
+        series_id, series_created = await self._get_or_create_series(
             manufacturer_id=manufacturer_id,
             series_data=series_data,
             adapter=adapter
@@ -150,7 +142,7 @@ class SeriesProcessor(BaseProcessor):
             return None
         
         # Link product to series
-        product_linked = self._link_product_to_series(
+        product_linked = await self._link_product_to_series(
             product_id=product['id'],
             series_id=series_id,
             adapter=adapter
@@ -171,7 +163,7 @@ class SeriesProcessor(BaseProcessor):
             raise ValueError("Processing context must include 'product_id'")
 
         with self.logger_context(stage=self.stage, product_id=product_id) as adapter:
-            result = self.process_product(str(product_id))
+            result = await self.process_product(product_id)
             if result is None:
                 metadata = {"product_id": str(product_id), "stage": self.stage.value}
                 error = {
@@ -191,7 +183,7 @@ class SeriesProcessor(BaseProcessor):
             }
             return self.create_success_result(result, metadata=metadata)
     
-    def _get_or_create_series(
+    async def _get_or_create_series(
         self, 
         manufacturer_id: str, 
         series_data: Dict,
@@ -212,17 +204,15 @@ class SeriesProcessor(BaseProcessor):
         try:
             # Check if series exists (by series_name + model_pattern)
             model_pattern = series_data.get('model_pattern')
-            existing = self.supabase.table('vw_product_series').select('id').eq(
-                'manufacturer_id', manufacturer_id
-            ).eq(
-                'series_name', series_name
-            ).eq(
-                'model_pattern', model_pattern
-            ).execute()
+            existing = await self.adapter.get_product_series_by_name_and_pattern(
+                manufacturer_id=manufacturer_id,
+                series_name=series_name,
+                model_pattern=model_pattern
+            )
             
-            if existing.data:
+            if existing:
                 adapter.debug("Series '%s' (%s) already exists", series_name, model_pattern)
-                return existing.data[0]['id'], False
+                return existing['id'], False
             
             # Create new series
             new_series = {
@@ -232,10 +222,10 @@ class SeriesProcessor(BaseProcessor):
                 'series_description': series_data.get('series_description')
             }
             
-            result = self.supabase.table('vw_product_series').insert(new_series).execute()
+            series = await self.adapter.create_product_series(new_series)
             
-            if result.data:
-                series_id = result.data[0]['id']
+            if series:
+                series_id = series['id']
                 adapter.info("Created series '%s' with ID %s", series_name, series_id)
                 return series_id, True
             
@@ -246,13 +236,13 @@ class SeriesProcessor(BaseProcessor):
             if '23505' in error_str or 'duplicate key' in error_str.lower():
                 adapter.debug("Series '%s' already exists (duplicate key), fetching existing...", series_name)
                 try:
-                    existing = self.supabase.table('vw_product_series').select('id').eq(
-                        'manufacturer_id', manufacturer_id
-                    ).eq(
-                        'series_name', series_name
-                    ).limit(1).execute()
-                    if existing.data:
-                        return existing.data[0]['id'], False
+                    existing = await self.adapter.get_product_series_by_name_and_pattern(
+                        manufacturer_id=manufacturer_id,
+                        series_name=series_name,
+                        model_pattern=model_pattern
+                    )
+                    if existing:
+                        return existing['id'], False
                 except Exception as fetch_error:
                     adapter.warning(
                         "Failed to fetch existing series '%s' after duplicate key: %s",
@@ -263,7 +253,7 @@ class SeriesProcessor(BaseProcessor):
             adapter.error("Error creating series '%s': %s", series_name, e)
             return None, False
         
-    def _link_product_to_series(
+    async def _link_product_to_series(
         self,
         product_id: str,
         series_id: str,
@@ -280,16 +270,16 @@ class SeriesProcessor(BaseProcessor):
             True if successful
         """
         try:
-            self.supabase.table('vw_products').update({
+            await self.adapter.update_product(product_id, {
                 'series_id': series_id
-            }).eq('id', product_id).execute()
+            })
             adapter.debug("Linked product %s to series %s", product_id, series_id)
             return True
         except Exception as e:
             adapter.error("Error linking product %s to series %s: %s", product_id, series_id, e)
             return False
     
-    def get_series_products(self, series_id: str) -> list:
+    async def get_series_products(self, series_id: str) -> list:
         """
         Get all products in a series
         
@@ -300,17 +290,14 @@ class SeriesProcessor(BaseProcessor):
             List of products
         """
         try:
-            result = self.supabase.table('vw_products').select('*').eq(
-                'series_id', series_id
-            ).execute()
-            
-            return result.data
+            products = await self.adapter.get_products_by_series(series_id)
+            return products
             
         except Exception as e:
             self.logger.error(f"Error getting products for series {series_id}: {e}")
             return []
     
-    def get_manufacturer_series(self, manufacturer_id: str) -> list:
+    async def get_manufacturer_series(self, manufacturer_id: str) -> list:
         """
         Get all series for a manufacturer
         
@@ -322,15 +309,11 @@ class SeriesProcessor(BaseProcessor):
         """
         try:
             # Get series
-            series_result = self.supabase.table('vw_product_series').select('*').eq(
-                'manufacturer_id', manufacturer_id
-            ).execute()
-            
-            series_list = series_result.data
+            series_list = await self.adapter.get_product_series_by_manufacturer(manufacturer_id)
             
             # Add product count to each series
             for series in series_list:
-                products = self.get_series_products(series['id'])
+                products = await self.get_series_products(series['id'])
                 series['product_count'] = len(products)
             
             return series_list
@@ -340,7 +323,7 @@ class SeriesProcessor(BaseProcessor):
             return []
 
 
-def main():
+async def main():
     """Test series processor"""
     import sys
     
@@ -349,7 +332,7 @@ def main():
     if len(sys.argv) > 1:
         # Process specific product
         product_id = sys.argv[1]
-        result = processor.process_product(product_id)
+        result = await processor.process_product(product_id)
         
         if result:
             print(f"\nSeries Detection Complete!")
@@ -361,7 +344,7 @@ def main():
             print("No series detected for this product")
     else:
         # Process all products
-        stats = processor.process_all_products()
+        stats = await processor.process_all_products()
         
         print(f"\nSeries Processing Complete!")
         print(f"Products processed: {stats['products_processed']}")
@@ -372,4 +355,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())

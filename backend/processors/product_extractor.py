@@ -13,9 +13,9 @@ from pathlib import Path
 
 from .logger import get_logger
 from .models import ExtractedProduct, ValidationError as ValError
-from utils.manufacturer_config import get_manufacturer_config
-from utils.manufacturer_normalizer import normalize_manufacturer
-from constants.product_types import ALLOWED_PRODUCT_TYPES
+from backend.utils.manufacturer_config import get_manufacturer_config
+from backend.utils.manufacturer_normalizer import normalize_manufacturer
+from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
 
 
 logger = get_logger()

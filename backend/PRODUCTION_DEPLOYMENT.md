@@ -74,13 +74,15 @@ LOG_LEVEL=INFO
 docker build -t krai-engine:latest -f backend/Dockerfile .
 
 # 2. Run with docker-compose
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.production.yml up -d
 
 # 3. Check logs
 docker-compose logs -f krai-engine
 ```
 
-**docker-compose.prod.yml:**
+> **Note:** `docker-compose.prod.yml` (with enterprise features like Docker Secrets, Nginx, Prometheus, Grafana) has been archived. The simpler `docker-compose.production.yml` is now the standard production configuration.
+
+**docker-compose.production.yml:**
 ```yaml
 version: '3.8'
 
@@ -372,7 +374,7 @@ ollama pull embeddinggemma
 curl http://localhost:8000/health
 
 # Start production
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.production.yml up -d
 
 # Monitor logs
 docker-compose logs -f

@@ -97,26 +97,73 @@ docker-compose -f docker-compose.simple.yml up --build -d
 
 ## 🏗️ What's Included
 
-| Service | Port | Technology | Description |
-|---------|------|------------|-------------|
-| **Frontend** | 80 | React + Nginx | Production Dashboard |
-| **Backend API** | 8000 | FastAPI + Uvicorn | REST API Server |
-| **Database** | 5432 | PostgreSQL + pgvector | Vector Database |
-| **Storage** | 9000/9001 | MinIO | Object Storage |
-| **AI Service** | 11434 | Ollama | Large Language Models |
-| **Redis** | 6379 | Redis | Cache/Queue (Firecrawl) |
-| **Playwright** | 3000 | Chrome | Browser Automation |
-| **Firecrawl API** | 9002 | Firecrawl | Advanced Web Scraping |
+| Service | Port | Technology | Description | Available In |
+|---------|------|------------|-------------|--------------|
+| **Frontend** | 80 | React + Nginx | Production Dashboard | All compose files |
+| **Backend API** | 8000 | FastAPI + Uvicorn | REST API Server | All compose files |
+| **Database** | 5432 | PostgreSQL + pgvector | Vector Database | All compose files |
+| **Storage** | 9000/9001 | MinIO | Object Storage | All compose files |
+| **AI Service** | 11434 | Ollama | Large Language Models | All compose files |
+| **Redis** | 6379 | Redis | Cache/Queue | with-firecrawl, production |
+| **Playwright** | 3000 | Chrome | Browser Automation | with-firecrawl, production |
+| **Firecrawl API** | 9002 | Firecrawl | Advanced Web Scraping | with-firecrawl, production |
+| **Firecrawl Worker** | - | Firecrawl | Web Scraping Worker | production |
 
-*Firecrawl, Redis und Playwright sind optional und nur mit `docker-compose.with-firecrawl.yml` verfügbar*
+*Redis, Playwright, and Firecrawl services are only available with `docker-compose.with-firecrawl.yml` and `docker-compose.production.yml`*
+
+## 🐳 Docker Compose Files
+
+The project provides 3 production-ready Docker Compose configurations:
+
+### docker-compose.simple.yml
+**Use Case**: Minimal development setup
+**Services**: Frontend, Backend, PostgreSQL, MinIO, Ollama (5 services)
+**Best for**: Quick testing, development, resource-constrained environments
+**Features**: No Firecrawl, no GPU required, clean minimal stack
+
+### docker-compose.with-firecrawl.yml
+**Use Case**: Development with advanced web scraping
+**Services**: All simple.yml services + Redis, Playwright, Firecrawl API (10 services)
+**Best for**: Testing web scraping features, document processing with web sources
+**Features**: Includes Firecrawl for better web content extraction
+
+### docker-compose.production.yml
+**Use Case**: Production deployment
+**Services**: All with-firecrawl.yml services + Firecrawl Worker (11 services)
+**Best for**: Production deployments, GPU-accelerated inference
+**Features**: GPU support for Ollama, optimized PostgreSQL settings, production healthchecks
+
+> **Note**: 7 deprecated Docker Compose files have been archived to reduce confusion. See `archive/docker/README.md` for details.
 
 ## 📖 Documentation
 
+### Core Documentation
+- 🎯 **[Master TODO](MASTER-TODO.md)** - Consolidated project-wide task list
 - 🐳 **[Docker Setup Guide](DOCKER_SETUP.md)** - Complete installation instructions
-- 🔐 **Setup Scripts** - Automatic password generation (`./setup.sh`, `./setup.ps1`, or `setup.bat`)
+- 🗄️ **[Database Schema](DATABASE_SCHEMA.md)** - Database structure and migrations
+- 🔐 **[Security Reference](docs/SECURITY.md)** - Hardening checklist and best practices
+
+### Pipeline Documentation
+- 🏗️ **[Pipeline Architecture](docs/processor/PIPELINE_ARCHITECTURE.md)** - 15-stage modular pipeline design
+- 📋 **[Stage Reference](docs/processor/STAGE_REFERENCE.md)** - Detailed documentation for all processing stages
+- 🚀 **[Quick Start](docs/processor/QUICK_START.md)** - CLI, API, and dashboard usage examples
+
+### Technical Documentation
 - 🏗️ **[Architecture](docs/architecture/)** - System design and components
-- 🔧 **[API Documentation](docs/api/)** - REST API reference
+- 🔧 **[API Documentation](docs/api/)** - REST API reference with stage-based endpoints
 - 🧪 **[Testing](tests/)** - Test suites and E2E tests
+
+### Project Management
+- 📋 **[Pipeline TODO](docs/project_management/TODO.md)** - Pipeline-specific tasks
+- 🎨 **[Dashboard TODO](docs/project_management/TODO_PRODUCT_CONFIGURATION_DASHBOARD.md)** - Dashboard implementation
+- 📦 **[Accessories TODO](docs/project_management/TODO_PRODUCT_ACCESSORIES.md)** - Accessories system
+- 🔧 **[Foliant TODO](docs/project_management/TODO_FOLIANT.md)** - Foliant compatibility system
+
+### Archived Documentation
+- 📚 **[Archive](archive/docs/)** - Historical documentation and completed implementations
+  - `completed/` - Successfully completed features
+  - `outdated/` - Superseded analysis and plans
+  - `superseded/` - Old task lists (replaced by MASTER-TODO.md)
 
 ## 🔐 Security Features
 
@@ -136,9 +183,19 @@ docker-compose -f docker-compose.simple.yml up --build -d
 
 ## 🎯 Overview
 
-KRAI is a comprehensive multimodal AI system that automatically extracts, analyzes, and indexes technical documents with advanced features including hierarchical structure detection, SVG vector graphics processing, and intelligent multimodal search. Built with a **local-first architecture**, KRAI provides complete control over your data while offering cloud migration capabilities when needed.
+KRAI is a comprehensive multimodal AI system that automatically extracts, analyzes, and indexes technical documents with advanced features including hierarchical structure detection, SVG vector graphics processing, and intelligent multimodal search. Built with a **local-first architecture** using PostgreSQL and MinIO, KRAI provides complete control over your data while offering optional cloud migration capabilities when needed.
 
 ## ✨ Key Features
+
+### 🔄 Stage-Based Processing Pipeline
+
+- **15-Stage Modular Architecture** - Granular control over document processing
+- **Stage Orchestration** - UPLOAD → TEXT_EXTRACTION → TABLE_EXTRACTION → SVG_PROCESSING → IMAGE_PROCESSING → VISUAL_EMBEDDING → LINK_EXTRACTION → CHUNK_PREPROCESSING → CLASSIFICATION → METADATA_EXTRACTION → PARTS_EXTRACTION → SERIES_DETECTION → STORAGE → EMBEDDING → SEARCH_INDEXING
+- **Individual Stage Execution** - Run specific stages on-demand via CLI or API
+- **Smart Processing** - Skip completed stages and resume from failures
+- **Real-time Status Tracking** - Monitor progress of each stage independently
+- **Error Isolation** - One stage failure doesn't stop the entire pipeline
+- **Reference**: `docs/processor/PIPELINE_ARCHITECTURE.md` for detailed architecture
 
 ### 🤖 Advanced AI-Powered Processing
 
@@ -157,13 +214,24 @@ KRAI is a comprehensive multimodal AI system that automatically extracts, analyz
 ### 🏗️ Local-First Architecture
 
 - **Docker Compose Setup** - Complete local deployment in 5 minutes
-- **PostgreSQL + pgvector** - Vector database with semantic search
-- **MinIO Object Storage** - S3-compatible storage for documents and images
+- **PostgreSQL + pgvector** - Production vector database with semantic search
+- **MinIO Object Storage** - Production S3-compatible storage for documents and images
 - **Ollama AI Service** - Local LLM inference with multiple models
 - **FastAPI Backend** - High-performance REST API with async support
 - **React Frontend** - Modern web interface with real-time updates
+- **PostgreSQL-Only Architecture** - Complete migration from cloud services for data sovereignty
 
-### 🔍 Intelligent Search & Discovery
+#### 🎛️ Pipeline Control
+
+- **CLI Interface** - `scripts/pipeline_processor.py` with stage selection and batch processing
+- **Stage-Based API** - Individual and multiple stage execution via REST endpoints
+- **Laravel Dashboard** - Visual pipeline management with real-time status updates
+- **Smart Processing** - Automatic detection of completed stages and selective reprocessing
+- **Error Recovery** - Individual stage retry and dependency chain reprocessing
+- **Performance Monitoring** - Stage-by-stage timing and resource usage tracking
+- **Reference**: Comprehensive guides in `docs/processor/` directory
+
+## 🔍 Intelligent Search & Discovery
 
 - **Semantic Vector Search** across all document content
 - **Multimodal Search** - Find documents by text, images, or visual similarity
@@ -174,6 +242,10 @@ KRAI is a comprehensive multimodal AI system that automatically extracts, analyz
 
 ### 📊 Advanced Document Processing
 
+- **Stage-Specific Capabilities** - Text extraction, image analysis, table parsing, SVG conversion, link extraction, metadata extraction, parts cataloging, series detection, and more
+- **Intelligent Stage Selection** - Choose specific processing stages based on document type and requirements
+- **Stage-Based API Endpoints** - Programmatic control over individual stages (`docs/api/STAGE_BASED_PROCESSING.md`)
+- **Laravel Dashboard Integration** - Visual stage management and control via Filament UI
 - **Automatic Feature Extraction** - Extract technical specifications and features
 - **Product Research Integration** - Automatic online research for unknown products
 - **Video Content Analysis** - Extract and index video transcripts and metadata
@@ -229,6 +301,18 @@ docker-compose -f docker-compose.simple.yml up --build -d
 curl http://localhost:8000/health
 ```
 
+- **Start processing documents:**
+
+```bash
+# Process with full pipeline
+python scripts/pipeline_processor.py --file /path/to/document.pdf
+
+# Or use stage-based processing
+python scripts/pipeline_processor.py --document-id <uuid> --stage text_extraction
+```
+
+> **Note:** For detailed pipeline usage, see `docs/processor/QUICK_START.md`
+
 ## 🏥 Health & Monitoring
 
 ### Service Health Checks
@@ -251,25 +335,41 @@ curl http://localhost:8000/health
 Key configuration options in `.env` (10 sections, 60+ variables):
 
 ```bash
-# Database Configuration
+# Database Configuration (PostgreSQL)
 DATABASE_TYPE=postgresql
 DATABASE_HOST=krai-postgres
 DATABASE_PORT=5432
 DATABASE_NAME=krai
 DATABASE_USER=krai_user
 DATABASE_PASSWORD=<generated-password>
+DATABASE_CONNECTION_URL=postgresql://krai_user:<password>@krai-postgres:5432/krai
 
-# Object Storage
+# Object Storage (MinIO)
+OBJECT_STORAGE_TYPE=s3
 OBJECT_STORAGE_ENDPOINT=http://krai-minio:9000
 OBJECT_STORAGE_ACCESS_KEY=minioadmin
 OBJECT_STORAGE_SECRET_KEY=<generated-password>
 
-# AI Service
+# AI Service (Ollama)
 OLLAMA_URL=http://krai-ollama:11434
-AI_SERVICE_URL=http://krai-ollama:11434
 ```
 
-> **Note:** The backend reads `OLLAMA_URL`. Keep `AI_SERVICE_URL` for tooling only if needed, and ensure both values stay synchronized.
+> **Note:** The backend uses `OLLAMA_URL` for AI service communication. All passwords are generated automatically by setup scripts.
+
+### .env.local Example
+
+For host-based runs, you can override specific configuration options in `.env.local`. Create a `.env.local` file by copying `.env.local.example`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Then, update the necessary variables, such as `DATABASE_HOST` and `OBJECT_STORAGE_ENDPOINT`, to point to `localhost`:
+
+```bash
+DATABASE_HOST=localhost
+OBJECT_STORAGE_ENDPOINT=http://localhost:9000
+```
 
 ### Setup Script Comparison
 
@@ -386,6 +486,8 @@ cd frontend
 npm install
 npm run dev
 ```
+
+> **Host-based backend tip:** Before running `uvicorn` outside Docker, copy `.env.local.example` to `.env.local` and override `DATABASE_HOST` / `POSTGRES_HOST` to `localhost` so the backend reaches the containers via published ports.
 
 ## 📄 License
 

@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 from uuid import UUID
 import hashlib
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .text_extractor import TextExtractor
 from .chunker import SmartChunker
 from .models import TextChunk
@@ -98,7 +98,9 @@ class OptimizedTextProcessor(BaseProcessor):
                     )
 
                 adapter.info("Extracting text from %s", file_path.name)
-                page_texts, metadata = self.text_extractor.extract_text(file_path)
+                # Ensure document_id is available as UUID for TextExtractor
+                doc_id = UUID(context.document_id) if isinstance(context.document_id, str) else context.document_id
+                page_texts, metadata = self.text_extractor.extract_text(file_path, doc_id)
 
                 if not page_texts:
                     adapter.warning("No text extracted from PDF")

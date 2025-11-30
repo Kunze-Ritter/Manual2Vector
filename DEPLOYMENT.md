@@ -12,14 +12,14 @@
 ```bash
 git clone <repository-url>
 cd KRAI-minimal
-docker-compose -f docker-compose.production-final.yml up -d --build
+docker-compose -f docker-compose.production.yml up -d --build
 ```
 
 ## 📋 Services Overview
 
 | Service | Port | Description | Access |
 |---------|------|-------------|--------|
-| **Frontend Dashboard** | 3000 | React-based KRAI Dashboard | http://localhost:3000 |
+| **Frontend Dashboard** | 3000 | React + Vite + Nginx (with API proxy) | http://localhost:3000 |
 | **Backend API** | 8000 | FastAPI Python Backend | http://localhost:8000 |
 | **API Documentation** | 8000/docs | Interactive API Docs | http://localhost:8000/docs |
 | **PostgreSQL Database** | 5432 | pgvector-enabled Database | localhost:5432 |
@@ -29,19 +29,21 @@ docker-compose -f docker-compose.production-final.yml up -d --build
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Backend Environment Variables
 Copy `.env.example` to `.env` and configure:
 ```bash
-# Database
-DATABASE_URL=postgresql://krai_user:krai_secure_password@krai-postgres:5432/krai
+# Database (PostgreSQL)
+DATABASE_TYPE=postgresql
+DATABASE_CONNECTION_URL=postgresql://krai_user:krai_secure_password@krai-postgres:5432/krai
 
-# Storage
-MINIO_ENDPOINT=krai-minio:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
+# Storage (MinIO)
+OBJECT_STORAGE_TYPE=s3
+OBJECT_STORAGE_ENDPOINT=http://krai-minio:9000
+OBJECT_STORAGE_ACCESS_KEY=minioadmin
+OBJECT_STORAGE_SECRET_KEY=minioadmin
 
-# AI Services
-OLLAMA_BASE_URL=http://krai-ollama:11434
+# AI Services (Ollama)
+OLLAMA_URL=http://krai-ollama:11434
 
 # Application
 ENV=production
@@ -50,22 +52,53 @@ API_PORT=8000
 LOG_LEVEL=INFO
 ```
 
+> **Note:** This deployment uses PostgreSQL + MinIO for local-first architecture. Legacy Supabase and Cloudflare R2 configurations are deprecated. See `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` for migration guidance.
+
+### Frontend Configuration
+
+**Production environment variables** are configured in `frontend/.env.production` and are **baked into the build** at compile time.
+
+**Key settings:**
+- `VITE_API_BASE_URL=/api` - Uses nginx proxy for API requests
+- `VITE_ENABLE_DEVTOOLS=false` - DevTools disabled in production
+- `VITE_USE_MOCK_AUTH=false` - Real authentication only
+
+**Important:** Changing frontend environment variables requires rebuilding the Docker image:
+```bash
+docker-compose -f docker-compose.production.yml build krai-frontend
+```
+
+**For detailed frontend deployment information, see:**
+- [Frontend Production Deployment Guide](docs/setup/FRONTEND_PRODUCTION_DEPLOYMENT.md)
+- [Frontend README](frontend/README.md)
+
 ### Default Credentials
-- **MinIO Console:** minioadmin / minioadmin
-- **PostgreSQL:** krai_user / krai_secure_password
-- **Database:** krai
+- **MinIO Console:** See `OBJECT_STORAGE_ACCESS_KEY` / `OBJECT_STORAGE_SECRET_KEY` in `.env`
+- **PostgreSQL:** See `DATABASE_USER` / `DATABASE_PASSWORD` in `.env`
+- **Database Name:** `krai` (configured via `DATABASE_NAME`)
+
+> **Security:** Change all default credentials before production deployment. Use `./setup.sh` or `./setup.ps1` to generate secure passwords.
 
 ## 🏗️ Architecture
 
 ### Docker Compose Structure
 ```
-docker-compose.production-final.yml
-├── krai-frontend (React + Nginx)
-├── krai-engine (FastAPI + Gunicorn)
+docker-compose.production.yml
+├── krai-frontend (React + Vite + Nginx)
+│   ├── Build-time: Vite compiles with .env.production
+│   ├── Runtime: Nginx serves static files + proxies /api
+│   └── Port 80 → Container port 80
+├── krai-engine (FastAPI + Uvicorn)
 ├── krai-postgres (PostgreSQL + pgvector)
 ├── krai-minio (Object Storage)
-└── krai-ollama (AI Service)
+├── krai-ollama (AI Service)
+├── krai-redis (Cache)
+├── krai-playwright (Browser Automation)
+├── krai-firecrawl-api (Web Scraping API)
+└── krai-firecrawl-worker (Web Scraping Worker)
 ```
+
+> **Note:** `docker-compose.production-final.yml` has been archived and replaced by `docker-compose.production.yml`. The new production file includes Firecrawl services and uses uvicorn instead of gunicorn.
 
 ### Network Configuration
 - All services communicate via internal Docker network `krai-network`
@@ -85,13 +118,13 @@ docker-compose.production-final.yml
 ### Container Status
 ```bash
 # Check all services
-docker-compose -f docker-compose.production-final.yml ps
+docker-compose -f docker-compose.production.yml ps
 
 # View logs
-docker-compose -f docker-compose.production-final.yml logs -f [service-name]
+docker-compose -f docker-compose.production.yml logs -f [service-name]
 
 # Restart specific service
-docker-compose -f docker-compose.production-final.yml restart [service-name]
+docker-compose -f docker-compose.production.yml restart [service-name]
 ```
 
 ## 🔄 Data Persistence
@@ -161,7 +194,7 @@ server {
 
 ### Resource Allocation
 ```yaml
-# In docker-compose.production-final.yml
+# In docker-compose.production.yml
 services:
   krai-engine:
     deploy:
@@ -177,12 +210,72 @@ services:
 ### Horizontal Scaling
 ```bash
 # Scale backend services
-docker-compose -f docker-compose.production-final.yml up -d --scale krai-engine=3
+docker-compose -f docker-compose.production.yml up -d --scale krai-engine=3
 ```
+
+## 🔨 Frontend Build Process
+
+### Building the Frontend
+
+The frontend uses a **multi-stage Docker build** that bakes environment variables into the static bundle:
+
+```bash
+# Build frontend only
+docker-compose -f docker-compose.production.yml build krai-frontend
+
+# Build with no cache (clean build)
+docker-compose -f docker-compose.production.yml build --no-cache krai-frontend
+```
+
+**Build stages:**
+1. **Builder stage:** Installs dependencies, copies `.env.production`, runs Vite build
+2. **Production stage:** Copies built files to nginx, configures proxy
+
+**When to rebuild:**
+- After changing `frontend/.env.production`
+- After updating frontend dependencies
+- After modifying frontend source code
+- After changing nginx configuration
+
+**For detailed information, see:** [Frontend Production Deployment Guide](docs/setup/FRONTEND_PRODUCTION_DEPLOYMENT.md)
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
+
+#### Frontend Issues
+
+**API requests fail with 404:**
+```bash
+# Check backend is running
+docker-compose -f docker-compose.production.yml ps krai-engine
+
+# Check nginx proxy configuration
+docker-compose -f docker-compose.production.yml exec krai-frontend cat /etc/nginx/nginx.conf | grep -A 10 "location /api"
+```
+
+**Environment variables not working:**
+```bash
+# Verify .env.production exists
+ls -la frontend/.env.production
+
+# Rebuild frontend (REQUIRED after changing env vars)
+docker-compose -f docker-compose.production.yml build --no-cache krai-frontend
+docker-compose -f docker-compose.production.yml up -d krai-frontend
+```
+
+**DevTools appear in production:**
+```bash
+# Check VITE_ENABLE_DEVTOOLS is false
+cat frontend/.env.production | grep VITE_ENABLE_DEVTOOLS
+
+# Should show: VITE_ENABLE_DEVTOOLS=false
+# If not, edit and rebuild
+```
+
+**React Router 404 on refresh:**
+- Check nginx `try_files` directive in `nginx/nginx-simple.conf`
+- Should have: `try_files $uri $uri/ /index.html;`
 
 #### Port Conflicts
 ```bash
@@ -190,15 +283,15 @@ docker-compose -f docker-compose.production-final.yml up -d --scale krai-engine=
 netstat -tulpn | grep :3000
 netstat -tulpn | grep :8000
 
-# Change ports in docker-compose.production-final.yml
+# Change ports in docker-compose.production.yml
 ```
 
 #### Build Failures
 ```bash
 # Clean rebuild
-docker-compose -f docker-compose.production-final.yml down --volumes
-docker-compose -f docker-compose.production-final.yml build --no-cache
-docker-compose -f docker-compose.production-final.yml up -d
+docker-compose -f docker-compose.production.yml down --volumes
+docker-compose -f docker-compose.production.yml build --no-cache
+docker-compose -f docker-compose.production.yml up -d
 ```
 
 #### Service Not Starting
@@ -207,7 +300,7 @@ docker-compose -f docker-compose.production-final.yml up -d
 docker logs krai-[service-name]-prod
 
 # Check health status
-docker-compose -f docker-compose.production-final.yml ps
+docker-compose -f docker-compose.production.yml ps
 ```
 
 #### Database Connection Issues
@@ -234,7 +327,7 @@ cd frontend && npm run dev
 ### Production Deployment
 ```bash
 # Use production compose file (this guide)
-docker-compose -f docker-compose.production-final.yml up -d --build
+docker-compose -f docker-compose.production.yml up -d --build
 ```
 
 ## 🔄 Updates & Maintenance
@@ -245,17 +338,17 @@ docker-compose -f docker-compose.production-final.yml up -d --build
 git pull
 
 # Rebuild and restart
-docker-compose -f docker-compose.production-final.yml down
-docker-compose -f docker-compose.production-final.yml up -d --build
+docker-compose -f docker-compose.production.yml down
+docker-compose -f docker-compose.production.yml up -d --build
 ```
 
 ### System Updates
 ```bash
 # Update Docker images
-docker-compose -f docker-compose.production-final.yml pull
+docker-compose -f docker-compose.production.yml pull
 
 # Restart with new images
-docker-compose -f docker-compose.production-final.yml up -d
+docker-compose -f docker-compose.production.yml up -d
 ```
 
 ## 📞 Support
@@ -263,10 +356,10 @@ docker-compose -f docker-compose.production-final.yml up -d
 ### Log Analysis
 ```bash
 # Aggregate logs for debugging
-docker-compose -f docker-compose.production-final.yml logs --tail=100
+docker-compose -f docker-compose.production.yml logs --tail=100
 
 # Monitor specific service
-docker-compose -f docker-compose.production-final.yml logs -f krai-engine
+docker-compose -f docker-compose.production.yml logs -f krai-engine
 ```
 
 ### Performance Monitoring
@@ -275,7 +368,7 @@ docker-compose -f docker-compose.production-final.yml logs -f krai-engine
 docker stats
 
 # Container health
-docker-compose -f docker-compose.production-final.yml exec krai-engine curl -f http://localhost:8000/health
+docker-compose -f docker-compose.production.yml exec krai-engine curl -f http://localhost:8000/health
 ```
 
 ---

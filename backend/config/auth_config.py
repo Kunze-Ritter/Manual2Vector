@@ -161,6 +161,18 @@ class JWTValidator:
     def __init__(self, jwt_config: JWTConfig):
         self.config = jwt_config
     
+    def decode(self, token: str, key: bytes, algorithms=None, options=None) -> Optional[Dict[str, Any]]:
+        """Compatibility wrapper used by auth_middleware.
+
+        Delegates to PyJWT.decode with the provided key and options.
+        """
+        return jwt.decode(
+            token,
+            key,
+            algorithms=algorithms or [self.config.algorithm],
+            options=options or {},
+        )
+
     def decode_token(self, token: str) -> Optional[Dict[str, Any]]:
         """
         Decode and validate JWT token

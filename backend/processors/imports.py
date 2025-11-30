@@ -16,26 +16,15 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 # Lazy import functions - import only when called
-def get_supabase_client():
-    """Create and return Supabase client"""
-    from supabase import create_client
-    import os
+def get_database_adapter():
+    """Create and return database adapter (PostgreSQL)"""
+    from backend.services.database_factory import create_database_adapter
     from .env_loader import load_all_env_files
     
-    # Load all .env.* files (automatically finds project root)
+    # Load all .env.* files
     load_all_env_files()
     
-    supabase_url = os.getenv('SUPABASE_URL')
-    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if not supabase_url or not supabase_key:
-        raise ValueError(
-            f"SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env files\n"
-            f"Current directory: {Path.cwd()}\n"
-            f"Make sure .env.database exists in project root"
-        )
-    
-    return create_client(supabase_url, supabase_key)
+    return create_database_adapter()
 
 def get_logger():
     """Lazy import of get_logger"""
@@ -58,7 +47,7 @@ def detect_series(model_number, manufacturer_name):
     return _detect(model_number, manufacturer_name)
 
 __all__ = [
-    'get_supabase_client',
+    'get_database_adapter',
     'get_logger',
     'extract_parts',
     'extract_parts_with_context',

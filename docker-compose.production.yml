@@ -1,5 +1,15 @@
 version: '3.8'
 
+# -----------------------------------------------------------------------------
+# Production Deployment Pre-Flight Checklist (see DEPLOYMENT.md for details)
+# 1. Ensure .env is populated (DEFAULT_ADMIN_PASSWORD, OBJECT_STORAGE_SECRET_KEY,
+#    JWT keys, and hosts pointing to krai-* services)
+# 2. Run: `python scripts/validate_env.py --verbose` to confirm configuration
+# 3. Verify host ports 80,8000,5432,9000,9001,11434,6379,3002 are free
+# 4. Confirm Docker/Compose versions (>=20.10 / >=1.29) and allocate >=8GB RAM
+# These steps must be completed before running `docker-compose -f docker-compose.production.yml up -d --build`.
+# -----------------------------------------------------------------------------
+
 services:
   # KRAI Frontend Dashboard - production
   krai-frontend:
@@ -54,14 +64,7 @@ services:
       krai-ollama:
         condition: service_healthy
     command: >
-      gunicorn main:app
-        --workers 4
-        --worker-class uvicorn.workers.UvicornWorker
-        --bind 0.0.0.0:8000
-        --log-level info
-        --access-logfile /app/logs/access.log
-        --error-logfile /app/logs/error.log
-        --timeout 300
+      uvicorn main:app --host 0.0.0.0 --port 8000 --log-level debug --timeout-keep-alive 300
 
   # PostgreSQL Database - production credentials from .env
   krai-postgres:
@@ -121,7 +124,7 @@ services:
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/minio/health/live >/dev/null"]
+      test: ["CMD-SHELL", "timeout 5 sh -c '</dev/tcp/localhost/9000' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -140,10 +143,11 @@ services:
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD-SHELL", "pgrep ollama || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
     # GPU support - production setup
     deploy:
       resources:
@@ -173,7 +177,7 @@ services:
 
   # Playwright for Firecrawl - config from .env
   krai-playwright:
-    image: ghcr.io/mendableai/playwright-service:latest
+    image: ghcr.io/firecrawl/playwright-service:latest
     container_name: krai-playwright-prod
     env_file:
       - .env
@@ -188,10 +192,11 @@ services:
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "pgrep node || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   # Firecrawl API - production config from .env
   krai-firecrawl-api:

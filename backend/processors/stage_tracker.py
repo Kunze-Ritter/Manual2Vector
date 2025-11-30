@@ -11,7 +11,8 @@ from uuid import UUID
 import asyncio
 import logging
 
-from core.base_processor import Stage
+from backend.core.base_processor import Stage
+from backend.services.database_adapter import DatabaseAdapter
 
 
 class StageTracker:
@@ -38,9 +39,9 @@ class StageTracker:
     
     STAGES = [stage.value for stage in Stage]
     
-    def __init__(self, supabase_client, websocket_callback: Optional[Callable] = None):
+    def __init__(self, database_adapter: DatabaseAdapter, websocket_callback: Optional[Callable] = None):
         """Initialize tracker with optional WebSocket callback."""
-        self.supabase = supabase_client
+        self.adapter = database_adapter
         self.logger = logging.getLogger("krai.stage_tracker")
         self.websocket_callback = websocket_callback
 
@@ -62,7 +63,7 @@ class StageTracker:
             return stage_name.value
         return str(stage_name)
 
-    def start_stage(self, document_id: str, stage_name: Union[str, Stage]) -> bool:
+    async def start_stage(self, document_id: str, stage_name: Union[str, Stage]) -> bool:
         """
         Mark stage as started
         
@@ -76,10 +77,10 @@ class StageTracker:
         stage = self._normalize_stage(stage_name)
 
         try:
-            self.supabase.rpc('start_stage', {
+            await self.adapter.execute_rpc('krai_core.start_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage
-            }).execute()
+            })
             return True
         except Exception as e:
             self.logger.error(
@@ -91,7 +92,7 @@ class StageTracker:
             )
             return False
     
-    def update_progress(
+    async def update_progress(
         self,
         document_id: str,
         stage_name: Union[str, Stage],
@@ -139,12 +140,12 @@ class StageTracker:
 
             normalized_progress = max(0.0, min(100.0, float(normalized_progress)))
 
-            self.supabase.rpc('update_stage_progress', {
+            await self.adapter.execute_rpc('krai_core.update_stage_progress', {
                 'p_document_id': document_id,
                 'p_stage_name': stage,
                 'p_progress': normalized_progress,
                 'p_metadata': metadata
-            }).execute()
+            })
             return True
         except Exception as e:
             self.logger.error(
@@ -156,7 +157,7 @@ class StageTracker:
             return False
     
     # Alias for consistency
-    def update_stage_progress(
+    async def update_stage_progress(
         self,
         document_id: str,
         stage_name: Union[str, Stage],
@@ -164,9 +165,9 @@ class StageTracker:
         metadata: Optional[Dict] = None
     ) -> bool:
         """Alias for update_progress"""
-        return self.update_progress(document_id, stage_name, progress, metadata)
+        return await self.update_progress(document_id, stage_name, progress, metadata)
     
-    def complete_stage(
+    async def complete_stage(
         self,
         document_id: str,
         stage_name: str,
@@ -186,11 +187,11 @@ class StageTracker:
         stage = self._normalize_stage(stage_name)
 
         try:
-            self.supabase.rpc('complete_stage', {
+            await self.adapter.execute_rpc('krai_core.complete_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage,
                 'p_metadata': metadata or {}
-            }).execute()
+            })
             
             # Broadcast WebSocket event
             if self.websocket_callback:
@@ -218,7 +219,7 @@ class StageTracker:
             )
             return False
     
-    def fail_stage(
+    async def fail_stage(
         self,
         document_id: str,
         stage_name: str,
@@ -240,12 +241,12 @@ class StageTracker:
         stage = self._normalize_stage(stage_name)
 
         try:
-            self.supabase.rpc('fail_stage', {
+            await self.adapter.execute_rpc('krai_core.fail_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage,
                 'p_error': error,
                 'p_metadata': metadata or {}
-            }).execute()
+            })
             
             # Broadcast WebSocket event
             if self.websocket_callback:
@@ -273,7 +274,7 @@ class StageTracker:
             )
             return False
     
-    def skip_stage(
+    async def skip_stage(
         self,
         document_id: str,
         stage_name: str,
@@ -293,11 +294,11 @@ class StageTracker:
         stage = self._normalize_stage(stage_name)
 
         try:
-            self.supabase.rpc('skip_stage', {
+            await self.adapter.execute_rpc('krai_core.skip_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage,
                 'p_reason': reason
-            }).execute()
+            })
             return True
         except Exception as e:
             self.logger.error(
@@ -309,7 +310,7 @@ class StageTracker:
             )
             return False
     
-    def get_progress(self, document_id: str) -> float:
+    async def get_progress(self, document_id: str) -> float:
         """
         Get overall document progress (0-100)
         
@@ -320,12 +321,12 @@ class StageTracker:
             Progress percentage
         """
         try:
-            result = self.supabase.rpc('get_document_progress', {
+            result = await self.adapter.execute_rpc('krai_core.get_document_progress', {
                 'p_document_id': document_id
-            }).execute()
+            })
             
-            if result.data is not None:
-                return float(result.data)
+            if result is not None:
+                return float(result)
             return 0.0
         except Exception as e:
             self.logger.error(
@@ -336,7 +337,7 @@ class StageTracker:
             )
             return 0.0
     
-    def get_current_stage(self, document_id: str) -> str:
+    async def get_current_stage(self, document_id: str) -> str:
         """
         Get current processing stage
         
@@ -347,12 +348,12 @@ class StageTracker:
             Stage name or 'completed'
         """
         try:
-            result = self.supabase.rpc('get_current_stage', {
+            result = await self.adapter.execute_rpc('krai_core.get_current_stage', {
                 'p_document_id': document_id
-            }).execute()
+            })
             
-            if result.data:
-                return result.data
+            if result:
+                return result
             return 'upload'
         except Exception as e:
             self.logger.error(
@@ -363,7 +364,7 @@ class StageTracker:
             )
             return 'unknown'
     
-    def can_start_stage(self, document_id: str, stage_name: str) -> bool:
+    async def can_start_stage(self, document_id: str, stage_name: str) -> bool:
         """
         Check if stage can be started (prerequisites met)
         
@@ -377,12 +378,12 @@ class StageTracker:
         stage = self._normalize_stage(stage_name)
 
         try:
-            result = self.supabase.rpc('can_start_stage', {
+            result = await self.adapter.execute_rpc('krai_core.can_start_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage
-            }).execute()
+            })
             
-            return bool(result.data) if result.data is not None else False
+            return bool(result) if result is not None else False
         except Exception as e:
             self.logger.error(
                 "Error checking if stage %s can start for document %s: %s",
@@ -393,7 +394,7 @@ class StageTracker:
             )
             return False
     
-    def get_stage_status(self, document_id: str) -> Dict[str, Any]:
+    async def get_stage_status(self, document_id: str) -> Dict[str, Any]:
         """
         Get complete stage status for a document
         
@@ -404,13 +405,13 @@ class StageTracker:
             Dictionary with all stage statuses
         """
         try:
-            result = self.supabase.table("vw_documents") \
-                .select("stage_status") \
-                .eq("id", document_id) \
-                .execute()
+            result = await self.adapter.execute_query(
+                "SELECT stage_status FROM public.vw_documents WHERE id = $1", 
+                [document_id]
+            )
             
-            if result.data and len(result.data) > 0:
-                return result.data[0].get('stage_status', {})
+            if result and len(result) > 0:
+                return result[0].get('stage_status', {})
             return {}
         except Exception as e:
             self.logger.error(
@@ -421,7 +422,7 @@ class StageTracker:
             )
             return {}
     
-    def get_statistics(self) -> Dict[str, Any]:
+    async def get_statistics(self) -> Dict[str, Any]:
         """
         Get processing statistics for all stages
         
@@ -429,11 +430,11 @@ class StageTracker:
             Dictionary with statistics per stage
         """
         try:
-            result = self.supabase.table("vw_stage_statistics") \
-                .select("*") \
-                .execute()
+            result = await self.adapter.execute_query(
+                "SELECT * FROM krai_core.vw_stage_statistics"
+            )
             
-            if result.data:
+            if result:
                 return {
                     stage['stage_name']: {
                         'pending': stage['pending_count'],
@@ -443,7 +444,7 @@ class StageTracker:
                         'skipped': stage['skipped_count'],
                         'avg_duration': stage['avg_duration_seconds']
                     }
-                    for stage in result.data
+                    for stage in result
                 }
             return {}
         except Exception as e:
@@ -481,23 +482,23 @@ class StageContext:
         self.stage_name = tracker_stage
         self.metadata = {}
     
-    def __enter__(self):
+    async def __aenter__(self):
         """Start stage"""
-        self.tracker.start_stage(self.document_id, self.stage_name)
+        await self.tracker.start_stage(self.document_id, self.stage_name)
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Complete or fail stage"""
         if exc_type is None:
             # Success
-            self.tracker.complete_stage(
+            await self.tracker.complete_stage(
                 self.document_id,
                 self.stage_name,
                 self.metadata
             )
         else:
             # Failure
-            self.tracker.fail_stage(
+            await self.tracker.fail_stage(
                 self.document_id,
                 self.stage_name,
                 str(exc_val),
@@ -505,11 +506,11 @@ class StageContext:
             )
         return False  # Don't suppress exception
     
-    def update_progress(self, progress: float, metadata: Optional[Dict] = None):
+    async def update_progress(self, progress: float, metadata: Optional[Dict] = None):
         """Update progress during processing"""
         if metadata:
             self.metadata.update(metadata)
-        self.tracker.update_progress(
+        await self.tracker.update_progress(
             self.document_id,
             self.stage_name,
             progress,
@@ -521,46 +522,3 @@ class StageContext:
         self.metadata[key] = value
 
 
-# Example usage
-if __name__ == "__main__":
-    from supabase import create_client
-    import os
-    from dotenv import load_dotenv
-    import logging
-    
-    load_dotenv()
-    
-    supabase = create_client(
-        os.getenv("SUPABASE_URL"),
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    )
-    
-    tracker = StageTracker(supabase)
-    
-    # Example document ID (replace with real one)
-    doc_id = "5a30739d-d8d4-4a1a-b033-a32e39cf33ba"
-    
-    logger = logging.getLogger("krai.stage_tracker.demo")
-    logger.info("Stage Status Tracker Demo")
-    logger.info("=" * 60)
-    
-    # Get current status
-    logger.info("Current Stage: %s", tracker.get_current_stage(doc_id))
-    logger.info("Overall Progress: %s%%", tracker.get_progress(doc_id))
-    
-    # Get detailed status
-    status = tracker.get_stage_status(doc_id)
-    if status:
-        logger.info("Detailed Status:")
-        for stage, data in status.items():
-            logger.info("  %s: %s", stage, data.get('status', 'unknown'))
-    
-    # Get statistics
-    stats = tracker.get_statistics()
-    if stats:
-        logger.info("Pipeline Statistics:")
-        for stage, data in stats.items():
-            logger.info("  %s:", stage)
-            logger.info("    Pending: %s", data['pending'])
-            logger.info("    Processing: %s", data['processing'])
-            logger.info("    Completed: %s", data['completed'])

@@ -21,14 +21,14 @@ class SearchAnalytics:
     - Popular queries
     """
     
-    def __init__(self, supabase_client=None):
+    def __init__(self, database_adapter=None):
         """
         Initialize search analytics
         
         Args:
-            supabase_client: Supabase client for database
+            database_adapter: Database adapter for database operations
         """
-        self.supabase = supabase_client
+        self.database_adapter = database_adapter
         self.logger = get_logger()
     
     def track_search_query(
@@ -54,8 +54,8 @@ class SearchAnalytics:
         Returns:
             True if tracked successfully
         """
-        if not self.supabase:
-            self.logger.debug("Supabase not configured, skipping analytics")
+        if not self.database_adapter:
+            self.logger.debug("Database adapter not configured, skipping analytics")
             return False
         
         try:
@@ -70,7 +70,11 @@ class SearchAnalytics:
             }
             
             # Store in krai_intelligence.search_analytics
-            self.supabase.table('search_analytics').insert(record).execute()
+            query = "INSERT INTO search_analytics (query, results_count, response_time_ms, user_id, filters, document_id, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+            params = [record['query'], record['results_count'], record['response_time_ms'], record['user_id'], record['filters'], record['document_id'], record['timestamp']]
+            
+            import asyncio
+            asyncio.run(self.database_adapter.execute_query(query, params))
             
             self.logger.debug(f"Tracked search query: {query[:50]}...")
             return True
@@ -94,7 +98,7 @@ class SearchAnalytics:
         Returns:
             List of popular queries with counts
         """
-        if not self.supabase:
+        if not self.database_adapter:
             return []
         
         try:
@@ -122,7 +126,7 @@ class SearchAnalytics:
         Returns:
             Dictionary with metrics
         """
-        if not self.supabase:
+        if not self.database_adapter:
             return {
                 'total_queries': 0,
                 'avg_response_time_ms': 0.0,
@@ -171,7 +175,7 @@ class SearchAnalytics:
         Returns:
             True if logged successfully
         """
-        if not self.supabase:
+        if not self.database_adapter:
             return False
         
         try:
@@ -182,19 +186,24 @@ class SearchAnalytics:
                     'chunks_count': chunks_count,
                     'embeddings_count': embeddings_count,
                     'processing_time_seconds': processing_time_seconds,
-                    'indexed_at': datetime.now(timezone.utc).isoformat()
-                }
+                },
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
-            # Store in search_analytics or separate indexing_log table
+            query = "INSERT INTO search_analytics (event_type, document_id, metadata, timestamp) VALUES ($1, $2, $3, $4)"
+            params = [record['event_type'], record['document_id'], record['metadata'], record['timestamp']]
+            
+            import asyncio
+            asyncio.run(self.database_adapter.execute_query(query, params))
+            
             self.logger.info(f"✅ Document {document_id} indexed for search")
             self.logger.info(f"   Chunks: {chunks_count}, Embeddings: {embeddings_count}")
             self.logger.info(f"   Time: {processing_time_seconds:.1f}s")
             
             return True
             
-        except Exception as e:
-            self.logger.warning(f"Failed to log document indexing: {e}")
+        except Exception as exc:
+            self.logger.debug(f"Failed to log document indexed: {exc}")
             return False
 
 
@@ -209,8 +218,8 @@ class SearchAnalyticsDecorator:
             return results
     """
     
-    def __init__(self, supabase_client=None):
-        self.analytics = SearchAnalytics(supabase_client)
+    def __init__(self, database_adapter=None):
+        self.analytics = SearchAnalytics(database_adapter)
     
     def __call__(self, func):
         """Decorate search function with analytics"""

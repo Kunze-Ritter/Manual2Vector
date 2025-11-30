@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 
 # Import services
-from services.database_service_production import DatabaseService
+from services.database_service import DatabaseService
 from services.object_storage_service import ObjectStorageService
 from services.storage_factory import create_storage_service
 from services.ai_service import AIService
@@ -69,10 +69,21 @@ class KRSmartProcessor:
         if not env_loaded:
             raise RuntimeError("No .env files found")
         
-        # Initialize services
+        # Initialize services (prefer PostgreSQL adapter, Supabase optional)
+        db_type = os.getenv('DATABASE_TYPE', 'postgresql').lower()
+        postgres_url = (
+            os.getenv('DATABASE_CONNECTION_URL')
+            or os.getenv('POSTGRES_URL')
+            or os.getenv('DATABASE_URL')
+        )
+        supabase_url = os.getenv('SUPABASE_URL') if db_type == 'supabase' else None
+        supabase_key = os.getenv('SUPABASE_ANON_KEY') if db_type == 'supabase' else None
+
         self.database_service = DatabaseService(
-            supabase_url=os.getenv('SUPABASE_URL'),
-            supabase_key=os.getenv('SUPABASE_ANON_KEY')
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+            postgres_url=postgres_url,
+            database_type=db_type
         )
         await self.database_service.connect()
         
@@ -101,8 +112,10 @@ class KRSmartProcessor:
     async def get_all_documents(self):
         """Get all documents from database"""
         try:
-            result = self.database_service.client.table('vw_documents').select('*').execute()
-            return result.data if result.data else []
+            rows = await self.database_service.execute_query(
+                "SELECT * FROM public.vw_documents"
+            )
+            return rows if rows else []
         except Exception as e:
             print(f"Error getting documents: {e}")
             return []
@@ -149,14 +162,14 @@ class KRSmartProcessor:
                 # Simple check if stage is needed
                 if stage_name == 'text':
                     # Check if chunks exist
-                    chunks_result = self.database_service.client.table('vw_chunks').select('id').eq('document_id', document_id).limit(1).execute()
-                    if chunks_result.data:
+                    chunks_count = await self.database_service.count_chunks_by_document(document_id)
+                    if chunks_count > 0:
                         print(f"   ✅ {stage_display} already completed")
                         continue
                 elif stage_name == 'image':
                     # Check if images exist
-                    images_result = self.database_service.client.table('vw_images').select('id').eq('document_id', document_id).limit(1).execute()
-                    if images_result.data:
+                    images_count = await self.database_service.count_images_by_document(document_id)
+                    if images_count > 0:
                         print(f"   ✅ {stage_display} already completed")
                         continue
                 elif stage_name == 'classification':
@@ -165,9 +178,13 @@ class KRSmartProcessor:
                         print(f"   ✅ {stage_display} already completed")
                         continue
                 elif stage_name == 'embedding':
-                    # Check if embeddings exist
-                    embeddings_result = self.database_service.client.table('vw_embeddings').select('id').eq('document_id', document_id).limit(1).execute()
-                    if embeddings_result.data:
+                    # Check if embeddings exist via view alias
+                    rows = await self.database_service.execute_query(
+                        "SELECT COUNT(*) AS cnt FROM public.vw_embeddings WHERE document_id = %s",
+                        [document_id]
+                    )
+                    embedding_count = rows[0]['cnt'] if rows else 0
+                    if embedding_count > 0:
                         print(f"   ✅ {stage_display} already completed")
                         continue
                 

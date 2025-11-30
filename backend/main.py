@@ -67,6 +67,7 @@ from api.defect_detection_api import DefectDetectionAPI
 from api.features_api import FeaturesAPI
 from api.content_management_api import ContentManagementAPI
 from api.openai_compatible_api import OpenAICompatibleAPI
+from config.security_config import get_security_config, is_production
 
 # Global services
 database_service = None
@@ -336,6 +337,9 @@ async def not_found_handler(request, exc):
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
     """500 error handler"""
+    import traceback
+    logger.error(f"🔥 Internal Server Error on {request.url.path}: {exc}")
+    traceback.print_exc()
     return JSONResponse(
         status_code=500,
         content={
@@ -347,18 +351,52 @@ async def internal_error_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    
-    # Configure logging
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
-    # Run the application
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+
+    security_config = get_security_config()
+    keepalive_timeout = security_config.KEEPALIVE_TIMEOUT_SECONDS
+    limit_concurrency = int(os.getenv("UVICORN_LIMIT_CONCURRENCY", "1000"))
+    limit_max_requests = int(os.getenv("UVICORN_LIMIT_MAX_REQUESTS", "10000"))
+    worker_count = int(os.getenv("UVICORN_WORKERS", str(os.cpu_count() or 4)))
+    backlog_size = int(os.getenv("UVICORN_BACKLOG", "2048"))
+    reload_enabled = os.getenv("UVICORN_RELOAD", "false").lower() == "true"
+    if reload_enabled and worker_count > 1:
+        logger.warning("UVICORN_RELOAD=true requires workers=1; overriding worker count to 1 for dev reload mode")
+        worker_count = 1
+
+    ssl_keyfile = os.getenv("SSL_KEYFILE")
+    ssl_certfile = os.getenv("SSL_CERTFILE")
+    use_ssl = is_production(security_config) and ssl_keyfile and ssl_certfile
+    effective_log_level = getattr(security_config, "LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
+
+    logger.info(
+        "Uvicorn: workers=%s, concurrency=%s, keepalive=%ss, max_requests=%s, SSL=%s",
+        worker_count,
+        limit_concurrency,
+        keepalive_timeout,
+        limit_max_requests,
+        "enabled" if use_ssl else "disabled",
     )
+
+    uvicorn_kwargs = {
+        "app": "main:app",
+        "host": os.getenv("API_HOST", "0.0.0.0"),
+        "port": int(os.getenv("API_PORT", "8000")),
+        "reload": reload_enabled,
+        "workers": worker_count,
+        "log_level": effective_log_level,
+        "limit_concurrency": limit_concurrency,
+        "limit_max_requests": limit_max_requests,
+        "timeout_keep_alive": keepalive_timeout,
+        "timeout_graceful_shutdown": int(os.getenv("UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN", "30")),
+        "backlog": backlog_size,
+    }
+
+    if use_ssl:
+        uvicorn_kwargs.update(ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile)
+
+    uvicorn.run(**uvicorn_kwargs)

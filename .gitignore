@@ -43,13 +43,6 @@ logs/
 access.log
 error.log
 
-# Environment Files
-.env
-.env.local
-.env.test
-.env.auth
-.env.*.local
-
 # IDE and Editor Files
 .vscode/
 .idea/
@@ -121,6 +114,14 @@ update_user_model.patch
 venv.bak/
 .venv/
 
+# ==========================================
+# ENVIRONMENT FILES (CRITICAL - NEVER COMMIT)
+# ==========================================
+# All .env files contain secrets and must never be committed
+# Use .env.example as the template for creating your .env
+# Production secrets should be stored in a secure vault
+# See docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md for variable reference
+
 # Environment Variables
 # All .env files are local-only (contain secrets)
 # Use .env.*.example files as templates
@@ -136,6 +137,22 @@ venv.bak/
 .env.test.local
 .env.production.local
 credentials.txt
+
+# Environment file backups and temporary files
+.env.bak*
+.env.backup*
+.env.tmp*
+.env.old*
+.env_*
+*.env.bak
+*.env.backup
+
+# Note: .env.example should be committed as a template
+# It contains no secrets, only placeholder values
+!.env.example
+
+# Verify .env is ignored: git check-ignore -v .env
+# Should output: .gitignore:XX:.env    .env
 
 # IDE
 .vscode/

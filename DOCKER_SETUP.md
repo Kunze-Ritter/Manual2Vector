@@ -90,6 +90,32 @@ python scripts/validate_env.py --docker-context off  # Docker-spezifische Checks
 
 ---
 
+## 🐳 Docker Compose Files Übersicht
+
+Das Projekt bietet 3 produktionsreife Docker Compose Konfigurationen:
+
+### docker-compose.simple.yml
+**Anwendungsfall**: Minimale Entwicklungsumgebung
+**Services**: Frontend, Backend, PostgreSQL, MinIO, Ollama (5 Services)
+**Best für**: Schnelles Testen, Entwicklung, ressourcenbeschränkte Umgebungen
+**Features**: Kein Firecrawl, keine GPU erforderlich, saubere Minimal-Stack
+
+### docker-compose.with-firecrawl.yml
+**Anwendungsfall**: Entwicklung mit erweitertem Web Scraping
+**Services**: Alle simple.yml Services + Redis, Playwright, Firecrawl API (10 Services)
+**Best für**: Testen von Web Scraping Features, Dokumentenverarbeitung mit Web-Quellen
+**Features**: Firecrawl für bessere Web-Inhaltsextraktion
+
+### docker-compose.production.yml
+**Anwendungsfall**: Production Deployment
+**Services**: Alle with-firecrawl.yml Services + Firecrawl Worker (11 Services)
+**Best für**: Production Deployments, GPU-beschleunigte Inferenz
+**Features**: GPU-Unterstützung für Ollama, optimierte PostgreSQL-Einstellungen, Production Healthchecks
+
+> **Hinweis**: 7 veraltete Docker Compose Dateien wurden archiviert, um Verwirrung zu reduzieren. Siehe `archive/docker/README.md` für Details.
+
+---
+
 ## 🧩 Struktur der `.env` Datei
 
 Die konsolidierte `.env` enthält 10 Sektionen mit 60+ Variablen. Die folgenden Bereiche werden automatisch befüllt:
@@ -98,7 +124,7 @@ Die konsolidierte `.env` enthält 10 Sektionen mit 60+ Variablen. Die folgenden 
 | ------- | ------ | ------- |
 | 1. Application Settings | 4 Variablen | – |
 | 2. Database Configuration | 16 Variablen | `DATABASE_PASSWORD` |
-| 3. Object Storage | 28 Variablen | `OBJECT_STORAGE_SECRET_KEY`, `R2_SECRET_ACCESS_KEY` |
+| 3. Object Storage | 28 Variablen | `OBJECT_STORAGE_SECRET_KEY` |
 | 4. AI Service | 58 Variablen | – |
 | 5. Authentication & Security | 64 Variablen | `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `DEFAULT_ADMIN_PASSWORD` |
 | 6. Processing Pipeline | 27 Variablen | – |
@@ -106,6 +132,8 @@ Die konsolidierte `.env` enthält 10 Sektionen mit 60+ Variablen. Die folgenden 
 | 8. External API Keys | 19 Variablen | `YOUTUBE_API_KEY`, `CLOUDFLARE_TUNNEL_TOKEN` |
 | 9. Docker Compose | 64 Variablen | n8n, pgAdmin, Firecrawl, Test-Credentials |
 | 10. Security Reminders | Hinweise | – |
+
+> **Hinweis:** Supabase- und R2-Variablen sind in der `.env` auskommentiert und deprecated. Verwende PostgreSQL + MinIO für Production-Deployments.
 
 ### Kritische Variablen (müssen gesetzt sein)
 
@@ -117,6 +145,8 @@ Die konsolidierte `.env` enthält 10 Sektionen mit 60+ Variablen. Die folgenden 
 
 Diese Werte werden durch die Setup-Skripte erzeugt und sollten nicht manuell geändert werden.
 
+> **Deprecated:** `SUPABASE_*` und `R2_*` Variablen sind nicht mehr erforderlich. Verwende stattdessen `DATABASE_*` und `OBJECT_STORAGE_*` Variablen.
+
 ### Optionale Variablen (Warnungen bei fehlender Konfiguration)
 
 - `YOUTUBE_API_KEY` → Google Cloud Console
@@ -125,26 +155,34 @@ Diese Werte werden durch die Setup-Skripte erzeugt und sollten nicht manuell ge�
 
 ### Docker-spezifische Standardwerte (nicht anpassen)
 
-- `DATABASE_HOST=krai-postgres`
-- `OBJECT_STORAGE_ENDPOINT=http://krai-minio:9000`
-- `OLLAMA_URL=http://krai-ollama:11434`
+- `DATABASE_HOST=krai-postgres` (nicht `SUPABASE_URL`)
+- `OBJECT_STORAGE_ENDPOINT=http://krai-minio:9000` (nicht `MINIO_ENDPOINT`)
+- `OLLAMA_URL=http://krai-ollama:11434` (nicht `OLLAMA_BASE_URL`)
 
-Für lokale Host-Verbindungen separate `.env.local` oder Overrides nutzen.
+Für lokale Host-Verbindungen separate `.env.local` oder Overrides nutzen. Kopiere dazu
+`.env.local.example` nach `.env.local` und setze dort `DATABASE_HOST`/
+`POSTGRES_HOST`/`DATABASE_CONNECTION_URL` auf `localhost`, damit Host-Prozesse über
+die veröffentlichten Ports mit den Docker-Containern sprechen.
+
+> **Wichtig:** Diese Werte sind für Docker Compose optimiert. Für Host-Zugriff verwende `localhost` statt Service-Namen.
 
 ---
 
 ## 🌐 Zugängliche Dienste
 
-| Service | URL | Benutzer | Credentials | Compose-Profile |
-| ------- | --- | -------- | ----------- | --------------- |
-| Frontend | http://localhost | – | – | simple, production |
-| Backend API | http://localhost:8000 | – | – | alle |
-| API Docs | http://localhost:8000/docs | – | – | alle |
-| Health Check | http://localhost:8000/health | – | – | alle |
-| MinIO Console | http://localhost:9001 | minioadmin | aus `.env` | simple, production |
-| pgAdmin | http://localhost:5050 | admin@krai.local | aus `.env` | default, production |
-| n8n | http://localhost:5678 | admin | aus `.env` | default |
-| Ollama API | http://localhost:11434 | – | – | alle |
+| Service | URL | Benutzer | Credentials | Verfügbar in |
+| ------- | --- | -------- | ----------- | ------------ |
+| Frontend | http://localhost | – | – | Alle Compose-Dateien |
+| Backend API | http://localhost:8000 | – | – | Alle Compose-Dateien |
+| API Docs | http://localhost:8000/docs | – | – | Alle Compose-Dateien |
+| Health Check | http://localhost:8000/health | – | – | Alle Compose-Dateien |
+| MinIO Console | http://localhost:9001 | minioadmin | aus `.env` | Alle Compose-Dateien |
+| Redis | localhost:6379 | – | – | with-firecrawl, production |
+| Playwright | localhost:3000 | – | – | with-firecrawl, production |
+| Firecrawl API | http://localhost:9002 | – | – | with-firecrawl, production |
+| Ollama API | http://localhost:11434 | – | – | Alle Compose-Dateien |
+
+> **Hinweis**: n8n und pgAdmin sind nur in archivierten Compose-Dateien verfügbar. Siehe `archive/docker/README.md`.
 
 ---
 
@@ -292,10 +330,64 @@ Der Service-Checker nutzt Healthchecks aus `docker-compose.*`:
    - Symptom: CUDA Out-of-memory
    - Lösung: `DISABLE_VISION_PROCESSING=true`, `MAX_VISION_IMAGES=1`, kleineres Modell (`llava:7b`)
 
-9. **Firecrawl startet nicht**
-   - Symptom: "Firecrawl API not reachable"
-   - Lösung: `SCRAPING_BACKEND=firecrawl`, `FIRECRAWL_API_URL=http://krai-firecrawl-api:3002`, `FIRECRAWL_BULL_AUTH_KEY`
-   - Logs: `docker-compose logs krai-firecrawl-api`
+9. **Firecrawl startet nicht (Restart Loop)**
+   - **Symptom:** Container `krai-firecrawl-api-prod` und `krai-playwright-prod` in Restart-Schleife
+   - **Ursachen & Lösungen:**
+
+     a) **Playwright Healthcheck schlägt fehl:**
+        - Prüfen: `docker logs krai-playwright-prod --tail 20`
+        - Lösung: Healthcheck muss `/pressure` Endpoint verwenden
+        - Test: `curl http://localhost:3000/pressure` (sollte 200 zurückgeben)
+        - Fix: `HEALTH=true` Environment Variable in Playwright Service setzen
+
+     b) **Falsche Playwright URL:**
+        - Prüfen: `docker exec krai-firecrawl-api-prod env | grep PLAYWRIGHT`
+        - Problem: `PLAYWRIGHT_MICROSERVICE_URL` enthält `/scrape` Suffix
+        - Lösung: URL muss `http://krai-playwright:3000` sein (ohne `/scrape`)
+
+     c) **Firecrawl API Healthcheck fehlerhaft:**
+        - Prüfen: `docker inspect krai-firecrawl-api-prod | grep -A 5 Healthcheck`
+        - Problem: Endpoint `/api/v1/status` existiert nicht
+        - Lösung: Healthcheck auf `/health` oder TCP-Check ändern
+
+     d) **Ollama Modelle fehlen:**
+        - Prüfen: `docker exec krai-ollama ollama list`
+        - Lösung: Modelle pullen (siehe Punkt 7)
+
+   - **Vollständige Diagnose:**
+
+     ```bash
+     # Container Status prüfen
+     docker-compose -f docker-compose.with-firecrawl.yml ps
+
+     # Logs aller Firecrawl Services
+     docker-compose -f docker-compose.with-firecrawl.yml logs krai-playwright krai-firecrawl-api krai-firecrawl-worker
+
+     # Playwright Health testen
+     curl -v http://localhost:3000/pressure
+
+     # Firecrawl API testen
+     curl -v http://localhost:9002/health
+     ```
+
+   - **Reset-Prozedur:**
+
+     ```bash
+     # Services stoppen
+     docker-compose -f docker-compose.with-firecrawl.yml down
+
+     # .env Variablen prüfen
+     grep -E "PLAYWRIGHT|FIRECRAWL" .env
+
+     # Services neu starten
+     docker-compose -f docker-compose.with-firecrawl.yml up -d krai-redis krai-playwright
+
+     # Warten bis Playwright healthy ist
+     docker-compose -f docker-compose.with-firecrawl.yml ps krai-playwright
+
+     # Firecrawl Services starten
+     docker-compose -f docker-compose.with-firecrawl.yml up -d krai-firecrawl-api krai-firecrawl-worker
+     ```
 
 10. **JWT-Authentifizierung schlägt fehl**
     - Symptom: "Invalid token"
@@ -308,7 +400,7 @@ Der Service-Checker nutzt Healthchecks aus `docker-compose.*`:
       Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
       ```
     - Alternative: Batch-Skript verwenden: `setup.bat`
-    - Dokumentation: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-executionpolicy
+    - Dokumentation: <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-executionpolicy>
 
 12. **setup.bat schlägt fehl mit "RSA key generation failed"**
     - Symptom: Fehler bei RSA-Key-Generierung in setup.bat
@@ -341,6 +433,58 @@ Der Service-Checker nutzt Healthchecks aus `docker-compose.*`:
 
 ---
 
+## 🔍 Firecrawl Spezifische Diagnose
+
+### Service-Abhängigkeiten
+
+Firecrawl Stack hat folgende Abhängigkeiten:
+```
+krai-redis (healthy)
+  ↓
+krai-playwright (healthy)
+  ↓
+krai-firecrawl-api (healthy)
+  ↓
+krai-firecrawl-worker (started)
+```
+
+### Healthcheck-Endpoints
+
+| Service | Endpoint | Erwartete Antwort |
+|---------|----------|-------------------|
+| Playwright | `http://localhost:3000/pressure` | HTTP 200 + JSON |
+| Firecrawl API | `http://localhost:9002/health` | HTTP 200 |
+| Redis | `redis-cli PING` | PONG |
+
+### Häufige Fehlermeldungen
+
+1. **"Error: connect ECONNREFUSED 127.0.0.1:3000"**
+   - Ursache: Playwright Service nicht erreichbar
+   - Lösung: Playwright Healthcheck korrigieren
+
+2. **"Playwright service unhealthy"**
+   - Ursache: `/pressure` Endpoint nicht verfügbar
+   - Lösung: `HEALTH=true` Environment Variable setzen
+
+3. **"Worker failed to start"**
+   - Ursache: Ollama Service nicht verfügbar oder Modelle fehlen
+   - Lösung: Ollama Modelle pullen (siehe Punkt 7)
+
+### Performance-Tuning
+
+```bash
+# Playwright Memory-Limit erhöhen
+PLAYWRIGHT_MAX_CONCURRENT_SESSIONS=5  # Reduzieren bei wenig RAM
+
+# Firecrawl Worker-Anzahl anpassen
+FIRECRAWL_NUM_WORKERS=2  # Reduzieren bei wenig CPU
+
+# Firecrawl Concurrency reduzieren
+FIRECRAWL_MAX_CONCURRENCY=2  # Reduzieren bei Instabilität
+```
+
+---
+
 ## 📚 Weiterführende Links
 
 - [README.md](README.md)
@@ -357,3 +501,19 @@ Der Service-Checker nutzt Healthchecks aus `docker-compose.*`:
 - `scripts/validate_env.py`
 - `scripts/verify_local_setup.py`
 - `scripts/init_minio.py`
+
+---
+
+## 📚 Archivierte Compose-Dateien
+
+7 Docker Compose Dateien wurden archiviert, um das Projekt zu vereinfachen:
+
+- `docker-compose.yml` - Legacy-Standard mit n8n, pgAdmin, Laravel
+- `docker-compose.test.yml` - Testumgebung mit isolierten Services
+- `docker-compose.production-final.yml` - Produktions-Duplikat
+- `docker-compose.production-complete.yml` - Produktions-Duplikat mit Firecrawl
+- `docker-compose.prod.yml` - Enterprise-Setup mit erweiterten Features
+- `docker-compose.infrastructure.yml` - Infrastructure-only (keine API/Frontend)
+- `docker-compose-ollama-tunnel.yml` - Cloudflare Tunnel für Ollama
+
+Siehe `archive/docker/README.md` für Details und Migrationsanleitungen.

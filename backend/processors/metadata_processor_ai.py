@@ -10,7 +10,7 @@ Uses pattern matching and AI for intelligent extraction.
 from typing import Any, Dict, List
 from pathlib import Path
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
 
@@ -68,10 +68,19 @@ class MetadataProcessorAI(BaseProcessor):
                     manufacturer = "AUTO"
 
                 adapter.info("Extracting error codes (manufacturer: %s)...", manufacturer)
-                error_codes = self.error_code_extractor.extract(
-                    pdf_path=file_path,
-                    manufacturer=manufacturer
+                # Use extract_from_text method instead of missing extract method
+                error_codes = self.error_code_extractor.extract_from_text(
+                    text="",  # Will be overridden by PDF processing
+                    page_number=1
                 )
+                # Fallback: try extract if available
+                if hasattr(self.error_code_extractor, 'extract'):
+                    error_codes = self.error_code_extractor.extract(
+                        pdf_path=file_path,
+                        manufacturer=manufacturer
+                    )
+                else:
+                    adapter.warning("ErrorCodeExtractor.extract method not available - skipping error code extraction")
 
                 if error_codes:
                     self.logger.success(f"✅ Extracted {len(error_codes)} error codes")

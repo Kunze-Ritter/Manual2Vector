@@ -32,10 +32,10 @@ from requests import exceptions as requests_exceptions
 from urllib3.util.retry import Retry
 from datetime import datetime, timezone
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
-from pipeline.metrics import metrics
-from processors.logger import text_stats
+from backend.pipeline.metrics import metrics
+from backend.processors.logger import text_stats
 
 
 class EmbeddingProcessor(BaseProcessor):
@@ -308,9 +308,7 @@ class EmbeddingProcessor(BaseProcessor):
             document_type=document_type or 'unknown'
         ) as timer:
             try:
-                result = await loop.run_in_executor(
-                    None,
-                    self.process_document,
+                result = await self.process_document(
                     context.document_id,
                     chunks,
                     track_stage
@@ -338,7 +336,7 @@ class EmbeddingProcessor(BaseProcessor):
 
         return result
 
-    def process_document(
+    async def process_document(
         self,
         document_id: UUID,
         chunks: List[Dict[str, Any]],
@@ -365,7 +363,7 @@ class EmbeddingProcessor(BaseProcessor):
         stage_tracker = self.stage_tracker if track_stage and self.stage_tracker else None
 
         if stage_tracker:
-            self.stage_tracker.start_stage(str(document_id), self.stage.value)
+            await self.stage_tracker.start_stage(str(document_id), self.stage.value)
         
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
             try:
@@ -430,7 +428,7 @@ class EmbeddingProcessor(BaseProcessor):
 
                     if self.stage_tracker:
                         progress = (processed_count / total_chunks) * 100
-                        self.stage_tracker.update_stage_progress(
+                        await self.stage_tracker.update_stage_progress(
                             str(document_id),
                             self.stage.value,
                             progress,
@@ -476,7 +474,7 @@ class EmbeddingProcessor(BaseProcessor):
                     }
 
                     if total_embedded == 0 and failed_chunks:
-                        stage_tracker.fail_stage(
+                        await stage_tracker.fail_stage(
                             str(document_id),
                             self.stage.value,
                             f"Failed to embed all {len(failed_chunks)} chunks"
@@ -484,7 +482,7 @@ class EmbeddingProcessor(BaseProcessor):
                     else:
                         if failed_chunks:
                             metadata['status'] = 'partial'
-                        stage_tracker.complete_stage(
+                        await stage_tracker.complete_stage(
                             str(document_id),
                             self.stage.value,
                             metadata=metadata
@@ -522,7 +520,7 @@ class EmbeddingProcessor(BaseProcessor):
                 adapter.error("Embedding generation failed: %s", e)
 
                 if self.stage_tracker:
-                    self.stage_tracker.fail_stage(
+                    await self.stage_tracker.fail_stage(
                         str(document_id),
                         self.stage.value,
                         error_msg

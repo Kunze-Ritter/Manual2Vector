@@ -10,9 +10,9 @@ import re
 from typing import Any, Dict, Optional
 from pathlib import Path
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .document_type_detector import DocumentTypeDetector
-from utils.manufacturer_normalizer import normalize_manufacturer
+from backend.utils.manufacturer_normalizer import normalize_manufacturer
 
 
 class ClassificationProcessor(BaseProcessor):

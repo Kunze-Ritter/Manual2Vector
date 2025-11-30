@@ -98,6 +98,8 @@ cryptography>=41.0.0
 python-jose[cryptography]>=3.3.0
 bcrypt==3.2.2
 passlib>=1.7.4
+python-magic-bin>=0.4.14; platform_system=='Windows'
+validators>=0.22.0
 
 # ================================
 # SYSTEM & PERFORMANCE
@@ -105,6 +107,9 @@ passlib>=1.7.4
 psutil>=5.9.0
 gputil>=1.4.0  # GPU monitoring for performance tracking
 multiprocessing-logging>=0.3.0
+# Rate limiting
+slowapi>=0.1.9
+limits>=3.6.0
 # concurrent-futures>=3.1.1  # DEPRECATED: Not needed in Python 3.7+ (built into concurrent.futures)
 
 # ================================

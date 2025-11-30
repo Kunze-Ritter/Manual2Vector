@@ -22,7 +22,7 @@ from uuid import UUID, uuid4
 import pymupdf  # PyMuPDF
 import pandas as pd
 
-from core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
+from backend.core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
 
 class TableProcessor(BaseProcessor):
     """Extract tables from PDFs and generate embeddings"""
@@ -61,13 +61,13 @@ class TableProcessor(BaseProcessor):
             
             # Start stage tracking
             if self.stage_tracker:
-                self.stage_tracker.start_stage(str(context.document_id), self.stage.value)
+                await self.stage_tracker.start_stage(str(context.document_id), self.stage.value)
             
             try:
                 # Validate context
                 if not context.document_id:
                     if self.stage_tracker:
-                        self.stage_tracker.fail_stage(
+                        await self.stage_tracker.fail_stage(
                             str(context.document_id) if context.document_id else "unknown",
                             self.stage.value,
                             error="Document ID is required"
@@ -76,7 +76,7 @@ class TableProcessor(BaseProcessor):
                 
                 if not hasattr(context, 'pdf_path') or not context.pdf_path:
                     if self.stage_tracker:
-                        self.stage_tracker.fail_stage(
+                        await self.stage_tracker.fail_stage(
                             str(context.document_id),
                             self.stage.value,
                             error="PDF path is required"
@@ -85,10 +85,10 @@ class TableProcessor(BaseProcessor):
                 
                 if not os.path.exists(context.pdf_path):
                     if self.stage_tracker:
-                        self.stage_tracker.fail_stage(
+                        await self.stage_tracker.fail_stage(
                             str(context.document_id),
                             self.stage.value,
-                            error=f"PDF file not found: {context.pdf_path}"
+                            error=f"PDF not found: {context.pdf_path}"
                         )
                     return self.create_error_result(f"PDF file not found: {context.pdf_path}")
                 
@@ -108,7 +108,7 @@ class TableProcessor(BaseProcessor):
                     )
                 else:
                     if self.stage_tracker:
-                        self.stage_tracker.fail_stage(
+                        await self.stage_tracker.fail_stage(
                             str(context.document_id),
                             self.stage.value,
                             error=result.get('error', 'Unknown error')
@@ -121,7 +121,7 @@ class TableProcessor(BaseProcessor):
             except Exception as e:
                 adapter.error(f"Table processing failed: {e}")
                 if self.stage_tracker:
-                    self.stage_tracker.fail_stage(
+                    await self.stage_tracker.fail_stage(
                         str(context.document_id) if context.document_id else "unknown",
                         self.stage.value,
                         error=str(e)
@@ -140,7 +140,7 @@ class TableProcessor(BaseProcessor):
                 
                 # Start stage tracking
                 if self.stage_tracker:
-                    self.stage_tracker.start_stage(str(document_id), self.stage.value)
+                    await self.stage_tracker.start_stage(str(document_id), self.stage.value)
                 
                 all_tables = []
                 
@@ -176,7 +176,7 @@ class TableProcessor(BaseProcessor):
                 
                 # Complete stage tracking
                 if self.stage_tracker:
-                    self.stage_tracker.complete_stage(
+                    await self.stage_tracker.complete_stage(
                         str(document_id),
                         self.stage.value,
                         metadata={
@@ -198,7 +198,7 @@ class TableProcessor(BaseProcessor):
             except Exception as e:
                 adapter.error(f"Table extraction failed: {e}")
                 if self.stage_tracker:
-                    self.stage_tracker.fail_stage(
+                    await self.stage_tracker.fail_stage(
                         str(document_id),
                         self.stage.value,
                         error=str(e)

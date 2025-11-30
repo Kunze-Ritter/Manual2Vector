@@ -1,10 +1,19 @@
 """
-Main Document Processor - Orchestrates everything
+⚠️  DEPRECATED - Main Document Processor
+
+This file is DEPRECATED and will be removed in a future version.
+Please use the new modular pipeline system:
+
+- For individual stage execution: scripts/pipeline_processor.py
+- For full pipeline orchestration: backend/pipeline/master_pipeline.py
+- For stage tracking: backend/processors/stage_tracker.py
 
 Coordinates text extraction, chunking, product/error extraction.
+⚠️  DEPRECATED - Do not use for new development
 """
 
 import os
+import asyncio
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from uuid import UUID, uuid4
@@ -195,7 +204,7 @@ class DocumentProcessor:
         # Helper function to update processing status
         from core.base_processor import Stage
 
-        def update_stage_status(stage: str, status: str = "in_progress", metadata: Optional[Dict[str, Any]] = None):
+        async def update_stage_status(stage: str, status: str = "in_progress", metadata: Optional[Dict[str, Any]] = None):
             """Update stage status using StageTracker or direct Supabase fallback"""
             metadata = metadata or {}
 
@@ -203,21 +212,21 @@ class DocumentProcessor:
                 try:
                     stage_enum = Stage(stage)
                     if status == "in_progress":
-                        self.stage_tracker.start_stage(str(document_id), stage_enum)
+                        await self.stage_tracker.start_stage(str(document_id), stage_enum)
                         progress_value = metadata.get("progress")
                         if progress_value is not None:
-                            self.stage_tracker.update_progress(str(document_id), stage_enum, progress_value, metadata)
+                            await self.stage_tracker.update_progress(str(document_id), stage_enum, progress_value, metadata)
                     elif status == "completed":
-                        self.stage_tracker.complete_stage(str(document_id), stage_enum, metadata)
+                        await self.stage_tracker.complete_stage(str(document_id), stage_enum, metadata)
                     elif status == "failed":
                         error_message = metadata.get("error", "Unknown error")
-                        self.stage_tracker.fail_stage(str(document_id), stage_enum, error_message, metadata)
+                        await self.stage_tracker.fail_stage(str(document_id), stage_enum, error_message, metadata)
                     elif status == "skipped":
                         reason = metadata.get("reason", "Not applicable")
-                        self.stage_tracker.skip_stage(str(document_id), stage_enum, reason)
+                        await self.stage_tracker.skip_stage(str(document_id), stage_enum, reason)
                     else:
                         progress_value = metadata.get("progress", 0)
-                        self.stage_tracker.update_progress(str(document_id), stage_enum, progress_value, metadata)
+                        await self.stage_tracker.update_progress(str(document_id), stage_enum, progress_value, metadata)
                     return
                 except Exception as tracker_error:
                     self.logger.debug(f"StageTracker update failed ({stage}, {status}): {tracker_error}")
@@ -1277,10 +1286,10 @@ class DocumentProcessor:
                     }
                 chunks_dict.append(chunk_dict)
             
-            result = self.embedding_processor.process_document(
+            result = asyncio.run(self.embedding_processor.process_document(
                 document_id=document_id,
                 chunks=chunks_dict
-            )
+            ))
             
             if result['success']:
                 if result.get('partial_success'):

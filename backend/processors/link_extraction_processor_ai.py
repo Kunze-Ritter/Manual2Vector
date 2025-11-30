@@ -11,14 +11,14 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .link_extractor import LinkExtractor
 from .text_extractor import TextExtractor
-from services.context_extraction_service import ContextExtractionService
-from services.link_enrichment_service import LinkEnrichmentService
-from services.config_service import ConfigService
-from services.web_scraping_service import create_web_scraping_service
-from services.structured_extraction_service import StructuredExtractionService
+from backend.services.context_extraction_service import ContextExtractionService
+from backend.services.link_enrichment_service import LinkEnrichmentService
+from backend.services.config_service import ConfigService
+from backend.services.web_scraping_service import create_web_scraping_service
+from backend.services.structured_extraction_service import StructuredExtractionService
 
 
 class LinkExtractionProcessorAI(BaseProcessor):

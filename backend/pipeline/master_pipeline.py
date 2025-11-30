@@ -21,43 +21,47 @@ import multiprocessing as mp
 import psutil
 
 # Add backend to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from processors.env_loader import load_all_env_files
+from backend.processors.env_loader import load_all_env_files
 
 # Import services
-from services.database_service import DatabaseService
-from services.object_storage_service import ObjectStorageService
-from services.storage_factory import create_storage_service
-from services.ai_service import AIService
-from services.config_service import ConfigService
-from services.features_service import FeaturesService
-from services.quality_check_service import QualityCheckService
-from services.file_locator_service import FileLocatorService
-from utils.colored_logging import apply_colored_logging_globally
+from backend.services.database_service import DatabaseService
+from backend.services.object_storage_service import ObjectStorageService
+from backend.services.storage_factory import create_storage_service
+from backend.services.ai_service import AIService
+from backend.services.config_service import ConfigService
+from backend.services.features_service import FeaturesService
+from backend.services.quality_check_service import QualityCheckService
+from backend.services.file_locator_service import FileLocatorService
+from backend.utils.colored_logging import apply_colored_logging_globally
 
-from processors.upload_processor import UploadProcessor
-from processors.text_processor_optimized import OptimizedTextProcessor
-from processors.svg_processor import SVGProcessor
-from processors.image_processor import ImageProcessor
-from processors.classification_processor import ClassificationProcessor
-from processors.chunk_preprocessor import ChunkPreprocessor
-from processors.metadata_processor_ai import MetadataProcessorAI
-from processors.link_extraction_processor_ai import LinkExtractionProcessorAI
-from processors.storage_processor import StorageProcessor
-from processors.embedding_processor import EmbeddingProcessor
-from processors.search_processor import SearchProcessor
-from processors.visual_embedding_processor import VisualEmbeddingProcessor
-from processors.table_processor import TableProcessor
+from backend.processors.upload_processor import UploadProcessor
+from backend.processors.text_processor_optimized import OptimizedTextProcessor
+from backend.processors.svg_processor import SVGProcessor
+from backend.processors.image_processor import ImageProcessor
+from backend.processors.classification_processor import ClassificationProcessor
+from backend.processors.chunk_preprocessor import ChunkPreprocessor
+from backend.processors.metadata_processor_ai import MetadataProcessorAI
+from backend.processors.link_extraction_processor_ai import LinkExtractionProcessorAI
+from backend.processors.storage_processor import StorageProcessor
+from backend.processors.embedding_processor import EmbeddingProcessor
+from backend.processors.search_processor import SearchProcessor
+from backend.processors.visual_embedding_processor import VisualEmbeddingProcessor
+from backend.processors.table_processor import TableProcessor
+from backend.processors.thumbnail_processor import ThumbnailProcessor
 
-from core.base_processor import ProcessingContext
+from backend.core.base_processor import ProcessingContext
 
 class KRMasterPipeline:
     """
     Master Pipeline für alle KR-AI-Engine Funktionen
     """
     
-    def __init__(self, force_continue_on_errors=True):
+    def __init__(self, database_adapter=None, force_continue_on_errors=True):
+        self.database_adapter = database_adapter
         self.database_service = None
         self.storage_service = None
         self.ai_service = None
@@ -88,7 +92,10 @@ class KRMasterPipeline:
         self.logger.info("Initializing KR Master Pipeline services")
         
         project_root = Path(__file__).resolve().parents[2]
-        extra_env_files = ['.env.test', 'env.database', 'env.storage', 'env.ai', 'env.system']
+        # Extra files primarily for legacy env.* layouts; .env and .env.database are already
+        # handled by load_all_env_files. We deliberately do NOT load .env.test here so the
+        # master pipeline uses the primary PostgreSQL configuration from .env/.env.database.
+        extra_env_files = ['env.database', 'env.storage', 'env.ai', 'env.system']
 
         loaded_files = load_all_env_files(project_root, extra_files=extra_env_files)
 
@@ -204,7 +211,12 @@ class KRMasterPipeline:
             self.logger.warning("SUPABASE_SERVICE_ROLE_KEY not found - will try POSTGRES_URL fallback")
         
         # Get PostgreSQL URL for direct connection (alternative method)
-        postgres_url = os.getenv('POSTGRES_URL') or os.getenv('DATABASE_URL')
+        # Prefer explicit POSTGRES_URL or DATABASE_CONNECTION_URL; fall back to DATABASE_URL
+        postgres_url = (
+            os.getenv('POSTGRES_URL')
+            or os.getenv('DATABASE_CONNECTION_URL')
+            or os.getenv('DATABASE_URL')
+        )
         if postgres_url:
             self.logger.info("✅ POSTGRES_URL: %s... (asyncpg fallback enabled)", postgres_url[:40])
         else:
@@ -257,7 +269,8 @@ class KRMasterPipeline:
             'links': LinkExtractionProcessorAI(self.database_service, self.ai_service),
             'metadata': MetadataProcessorAI(self.database_service, self.ai_service, self.config_service),
             'storage': StorageProcessor(self.database_service, self.storage_service),
-            'search': SearchProcessor(self.database_service, self.ai_service)
+            'search': SearchProcessor(self.database_service, self.ai_service),
+            'thumbnail': ThumbnailProcessor(self.database_service, self.storage_service)
         }
         self.logger.info("All services initialized!")
     
@@ -266,19 +279,20 @@ class KRMasterPipeline:
         self.logger.info("Checking documents status")
         
         try:
-            # Use direct database service
-            all_docs = self.database_service.client.table('vw_documents').select('processing_status').execute()
-            
+            rows = await self.database_service.execute_query(
+                "SELECT processing_status FROM public.vw_documents"
+            )
+
             status = {
-                'total_documents': len(all_docs.data),
+                'total_documents': len(rows),
                 'completed': 0,
                 'pending': 0,
                 'failed': 0,
                 'processing': 0
             }
-            
-            for doc in all_docs.data:
-                status_value = doc['processing_status']
+
+            for doc in rows:
+                status_value = doc.get('processing_status')
                 if status_value in status:
                     status[status_value] += 1
             
@@ -293,25 +307,24 @@ class KRMasterPipeline:
         self.logger.info("Finding documents that need remaining stages")
         
         try:
-            # Get ALL pending AND failed documents directly (no chunk check)
             pending_docs = []
-            all_docs = self.database_service.client.table('vw_documents').select('*').in_('processing_status', ['pending', 'failed']).execute()
-            
-            for doc in all_docs.data:
-                # Add ALL pending documents (chunks already exist)
-                # Use original filename to construct file path
+
+            rows = await self.database_service.execute_query(
+                "SELECT * FROM public.vw_documents WHERE processing_status IN ('pending', 'failed')"
+            )
+
+            for doc in rows:
                 filename = doc['filename']
-                # Use absolute path to avoid "file not found" errors
                 import os
                 file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", filename))
-                
+
                 pending_docs.append({
                     'id': doc['id'],
                     'filename': filename,
                     'file_path': file_path,
                     'processing_status': doc['processing_status'],
-                    'chunk_count': 0,  # We don't check chunks anymore
-                    'created_at': doc['created_at']
+                    'chunk_count': 0,
+                    'created_at': doc.get('created_at')
                 })
             
             self.logger.info(
@@ -327,13 +340,13 @@ class KRMasterPipeline:
     async def get_all_documents(self) -> List[Dict[str, Any]]:
         """Get all documents with resolved file paths"""
         try:
-            all_docs = self.database_service.client.table('vw_documents').select('*').execute()
-            
-            # Resolve file paths using file locator
-            for doc in all_docs.data:
+            rows = await self.database_service.execute_query(
+                "SELECT * FROM public.vw_documents"
+            )
+
+            for doc in rows:
                 filename = doc.get('filename')
                 if filename:
-                    # Try to find the actual file
                     actual_path = self.file_locator.find_file(filename)
                     doc['resolved_path'] = actual_path
                     doc['file_exists'] = actual_path is not None
@@ -341,7 +354,7 @@ class KRMasterPipeline:
                     doc['resolved_path'] = None
                     doc['file_exists'] = False
             
-            return all_docs.data or []
+            return rows or []
         except Exception:
             self.logger.error("Error getting all documents", exc_info=True)
             return []
@@ -470,6 +483,17 @@ class KRMasterPipeline:
                 file_size=0
             )
 
+            # Ensure file_path exists before processing stages
+            if not Path(file_path).exists():
+                self.logger.warning(f"File not found: {file_path} - skipping all stages for document {filename}")
+                return {
+                    'success': False,
+                    'message': f'File not found: {file_path}',
+                    'completed_stages': [],
+                    'failed_stages': [s for s, _, _ in stage_sequence],
+                    'filename': filename
+                }
+
             doc_info = await self.database_service.get_document(document_id)
             if doc_info:
                 context.file_hash = doc_info.file_hash or ''
@@ -523,14 +547,22 @@ class KRMasterPipeline:
                 self.logger.info("  %s %s", label, filename)
                 try:
                     result = await self.processors[processor_key].process(context)
-                    if result.success:
+                    # Handle both dict and ProcessingResult objects
+                    if isinstance(result, dict):
+                        success = result.get('success', False)
+                        message = result.get('message', 'Unknown error')
+                    else:
+                        success = result.success
+                        message = result.message
+                    
+                    if success:
                         completed_stages.append(stage_name)
                         formatter = success_messages.get(stage_name)
-                        message = formatter(result) if formatter else f"{stage_name.capitalize()} completed"
-                        self.logger.info("    ✅ %s", message)
+                        formatted_message = formatter(result) if formatter else f"{stage_name.capitalize()} completed"
+                        self.logger.info("    ✅ %s", formatted_message)
                     else:
                         failed_stages.append(stage_name)
-                        failure_message = result.message or "Unknown error"
+                        failure_message = message or "Unknown error"
                         self.logger.warning("    ❌ %s failed: %s", stage_name.capitalize(), failure_message)
                 except Exception:
                     failed_stages.append(stage_name)
@@ -638,7 +670,6 @@ class KRMasterPipeline:
                 self.logger.info("  [%s] Document exists - using Smart Processing for remaining stages", doc_index)
                 document_id = result1.data.get('document_id')
                 # Use absolute path
-                import os
                 file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", filename))
                 
                 # Use Smart Processing to handle only missing stages
@@ -1030,19 +1061,23 @@ class KRMasterPipeline:
     async def _get_pipeline_status(self) -> Dict[str, Any]:
         """Get comprehensive pipeline processing status"""
         try:
-            # Use simple table queries for status
-            docs_result = self.database_service.client.table('vw_documents').select('*').execute()
-            chunks_result = self.database_service.client.table('vw_chunks').select('*').execute()
-            images_result = self.database_service.client.table('vw_images').select('*').execute()
-            
-            # Process results
-            total_docs = len(docs_result.data) if docs_result.data else 0
-            classified_docs = len([d for d in docs_result.data if d.get('manufacturer')]) if docs_result.data else 0
-            total_chunks = len(chunks_result.data) if chunks_result.data else 0
-            total_images = len(images_result.data) if images_result.data else 0
-            
-            # Get recent documents
-            recent_docs = sorted(docs_result.data, key=lambda x: x.get('created_at', ''), reverse=True)[:3] if docs_result.data else []
+            # Use base tables instead of missing views
+            docs_rows = await self.database_service.execute_query(
+                "SELECT * FROM krai_core.documents"
+            )
+            chunks_rows = await self.database_service.execute_query(
+                "SELECT * FROM krai_intelligence.chunks"
+            )
+            images_rows = await self.database_service.execute_query(
+                "SELECT * FROM krai_content.images"
+            )
+
+            total_docs = len(docs_rows)
+            classified_docs = len([d for d in docs_rows if d.get('manufacturer')])
+            total_chunks = len(chunks_rows)
+            total_images = len(images_rows)
+
+            recent_docs = sorted(docs_rows, key=lambda x: x.get('created_at', ''), reverse=True)[:3] if docs_rows else []
             
             # Calculate overall progress based on actual pipeline stages
             if total_docs > 0:
@@ -1074,7 +1109,7 @@ class KRMasterPipeline:
                 latest_doc = recent_docs[0]
                 if latest_doc.get('manufacturer'):
                     current_stage = f"Classification Complete - {latest_doc.get('filename', 'Unknown')}"
-                elif latest_doc.get('id') in [c.get('document_id') for c in chunks_result.data]:
+                elif latest_doc.get('id') in [c.get('document_id') for c in chunks_rows]:
                     current_stage = f"Text Processing Complete - {latest_doc.get('filename', 'Unknown')}"
                 else:
                     current_stage = f"Upload Complete - {latest_doc.get('filename', 'Unknown')}"
@@ -1106,17 +1141,14 @@ class KRMasterPipeline:
     async def _get_error_count(self) -> int:
         """Get count of failed documents"""
         try:
-            # Use Supabase client directly for error count
-            result = self.database_service.client.rpc('get_error_document_count').execute()
-            return result.data if result.data else 0
-            
+            # Use base table instead of missing column
+            rows = await self.database_service.execute_query(
+                "SELECT COUNT(*) as error_count FROM krai_core.documents WHERE processing_status = 'failed'"
+            )
+            return rows[0]['error_count'] if rows else 0
         except Exception as e:
-            # Fallback: simple count of documents without classification
-            try:
-                docs_result = self.database_service.client.table('vw_documents').select('id').is_('manufacturer', 'null').execute()
-                return len(docs_result.data) if docs_result.data else 0
-            except:
-                return 0
+            self.logger.error("Error getting error document count: %s", e)
+            return 0
     
     def _console_write(self, message: str, *, newline: bool = False, carriage_return: bool = False):
         """Write directly to console when running interactively without using print"""
@@ -1322,6 +1354,195 @@ class KRMasterPipeline:
             )
         self.logger.info("%s", "=" * 80)
 
+    async def run_single_stage(self, document_id: str, stage) -> Dict[str, Any]:
+        """
+        Run a single processing stage for a document
+        
+        Args:
+            document_id: Document UUID
+            stage: Stage enum or stage name
+            
+        Returns:
+            Dict with processing result
+        """
+        from backend.core.base_processor import Stage
+        
+        # Convert stage to enum if needed
+        if isinstance(stage, str):
+            try:
+                stage = Stage(stage)
+            except ValueError:
+                return {'success': False, 'error': f'Invalid stage: {stage}'}
+        
+        # Get processor for stage
+        processor_map = {
+            Stage.UPLOAD: 'upload',
+            Stage.TEXT_EXTRACTION: 'text',
+            Stage.TABLE_EXTRACTION: 'table',
+            Stage.SVG_PROCESSING: 'svg',
+            Stage.IMAGE_PROCESSING: 'image',
+            Stage.VISUAL_EMBEDDING: 'visual_embedding',
+            Stage.LINK_EXTRACTION: 'links',
+            Stage.CHUNK_PREPROCESSING: 'chunk_prep',
+            Stage.CLASSIFICATION: 'classification',
+            Stage.METADATA_EXTRACTION: 'metadata',
+            Stage.PARTS_EXTRACTION: 'parts',
+            Stage.SERIES_DETECTION: 'parts',  # Uses parts processor
+            Stage.STORAGE: 'storage',
+            Stage.EMBEDDING: 'embedding',
+            Stage.SEARCH_INDEXING: 'search'
+        }
+        
+        processor_key = processor_map.get(stage)
+        if not processor_key or processor_key not in self.processors:
+            return {'success': False, 'error': f'No processor for stage: {stage.value}'}
+        
+        processor = self.processors[processor_key]
+        if not processor:
+            return {'success': False, 'error': f'Processor not available for stage: {stage.value}'}
+        
+        try:
+            # Create processing context
+            from backend.core.base_processor import ProcessingContext
+            
+            # Get document info for context
+            document = await self.database_service.get_document(document_id)
+            if not document:
+                return {'success': False, 'error': f'Document not found: {document_id}'}
+            
+            # Build context based on stage requirements
+            context_data = {
+                'document_id': document_id,
+                'file_hash': '',  # Will be derived if needed
+                'document_type': getattr(document, 'document_type', 'service_manual')
+            }
+            
+            # Add file path for stages that need it
+            if stage in [Stage.UPLOAD, Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION, Stage.IMAGE_PROCESSING]:
+                file_path = getattr(document, 'storage_path', None) or getattr(document, 'resolved_path', None)
+                if file_path and os.path.exists(file_path):
+                    context_data['file_path'] = file_path
+                    context_data['pdf_path'] = file_path
+            
+            # Add images for visual embedding
+            if stage == Stage.VISUAL_EMBEDDING:
+                # Get images from database
+                images = await self.database_service.execute_query(
+                    "SELECT * FROM kai_intelligence.media WHERE document_id = $1",
+                    [document_id]
+                )
+                context_data['images'] = images or []
+            
+            # Add chunks for embedding
+            if stage == Stage.EMBEDDING:
+                chunks = await self.database_service.get_chunks_by_document(document_id)
+                context_data['chunks'] = chunks or []
+            
+            context = ProcessingContext(**context_data)
+            
+            # Run processor
+            result = await processor.process(context)
+            
+            return {
+                'success': result.success if hasattr(result, 'success') else True,
+                'data': result.data if hasattr(result, 'data') else result,
+                'stage': stage.value,
+                'processor': processor_key
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error running stage {stage.value} for document {document_id}: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'stage': stage.value
+            }
+    
+    async def run_stages(self, document_id: str, stages: List) -> Dict[str, Any]:
+        """
+        Run multiple stages for a document
+        
+        Args:
+            document_id: Document UUID
+            stages: List of Stage enums or stage names
+            
+        Returns:
+            Dict with processing results for all stages
+        """
+        results = {
+            'document_id': document_id,
+            'total_stages': len(stages),
+            'successful': 0,
+            'failed': 0,
+            'stage_results': []
+        }
+        
+        for stage in stages:
+            stage_result = await self.run_single_stage(document_id, stage)
+            results['stage_results'].append(stage_result)
+            
+            if stage_result['success']:
+                results['successful'] += 1
+            else:
+                results['failed'] += 1
+                
+                # Stop on failure if not configured to continue
+                if not self.force_continue_on_errors:
+                    self.logger.error(f"Stopping pipeline due to stage failure: {stage}")
+                    break
+        
+        results['success_rate'] = results['successful'] / results['total_stages'] * 100 if results['total_stages'] > 0 else 0
+        
+        return results
+    
+    def get_available_stages(self) -> List[str]:
+        """
+        Get list of all available stages
+        
+        Returns:
+            List of stage names
+        """
+        from backend.core.base_processor import Stage
+        return [stage.value for stage in Stage]
+    
+    async def get_stage_status(self, document_id: str) -> Dict[str, Any]:
+        """
+        Get current stage status for a document
+        
+        Args:
+            document_id: Document UUID
+            
+        Returns:
+            Dict with stage status information
+        """
+        try:
+            result = await self.database_service.execute_query(
+                "SELECT stage_status FROM public.vw_documents WHERE id = $1",
+                [document_id]
+            )
+            
+            if result and len(result) > 0:
+                return {
+                    'document_id': document_id,
+                    'stage_status': result[0].get('stage_status', {}),
+                    'found': True
+                }
+            
+            return {
+                'document_id': document_id,
+                'stage_status': {},
+                'found': False,
+                'error': 'Document not found'
+            }
+            
+        except Exception as e:
+            return {
+                'document_id': document_id,
+                'stage_status': {},
+                'found': False,
+                'error': str(e)
+            }
+
 async def main():
     """Main function with menu system"""
     pipeline = KRMasterPipeline()
@@ -1448,16 +1669,17 @@ async def main():
             
             # FORCE Smart Processing for all documents (regardless of upload results)
             logger.info("=== FORCED SMART PROCESSING - ALL DOCUMENTS ===")
-            all_docs = pipeline.database_service.client.table('vw_documents').select('*').execute()
+            all_docs = await pipeline.database_service.execute_query(
+                "SELECT * FROM krai_core.documents"
+            )
             
-            if all_docs.data:
-                logger.info("Found %s total documents - forcing smart processing...", len(all_docs.data))
-                stage_results = {'successful': [], 'failed': [], 'total_files': len(all_docs.data)}
+            if all_docs:
+                logger.info("Found %s total documents - forcing smart processing...", len(all_docs))
+                stage_results = {'successful': [], 'failed': [], 'total_files': len(all_docs)}
                 
-                for i, doc in enumerate(all_docs.data):
-                    logger.info("[%s/%s] Forced Smart processing: %s", i + 1, len(all_docs.data), doc['filename'])
+                for i, doc in enumerate(all_docs):
+                    logger.info("[%s/%s] Forced Smart processing: %s", i + 1, len(all_docs), doc['filename'])
                     # Use absolute path
-                    import os
                     file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "service_documents", doc['filename']))
                     
                     result = await pipeline.process_document_smart_stages(
@@ -1469,7 +1691,7 @@ async def main():
                     else:
                         stage_results['failed'].append(result)
                 
-                stage_results['success_rate'] = len(stage_results['successful']) / len(all_docs.data) * 100
+                stage_results['success_rate'] = len(stage_results['successful']) / len(all_docs) * 100
                 logger.info("=== FORCED SMART PROCESSING SUMMARY ===")
                 pipeline.print_status_summary(stage_results)
             else:
@@ -1478,36 +1700,84 @@ async def main():
         elif choice == "4":
             # Single Document Processing
             logger.info("=== EINZELNES DOKUMENT ===")
+            logger.info("1. Dokument aus Datenbank (Document ID)")
+            logger.info("2. Lokale Datei verarbeiten (Dateipfad)")
+            mode = input("Wähle (1-2): ").strip()
+
+            if mode == "2":
+                # Local file path mode (no existing Document ID required)
+                file_input = input("Vollen Dateipfad eingeben (oder nur Dateiname, wenn in service_documents): ").strip()
+                if not file_input:
+                    logger.info("Kein Pfad eingegeben.")
+                    continue
+
+                file_path = file_input
+                if not os.path.isabs(file_path) and not os.path.exists(file_path):
+                    # Try to resolve relative name via service_documents
+                    pdf_directory = pipeline.find_service_documents_directory()
+                    if not pdf_directory:
+                        logger.error("Kein service_documents-Verzeichnis gefunden – bitte vollen Pfad angeben.")
+                        continue
+                    file_path = os.path.join(pdf_directory, file_input)
+
+                if not os.path.exists(file_path):
+                    logger.error("Datei nicht gefunden: %s", file_path)
+                    continue
+
+                response = input(f"\nVollständige Pipeline für {os.path.basename(file_path)} ausführen? (y/n): ").lower().strip()
+                if response != "y":
+                    logger.info("Verarbeitung abgebrochen.")
+                    continue
+
+                result = await pipeline.process_single_document_full_pipeline(file_path, 1, 1)
+                if result.get("success"):
+                    logger.info("[SUCCESS] Erfolgreich verarbeitet: %s!", result.get("filename", os.path.basename(file_path)))
+                    if result.get("document_id"):
+                        logger.info("Document ID (in DB): %s", result["document_id"])
+                    logger.info("Images processed: %s", result.get("images", 0))
+                else:
+                    logger.error(
+                        "[FAILED] Fehler bei %s: %s",
+                        result.get("filename", os.path.basename(file_path)),
+                        result.get("error", "Unbekannter Fehler"),
+                    )
+                continue
+
+            # Default: existing document from database by ID
             document_id = input("Document ID eingeben: ").strip()
-            
+
             if not document_id:
                 logger.info("Keine Document ID eingegeben.")
                 continue
-            
+
             # Get document info
             doc_info = await pipeline.database_service.get_document(document_id)
             if not doc_info:
                 logger.error("Document %s nicht gefunden!", document_id)
                 continue
-            
-            filename = doc_info.filename if doc_info.filename else 'Unknown'
-            file_path = doc_info.storage_path if doc_info.storage_path else ''
-            
+
+            filename = doc_info.filename if doc_info.filename else "Unknown"
+            file_path = doc_info.storage_path if doc_info.storage_path else ""
+
             logger.info("Gefunden: %s", filename)
             logger.info("File path: %s", file_path)
-            
+
             response = input(f"\nVerarbeite verbleibende Stages für {filename}? (y/n): ").lower().strip()
-            if response != 'y':
+            if response != "y":
                 logger.info("Verarbeitung abgebrochen.")
                 continue
-            
+
             result = await pipeline.process_document_remaining_stages(document_id, filename, file_path)
-            
-            if result['success']:
-                logger.info("[SUCCESS] Erfolgreich verarbeitet: %s!", result['filename'])
-                logger.info("Images processed: %s", result['images'])
+
+            if result.get("success"):
+                logger.info("[SUCCESS] Erfolgreich verarbeitet: %s!", result.get("filename", filename))
+                logger.info("Images processed: %s", result.get("images", 0))
             else:
-                logger.error("[FAILED] Fehler bei %s: %s", result['filename'], result['error'])
+                logger.error(
+                    "[FAILED] Fehler bei %s: %s",
+                    result.get("filename", filename),
+                    result.get("error", "Unbekannter Fehler"),
+                )
                 
         elif choice == "5":
             # Batch Processing
@@ -1537,7 +1807,6 @@ async def main():
             
         elif choice == "6":
             # Debug
-            import os
             logger.info("=== DEBUG INFORMATIONEN ===")
             logger.info("Current Working Directory: %s", os.getcwd())
             logger.info("Script Location: %s", os.path.abspath(__file__))
@@ -1641,9 +1910,7 @@ async def main():
             
             quality_scores = []
             passed_count = 0
-            
-            import os  # Explicit import for this scope
-            
+
             for i, doc in enumerate(docs):
                 logger.info("[%s/%s] %s", i + 1, len(docs), doc['filename'])
                 

@@ -14,11 +14,13 @@ from pathlib import Path
 from typing import Optional
 from getpass import getpass
 
-from processors.env_loader import load_all_env_files
-
-# Add project root to path
+# Add project root and backend directory to sys.path before internal imports
 project_root = Path(__file__).parent.parent.parent
+backend_dir = project_root / "backend"
 sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(backend_dir))
+
+from processors.env_loader import load_all_env_files
 
 
 def _load_env_files() -> None:
@@ -86,12 +88,52 @@ async def create_admin_user(
         return False, {"error": str(exc)}
 
 
+def _build_postgres_url(host: str) -> str:
+    """Compose a PostgreSQL connection string for the given host."""
+    user = os.getenv("DATABASE_USER", "krai_user")
+    password = os.getenv("DATABASE_PASSWORD", "krai_secure_password")
+    port = os.getenv("DATABASE_PORT", os.getenv("POSTGRES_PORT", "5432"))
+    database = os.getenv("DATABASE_NAME", os.getenv("POSTGRES_DB", "krai"))
+    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+
+
+async def _initialize_auth_service_with_fallback() -> AuthService:
+    """Create AuthService and ensure DB connectivity, falling back to localhost if needed."""
+    service = create_auth_service()
+
+    try:
+        if hasattr(service, "db") and hasattr(service.db, "connect"):
+            await service.db.connect()
+        return service
+    except Exception as exc:
+        error_message = str(exc).lower()
+        if "getaddrinfo" not in error_message:
+            raise
+
+        print("⚠️  Primary database host unreachable. Attempting localhost fallback…")
+        fallback_url = _build_postgres_url("localhost")
+        os.environ["DATABASE_CONNECTION_URL"] = fallback_url
+        os.environ["POSTGRES_HOST"] = "localhost"
+
+        service = create_auth_service()
+        if hasattr(service, "db") and hasattr(service.db, "connect"):
+            await service.db.connect()
+            print("✅ Connected to PostgreSQL via localhost fallback")
+            return service
+
+        raise RuntimeError("Fallback database connection could not be established") from exc
+
+
 async def main_async(args: argparse.Namespace) -> int:
     """Async entrypoint coordinating admin creation."""
     print("🚀 KRAI Admin User Setup")
     print("=" * 50)
 
-    auth_service = create_auth_service()
+    try:
+        auth_service = await _initialize_auth_service_with_fallback()
+    except Exception as exc:
+        print("❌ Failed to connect to database adapter:", exc)
+        return 1
 
     success, payload = await create_admin_user(
         auth_service,

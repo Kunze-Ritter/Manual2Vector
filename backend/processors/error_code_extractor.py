@@ -22,9 +22,9 @@ from multiprocessing import Pool, cpu_count
 from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
 from .exceptions import ManufacturerPatternNotFoundError
-from utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
-from utils.manufacturer_normalizer import normalize_manufacturer
-from config.oem_mappings import get_effective_manufacturer
+from backend.utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
+from backend.utils.manufacturer_normalizer import normalize_manufacturer
+from backend.config.oem_mappings import get_effective_manufacturer
 from .chunk_linker import link_error_codes_to_chunks
 
 try:

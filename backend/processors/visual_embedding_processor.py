@@ -30,8 +30,8 @@ except ImportError:
     COLPALI_AVAILABLE = False
     logging.warning("colpali-engine not available - visual embeddings disabled")
 
-from core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
-from config.ai_config import get_ai_config
+from backend.core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
+from backend.config.ai_config import get_ai_config
 
 
 class VisualEmbeddingProcessor(BaseProcessor):
@@ -138,13 +138,13 @@ class VisualEmbeddingProcessor(BaseProcessor):
             
             # Start stage tracking
             if self.stage_tracker:
-                self.stage_tracker.start_stage(str(context.document_id), self.stage.value)
+                await self.stage_tracker.start_stage(str(context.document_id), self.stage.value)
             
             try:
                 # Validate context
                 if not context.document_id:
                     if self.stage_tracker:
-                        self.stage_tracker.fail_stage(
+                        await self.stage_tracker.fail_stage(
                             str(context.document_id) if context.document_id else "unknown",
                             self.stage.value,
                             error="Document ID is required"
@@ -154,7 +154,7 @@ class VisualEmbeddingProcessor(BaseProcessor):
                 if not hasattr(context, 'images') or not context.images:
                     adapter.info("No images to process")
                     if self.stage_tracker:
-                        self.stage_tracker.complete_stage(
+                        await self.stage_tracker.complete_stage(
                             str(context.document_id),
                             self.stage.value,
                             metadata={'embeddings_created': 0, 'failed_count': 0}
@@ -181,7 +181,7 @@ class VisualEmbeddingProcessor(BaseProcessor):
                     )
                 else:
                     if self.stage_tracker:
-                        self.stage_tracker.fail_stage(
+                        await self.stage_tracker.fail_stage(
                             str(context.document_id),
                             self.stage.value,
                             error=result.get('error', 'Unknown error')
@@ -194,7 +194,7 @@ class VisualEmbeddingProcessor(BaseProcessor):
             except Exception as e:
                 adapter.error(f"Visual embedding processing failed: {e}")
                 if self.stage_tracker:
-                    self.stage_tracker.fail_stage(
+                    await self.stage_tracker.fail_stage(
                         str(context.document_id) if context.document_id else "unknown",
                         self.stage.value,
                         error=str(e)
@@ -219,7 +219,7 @@ class VisualEmbeddingProcessor(BaseProcessor):
         
         # Start stage tracking
         if self.stage_tracker:
-            self.stage_tracker.start_stage(str(document_id), self.stage.value)
+            await self.stage_tracker.start_stage(str(document_id), self.stage.value)
         
         with self.logger_context(document_id=document_id, stage=self.stage.value) as adapter:
             adapter.info(f"Processing {len(images)} images with ColQwen2.5")
@@ -262,7 +262,7 @@ class VisualEmbeddingProcessor(BaseProcessor):
             with self.logger_context(document_id=document_id, stage=self.stage.value) as adapter:
                 adapter.error(f"Visual embedding processing failed: {e}")
             if self.stage_tracker:
-                self.stage_tracker.fail_stage(
+                await self.stage_tracker.fail_stage(
                     str(document_id),
                     self.stage.value,
                     error=str(e)
