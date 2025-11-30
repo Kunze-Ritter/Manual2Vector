@@ -174,7 +174,7 @@ For production deployments, consider:
 - Set up backup strategies
 
 ### **Scaling**
-- Use docker-compose.prod.yml
+- Use docker-compose.production.yml
 - Consider load balancers
 - Implement caching layers
 - Monitor resource usage

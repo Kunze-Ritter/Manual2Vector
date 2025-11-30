@@ -17,7 +17,7 @@
 
 ### Why Local Docker Setup?
 
-- **Zero Cloud Costs**: Save $50-100/month compared to Supabase + R2 + Ollama hosting
+- **Zero Cloud Costs**: Save $50-100/month compared to managed PostgreSQL + S3 + Ollama hosting
 - **Faster Development**: No network latency, local debugging capabilities
 - **Full Control**: No vendor lock-in, customize everything
 - **Privacy & Security**: Data stays on your local machine
@@ -118,8 +118,8 @@ cd KRAI-minimal
 # 2. Copy environment configuration
 cp .env.example .env
 
-# 3. Start all services
-docker-compose up -d
+# 3. Start local services
+docker-compose -f docker-compose.simple.yml up -d
 
 # 4. Initialize MinIO storage
 python scripts/init_minio.py
@@ -658,7 +658,7 @@ netstat -tulpn | grep :5432  # PostgreSQL
 netstat -tulpn | grep :9000  # MinIO
 netstat -tulpn | grep :11434 # Ollama
 
-# Solution: Stop conflicting services or change ports in docker-compose.yml
+# Solution: Stop conflicting services or change ports in docker-compose.simple.yml or docker-compose.production.yml
 ```
 
 #### Out of Memory Errors
@@ -695,7 +695,7 @@ docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
 docker-compose logs krai-postgres
 docker-compose logs krai-minio
 
-# Solution: Verify credentials in .env match docker-compose.yml
+# Solution: Verify credentials in .env match the active compose file (docker-compose.simple.yml, docker-compose.with-firecrawl.yml, or docker-compose.production.yml)
 ```
 
 ### Diagnostic Commands
@@ -785,7 +785,7 @@ docker-compose up -d krai-minio
 #### Multi-GPU Setup
 
 ```yaml
-# In docker-compose.yml
+# In docker-compose.production.yml
 services:
   krai-ollama:
     deploy:
@@ -1078,3 +1078,7 @@ echo "🔍 Verify setup: python scripts/verify_local_setup.py"
 - **[Environment Variables Reference](docs/ENVIRONMENT_VARIABLES_REFERENCE.md)**
 - **[Migration Guide: Cloud to Local](docs/MIGRATION_GUIDE_CLOUD_TO_LOCAL.md)**
 - **[Database Migration Guide](database/migrations/MIGRATION_GUIDE.md)**
+
+### Archived Docker Compose Files
+
+> **Note**: 7 deprecated Docker Compose files have been archived to reduce confusion. The project now maintains 3 active configurations: `docker-compose.simple.yml`, `docker-compose.with-firecrawl.yml`, and `docker-compose.production.yml`. See `archive/docker/README.md` for details about archived files and migration guidance.

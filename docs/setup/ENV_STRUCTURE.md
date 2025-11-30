@@ -12,8 +12,8 @@ Die Konfiguration ist in mehrere Dateien aufgeteilt für bessere Übersicht:
 
 # Optional legacy overrides for historic deployments
 .env.auth        # Authentication service & admin bootstrap overrides
-.env.database    # Database overrides (Supabase credentials etc.)
-.env.storage     # Object storage overrides (Cloudflare R2)
+.env.database    # Database overrides (PostgreSQL credentials etc.)
+.env.storage     # Object storage overrides (MinIO S3-compatible)
 .env.ai          # AI service overrides (Ollama)
 .env.pipeline    # Processing pipeline overrides
 .env.external    # External APIs (YouTube, Cloudflare Tunnels)
@@ -49,29 +49,34 @@ Contains JWT signing keys and the bootstrap admin account when not using the con
 
 ### `.env.database` - Database Configuration
 
-This file stores credentials for the primary database connection.
+This file stores credentials for the primary PostgreSQL database connection.
 
 #### Connection Values
 
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_ANON_KEY` - Public anon key
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (full access)
-- `DATABASE_CONNECTION_URL` - Direct PostgreSQL connection
+- `DATABASE_CONNECTION_URL` - Direct PostgreSQL connection string
+- `DATABASE_URL` - Alternative PostgreSQL connection string
+- `POSTGRES_URL` - PostgreSQL connection URL (alias)
+- `DATABASE_HOST` - PostgreSQL server hostname
+- `DATABASE_PORT` - PostgreSQL server port
+- `DATABASE_NAME` - Database name
+- `DATABASE_USER` - Database username
 - `DATABASE_PASSWORD` - Database password
 
 ### `.env.storage` - Object Storage
 
-Holds credentials and settings for Cloudflare R2 object storage.
+Holds credentials and settings for MinIO S3-compatible object storage.
 
 #### Storage Settings
 
-- `R2_ACCESS_KEY_ID` - R2 access key
-- `R2_SECRET_ACCESS_KEY` - R2 secret key
-- `R2_BUCKET_NAME_DOCUMENTS` - Bucket name
-- `R2_ENDPOINT_URL` - R2 endpoint
-- `R2_PUBLIC_URL_*` - Public URLs for buckets
-- `UPLOAD_IMAGES_TO_R2` - Enable/disable image upload
-- `UPLOAD_DOCUMENTS_TO_R2` - Enable/disable document upload
+- `MINIO_ENDPOINT_URL` - MinIO endpoint URL
+- `MINIO_ACCESS_KEY` - MinIO access key
+- `MINIO_SECRET_KEY` - MinIO secret key
+- `MINIO_BUCKET_NAME_DOCUMENTS` - Documents bucket name
+- `MINIO_BUCKET_NAME_IMAGES` - Images bucket name
+- `MINIO_BUCKET_NAME_THUMBNAILS` - Thumbnails bucket name
+- `MINIO_REGION` - Storage region
+- `UPLOAD_IMAGES_TO_MINIO` - Enable/disable image upload
+- `UPLOAD_DOCUMENTS_TO_MINIO` - Enable/disable document upload
 
 ### `.env.ai` - AI Services
 

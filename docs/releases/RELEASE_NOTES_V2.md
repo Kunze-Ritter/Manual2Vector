@@ -203,7 +203,7 @@ python main.py
 ### **Production Deployment:**
 ```bash
 # Docker Compose (Recommended)
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.production.yml up -d
 
 # Check health
 curl http://localhost:8000/health
@@ -221,7 +221,7 @@ open http://localhost:8000/docs
 - ✅ `PRODUCTION_DEPLOYMENT.md` - Complete deployment guide
 - ✅ `QA_TEST_SUITE.md` - Comprehensive testing guide
 - ✅ `QA_REPORT_2025-10-05.md` - QA results
-- ✅ `docker-compose.prod.yml` - Production orchestration
+- ✅ `docker-compose.production.yml` - Production orchestration
 - ✅ `Dockerfile.production` - Container definition
 - ✅ Updated `TODO.md` - 100% complete status
 

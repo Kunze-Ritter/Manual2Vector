@@ -137,11 +137,10 @@ nano .env.production
 3. **Start Services**
 ```bash
 # Use production compose file
-docker-compose -f docker-compose.prod.yml up -d
-
-# Or use the Phase 6 specific compose file
-docker-compose -f docker-compose.phase6.yml up -d
+docker-compose -f docker-compose.production.yml up -d
 ```
+
+> **Note:** `docker-compose.prod.yml` (with enterprise features) has been archived. The simpler `docker-compose.production.yml` is now the standard production configuration.
 
 4. **Initialize Database**
 ```bash
@@ -406,7 +405,7 @@ PROCESSING_TIMEOUT=600
 ### Docker Compose Configuration
 
 ```yaml
-# docker-compose.phase6.yml
+# docker-compose.production.yml
 version: '3.8'
 
 services:
@@ -840,7 +839,7 @@ echo "ENABLE_CONTEXT_EXTRACTION=true" >> .env
 ```bash
 # Restart services with new configuration
 docker-compose down
-docker-compose up -d
+docker-compose -f docker-compose.production.yml up -d
 
 # Verify Phase 6 features
 ./scripts/test_phase6_integration.py
@@ -860,7 +859,7 @@ pg_restore -h localhost -U krai_app -d krai backup.sql
 2. **Service Rollback**
 ```bash
 # Switch to previous images
-docker-compose down
+docker-compose -f docker-compose.production.yml down
 docker-compose -f docker-compose.phase5.yml up -d
 ```
 

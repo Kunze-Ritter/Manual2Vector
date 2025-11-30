@@ -26,8 +26,8 @@ easyocr>=1.7.0       # Alternative OCR
 
 ### **🗄️ Database:**
 ```bash
-supabase>=2.0.0      # Supabase Client
-psycopg2-binary>=2.9.0  # PostgreSQL Driver
+asyncpg>=0.28.0       # PostgreSQL Async Driver
+psycopg2-binary>=2.9.0  # PostgreSQL Driver (fallback)
 ```
 
 ### **🤖 AI & Machine Learning:**
@@ -101,10 +101,16 @@ def test_dependencies():
         print("❌ Pillow: FEHLT")
     
     try:
-        import supabase
-        print("✅ Supabase: OK")
+        import asyncpg
+        print("✅ AsyncPG: OK")
     except ImportError:
-        print("❌ Supabase: FEHLT")
+        print("❌ AsyncPG: FEHLT")
+    
+    try:
+        import psycopg2
+        print("✅ Psycopg2: OK")
+    except ImportError:
+        print("❌ Psycopg2: FEHLT")
     
     try:
         import boto3
@@ -162,7 +168,8 @@ python krai_master_pipeline.py
 |---------|---------|-------------|-------|
 | PyMuPDF | ✅ | ✅ | PDF Processing |
 | Pillow | ✅ | ✅ | Image Processing |
-| Supabase | ✅ | ✅ | Database |
+| AsyncPG | ✅ | ✅ | PostgreSQL Async |
+| Psycopg2 | ✅ | ✅ | PostgreSQL Sync |
 | Ollama | ✅ | ✅ | AI Models |
 | Boto3 | ✅ | ✅ | Cloud Storage |
 | pytesseract | ✅ | ✅ | OCR |

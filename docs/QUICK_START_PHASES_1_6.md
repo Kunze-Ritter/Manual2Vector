@@ -234,7 +234,9 @@ KRAI-minimal/
 ├── docs/                   # Documentation and guides
 ├── tests/                  # Test suites and fixtures
 ├── service_documents/      # Sample documents for testing
-├── docker-compose.yml      # Service orchestration
+├── docker-compose.simple.yml      # Minimal development setup
+├── docker-compose.with-firecrawl.yml  # Development with Firecrawl
+├── docker-compose.production.yml   # Production deployment
 ├── .env.example           # Environment template
 └── README.md              # This file
 ```

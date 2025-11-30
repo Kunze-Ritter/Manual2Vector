@@ -245,7 +245,7 @@ SELECT * FROM document_vectors LIMIT 1;
 # Check Ollama status
 curl http://localhost:11434/api/tags
 
-# Update docker-compose.yml:
+# Update docker-compose.yml (available in archive/docker/docker-compose.yml):
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 

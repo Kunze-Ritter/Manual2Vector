@@ -180,7 +180,7 @@ n8n ist durch Basic Auth geschützt:
 - **Benutzer**: `admin`
 - **Passwort**: `krai_chat_agent_2024`
 
-**Passwort ändern** in `docker-compose.yml`:
+**Passwort ändern** in `docker-compose.yml` (available in `archive/docker/docker-compose.yml`):
 ```yaml
 - N8N_BASIC_AUTH_PASSWORD=dein_sicheres_passwort
 ```

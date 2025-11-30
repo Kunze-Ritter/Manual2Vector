@@ -43,7 +43,8 @@ Wenn Sie den alten, strikten Modus wollen (nur "completed" wenn ALLE Stages erfo
 
 ```python
 # In krai_master_pipeline.py, Zeile 1176:
-pipeline = KRMasterPipeline(force_continue_on_errors=False)
+db_adapter = get_database_adapter()
+pipeline = KRMasterPipeline(database_adapter=db_adapter, force_continue_on_errors=False)
 ```
 
 ## Was passiert jetzt?

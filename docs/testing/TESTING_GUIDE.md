@@ -1,35 +1,50 @@
-# Testing Guide
+# Post-Migration Testing Guide
 
-This guide outlines how to run the various test suites for the KRAI project.
+## Pre-Migration (Backup)
 
-## End‑to‑End (E2E) Tests
+- Export Supabase data: `pg_dump ... > backup.sql`
 
-- **Location:** `frontend/tests/e2e/`
-- **Run:** `npm run test:e2e`
-- **Prerequisites:**
-  - Backend API must be running (`uvicorn backend.main:app`).
-  - Database service must be available.
-  - Playwright browsers installed (`npx playwright install`).
-- **What is covered:** Authentication flows, CRUD operations for documents and products, permission checks, monitoring WebSocket reconnection and alert handling.
+## Database Connectivity
 
-## Backend API Tests
+- [ ] `scripts/test_postgresql_connection_simple.py` → ✅ Connected
+- [ ] `DATABASE_TYPE=postgresql` in `.env`
+- [ ] Adapter: `python -c "from backend.services.database_factory import create_database_adapter; print('✅')"`
 
-- **Location:** `tests/api/`
-- **Run:** `pytest tests/api/`
-- **Prerequisites:**
-  - Test database (can reuse the same local PostgreSQL instance).
-  - Environment variables for test users (`ADMIN_USERNAME`, `ADMIN_PASSWORD`).
-- **What is covered:** Auth endpoints, document CRUD, batch delete, WebSocket connection endpoint.
+## API Endpoints
 
-## Performance Tests
+- [ ] Health: `curl localhost:8000/health` → `status: healthy`
+- [ ] Documents: `curl /api/v1/documents` → JSON list
+- [ ] CRUD: Create/update/delete document → 200 OK
+- [ ] Error codes/images/videos/products → No 500s
+- [ ] Batch: `curl /api/v1/batch/delete` → Task queued
 
-- **Location:** `tests/performance/`
-- **Run:**
-  - Load test (HTTP): `locust -f tests/performance/load_test.py`
-  - WebSocket load test: `python tests/performance/websocket_load_test.py`
-  - Database performance test: `python tests/performance/database_performance_test.py`
-- **Purpose:** Validate scalability and latency under load.
+## Pipeline
 
-## Checklist
+- [ ] `scripts/pipeline_processor.py <doc_id>` → Parts/series extracted
+- [ ] Parts: `backend/processors/parts_processor.py <doc_id>` → Stats printed
+- [ ] Series: Verify `krai_core.product_series` populated
 
-See `../dashboard/TESTING_CHECKLIST.md` for a quick verification checklist before merging.
+## Monitoring
+
+- [ ] `scripts/test_monitoring.py` → All tests ✅
+- [ ] Metrics: `curl /api/v1/monitoring/metrics` → JSON
+- [ ] Alerts: Background loop starts
+
+## Storage
+
+- [ ] Upload document → File in MinIO `documents/` bucket
+- [ ] Images extracted → `images/` bucket populated
+
+## Rollback
+
+- [ ] `git checkout HEAD~1 -- .env.example` → Supabase restored
+
+## Performance
+
+- Query time <500ms; compare before/after benchmarks
+
+---
+
+**Migration Status**: ✅ **COMPLETED**
+**Date**: 2025-01-09
+**Next Steps**: Monitor production performance and optimize queries as needed

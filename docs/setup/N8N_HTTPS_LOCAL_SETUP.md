@@ -100,7 +100,7 @@ KRAI-minimal/
 ├── scripts/
 │   ├── generate-ssl-cert.ps1
 │   └── setup-n8n-https.ps1
-└── docker-compose.yml       # Enthält nginx + n8n
+└── docker-compose.yml       # Enthält nginx + n8n (available in archive/docker/docker-compose.yml)
 ```
 
 ## 🔧 Konfiguration
@@ -301,7 +301,7 @@ Für produktiven Einsatz empfehle ich:
 1. **Vertrauenswürdiges Zertifikat** (von Let's Encrypt, DigiCert, etc.)
 2. **Starkes Basic Auth Passwort** ändern:
    ```yaml
-   # In docker-compose.yml
+   # In docker-compose.yml (available in archive/docker/docker-compose.yml)
    - N8N_BASIC_AUTH_PASSWORD=dein_sicheres_passwort
    ```
 3. **Firewall-Regeln** einrichten

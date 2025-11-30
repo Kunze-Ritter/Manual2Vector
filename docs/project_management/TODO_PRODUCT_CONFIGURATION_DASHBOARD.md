@@ -1,5 +1,8 @@
 # TODO: KRAI Admin Dashboard & Configuration System
 
+> **Note:** For consolidated project-wide TODOs, see `/MASTER-TODO.md` 
+> This file focuses on dashboard-specific implementation details.
+
 ## Current Status: Phase 1 & 2 Complete, Phase 3 Ready to Build! 🚀
 
 **Last Updated:** 2025-10-22 (10:38)

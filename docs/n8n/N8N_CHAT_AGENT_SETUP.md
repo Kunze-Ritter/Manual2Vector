@@ -69,7 +69,7 @@ curl -X POST http://localhost:5678/webhook/chat \
 
 ### **Environment Variables:**
 ```env
-# In docker-compose.yml oder .env
+# In docker-compose.yml (available in archive/docker/docker-compose.yml) oder .env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your-supabase-anon-key
 OLLAMA_BASE_URL=http://host.docker.internal:11434
@@ -298,7 +298,7 @@ curl -H "Authorization: Bearer YOUR_KEY" "YOUR_URL/rest/v1/system_metrics"
 # Check Ollama Status
 curl http://localhost:11434/api/tags
 
-# Update docker-compose.yml:
+# Update docker-compose.yml (available in archive/docker/docker-compose.yml):
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 

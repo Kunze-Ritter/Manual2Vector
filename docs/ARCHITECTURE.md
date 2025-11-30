@@ -1,55 +1,80 @@
 # KRAI System Architecture
 
-## Overview
+## System Architecture Overview
 
-The KRAI (Knowledge Retrieval and Intelligence) system is a comprehensive multimodal AI platform designed for technical document processing, knowledge extraction, and intelligent search. The architecture is built around a microservices pattern with a focus on scalability, reliability, and extensibility.
-
-## High-Level Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                           Frontend Layer                        │
-├─────────────────────────────────────────────────────────────────┤
-│  React Dashboard  │  REST API Gateway  │  WebSocket Gateway     │
-└─────────────────────────────────────────────────────────────────┘
-                                    │
-┌─────────────────────────────────────────────────────────────────┐
-│                        Service Layer                            │
-├─────────────────────────────────────────────────────────────────┤
-│ Document API  │  Search API  │  Admin API  │  WebSocket Service  │
-│               │              │             │                     │
-│ Pipeline API  │  Agent API   │  Auth API   │  File Upload API    │
-└─────────────────────────────────────────────────────────────────┘
-                                    │
-┌─────────────────────────────────────────────────────────────────┐
-│                      Processing Layer                           │
-├─────────────────────────────────────────────────────────────────┤
-│ Master Pipeline │  Smart Chunker  │  SVG Processor  │  Context  │
-│                 │                 │                 │ Extractor │
-│ Image Processor │ Table Processor │ Video Processor │ Embedding │
-│                 │                 │                 │ Generator │
-└─────────────────────────────────────────────────────────────────┘
-                                    │
-┌─────────────────────────────────────────────────────────────────┐
-│                      Service Layer                              │
-├─────────────────────────────────────────────────────────────────┤
-│ Database Service │  AI Service  │  Storage Service │  Search    │
-│                  │              │                  │ Service   │
-│ Auth Service     │  OCR Service │  Cache Service   │  Queue     │
-│                  │              │                  │ Service   │
-└─────────────────────────────────────────────────────────────────┘
-                                    │
-┌─────────────────────────────────────────────────────────────────┐
-│                     Infrastructure Layer                       │
-├─────────────────────────────────────────────────────────────────┤
-│ PostgreSQL      │  MinIO/S3    │  Redis      │  Ollama          │
-│ (pgvector)      │  Object      │  Cache      │  AI Service      │
-│                 │  Storage     │             │                  │
-│ Docker          │  Nginx       │  Monitoring │  Logging         │
-│ Compose         │  Reverse     │  (Prometheus│  (ELK Stack)     │
-│                 │  Proxy       │  + Grafana) │                  │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph "Frontend Layer"
+        A[React Dashboard] --> B[FastAPI Backend]
+        C[Laravel Dashboard] --> B
+    end
+    
+    subgraph "Backend Services"
+        B --> D[Document API]
+        B --> E[Search API]
+        B --> F[Stage-Based Pipeline]
+    end
+    
+    subgraph "Processing Pipeline"
+        F --> G[15-Stage Processor]
+        G --> H[Text Extraction]
+        G --> I[Image Processing]
+        G --> J[Embedding Generation]
+        G --> K[Search Indexing]
+    end
+    
+    subgraph "Data Layer"
+        H --> L[PostgreSQL]
+        I --> M[MinIO Storage]
+        J --> L
+        K --> L
+    end
+    
+    subgraph "AI Services"
+        H --> N[Ollama LLM]
+        I --> N
+        J --> N
+    end
+    
+    style A fill:#e1f5fe
+    style C fill:#f3e5f5
+    style B fill:#e8f5e8
+    style L fill:#fff3e0
+    style M fill:#fce4ec
+    style N fill:#f3e5f5
 ```
+
+The KRAI (Knowledge Retrieval and Intelligence) system is a comprehensive multimodal AI platform designed for technical document processing, knowledge extraction, and intelligent search. The architecture is built around a **15-stage modular pipeline** with PostgreSQL-only database design for complete data sovereignty.
+
+## Database Layer
+
+### PostgreSQL with pgvector (Primary Database)
+
+The system uses PostgreSQL as the sole database, eliminating all cloud dependencies:
+
+#### Schema Structure
+- **`krai_core`** - Core document metadata and configuration
+- **`krai_intelligence`** - Extracted intelligence (embeddings, chunks, error codes)
+- **`krai_parts`** - Parts catalog and compatibility information
+- **`krai_content`** - Content storage (images, links, tables)
+
+#### Connection Architecture
+- **Direct PostgreSQL** via `asyncpg` for async operations
+- **Database Adapter Pattern** via `database_factory.py` → `postgresql_adapter.py`
+- **Connection Pooling** for optimal performance
+- **pgvector Extension** for vector similarity search
+
+#### Key Features
+- **Stage Status Tracking** - JSONB `stage_status` column for pipeline monitoring
+- **Vector Search** - pgvector indexes for semantic search
+- **Full-Text Search** - PostgreSQL tsvector indexes
+- **ACID Compliance** - Reliable transaction handling
+
+### Migration from Supabase
+- **Completed November 2024 (KRAI-002)**
+- **All Supabase dependencies removed** from codebase
+- **DatabaseAdapter interface** standardizes all database access
+- **Legacy Supabase scripts archived** to `archive/scripts/supabase/`
 
 ## Core Components
 
@@ -105,14 +130,39 @@ The KRAI (Knowledge Retrieval and Intelligence) system is a comprehensive multim
 - Automated troubleshooting assistance
 - Context-aware query expansion
 
+## Processing Pipeline
+
+### 15-Stage Modular Architecture
+
+The KRAI system uses a **15-stage modular pipeline** that provides granular control over document processing:
+
+#### Stage Groups
+- **Initialization** (1 stage): UPLOAD
+- **Extraction** (5 stages): TEXT_EXTRACTION, TABLE_EXTRACTION, SVG_PROCESSING, IMAGE_PROCESSING, LINK_EXTRACTION
+- **Processing** (5 stages): CHUNK_PREP, CLASSIFICATION, METADATA_EXTRACTION, PARTS_EXTRACTION, SERIES_DETECTION
+- **Enrichment** (2 stages): VISUAL_EMBEDDING, EMBEDDING
+- **Finalization** (2 stages): STORAGE, SEARCH_INDEXING
+
+#### Stage Orchestration
+- **`KRMasterPipeline`** in `backend/pipeline/master_pipeline.py`
+- **Stage Tracking** via JSONB `stage_status` column in documents table
+- **Execution Modes**: Full, Smart, Single, Multiple, Batch
+- **Error Isolation** - One stage failure doesn't stop the entire pipeline
+- **Dependency Management** - Automatic handling of stage prerequisites
+
+#### Individual Processors
+- **15 specialized processors** in `backend/processors/` directory
+- **BaseProcessor interface** for consistent implementation
+- **Stage-specific configuration** and optimization
+- **Real-time status monitoring** and progress tracking
+
+**Reference**: `docs/processor/PIPELINE_ARCHITECTURE.md` for detailed pipeline documentation
+
 ### 3. Processing Layer
 
-#### Master Pipeline
+#### Master Pipeline (Deprecated)
 
-- Orchestrates document processing through 10 stages
-- Handles error recovery and retry logic
-- Manages processing dependencies and ordering
-- Provides real-time status updates
+*The legacy 10-stage pipeline has been replaced by the 15-stage modular architecture*
 
 #### Smart Chunker
 
@@ -135,6 +185,29 @@ The KRAI (Knowledge Retrieval and Intelligence) system is a comprehensive multim
 - Link analysis and content summarization
 - Table structure interpretation
 
+### Storage Layer
+
+### MinIO Object Storage (S3-Compatible)
+
+MinIO is the sole object storage solution, providing S3-compatible local storage:
+
+#### Buckets
+- **`documents`** - Original PDF files and processed documents
+- **`images`** - Extracted images, converted SVGs, and thumbnails
+- **`parts`** - Parts catalog images and diagrams
+- **`error`** - Error logs and diagnostic files
+
+#### Features
+- **Local-First Design** - Complete data sovereignty
+- **Automatic Deduplication** - SHA256 hash-based file management
+- **Version Control** - File versioning and rollback capability
+- **Optional Cloud Migration** - S3-compatible for future cloud needs
+
+#### Migration from Cloudflare R2
+- **Completed November 2024 (KRAI-002)**
+- **All R2 dependencies removed** from codebase
+- **MinIO as default storage** for all new deployments
+
 ### 4. Data Layer
 
 #### PostgreSQL with pgvector
@@ -144,14 +217,14 @@ The KRAI (Knowledge Retrieval and Intelligence) system is a comprehensive multim
 - ACID compliance for data integrity
 - Advanced indexing and query optimization
 
-#### MinIO/S3 Object Storage
+#### MinIO/S3 Object Storage (Primary Storage)
 
 - Scalable object storage for files and media
 - Automatic deduplication using SHA256
 - Version control and backup capabilities
-- CDN integration for content delivery
+- S3-compatible API for future cloud migration
 
-#### Redis Cache
+#### Redis Cache (Optional)
 
 - High-performance caching layer
 - Session management and user state
@@ -167,35 +240,68 @@ The KRAI (Knowledge Retrieval and Intelligence) system is a comprehensive multim
 
 ## Data Flow Architecture
 
-### Document Processing Pipeline
+### Document Upload Flow
 
-```text
-Document Upload → Validation → Storage → Pipeline Orchestration
-       │                │           │              │
-       ▼                ▼           ▼              ▼
-   Metadata       File Format   Object Store   Stage 1: Upload
-  Extraction        Check        Creation        │
-       │                │           │              ▼
-       ▼                ▼           ▼        Stage 2: Text Extract
-   Database         Rejection    Success        │
-  Storage            Logic        Logic          ▼
-       │                │           │        Stage 3: SVG Process
-       ▼                ▼           ▼              │
-   Processing        Error        Next          ▼
-   Queue            Response      Stage     Stage 4: Hierarchical
-       │                                        Chunking
-       ▼                                        │
-   Worker                                   ▼
-  Threads                              Stage 5: Table Extract
-       │                                        │
-       ▼                                        ▼
-   Stage 6: Context Extract → Stage 7: Embeddings
-       │                                        │
-       ▼                                        ▼
-   Stage 8: Search Index → Stage 9: Quality Check
-       │                                        │
-       ▼                                        ▼
-   Stage 10: Completion → Notification → Cleanup
+```mermaid
+sequenceDiagram
+    participant User
+    participant Dashboard as Laravel Dashboard
+    participant API as FastAPI Backend
+    participant Pipeline as 15-Stage Pipeline
+    participant DB as PostgreSQL
+    participant Storage as MinIO
+    participant AI as Ollama
+
+    User->>Dashboard: Upload PDF
+    Dashboard->>API: POST /documents/upload
+    API->>DB: Create document record
+    API->>Storage: Store original file
+    API->>Pipeline: Start UPLOAD stage
+    Pipeline->>DB: Update stage_status
+    
+    loop 15-Stage Processing
+        Pipeline->>AI: Process stage (if needed)
+        Pipeline->>DB: Update progress
+        Pipeline->>Storage: Store processed data
+        Dashboard->>API: GET /documents/{id}/stages/status
+        API->>Dashboard: Real-time status updates
+    end
+    
+    Pipeline->>DB: Mark as completed
+    Dashboard->>User: Processing complete
+```
+
+### Stage Execution Flow
+
+```mermaid
+flowchart TD
+    A[Document Upload] --> B[UPLOAD Stage]
+    B --> C[TEXT_EXTRACTION]
+    B --> D[TABLE_EXTRACTION]
+    B --> E[SVG_PROCESSING]
+    B --> F[IMAGE_PROCESSING]
+    
+    C --> G[LINK_EXTRACTION]
+    C --> H[CHUNK_PREP]
+    F --> I[VISUAL_EMBEDDING]
+    
+    H --> J[CLASSIFICATION]
+    H --> K[METADATA_EXTRACTION]
+    
+    J --> L[PARTS_EXTRACTION]
+    J --> M[SERIES_DETECTION]
+    
+    K --> N[EMBEDDING]
+    I --> N
+    
+    D --> O[STORAGE]
+    E --> O
+    F --> O
+    
+    L --> P[SEARCH_INDEXING]
+    M --> P
+    N --> P
+    O --> P
 ```
 
 ### Search Query Flow
@@ -218,6 +324,66 @@ User Query → Query Analysis → Embedding Generation → Database Search
  Result         Response          Performance         Response
  Aggregation    Formatting        Monitoring          Delivery
 ```
+
+## API Layer
+
+### FastAPI with Async Support
+
+The backend uses FastAPI with comprehensive async support:
+
+#### Core Endpoints
+- **Document Management**: `/documents/*` - Upload, list, delete documents
+- **Stage-Based Processing**: `/documents/{id}/process/stage/{stage}` - Individual stage control
+- **Multiple Stages**: `/documents/{id}/process/stages` - Batch stage execution
+- **Status Monitoring**: `/documents/{id}/stages/status` - Real-time progress tracking
+- **Search API**: `/search/*` - Semantic and multimodal search
+- **Content APIs**: `/error-codes/*`, `/videos/*`, `/images/*` - Specialized content access
+
+#### Authentication
+- **JWT-based authentication** (not Supabase auth)
+- **Role-based access control** for different user types
+- **API key support** for service-to-service communication
+- **Session management** with Redis (optional)
+
+#### Stage-Based Features
+- **Individual stage execution** with dependency checking
+- **Smart processing** to skip completed stages
+- **Error recovery** with retry mechanisms
+- **Real-time status** via WebSocket connections
+
+**Reference**: `docs/api/STAGE_BASED_PROCESSING.md` for detailed API documentation
+
+## Dashboard Layer
+
+### Laravel Filament Admin Panel
+
+The Laravel dashboard provides comprehensive visual management:
+
+#### Document Management
+- **Upload Interface** with drag-and-drop support
+- **Document Listing** with filtering and search
+- **Metadata Editing** with manufacturer/model detection
+- **Bulk Operations** for multiple document processing
+
+#### Stage Control
+- **Individual Stage Actions** - "Stage verarbeiten" dropdown
+- **Multiple Stage Selection** - "Mehrere Stages verarbeiten" modal
+- **Smart Processing** - Automatic stage selection based on completion status
+- **Real-time Status** - Color-coded badges (green/yellow/red/gray)
+
+#### Visual Features
+- **Progress Tracking** with percentage completion
+- **Error Display** with detailed messages and retry options
+- **Performance Metrics** showing stage processing times
+- **Resource Monitoring** for CPU, memory, and GPU usage
+
+#### Integration Architecture
+- **KraiEngineService** - Centralized FastAPI client
+- **WebSocket Updates** - Real-time status without page refresh
+- **Error Handling** - User-friendly error messages and recovery options
+- **Bulk Processing** - Queue management for multiple documents
+
+**Reference**: `docs/LARAVEL_DASHBOARD_INTEGRATION.md` for comprehensive dashboard guide
 
 ## Service Communication
 

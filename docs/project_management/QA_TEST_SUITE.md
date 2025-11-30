@@ -416,7 +416,7 @@ ollama pull embeddinggemma
 **After successful QA:**
 ```bash
 # Deploy to production
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.production.yml up -d
 
 # Verify health
 curl https://your-domain.com/health

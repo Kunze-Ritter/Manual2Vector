@@ -218,7 +218,7 @@ Total: 53 Sekunden
 │         Rate: 73 codes/sec                            │
 │                                                         │
 │  6. Database Storage                                   │
-│     └─> Speichert in Supabase                        │
+│     └─> Speichert in PostgreSQL                        │
 │         • error_codes Tabelle                         │
 │         • Mit Embeddings für Semantic Search          │
 │                                                         │

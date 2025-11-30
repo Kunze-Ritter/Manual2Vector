@@ -452,7 +452,7 @@ python scripts/test_postgresql_migrations.py --verbose
 
 ### Configuration Files
 - `.env.database` - Database connection settings
-- `docker-compose.yml` - Service configuration
+- `docker-compose.simple.yml` or `docker-compose.production.yml` - Service configuration
 - `database/migrations/` - Complete migration file collection
 
 ---

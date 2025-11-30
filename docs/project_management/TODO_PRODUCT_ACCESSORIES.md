@@ -1,5 +1,8 @@
 # TODO: Product Accessories & Options System
 
+> **Note:** For consolidated project-wide TODOs, see `/MASTER-TODO.md` 
+> This file focuses on accessories-specific implementation details.
+
 ## Current Status: Phase 1 & 2 Complete! ✅🎉
 
 - ✅ `product_accessories` junction table created (M:N) - Migration 72
@@ -86,10 +89,10 @@ class AccessoryLinker:
   - **File:** `backend/processors/accessory_linker.py`
   - **Result:** Accessory linking step logs meaningful output and avoids invalid links
 - **Accessory-Linker DNS Retry** (12:47)
-  - Ergänzt `_execute_with_retry` für Supabase-Aufrufe (Lookup/Insert) mit Exponential Backoff
+  - Ergänzt `_execute_with_retry` für Datenbank-Aufrufe (Lookup/Insert) mit Exponential Backoff
   - Fängt transienten `getaddrinfo failed` während Zubehörverknüpfung ab
   - **File:** `backend/processors/accessory_linker.py`
-  - **Result:** Accessories linking bleibt stabil, auch wenn Supabase kurzzeitig nicht auflösbar ist
+  - **Result:** Accessories linking bleibt stabil, auch wenn die Datenbank kurzzeitig nicht auflösbar ist
 
 **File:** `backend/processors/accessory_linker.py` (280 lines)
 
@@ -276,7 +279,7 @@ class ConfigurationValidator:
 **🎉 PHASE 1 & 2 COMPLETE! All automatic detection, linking & validation implemented!**
 
 ### 🔥 **Now (High Priority):**
-1. Apply Migration 106 to Supabase
+1. Apply Migration 106 to PostgreSQL database
 2. Test the complete system:
    - Process a document with accessories
    - Verify links in product_accessories table

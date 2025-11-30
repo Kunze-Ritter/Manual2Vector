@@ -119,7 +119,7 @@ DATABASE_SCHEMA_PREFIX=krai
 - Extends PostgreSQL Adapter
 - Docker-specific defaults (service name: `krai-postgres`)
 - Automatic schema creation
-- Pre-configured for docker-compose.yml
+- Pre-configured for docker-compose.simple.yml, docker-compose.with-firecrawl.yml, and docker-compose.production.yml
 
 **Configuration:**
 ```bash

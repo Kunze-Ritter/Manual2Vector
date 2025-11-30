@@ -9,7 +9,7 @@
 Failed to get image by hash: column images.image_hash does not exist
 ```
 
-**Ursache:** Supabase PostgREST kann nicht direkt auf `krai_content.images.file_hash` zugreifen, da die Tabelle in einem anderen Schema als `public` liegt.
+**Ursache:** PostgreSQL API kann nicht direkt auf `krai_content.images.file_hash` zugreifen, da die Tabelle in einem anderen Schema als `public` liegt.
 
 ## Lösung
 
@@ -19,19 +19,19 @@ Failed to get image by hash: column images.image_hash does not exist
 
 ### **1. SQL Migration ausführen**
 
-#### **Option A: Über Supabase Dashboard (Empfohlen)**
+#### **Option A: Über pgAdmin (Empfohlen)**
 
-1. Gehen Sie zu: https://supabase.com/dashboard/project/YOUR_PROJECT/sql
+1. Öffnen Sie pgAdmin und verbinden Sie sich mit Ihrer PostgreSQL-Datenbank
 2. Öffnen Sie die Datei `database_migrations/04_rpc_functions_deduplication.sql`
 3. Kopieren Sie den gesamten Inhalt
-4. Fügen Sie ihn in den SQL-Editor ein
-5. Klicken Sie auf **"Run"**
+4. Fügen Sie ihn in den Query-Editor ein
+5. Klicken Sie auf **"Execute"**
 
 #### **Option B: Über psql (Command Line)**
 
 ```bash
-# Mit Ihrer Supabase-Datenbank verbinden
-psql "postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres"
+# Mit Ihrer PostgreSQL-Datenbank verbinden
+psql "postgresql://krai_user:[PASSWORD]@localhost:5432/krai"
 
 # Migration ausführen
 \i database_migrations/04_rpc_functions_deduplication.sql
@@ -40,15 +40,17 @@ psql "postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres"
 #### **Option C: Über Python (Automated)**
 
 ```python
-from supabase import create_client
-import os
+from backend.services.database_factory import create_database_adapter
+import asyncio
 
-# Read SQL file
-with open('database_migrations/04_rpc_functions_deduplication.sql', 'r') as f:
-    sql_content = f.read()
+async def run_migration():
+    adapter = create_database_adapter()
+    with open('database_migrations/04_rpc_functions_deduplication.sql', 'r') as f:
+        sql = f.read()
+    await adapter.execute_query(sql)
+    print("✅ Migration executed successfully")
 
-# Execute (requires admin privileges)
-# This would need to be done via REST API or direct database connection
+asyncio.run(run_migration())
 ```
 
 ### **2. Verifizieren Sie die Installation**

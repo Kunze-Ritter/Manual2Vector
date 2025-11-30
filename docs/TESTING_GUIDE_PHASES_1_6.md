@@ -26,7 +26,7 @@ This guide provides comprehensive instructions for running the KRAI test suite, 
 
 ```bash
 # 1. Start test services
-docker-compose -f docker-compose.test.yml up -d
+docker-compose -f archive/docker/docker-compose.test.yml up -d
 
 # 2. Install test dependencies
 pip install -r requirements-test.txt
@@ -75,7 +75,7 @@ Start required services for testing:
 
 ```bash
 # Start PostgreSQL and MinIO
-docker-compose -f docker-compose.test.yml up -d postgresql minio
+docker-compose -f archive/docker/docker-compose.test.yml up -d postgresql minio
 
 # Wait for services to be ready
 python scripts/wait_for_services.py
