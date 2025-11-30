@@ -51,9 +51,26 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
           })
-        } catch (error) {
+        } catch (error: any) {
           set({ isLoading: false })
-          throw error
+
+          const status = error?.response?.status
+          const detail = error?.response?.data?.detail
+
+          if (status === 401 && detail) {
+            const message =
+              detail?.error_code === 'AUTH_001' || detail?.error === 'Authentication failed'
+                ? 'Invalid username or password.'
+                : detail?.detail || detail?.error || 'Login failed. Please check your credentials.'
+
+            throw new Error(message)
+          }
+
+          if (error instanceof Error) {
+            throw error
+          }
+
+          throw new Error('Login failed. Please try again.')
         }
       },
 
@@ -121,7 +138,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'krai-auth-storage',
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )
 )

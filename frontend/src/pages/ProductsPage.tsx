@@ -534,7 +534,11 @@ export default function ProductsPage() {
             </p>
           </div>
           {canCreate && (
-            <Button onClick={openCreateModal} className="self-start md:self-auto">
+            <Button
+              onClick={openCreateModal}
+              className="self-start md:self-auto"
+              data-testid="create-product-button"
+            >
               <Plus className="mr-2 h-4 w-4" />
               New product
             </Button>
@@ -570,6 +574,7 @@ export default function ProductsPage() {
       )}
 
       <DataTable<Product, unknown>
+        dataTestId="products-table"
         columns={columns}
         data={products}
         isLoading={isLoading}

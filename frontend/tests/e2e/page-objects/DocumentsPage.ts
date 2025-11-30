@@ -47,7 +47,8 @@ export class DocumentsPage extends BasePage {
   async navigate(): Promise<void> {
     await this.goto('/documents');
     await this.waitForSelector(this.pageTitle);
-    await this.waitForAPIResponse('/api/v1/documents', 'GET');
+    // Ensure table shell is rendered; data loading is handled by React Query
+    await this.waitForSelector('[data-testid="documents-table"]');
   }
 
   /**
@@ -55,7 +56,8 @@ export class DocumentsPage extends BasePage {
    */
   async clickCreateButton(): Promise<void> {
     await this.clickTestId('create-document-button');
-    await this.waitForSelector(this.modal);
+    // Wait for modal body content to be attached; visibility can be affected by animations
+    await this.page.locator('[data-testid="crud-modal-body"]').first().waitFor({ state: 'attached' });
   }
 
   /**

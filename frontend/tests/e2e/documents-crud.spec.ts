@@ -12,7 +12,7 @@ test.describe('Documents CRUD', () => {
     documentsPage = new DocumentsPage(page);
     
     await loginPage.navigate();
-    await loginPage.login('admin@test.com', 'test123456');
+    await loginPage.loginAsAdmin();
     await documentsPage.navigate();
   });
 

@@ -26,19 +26,39 @@ export function clearTokens(): void {
   localStorage.removeItem(REFRESH_TOKEN_KEY)
 }
 
-// Resolve base URL. If the configured base starts with '/', leverage Vite proxy by
-// leaving axios baseURL empty so request paths (e.g. '/api/v1/...') are sent verbatim.
-const envBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-const resolvedBaseUrl = envBaseUrl.startsWith('/') ? '' : envBaseUrl
+// Resolve base URL with preference order:
+// 1. Explicit VITE_API_BASE_URL
+// 2. krai-engine service hostname (in Docker networks)
+// 3. localhost fallback for direct host access
+const FALLBACK_HOSTS = ['http://krai-engine:8000', 'http://localhost:8000'] as const
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const allowHostFallback = !envBaseUrl
 
-// Create axios instance
-const apiClient = axios.create({
-  baseURL: resolvedBaseUrl,
-  timeout: import.meta.env.VITE_API_TIMEOUT ? parseInt(import.meta.env.VITE_API_TIMEOUT) : 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
+let currentBaseUrl = envBaseUrl || FALLBACK_HOSTS[0]
+
+const normalizeBaseUrl = (value: string) => (value.startsWith('/') ? '' : value)
+
+const createApiInstance = () =>
+  axios.create({
+    baseURL: normalizeBaseUrl(currentBaseUrl),
+    timeout: import.meta.env.VITE_API_TIMEOUT ? parseInt(import.meta.env.VITE_API_TIMEOUT) : 30000,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+const apiClient = createApiInstance()
+
+const switchToFallbackHost = () => {
+  if (!allowHostFallback || currentBaseUrl === FALLBACK_HOSTS[1]) {
+    return false
+  }
+
+  currentBaseUrl = FALLBACK_HOSTS[1]
+  apiClient.defaults.baseURL = normalizeBaseUrl(currentBaseUrl)
+  console.warn('[api-client] Primary host unreachable, falling back to localhost backend')
+  return true
+}
 
 // Refresh token logic
 let isRefreshing = false
@@ -78,7 +98,26 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean
+      _fallbackAttempted?: boolean
+    }
+
+    const requestUrl = originalRequest?.url || ''
+
+    // For auth login/register endpoints, let the caller handle 401 errors
+    if (requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register')) {
+      return Promise.reject(error)
+    }
+
+    // Handle network errors (e.g., krai-engine unreachable) by switching to localhost
+    if (!error.response && error.code === 'ERR_NETWORK' && !originalRequest?._fallbackAttempted) {
+      const switched = switchToFallbackHost()
+      if (switched) {
+        originalRequest._fallbackAttempted = true
+        return apiClient(originalRequest)
+      }
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

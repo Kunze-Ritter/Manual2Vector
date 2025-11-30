@@ -71,8 +71,8 @@ export class LoginPage extends BasePage {
    * Login as admin user
    */
   async loginAsAdmin(): Promise<any> {
-    const username = 'admin@example.com';
-    const password = 'adminpass';
+    const username = 'admin';
+    const password = 'admin';
     return this.login(username, password);
   }
 

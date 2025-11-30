@@ -49,6 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isUserLoading, currentUserData, authStore])
 
+  useEffect(() => {
+    if (!getAccessToken() && authStore.isAuthenticated) {
+      authStore.clearAuth()
+    }
+  }, [authStore.isAuthenticated, authStore])
+
   const login = async (credentials: LoginRequest) => {
     try {
       await authStore.login(credentials)

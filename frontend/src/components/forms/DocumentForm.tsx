@@ -229,15 +229,15 @@ export const DocumentForm = forwardRef<DocumentFormHandle, DocumentFormProps>(
               <div className="space-y-2">
                 <Label>Manufacturer</Label>
                 <Select
-                  value={field.value ?? ''}
-                  onValueChange={(value) => field.onChange(value === '' ? undefined : value)}
+                  value={field.value ?? '__unassigned__'}
+                  onValueChange={(value) => field.onChange(value === '__unassigned__' ? undefined : value)}
                   disabled={manufacturersLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select manufacturer" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
                     {manufacturersData?.manufacturers.map((manufacturer) => (
                       <SelectItem key={manufacturer.id} value={manufacturer.id}>
                         {manufacturer.name}
@@ -258,15 +258,15 @@ export const DocumentForm = forwardRef<DocumentFormHandle, DocumentFormProps>(
               <div className="space-y-2">
                 <Label>Product</Label>
                 <Select
-                  value={field.value ?? ''}
-                  onValueChange={(value) => field.onChange(value || undefined)}
+                  value={field.value ?? '__unassigned__'}
+                  onValueChange={(value) => field.onChange(value === '__unassigned__' ? undefined : value)}
                   disabled={productsLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select product" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
                     {productsData?.products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
                         {product.model_number} — {product.model_name}

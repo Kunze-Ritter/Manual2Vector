@@ -43,31 +43,36 @@ async function globalSetup(_config: FullConfig) {
 
   // Create test users
   console.log('👥 Creating test users...');
+  const TEST_USER_PASSWORD = 'TestUser1234!';
   const testUsers = [
-    { email: 'admin@test.com', password: 'test123456', role: 'admin' },
-    { email: 'editor@test.com', password: 'test123456', role: 'editor' },
-    { email: 'viewer@test.com', password: 'test123456', role: 'viewer' },
+    { email: 'admin@test.com', password: TEST_USER_PASSWORD, role: 'admin' },
+    { email: 'editor@test.com', password: TEST_USER_PASSWORD, role: 'editor' },
+    { email: 'viewer@test.com', password: TEST_USER_PASSWORD, role: 'viewer' },
   ];
 
   const createdEntities: any = { users: [] };
 
   for (const user of testUsers) {
     try {
-      // Check if user already exists
+      // Check if user already exists (login accepts username or email via "username" field)
       try {
         await axios.post(`${apiURL}/api/v1/auth/login`, {
-          email: user.email,
+          username: user.email,
           password: user.password,
         });
         console.log(`ℹ️  User ${user.email} already exists`);
         createdEntities.users.push({ ...user, exists: true });
       } catch (loginError: any) {
         if (loginError.response?.status === 401) {
-          // User doesn't exist, create it
+          // User doesn't exist, create it (UserCreate-compatible payload)
+          const username = user.email.split('@')[0];
           const registerResponse = await axios.post(`${apiURL}/api/v1/auth/register`, {
             email: user.email,
+            username,
             password: user.password,
-            role: user.role,
+            confirm_password: user.password,
+            first_name: username,
+            last_name: 'Test',
           });
           
           if (registerResponse.data.success) {
@@ -124,12 +129,12 @@ async function globalSetup(_config: FullConfig) {
 
 async function getAuthToken(email: string, password: string, apiURL: string): Promise<string> {
   const response = await axios.post(`${apiURL}/api/v1/auth/login`, {
-    email,
+    username: email,
     password,
   });
   
-  if (response.data.success && response.data.data?.token) {
-    return response.data.data.token;
+  if (response.data.success && response.data.data?.access_token) {
+    return response.data.data.access_token;
   }
   
   throw new Error('Failed to get auth token');

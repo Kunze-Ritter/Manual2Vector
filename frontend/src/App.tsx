@@ -62,6 +62,18 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
+                    <DocumentsPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Dashboard */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
                     <HomePage />
                   </AppLayout>
                 </ProtectedRoute>

@@ -362,12 +362,15 @@ export const ProductForm = forwardRef<ProductFormHandle, ProductFormProps>(
             render={({ field }) => (
               <div className="space-y-2">
                 <Label>Series</Label>
-                <Select value={field.value ?? ''} onValueChange={(value) => field.onChange(value || undefined)}>
+                <Select
+                  value={field.value ?? '__unassigned__'}
+                  onValueChange={(value) => field.onChange(value === '__unassigned__' ? undefined : value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select series" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
                     {seriesOptions.map((series) => (
                       <SelectItem key={series.id} value={series.id}>
                         {series.name}
@@ -386,12 +389,15 @@ export const ProductForm = forwardRef<ProductFormHandle, ProductFormProps>(
             render={({ field }) => (
               <div className="space-y-2">
                 <Label>Parent product</Label>
-                <Select value={field.value ?? ''} onValueChange={(value) => field.onChange(value || undefined)}>
+                <Select
+                  value={field.value ?? '__unassigned__'}
+                  onValueChange={(value) => field.onChange(value === '__unassigned__' ? undefined : value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select parent product" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__unassigned__">None</SelectItem>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
                         {product.model_number} — {product.model_name}

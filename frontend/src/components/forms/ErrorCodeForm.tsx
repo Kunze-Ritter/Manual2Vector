@@ -288,12 +288,15 @@ export const ErrorCodeForm = forwardRef<ErrorCodeFormHandle, ErrorCodeFormProps>
             render={({ field }) => (
               <div className="space-y-2">
                 <Label>Extraction method</Label>
-                <Select value={field.value ?? ''} onValueChange={(value: string) => field.onChange(value || undefined)}>
+                <Select
+                  value={field.value || '__unspecified__'}
+                  onValueChange={(value: string) => field.onChange(value === '__unspecified__' ? '' : value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select extraction method" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unspecified</SelectItem>
+                    <SelectItem value="__unspecified__">Unspecified</SelectItem>
                     {Object.values(ExtractionMethod).map((method) => (
                       <SelectItem key={method} value={method}>
                         {enumLabel(method)}
@@ -372,15 +375,15 @@ export const ErrorCodeForm = forwardRef<ErrorCodeFormHandle, ErrorCodeFormProps>
               <div className="space-y-2">
                 <Label>Document</Label>
                 <Select
-                  value={field.value ?? ''}
-                  onValueChange={(value: string) => field.onChange(value || undefined)}
+                  value={field.value ?? '__unassigned__'}
+                  onValueChange={(value: string) => field.onChange(value === '__unassigned__' ? undefined : value)}
                   disabled={documentsLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select document" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
                     {documents.map((document: Document) => (
                       <SelectItem key={document.id} value={document.id}>
                         {document.filename}
@@ -399,15 +402,15 @@ export const ErrorCodeForm = forwardRef<ErrorCodeFormHandle, ErrorCodeFormProps>
               <div className="space-y-2">
                 <Label>Manufacturer</Label>
                 <Select
-                  value={field.value ?? ''}
-                  onValueChange={(value: string) => field.onChange(value || undefined)}
+                  value={field.value ?? '__unassigned__'}
+                  onValueChange={(value: string) => field.onChange(value === '__unassigned__' ? undefined : value)}
                   disabled={manufacturersLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select manufacturer" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
                     {manufacturers.map((manufacturer: Manufacturer) => (
                       <SelectItem key={manufacturer.id} value={manufacturer.id}>
                         {manufacturer.name}

@@ -410,15 +410,15 @@ export const VideoForm = forwardRef<VideoFormHandle, VideoFormProps>(
                   <div className="space-y-2">
                     <Label>Manufacturer</Label>
                     <Select
-                      value={field.value ?? ''}
-                      onValueChange={(value: string) => field.onChange(value || undefined)}
+                      value={field.value ?? '__unassigned__'}
+                      onValueChange={(value: string) => field.onChange(value === '__unassigned__' ? undefined : value)}
                       disabled={manufacturersLoading}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select manufacturer" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="__unassigned__">Unassigned</SelectItem>
                         {manufacturers.map((manufacturer) => (
                           <SelectItem key={manufacturer.id} value={manufacturer.id}>
                             {manufacturer.name}
@@ -440,15 +440,15 @@ export const VideoForm = forwardRef<VideoFormHandle, VideoFormProps>(
                   <div className="space-y-2">
                     <Label>Series</Label>
                     <Select
-                      value={field.value ?? ''}
-                      onValueChange={(value: string) => field.onChange(value || undefined)}
+                      value={field.value ?? '__unassigned__'}
+                      onValueChange={(value: string) => field.onChange(value === '__unassigned__' ? undefined : value)}
                       disabled={!selectedManufacturerId || seriesLoading}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select series" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="__unassigned__">Unassigned</SelectItem>
                         {series.map((item) => (
                           <SelectItem key={item.id} value={item.id}>
                             {item.name}
@@ -468,15 +468,15 @@ export const VideoForm = forwardRef<VideoFormHandle, VideoFormProps>(
                   <div className="space-y-2">
                     <Label>Document</Label>
                     <Select
-                      value={field.value ?? ''}
-                      onValueChange={(value: string) => field.onChange(value || undefined)}
+                      value={field.value ?? '__unassigned__'}
+                      onValueChange={(value: string) => field.onChange(value === '__unassigned__' ? undefined : value)}
                       disabled={documentsLoading}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select document" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="__unassigned__">Unassigned</SelectItem>
                         {documents.map((document) => (
                           <SelectItem key={document.id} value={document.id}>
                             {document.filename}

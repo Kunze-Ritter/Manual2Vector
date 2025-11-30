@@ -12,7 +12,7 @@ export interface StatCard {
 export class DashboardPage extends BasePage {
   // Selectors
   private readonly pageTitle = 'h1:has-text("Dashboard")';
-  private readonly statsCards = '[data-testid="stat-card"]';
+  private readonly statsCards = '[data-testid^="stat-card-"]';
   private readonly quickActionsSection = '[data-testid="quick-actions"]';
   private readonly navigationSection = '[data-testid="navigation-overview"]';
   private readonly sidebar = 'aside';
@@ -83,8 +83,8 @@ export class DashboardPage extends BasePage {
    * Navigate to section via navigation overview
    */
   async navigateToSection(section: string): Promise<string> {
-    const navItemSelector = `[data-testid="nav-item-${section.toLowerCase().replace(/\s+/g, '-')}"]`;
-    await this.clickTestId(navItemSelector.replace('[data-testid="', '').replace('"]', ''));
+    const testId = `nav-link-${section.toLowerCase().replace(/\s+/g, '-')}`;
+    await this.clickTestId(testId);
     await this.waitForNavigation();
     
     return this.getCurrentUrl();

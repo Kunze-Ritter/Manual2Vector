@@ -12,7 +12,7 @@ test.describe('Products CRUD', () => {
     productsPage = new ProductsPage(page);
     
     await loginPage.navigate();
-    await loginPage.login('admin@test.com', 'test123456');
+    await loginPage.loginAsAdmin();
     await productsPage.navigate();
   });
 

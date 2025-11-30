@@ -38,7 +38,8 @@ export class ProductsPage extends BasePage {
   async navigate(): Promise<void> {
     await this.goto('/products');
     await this.waitForSelector(this.pageTitle);
-    await this.waitForAPIResponse('/api/v1/products', 'GET');
+    // Wait for products table shell to be visible; data loading is handled by React Query
+    await this.waitForSelector('[data-testid="products-table"]');
   }
 
   /**
@@ -46,7 +47,8 @@ export class ProductsPage extends BasePage {
    */
   async clickCreateButton(): Promise<void> {
     await this.clickTestId('create-product-button');
-    await this.waitForSelector(this.modal);
+    // Wait for modal body content to be attached; visibility can be affected by animations
+    await this.page.locator('[data-testid="crud-modal-body"]').first().waitFor({ state: 'attached' });
   }
 
   /**

@@ -72,15 +72,68 @@ The app will be available at `http://localhost:3000`.
 
 ### Building for Production
 
+#### Production Build with Environment Variables
+
+The production build uses `.env.production` for environment configuration:
+
 ```bash
-npm run build
+# Build for production (uses .env.production)
+npm run build:production
+
+# Preview production build locally
+npm run preview:production
 ```
 
-### Preview Production Build
+**Important:** Environment variables are baked into the build at compile time. Changing `.env.production` requires rebuilding.
+
+#### General Build
 
 ```bash
+# Standard build (development mode)
+npm run build
+
+# Preview standard build
 npm run preview
 ```
+
+**Build scripts:**
+- `build` - Standard build with TypeScript compilation
+- `build:production` - Production build with `.env.production` (cross-platform compatible)
+- `build:production:verbose` - Production build with verbose output (no bundle analysis tooling)
+- `preview:production` - Preview production build on port 3000
+
+**Note:** All build scripts use `cross-env` for cross-platform compatibility, ensuring they work correctly on both Windows and Unix-like systems.
+
+## Production Deployment
+
+### Docker-Based Deployment
+
+The frontend is deployed using Docker with a multi-stage build:
+
+**Build process:**
+1. Node.js builder stage compiles the application with `.env.production`
+2. Nginx production stage serves static files and proxies API requests
+
+**Deploy commands:**
+```bash
+# Build frontend Docker image
+docker-compose -f docker-compose.production.yml build krai-frontend
+
+# Run full stack
+docker-compose -f docker-compose.production.yml up -d
+```
+
+> **Note:** `docker-compose.production-final.yml` has been consolidated into `docker-compose.production.yml`. The new production file includes Firecrawl services and uses uvicorn instead of gunicorn.
+
+**Key differences from development:**
+- Uses nginx for serving (not Vite dev server)
+- Environment variables baked into build
+- API requests proxied through nginx (`/api` → `http://krai-engine:8000`)
+- DevTools disabled for performance and security
+
+**For detailed deployment information, see:**
+- [Frontend Production Deployment Guide](../docs/setup/FRONTEND_PRODUCTION_DEPLOYMENT.md)
+- [Main Deployment Guide](../DEPLOYMENT.md)
 
 ## Project Structure
 
@@ -119,22 +172,93 @@ src/
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_API_BASE_URL` | `/api` | API base URL (use `/api` for proxy, absolute URL for production) |
-| `VITE_API_TIMEOUT` | `30000` | API request timeout in milliseconds |
-| `VITE_TOKEN_STORAGE_KEY` | `krai_auth_token` | LocalStorage key for access token |
-| `VITE_REFRESH_TOKEN_STORAGE_KEY` | `krai_refresh_token` | LocalStorage key for refresh token |
-| `VITE_ENABLE_DEVTOOLS` | `true` | Enable React Query DevTools in development |
+### Configuration Files
+
+- `.env.example` - Example configuration (template)
+- `.env.local` - Local development (not committed to git)
+- `.env.production` - Production configuration (committed to git)
+
+### Available Variables
+
+| Variable | Development | Production | Description |
+|----------|-------------|------------|-------------|
+| `VITE_API_BASE_URL` | `/api` | `/api` | API base URL (proxied in both environments) |
+| `VITE_API_TIMEOUT` | `30000` | `30000` | API request timeout in milliseconds |
+| `VITE_TOKEN_STORAGE_KEY` | `krai_auth_token` | `krai_auth_token` | LocalStorage key for access token |
+| `VITE_REFRESH_TOKEN_STORAGE_KEY` | `krai_refresh_token` | `krai_refresh_token` | LocalStorage key for refresh token |
+| `VITE_ENABLE_DEVTOOLS` | `true` | `false` | Enable React Query DevTools (disable in production) |
+| `VITE_USE_MOCK_AUTH` | `false` | `false` | Use mock authentication API (for testing only) |
+
+**Note:** All variables prefixed with `VITE_` are exposed to the client and baked into the build at compile time.
 
 ## API Integration
 
 The frontend communicates with the backend via Axios with automatic token refresh:
 
-- **Base URL**: `/api` (proxied to `http://localhost:8000` in development)
+- **Base URL**: `/api` (proxied in both development and production)
 - **Authentication**: Bearer token in `Authorization` header
 - **Refresh**: Automatic 401 handling with token refresh
 - **Timeout**: 30 seconds (configurable)
+
+### Production API Configuration
+
+In production, nginx handles API proxying:
+
+- Frontend requests: `http://localhost:3000/api/documents`
+- Nginx proxies to: `http://krai-engine:8000/documents`
+- Configuration: `nginx/nginx-simple.conf`
+
+**Benefits:**
+- No CORS issues (same origin)
+- Simplified frontend configuration
+- Centralized request routing
+- Security headers and compression
+
+### Development API Configuration
+
+In development, Vite dev server proxies API requests:
+
+- Frontend requests: `http://localhost:3000/api/documents`
+- Vite proxies to: `http://localhost:8000/documents`
+- Configuration: `vite.config.ts`
+
+**Alternative:** Use absolute URL (`http://localhost:8000`) for direct backend access
+
+## Docker Deployment
+
+### Quick Reference
+
+```bash
+# Build frontend Docker image
+docker-compose -f docker-compose.production.yml build krai-frontend
+
+# Start frontend container
+docker-compose -f docker-compose.production.yml up -d krai-frontend
+
+# View logs
+docker-compose -f docker-compose.production.yml logs -f krai-frontend
+
+# Restart container
+docker-compose -f docker-compose.production.yml restart krai-frontend
+```
+
+### When to Rebuild
+
+Rebuild the Docker image when:
+- Environment variables in `.env.production` change
+- Frontend source code changes
+- Dependencies in `package.json` change
+- Nginx configuration changes
+
+**Important:** Environment variables are baked into the build, not read at runtime!
+
+### References
+
+- **Dockerfile:** `frontend/Dockerfile`
+- **Docker Compose:** `docker-compose.production.yml`
+- **Nginx Config:** `nginx/nginx-simple.conf`
+- **Deployment Guide:** [docs/setup/FRONTEND_PRODUCTION_DEPLOYMENT.md](../docs/setup/FRONTEND_PRODUCTION_DEPLOYMENT.md)
+- **Main Deployment:** [DEPLOYMENT.md](../DEPLOYMENT.md)
 
 ## Contributing
 

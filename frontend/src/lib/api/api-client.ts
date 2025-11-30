@@ -6,8 +6,15 @@ import { getAccessToken } from '@/lib/auth';
  * Create a configured Axios instance
  */
 const createApiClient = (): AxiosInstance => {
+  const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
+
+  // If VITE_API_BASE_URL is empty or set to '/api', use same-origin URLs
+  // and let callers specify the full path (e.g. '/api/v1/...') to avoid
+  // double-prefixing like '/api/api/v1/...'.
+  const baseURL = !rawBaseUrl || rawBaseUrl === '/api' ? '' : rawBaseUrl;
+
   const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+    baseURL,
     headers: {
       'Content-Type': 'application/json',
     },

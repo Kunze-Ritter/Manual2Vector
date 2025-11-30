@@ -118,6 +118,38 @@ export interface DocumentStats {
   by_manufacturer: Record<string, number>;
 }
 
+export interface DashboardRecentDocument {
+  id: string;
+  filename: string | null;
+  manufacturer: string | null;
+  status: string | null;
+  updated_at: string | null;
+}
+
+export interface DashboardOverview {
+  documents: {
+    total: number;
+    by_status: Record<string, number>;
+    by_type: Record<string, number>;
+    processed_last_24h: number;
+    recent: DashboardRecentDocument[];
+  };
+  products: {
+    total: number;
+    manufacturers: number;
+    active: number;
+    discontinued: number;
+  };
+  queue: {
+    total: number;
+    by_status: Record<string, number>;
+  };
+  media: {
+    images: number;
+    videos: number;
+  };
+}
+
 export interface DocumentBatchResult {
   id: string;
   status: "success" | "failed";

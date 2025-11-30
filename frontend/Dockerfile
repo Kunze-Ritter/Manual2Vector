@@ -13,10 +13,18 @@ RUN npm ci
 # Copy source code
 COPY frontend/ .
 
-# Build the application
-RUN npm run build
+# Copy production environment configuration
+# Vite automatically reads .env.production when NODE_ENV=production
+# These environment variables are baked into the static build at compile time
+COPY frontend/.env.production .env.production
+
+# Build the application for production
+# Uses the dedicated production build script from package.json
+RUN npm run build:production
 
 # Production stage
+# The nginx stage doesn't need environment variables since they're already
+# compiled into the JavaScript bundle from the builder stage
 FROM nginx:alpine
 
 # Copy built application

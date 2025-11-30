@@ -35,6 +35,10 @@ export const useProducts = (params: UseProductsParams = {}) =>
       return response.data
     },
     placeholderData: keepPreviousData,
+    // Avoid aggressive retry/refetch loops while the products API is returning 500s
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
 export const useProduct = (id?: string, include_relations = false) =>
