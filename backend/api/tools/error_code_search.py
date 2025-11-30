@@ -8,13 +8,14 @@ Implements the exact response format specified in Agent System Message V2.4.
 import logging
 import os
 import sys
+import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
+from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException
 
-from supabase import Client, create_client
-
-from backend.api.check_error_code_in_db import normalize_error_code
-from backend.api.check_db_schema import SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL
+from services.database_adapter import DatabaseAdapter
+from services.database_factory import create_database_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +59,10 @@ class ErrorCodeSearchResponse(BaseModel):
 class MultiSourceErrorCodeSearch:
     """Multi-source error code search implementation"""
     
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
+    def __init__(self, adapter: DatabaseAdapter):
+        self.adapter = adapter
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f'Search service initialized with {type(adapter).__name__}')
     
     async def search_error_code(
         self, 
@@ -121,7 +123,7 @@ class MultiSourceErrorCodeSearch:
                 }
                 videos.append(video_info)
             
-            return ErrorCodeSearchResponse(
+            response = ErrorCodeSearchResponse(
                 found=True,
                 error_code=error_code,
                 description=description,
@@ -129,6 +131,7 @@ class MultiSourceErrorCodeSearch:
                 videos=videos,
                 parts=parts_results
             )
+            return response
             
         except Exception as e:
             self.logger.error(f"Error in multi-source search: {e}", exc_info=True)
@@ -140,49 +143,54 @@ class MultiSourceErrorCodeSearch:
     async def _search_error_codes_in_db(self, error_code: str, manufacturer: str) -> List[Dict]:
         """Search error codes in the database"""
         try:
-            # Use the existing vw_error_codes view
-            response = self.supabase.table('vw_error_codes') \
-                .select('error_code, error_description, solution_text, page_number, manufacturer_id, document_id') \
-                .ilike('error_code', f'%{error_code}%') \
-                .order('confidence_score', desc=True) \
-                .limit(5) \
-                .execute()
+            # Use direct krai tables with JOIN
+            error_codes = await self.adapter.execute_query(
+                """SELECT ec.error_code, ec.error_description, ec.solution_text, de.page_number,
+                          ec.manufacturer_id, ec.document_id, ec.confidence_score
+                   FROM krai_content.error_codes ec
+                   JOIN krai_content.document_error_codes de ON ec.id = de.error_code_id
+                   WHERE ec.error_code ILIKE %s 
+                   ORDER BY ec.confidence_score DESC 
+                   LIMIT 5""",
+                [f'%{error_code}%']
+            )
             
-            if not response.data:
+            if not error_codes:
                 return []
             
-            # Get manufacturer and document names
-            manufacturer_ids = list(set([row['manufacturer_id'] for row in response.data if row.get('manufacturer_id')]))
-            document_ids = list(set([row['document_id'] for row in response.data if row.get('document_id')]))
+            # Get manufacturer and document names using array params
+            manufacturer_ids = list(set([row['manufacturer_id'] for row in error_codes if row.get('manufacturer_id')]))
+            document_ids = list(set([row['document_id'] for row in error_codes if row.get('document_id')]))
             
             manufacturers = {}
             if manufacturer_ids:
-                mfr_response = self.supabase.table('vw_manufacturers') \
-                    .select('id, name') \
-                    .in_('id', manufacturer_ids) \
-                    .execute()
-                manufacturers = {row['id']: row['name'] for row in mfr_response.data}
+                mfr_results = await self.adapter.execute_query(
+                    "SELECT id, name FROM krai_core.manufacturers WHERE id = ANY(%s)",
+                    [manufacturer_ids]
+                )
+                manufacturers = {row['id']: row['name'] for row in mfr_results}
             
             documents = {}
             if document_ids:
-                doc_response = self.supabase.table('vw_documents') \
-                    .select('id, filename') \
-                    .in_('id', document_ids) \
-                    .execute()
-                documents = {row['id']: row['filename'] for row in doc_response.data}
+                doc_results = await self.adapter.execute_query(
+                    "SELECT id, filename FROM krai_core.documents WHERE id = ANY(%s)",
+                    [document_ids]
+                )
+                documents = {row['id']: row['filename'] for row in doc_results}
             
-            # Filter by manufacturer if specified
+            # Filter by manufacturer (case-insensitive)
             filtered_results = []
-            for row in response.data:
+            for row in error_codes:
                 mfr_name = manufacturers.get(row.get('manufacturer_id'), '').lower()
-                if mfr_name == manufacturer.lower() or mfr_name in manufacturer.lower():
+                if manufacturer.lower() in mfr_name or mfr_name in manufacturer.lower():
                     result = {
                         'error_code': row.get('error_code'),
                         'error_description': row.get('error_description'),
                         'solution_text': row.get('solution_text'),
                         'page_number': row.get('page_number'),
                         'document_filename': documents.get(row.get('document_id'), 'Unbekanntes Dokument'),
-                        'manufacturer_name': manufacturers.get(row.get('manufacturer_id'), manufacturer)
+                        'manufacturer_name': manufacturers.get(row.get('manufacturer_id'), manufacturer),
+                        'confidence_score': float(row['confidence_score']) if row.get('confidence_score') else 0.0
                     }
                     filtered_results.append(result)
             
@@ -199,21 +207,18 @@ class MultiSourceErrorCodeSearch:
             if product:
                 search_terms.append(product)
             
-            # Search in videos table
-            query_parts = []
-            for term in search_terms:
-                query_parts.append(f"title.ilike.%{term}%")
-                query_parts.append(f"description.ilike.%{term}%")
+            # Use ILIKE ANY with array param for cleaner query
+            search_patterns = [f'%{term}%' for term in search_terms[:3]]
             
-            query = " OR ".join(query_parts[:6])  # Limit query parts
+            videos = await self.adapter.execute_query(
+                """SELECT title, url, description, duration, manufacturer_id, model_series
+                   FROM krai_content.instructional_videos 
+                   WHERE title ILIKE ANY(%s) OR description ILIKE ANY(%s) OR model_series ILIKE ANY(%s)
+                   LIMIT 5""",
+                [search_patterns, search_patterns, search_patterns]
+            )
             
-            response = self.supabase.table('vw_videos') \
-                .select('title, url, description, duration, manufacturer_id, model_series') \
-                .or_(query) \
-                .limit(5) \
-                .execute()
-            
-            return response.data if response.data else []
+            return videos if videos else []
             
         except Exception as e:
             self.logger.error(f"Error searching videos: {e}")
@@ -222,14 +227,16 @@ class MultiSourceErrorCodeSearch:
     async def _extract_parts_from_solutions(self, error_code: str, manufacturer: str) -> List[str]:
         """Extract part numbers from error code solutions"""
         try:
-            # Get error code solutions
-            solutions_response = self.supabase.table('vw_error_codes') \
-                .select('solution_text') \
-                .ilike('error_code', f'%{error_code}%') \
-                .execute()
+            # Get error code solutions from direct table
+            solutions = await self.adapter.execute_query(
+                """SELECT solution_text 
+                   FROM krai_content.error_codes 
+                   WHERE error_code ILIKE %s""",
+                [f'%{error_code}%']
+            )
             
             parts = set()
-            for row in solutions_response.data:
+            for row in solutions:
                 solution_text = row.get('solution_text', '')
                 if solution_text:
                     # Extract part numbers using regex
@@ -244,13 +251,17 @@ class MultiSourceErrorCodeSearch:
                         for match in matches:
                             parts.add(match.strip())
             
-            # Also search in error_code_parts table if it exists
+            # Optional: search in error_code_parts table if it exists
             try:
-                parts_response = self.supabase.table('error_code_parts') \
-                    .select('part_id') \
-                    .execute()
+                parts_results = await self.adapter.execute_query(
+                    """SELECT part_id FROM krai_content.error_code_parts 
+                       WHERE error_code_id IN (
+                           SELECT id FROM krai_content.error_codes WHERE error_code ILIKE %s
+                       )""",
+                    [f'%{error_code}%']
+                )
                 
-                for row in parts_response.data:
+                for row in parts_results:
                     if row.get('part_id'):
                         parts.add(str(row['part_id']))
             except Exception:
@@ -271,23 +282,17 @@ class MultiSourceErrorCodeSearch:
 router = APIRouter(prefix="/tools", tags=["error-code-search"])
 
 # Global instances
-_supabase_client = None
+_database_adapter = None
 _search_service = None
 
 def get_search_service() -> MultiSourceErrorCodeSearch:
     """Get or create search service instance"""
-    global _supabase_client, _search_service
+    global _database_adapter, _search_service
     
     if _search_service is None:
-        # Initialize Supabase client
-        supabase_url = os.getenv('SUPABASE_URL')
-        supabase_key = os.getenv('SUPABASE_ANON_KEY')
-        
-        if not supabase_url or not supabase_key:
-            raise HTTPException(status_code=500, detail="Supabase configuration missing")
-        
-        _supabase_client = Client(supabase_url, supabase_key)
-        _search_service = MultiSourceErrorCodeSearch(_supabase_client)
+        # Initialize DatabaseAdapter via factory
+        _database_adapter = create_database_adapter()
+        _search_service = MultiSourceErrorCodeSearch(_database_adapter)
     
     return _search_service
 

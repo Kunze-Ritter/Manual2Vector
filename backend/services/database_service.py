@@ -12,8 +12,8 @@ import logging
 import os
 from typing import Optional
 
-from services.database_factory import create_database_adapter
-from services.database_adapter import DatabaseAdapter
+from .database_factory import create_database_adapter
+from .database_adapter import DatabaseAdapter
 
 
 logger = logging.getLogger("krai.database.api_compat")

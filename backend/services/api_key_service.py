@@ -1,0 +1,165 @@
+"""API key management service with rotation support."""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional
+
+from config.security_config import get_security_config
+from services.database_adapter import DatabaseAdapter
+
+logger = logging.getLogger("krai.api_keys")
+
+
+class APIKeyService:
+    """Service for API key CRUD, validation, and rotation."""
+
+    def __init__(self, adapter: DatabaseAdapter):
+        self.adapter = adapter
+        self.config = get_security_config()
+
+    @staticmethod
+    def _hash_key(raw_key: str) -> str:
+        return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _generate_key_prefix() -> str:
+        return "krai_live_"
+
+    def generate_api_key(self) -> str:
+        random_part = secrets.token_urlsafe(32)
+        return f"{self._generate_key_prefix()}{random_part}"
+
+    async def create_api_key(
+        self,
+        user_id: str,
+        name: str,
+        permissions: Optional[List[str]] = None,
+        expires_in_days: Optional[int] = None,
+    ) -> Dict[str, str]:
+        permissions = permissions or []
+        raw_key = self.generate_api_key()
+        key_hash = self._hash_key(raw_key)
+        expires_days = expires_in_days or self.config.API_KEY_ROTATION_DAYS
+        expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
+
+        query = """
+            INSERT INTO krai_system.api_keys (
+                user_id,
+                name,
+                key_hash,
+                permissions,
+                version,
+                created_at,
+                updated_at,
+                expires_at,
+                revoked,
+                revoked_at
+            )
+            VALUES (%s, %s, %s, %s::jsonb, %s, NOW(), NOW(), %s, FALSE, NULL)
+            RETURNING id, name, permissions, version, created_at, updated_at, expires_at, last_used_at, revoked
+        """
+        result = await self.adapter.execute_query(
+            query,
+            [user_id, name, key_hash, permissions, 1, expires_at],
+        )
+        record = result[0]
+        logger.info("Created API key %s for user %s", record["id"], user_id)
+        return {
+            "id": record["id"],
+            "key": raw_key,
+            "name": record["name"],
+            "permissions": record["permissions"],
+            "created_at": record["created_at"],
+            "updated_at": record["updated_at"],
+            "expires_at": record["expires_at"],
+            "last_used_at": record.get("last_used_at"),
+            "version": record["version"],
+            "revoked": record["revoked"],
+        }
+
+    async def list_user_api_keys(self, user_id: str) -> List[Dict[str, str]]:
+        query = """
+            SELECT id, name, permissions, version, created_at, updated_at, expires_at, last_used_at, revoked
+            FROM krai_system.api_keys
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+        """
+        rows = await self.adapter.execute_query(query, [user_id])
+        return rows
+
+    async def revoke_api_key(self, key_id: str, user_id: Optional[str] = None) -> None:
+        query = """
+            UPDATE krai_system.api_keys
+            SET revoked = TRUE, revoked_at = NOW()
+            WHERE id = %s
+            AND (%s IS NULL OR user_id = %s)
+        """
+        await self.adapter.execute_query(query, [key_id, user_id, user_id])
+        logger.info("Revoked API key %s", key_id)
+
+    async def validate_api_key(self, raw_key: str) -> Optional[Dict[str, str]]:
+        key_hash = self._hash_key(raw_key)
+        query = """
+            SELECT id, user_id, permissions, expires_at, revoked
+            FROM krai_system.api_keys
+            WHERE key_hash = %s
+        """
+        rows = await self.adapter.execute_query(query, [key_hash])
+        if not rows:
+            return None
+        record = rows[0]
+        if record["revoked"]:
+            logger.warning("Attempt to use revoked API key %s", record["id"])
+            return None
+        if record["expires_at"] < datetime.now(timezone.utc):
+            logger.warning("Attempt to use expired API key %s", record["id"])
+            return None
+        await self.adapter.execute_query(
+            "UPDATE krai_system.api_keys SET last_used_at = NOW() WHERE id = %s",
+            [record["id"]],
+        )
+        return record
+
+    async def rotate_api_key(self, key_id: str, user_id: str) -> Dict[str, str]:
+        new_key = self.generate_api_key()
+        key_hash = self._hash_key(new_key)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=self.config.API_KEY_ROTATION_DAYS)
+        query = """
+            UPDATE krai_system.api_keys
+            SET
+                key_hash = %s,
+                version = version + 1,
+                created_at = NOW(),
+                updated_at = NOW(),
+                expires_at = %s,
+                revoked = FALSE,
+                revoked_at = NULL
+            WHERE id = %s AND user_id = %s
+            RETURNING id, name, permissions, version, created_at, updated_at, expires_at, last_used_at, revoked
+        """
+        result = await self.adapter.execute_query(query, [key_hash, expires_at, key_id, user_id])
+        record = result[0]
+        logger.info("Rotated API key %s for user %s", key_id, user_id)
+        return {
+            "id": record["id"],
+            "key": new_key,
+            "name": record["name"],
+            "permissions": record["permissions"],
+            "created_at": record["created_at"],
+            "updated_at": record["updated_at"],
+            "expires_at": record["expires_at"],
+            "last_used_at": record.get("last_used_at"),
+            "version": record["version"],
+            "revoked": record["revoked"],
+        }
+
+    async def cleanup_expired_keys(self) -> None:
+        await self.adapter.execute_query(
+            "DELETE FROM krai_system.api_keys WHERE expires_at < NOW() - INTERVAL '%s days'",
+            [self.config.API_KEY_GRACE_PERIOD_DAYS],
+        )
+        logger.info("Cleaned up expired API keys")

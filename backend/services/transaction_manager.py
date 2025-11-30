@@ -24,8 +24,8 @@ from models.batch import (
 class TransactionManager:
     """Coordinates transactional execution for batch operations."""
 
-    def __init__(self, supabase_adapter: "SupabaseAdapter") -> None:
-        self._adapter = supabase_adapter
+    def __init__(self, database_adapter: "DatabaseAdapter") -> None:
+        self._adapter = database_adapter
         self._logger = logging.getLogger("krai.services.transaction_manager")
 
     @property
@@ -160,10 +160,6 @@ class TransactionManager:
     ) -> str:
         """Persist a rollback point in the audit log and return its identifier."""
 
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot create rollback point")
-
         rollback_point_id = str(uuid.uuid4())
         payload = {
             "table_name": table,
@@ -176,50 +172,76 @@ class TransactionManager:
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        client.table("krai_system.audit_log").insert(payload).execute()
+        # Build INSERT query using DatabaseAdapter
+        columns = list(payload.keys())
+        placeholders = [f"${i+1}" for i in range(len(columns))]
+        values = list(payload.values())
+        
+        query = f"""
+            INSERT INTO krai_system.audit_log ({', '.join(columns)}) 
+            VALUES ({', '.join(placeholders)})
+        """
+        
+        await self._adapter.execute_query(query, values)
         self._logger.debug("Created rollback point %s for %s", rollback_point_id, table)
         return rollback_point_id
 
     async def execute_rollback(self, rollback_point_id: str) -> bool:
         """Restore state using a rollback point previously recorded."""
 
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot execute rollback")
-
-        response = (
-            client.table("krai_system.audit_log")
-            .select("table_name, record_id, old_values")
-            .eq("rollback_point_id", rollback_point_id)
-            .limit(1)
-            .execute()
-        )
-        data = response.data or []
+        query = """
+            SELECT table_name, record_id, old_values 
+            FROM krai_system.audit_log 
+            WHERE rollback_point_id = $1 
+            LIMIT 1
+        """
+        
+        result = await self._adapter.execute_query(query, [rollback_point_id])
+        data = result[0] if result else None
+        
         if not data:
             self._logger.warning("Rollback point %s not found", rollback_point_id)
             return False
 
-        entry = data[0]
-        table_name = entry.get("table_name")
-        record_id = entry.get("record_id")
-        old_values = entry.get("old_values") or {}
+        table_name = data.get("table_name")
+        record_id = data.get("record_id")
+        old_values = data.get("old_values") or {}
         if not table_name or not record_id or not old_values:
             self._logger.warning("Rollback point %s incomplete; aborting rollback", rollback_point_id)
             return False
 
-        client.table(table_name).update(old_values).eq("id", record_id).execute()
-        client.table("krai_system.audit_log").insert(
-            {
-                "table_name": table_name,
-                "record_id": record_id,
-                "operation": "ROLLBACK",
-                "changed_by": None,
-                "new_values": old_values,
-                "rollback_point_id": rollback_point_id,
-                "is_rollback": True,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            },
-        ).execute()
+        # Update record with old values
+        set_clauses = [f"{key} = ${i+2}" for i, key in enumerate(old_values.keys())]
+        update_query = f"""
+            UPDATE {table_name} 
+            SET {', '.join(set_clauses)}
+            WHERE id = $1
+        """
+        
+        await self._adapter.execute_query(update_query, [record_id] + list(old_values.values()))
+        
+        # Log the rollback
+        rollback_payload = {
+            "table_name": table_name,
+            "record_id": record_id,
+            "operation": "ROLLBACK",
+            "changed_by": None,
+            "new_values": old_values,
+            "rollback_point_id": rollback_point_id,
+            "is_rollback": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        
+        columns = list(rollback_payload.keys())
+        placeholders = [f"${i+1}" for i in range(len(columns))]
+        values = list(rollback_payload.values())
+        
+        audit_query = f"""
+            INSERT INTO krai_system.audit_log ({', '.join(columns)}) 
+            VALUES ({', '.join(placeholders)})
+        """
+        
+        await self._adapter.execute_query(audit_query, values)
         self._logger.info("Executed rollback for %s via rollback point %s", record_id, rollback_point_id)
         return True
 
@@ -230,10 +252,6 @@ class TransactionManager:
         reverse the action. This method is intentionally defensive—when incomplete data is
         supplied, the operation is skipped and logged.
         """
-
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot execute compensating transactions")
 
         compensated = 0
         for item in failed_operations:
@@ -254,35 +272,54 @@ class TransactionManager:
 
             try:
                 if operation == "delete" and old_values and record_id:
-                    client.table(table_name).insert(old_values).execute()
+                    # Insert back old values
+                    columns = list(old_values.keys())
+                    placeholders = [f"${i+1}" for i in range(len(columns))]
+                    values = list(old_values.values())
+                    query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+                    await self._adapter.execute_query(query, values)
                     compensated += 1
                 elif operation == "update" and old_values and record_id:
-                    client.table(table_name).update(old_values).eq("id", record_id).execute()
+                    # Update with old values
+                    set_clauses = [f"{key} = ${i+2}" for i, key in enumerate(old_values.keys())]
+                    query = f"UPDATE {table_name} SET {', '.join(set_clauses)} WHERE id = $1"
+                    await self._adapter.execute_query(query, [record_id] + list(old_values.values()))
                     compensated += 1
                 elif operation == "create" and record_id:
-                    client.table(table_name).delete().eq("id", record_id).execute()
+                    # Delete the created record
+                    query = f"DELETE FROM {table_name} WHERE id = $1"
+                    await self._adapter.execute_query(query, [record_id])
                     compensated += 1
                 elif old_values and record_id:
                     # Default to restoring old_values when operation type is ambiguous.
-                    client.table(table_name).update(old_values).eq("id", record_id).execute()
+                    set_clauses = [f"{key} = ${i+2}" for i, key in enumerate(old_values.keys())]
+                    query = f"UPDATE {table_name} SET {', '.join(set_clauses)} WHERE id = $1"
+                    await self._adapter.execute_query(query, [record_id] + list(old_values.values()))
                     compensated += 1
                 else:
                     self._logger.debug("Insufficient rollback information: %s", data)
                     continue
 
-                client.table("krai_system.audit_log").insert(
-                    {
-                        "table_name": table_name,
-                        "record_id": record_id,
-                        "operation": "ROLLBACK",
-                        "changed_by": None,
-                        "rollback_point_id": data.get("rollback_point_id"),
-                        "is_rollback": True,
-                        "old_values": old_values,
-                        "new_values": new_values,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                    },
-                ).execute()
+                # Log the compensating transaction
+                audit_payload = {
+                    "table_name": table_name,
+                    "record_id": record_id,
+                    "operation": "ROLLBACK",
+                    "changed_by": None,
+                    "rollback_point_id": data.get("rollback_point_id"),
+                    "is_rollback": True,
+                    "old_values": old_values,
+                    "new_values": new_values,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+                
+                columns = list(audit_payload.keys())
+                placeholders = [f"${i+1}" for i in range(len(columns))]
+                values = list(audit_payload.values())
+                
+                audit_query = f"INSERT INTO krai_system.audit_log ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+                await self._adapter.execute_query(audit_query, values)
+                
             except Exception as exc:  # pragma: no cover - defensive logging
                 self._logger.error("Compensating transaction failed for %s", data, exc_info=True)
 
@@ -306,5 +343,5 @@ class TransactionManager:
         return size
 
 
-# Circular import avoidance: SupabaseAdapter is only needed for type checking.
-from services.supabase_adapter import SupabaseAdapter  # noqa: E402  # isort:skip
+# Circular import avoidance: DatabaseAdapter is only needed for type checking.
+from services.database_adapter import DatabaseAdapter  # noqa: E402  # isort:skip

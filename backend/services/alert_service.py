@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from models.monitoring import Alert, AlertListResponse, AlertRule, AlertSeverity, AlertType, CreateAlertRule
 from services.metrics_service import MetricsService
-from services.supabase_adapter import SupabaseAdapter
+from services.database_adapter import DatabaseAdapter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -17,9 +17,9 @@ LOGGER = logging.getLogger(__name__)
 class AlertService:
     """Service for managing alerts and alert rules."""
 
-    def __init__(self, supabase_adapter: SupabaseAdapter, metrics_service: MetricsService):
+    def __init__(self, database_adapter: DatabaseAdapter, metrics_service: MetricsService):
         """Initialize alert service."""
-        self.adapter = supabase_adapter
+        self.adapter = database_adapter
         self.metrics_service = metrics_service
         self.alert_rules: List[AlertRule] = []
         self.active_alerts: Dict[str, Alert] = {}
@@ -28,14 +28,15 @@ class AlertService:
     async def load_alert_rules(self) -> List[AlertRule]:
         """Load alert rules from database or use defaults."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Try to load from database
-            response = client.table("alert_rules", schema="krai_system").select("*").eq("enabled", True).execute()
+            # Query alert rules using DatabaseAdapter
+            query = """
+                SELECT * FROM krai_system.alert_rules 
+                WHERE enabled = true
+                ORDER BY created_at DESC
+            """
+            response = await self.adapter.execute_query(query)
             
-            if response.data:
+            if response:
                 self.alert_rules = [
                     AlertRule(
                         id=str(rule.get("id", "")),
@@ -47,7 +48,7 @@ class AlertService:
                         metric_key=rule.get("metric_key"),
                         enabled=rule.get("enabled", True),
                     )
-                    for rule in response.data
+                    for rule in response
                 ]
             else:
                 # Use default rules
@@ -129,10 +130,6 @@ class AlertService:
     async def add_alert_rule(self, rule: CreateAlertRule) -> str:
         """Add new alert rule."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
             rule_data = {
                 "name": rule.name,
                 "alert_type": rule.alert_type.value,
@@ -143,10 +140,21 @@ class AlertService:
                 "enabled": rule.enabled,
             }
 
-            response = client.table("alert_rules", schema="krai_system").insert(rule_data).execute()
+            # Build INSERT query for alert rule
+            columns = list(rule_data.keys())
+            placeholders = [f"${i+1}" for i in range(len(columns))]
+            values = list(rule_data.values())
             
-            if response.data:
-                rule_id = str(response.data[0].get("id", ""))
+            query = f"""
+                INSERT INTO krai_system.alert_rules ({', '.join(columns)}) 
+                VALUES ({', '.join(placeholders)}) 
+                RETURNING id
+            """
+            
+            result = await self.adapter.execute_query(query, values)
+            
+            if result and len(result) > 0:
+                rule_id = str(result[0].get("id", ""))
                 await self.load_alert_rules()
                 self.logger.info(f"Added alert rule: {rule.name} (ID: {rule_id})")
                 return rule_id
@@ -160,13 +168,17 @@ class AlertService:
     async def update_alert_rule(self, rule_id: str, updates: Dict[str, Any]) -> bool:
         """Update existing alert rule."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            response = client.table("alert_rules", schema="krai_system").update(updates).eq("id", rule_id).execute()
+            # Build dynamic UPDATE query
+            set_clauses = [f"{key} = ${i+2}" for i, key in enumerate(updates.keys())]
+            query = f"""
+                UPDATE krai_system.alert_rules 
+                SET {', '.join(set_clauses)}, updated_at = NOW()
+                WHERE id = $1
+            """
             
-            if response.data:
+            result = await self.adapter.execute_query(query, [rule_id] + list(updates.values()))
+            
+            if result and hasattr(result, 'rowcount') and result.rowcount > 0:
                 await self.load_alert_rules()
                 self.logger.info(f"Updated alert rule: {rule_id}")
                 return True
@@ -180,13 +192,10 @@ class AlertService:
     async def delete_alert_rule(self, rule_id: str) -> bool:
         """Delete alert rule."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            response = client.table("alert_rules", schema="krai_system").delete().eq("id", rule_id).execute()
+            query = "DELETE FROM krai_system.alert_rules WHERE id = $1"
+            result = await self.adapter.execute_query(query, [rule_id])
             
-            if response.data:
+            if result and hasattr(result, 'rowcount') and result.rowcount > 0:
                 await self.load_alert_rules()
                 self.logger.info(f"Deleted alert rule: {rule_id}")
                 return True
@@ -242,19 +251,27 @@ class AlertService:
                 acknowledged=False,
             )
 
-            # Insert into database
-            client = self.adapter.service_client or self.adapter.client
-            if client:
-                alert_data = {
-                    "id": alert_id,
-                    "alert_type": alert.alert_type.value,
-                    "severity": alert.severity.value,
-                    "title": alert.title,
-                    "message": alert.message,
-                    "metadata": alert.metadata,
-                    "triggered_at": alert.triggered_at.isoformat(),
-                }
-                client.table("alerts", schema="krai_system").insert(alert_data).execute()
+            # Insert into database using DatabaseAdapter
+            alert_data = {
+                "id": alert_id,
+                "alert_type": alert.alert_type.value,
+                "severity": alert.severity.value,
+                "title": alert.title,
+                "message": alert.message,
+                "metadata": alert.metadata,
+                "triggered_at": alert.triggered_at.isoformat(),
+            }
+            
+            columns = list(alert_data.keys())
+            placeholders = [f"${i+1}" for i in range(len(columns))]
+            values = list(alert_data.values())
+            
+            query = f"""
+                INSERT INTO krai_system.alerts ({', '.join(columns)}) 
+                VALUES ({', '.join(placeholders)})
+            """
+            
+            await self.adapter.execute_query(query, values)
 
             self.logger.info(f"Created alert: {title} (ID: {alert_id})")
             return alert
@@ -349,23 +366,33 @@ class AlertService:
     ) -> AlertListResponse:
         """Get alerts with optional filtering."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Build query
-            query = client.table("alerts", schema="krai_system").select("*")
+            # Build query dynamically
+            conditions = []
+            params = []
+            param_count = 0
             
             if severity_filter:
-                query = query.eq("severity", severity_filter.value)
+                param_count += 1
+                conditions.append(f"severity = ${param_count}")
+                params.append(severity_filter.value)
             
             if acknowledged_filter is not None:
-                query = query.eq("acknowledged", acknowledged_filter)
+                param_count += 1
+                conditions.append(f"acknowledged = ${param_count}")
+                params.append(acknowledged_filter)
             
-            query = query.order("triggered_at", desc=True).limit(limit)
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
             
-            response = query.execute()
-            alerts_data = response.data or []
+            query = f"""
+                SELECT * FROM krai_system.alerts 
+                {where_clause}
+                ORDER BY triggered_at DESC 
+                LIMIT ${param_count + 1}
+            """
+            params.append(limit)
+            
+            alerts_data = await self.adapter.execute_query(query, params)
+            alerts_data = alerts_data or []
 
             alerts = [
                 Alert(
@@ -384,8 +411,9 @@ class AlertService:
             ]
 
             # Count unacknowledged
-            unack_response = client.table("alerts", schema="krai_system").select("id", count="exact").eq("acknowledged", False).execute()
-            unacknowledged_count = unack_response.count or 0
+            unack_query = "SELECT COUNT(*) as count FROM krai_system.alerts WHERE acknowledged = false"
+            unack_result = await self.adapter.execute_query(unack_query)
+            unacknowledged_count = unack_result[0].get("count", 0) if unack_result else 0
 
             return AlertListResponse(
                 alerts=alerts,
@@ -400,19 +428,22 @@ class AlertService:
     async def acknowledge_alert(self, alert_id: str, user_id: str) -> bool:
         """Acknowledge an alert."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
             update_data = {
                 "acknowledged": True,
                 "acknowledged_at": datetime.utcnow().isoformat(),
                 "acknowledged_by": user_id,
             }
 
-            response = client.table("alerts", schema="krai_system").update(update_data).eq("id", alert_id).execute()
+            set_clauses = [f"{key} = ${i+2}" for i, key in enumerate(update_data.keys())]
+            query = f"""
+                UPDATE krai_system.alerts 
+                SET {', '.join(set_clauses)}
+                WHERE id = $1
+            """
             
-            if response.data:
+            result = await self.adapter.execute_query(query, [alert_id] + list(update_data.values()))
+            
+            if result and hasattr(result, 'rowcount') and result.rowcount > 0:
                 # Remove from active alerts
                 for rule_id, alert in list(self.active_alerts.items()):
                     if alert.id == alert_id:
@@ -431,13 +462,10 @@ class AlertService:
     async def dismiss_alert(self, alert_id: str) -> bool:
         """Dismiss (delete) an alert."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            response = client.table("alerts", schema="krai_system").delete().eq("id", alert_id).execute()
+            query = "DELETE FROM krai_system.alerts WHERE id = $1"
+            result = await self.adapter.execute_query(query, [alert_id])
             
-            if response.data:
+            if result and hasattr(result, 'rowcount') and result.rowcount > 0:
                 # Remove from active alerts
                 for rule_id, alert in list(self.active_alerts.items()):
                     if alert.id == alert_id:

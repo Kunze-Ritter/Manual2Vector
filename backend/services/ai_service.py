@@ -9,10 +9,11 @@ import json
 import os
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
+from urllib.parse import urlparse, urlunparse
 import httpx
 
-from config.ai_config import get_ai_config, get_ollama_models, get_model_requirements
-from utils.gpu_detector import get_gpu_info, get_recommended_vision_model
+from backend.config.ai_config import get_ai_config, get_ollama_models, get_model_requirements
+from backend.utils.gpu_detector import get_gpu_info, get_recommended_vision_model
 
 class AIService:
     """
@@ -30,6 +31,24 @@ class AIService:
         self.client = None
         self.logger = logging.getLogger("krai.ai")
         self._setup_logging()
+
+        # Normalize Ollama URL when running outside Docker and targeting Docker-internal host
+        try:
+            parsed = urlparse(self.ollama_url)
+            running_in_docker = os.path.exists("/.dockerenv") or os.getenv("KRAI_IN_DOCKER") == "1"
+            if parsed.hostname in ("krai-ollama", "ollama") and not running_in_docker:
+                port_str = f":{parsed.port}" if parsed.port else ""
+                netloc = f"127.0.0.1{port_str}"
+                original_url = self.ollama_url
+                self.ollama_url = urlunparse(parsed._replace(netloc=netloc))
+                self.logger.info(
+                    "Overriding Ollama URL for local execution: %r -> %r",
+                    original_url,
+                    self.ollama_url,
+                )
+        except Exception:
+            # Best-effort normalization only; fall back silently on errors
+            pass
         
         # Get hardware-optimized configuration
         self.config = get_ai_config()

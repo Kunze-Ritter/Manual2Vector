@@ -6,7 +6,8 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from math import ceil
-from typing import Dict, Optional, Union
+from typing import ClassVar, Dict, Optional, Union
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, root_validator, validator
 
@@ -133,7 +134,7 @@ class ManufacturerFilterParams(BaseModel):
             }
         }
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_year_range(cls, values: Dict[str, Optional[int]]) -> Dict[str, Optional[int]]:
         year_from = values.get("founded_year_from")
         year_to = values.get("founded_year_to")
@@ -152,7 +153,7 @@ class ManufacturerSortParams(BaseModel):
         SortOrder.ASC, description="Sort order: asc or desc"
     )
 
-    ALLOWED_SORT_FIELDS = {
+    ALLOWED_SORT_FIELDS: ClassVar[set[str]] = {
         "name",
         "created_at",
         "updated_at",
@@ -187,7 +188,7 @@ class ManufacturerSortParams(BaseModel):
 class ManufacturerResponse(BaseModel):
     """Manufacturer representation for API responses."""
 
-    id: str
+    id: UUID
     name: str
     short_name: Optional[str] = None
     country: Optional[str] = None
@@ -272,15 +273,6 @@ class ManufacturerListResponse(BaseModel):
             }
         }
 
-    @root_validator
-    def validate_pagination(cls, values: Dict[str, int]) -> Dict[str, int]:
-        total = values.get("total", 0)
-        page_size = values.get("page_size", 1)
-        if page_size <= 0:
-            raise ValueError("page_size must be greater than 0")
-        values["total_pages"] = max(1, ceil(total / page_size)) if total else 1
-        return values
-
 
 class ManufacturerStatsResponse(BaseModel):
     """Aggregate statistics for manufacturers."""
@@ -303,10 +295,3 @@ class ManufacturerStatsResponse(BaseModel):
                 "total_market_share": 87.4,
             }
         }
-
-
-# Resolve forward references now that ManufacturerResponse is defined
-ProductWithRelationsResponse.update_forward_refs(
-    ManufacturerResponse=ManufacturerResponse,
-    ProductListResponse=ProductListResponse,
-)

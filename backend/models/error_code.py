@@ -4,10 +4,20 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, PositiveInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator, validator
 
 from models.document import DocumentResponse, SortOrder
 from models.manufacturer import ManufacturerResponse
+from models.validators import (
+    ensure_allowed_fields,
+    sanitize_string,
+    validate_error_code,
+    validate_no_sql_injection,
+    validate_uuid,
+)
+
+
+ALLOWED_SEARCH_FIELDS = {"error_code", "error_description", "solution_text"}
 
 
 class SeverityLevel(str, Enum):
@@ -82,6 +92,27 @@ class ErrorCodeBase(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+    @validator("chunk_id", "document_id", "manufacturer_id")
+    def validate_related_ids(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator("error_code", pre=True)
+    def sanitize_error_code(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        sanitized = sanitize_string(value)
+        return validate_error_code(sanitized)
+
+    @validator("error_description", "solution_text", "ai_notes", pre=True)
+    def sanitize_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        sanitized = sanitize_string(value)
+        validate_no_sql_injection(sanitized)
+        return sanitized
 
 
 class ErrorCodeCreateRequest(ErrorCodeBase):
@@ -178,6 +209,28 @@ class ErrorCodeFilterParams(BaseModel):
             }
         }
     )
+
+    @validator("manufacturer_id", "document_id", "chunk_id")
+    def validate_filter_ids(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator("error_code", pre=True)
+    def sanitize_error_code_filter(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        sanitized = sanitize_string(value)
+        return validate_error_code(sanitized)
+
+    @validator("search")
+    def validate_search(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if len(value) > 200:
+            raise ValueError("search must be 200 characters or less")
+        validate_no_sql_injection(value)
+        return value
 
 
 class ErrorCodeSortParams(BaseModel):
@@ -322,6 +375,26 @@ class ErrorCodeSearchRequest(BaseModel):
             }
         }
     )
+
+    @validator("manufacturer_id")
+    def validate_manufacturer(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator("query")
+    def sanitize_query(cls, value: str) -> str:
+        sanitized = sanitize_string(value)
+        if len(sanitized) > 200:
+            raise ValueError("query must be 200 characters or less")
+        return validate_no_sql_injection(sanitized)
+
+    @validator("search_in")
+    def validate_search_in(cls, value: List[str]) -> List[str]:
+        allowed = ensure_allowed_fields(value, ALLOWED_SEARCH_FIELDS, "search_in")
+        if not allowed:
+            raise ValueError("search_in must include at least one field")
+        return allowed
 
 
 class ErrorCodeSearchResponse(BaseModel):

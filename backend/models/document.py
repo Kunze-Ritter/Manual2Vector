@@ -8,9 +8,15 @@ from enum import Enum
 from math import ceil
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import BaseModel, Field, validator
 
 from core.data_models import DocumentType, ProcessingStatus
+from models.validators import (
+    validate_filename,
+    validate_file_hash,
+    validate_uuid,
+    validate_no_sql_injection,
+)
 
 
 class PaginationParams(BaseModel):
@@ -38,6 +44,9 @@ class SortOrder(str, Enum):
 
     ASC = "asc"
     DESC = "desc"
+
+
+ALLOWED_DOCUMENT_SORT_FIELDS = {"created_at", "updated_at", "filename", "document_type"}
 
 
 class DocumentCreateRequest(BaseModel):
@@ -73,6 +82,14 @@ class DocumentCreateRequest(BaseModel):
                 "version": "v1.2",
             }
         }
+
+    @validator("filename", "original_filename")
+    def validate_filenames(cls, value: str) -> str:
+        return validate_filename(value)
+
+    @validator("file_hash")
+    def validate_hash(cls, value: str) -> str:
+        return validate_file_hash(value)
 
     @validator("models", each_item=True)
     def validate_models(cls, value: str) -> str:
@@ -118,6 +135,16 @@ class DocumentUpdateRequest(BaseModel):
             raise ValueError("Model identifiers cannot be empty")
         return value
 
+    @validator("document_type", "language", "manufacturer", "series", "version", pre=True, always=True)
+    def sanitize_strings(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @validator("processing_status")
+    def validate_status(cls, value: Optional[ProcessingStatus]) -> Optional[ProcessingStatus]:
+        return value
+
 
 class DocumentFilterParams(BaseModel):
     """Supported filters for listing documents."""
@@ -127,6 +154,9 @@ class DocumentFilterParams(BaseModel):
     document_type: Optional[str] = Field(None, description="Filter by document type")
     language: Optional[str] = Field(None, description="Filter by language")
     processing_status: Optional[str] = Field(None, description="Filter by processing status")
+    manual_review_required: Optional[bool] = Field(
+        None, description="Filter by manual review requirement flag"
+    )
     search: Optional[str] = Field(None, description="Full-text search query")
 
     class Config:
@@ -139,6 +169,21 @@ class DocumentFilterParams(BaseModel):
                 "search": "CS920 calibration",
             }
         }
+
+    @validator("manufacturer_id", "product_id")
+    def validate_ids(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator("search")
+    def validate_search(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if len(value) > 100:
+            raise ValueError("search must be 100 characters or less")
+        validate_no_sql_injection(value)
+        return value
 
     @validator("document_type")
     def validate_document_type(cls, value: Optional[str]) -> Optional[str]:
@@ -171,8 +216,6 @@ class DocumentSortParams(BaseModel):
         SortOrder.DESC, description="Sort order: asc or desc"
     )
 
-    ALLOWED_SORT_FIELDS = {"created_at", "updated_at", "filename", "document_type"}
-
     class Config:
         json_schema_extra = {
             "example": {
@@ -183,8 +226,8 @@ class DocumentSortParams(BaseModel):
 
     @validator("sort_by")
     def validate_sort_by(cls, value: str) -> str:
-        if value not in cls.ALLOWED_SORT_FIELDS:
-            allowed = ", ".join(sorted(cls.ALLOWED_SORT_FIELDS))
+        if value not in ALLOWED_DOCUMENT_SORT_FIELDS:
+            allowed = ", ".join(sorted(ALLOWED_DOCUMENT_SORT_FIELDS))
             raise ValueError(f"sort_by must be one of: {allowed}")
         return value
 
@@ -216,6 +259,9 @@ class DocumentResponse(BaseModel):
     character_count: Optional[int] = None
     processing_status: Optional[ProcessingStatus] = None
     confidence_score: Optional[float] = None
+    manual_review_required: Optional[bool] = None
+    manual_review_notes: Optional[str] = None
+    stage_status: Optional[dict] = None
     manufacturer: Optional[str] = None
     series: Optional[str] = None
     models: List[str] = Field(default_factory=list)
@@ -278,15 +324,6 @@ class DocumentListResponse(BaseModel):
                 "total_pages": 15,
             }
         }
-
-    @root_validator
-    def validate_pagination(cls, values: Dict[str, int]) -> Dict[str, int]:
-        total = values.get("total", 0)
-        page_size = values.get("page_size", 1)
-        if page_size <= 0:
-            raise ValueError("page_size must be greater than 0")
-        values["total_pages"] = max(1, ceil(total / page_size)) if total else 1
-        return values
 
 
 class DocumentStatsResponse(BaseModel):

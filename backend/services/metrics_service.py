@@ -17,7 +17,7 @@ from models.monitoring import (
     ValidationMetrics,
 )
 from processors.stage_tracker import StageTracker
-from services.supabase_adapter import SupabaseAdapter
+from services.database_adapter import DatabaseAdapter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -27,9 +27,9 @@ class MetricsService:
 
     CACHE_TTL_SECONDS = 5
 
-    def __init__(self, supabase_adapter: SupabaseAdapter, stage_tracker: StageTracker):
+    def __init__(self, database_adapter: DatabaseAdapter, stage_tracker: StageTracker):
         """Initialize metrics service."""
-        self.adapter = supabase_adapter
+        self.adapter = database_adapter
         self.stage_tracker = stage_tracker
         self._cache: Dict[str, Tuple[Any, datetime]] = {}
         self.logger = LOGGER
@@ -69,17 +69,14 @@ class MetricsService:
             return cached
 
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Query aggregated view (server-side computation)
-            response = client.table("vw_pipeline_metrics_aggregated", schema="public").select("*").limit(1).execute()
+            # Query aggregated view using DatabaseAdapter
+            query = "SELECT * FROM public.vw_pipeline_metrics_aggregated LIMIT 1"
+            response = await self.adapter.execute_query(query)
             
-            if not response.data or len(response.data) == 0:
+            if not response or len(response) == 0:
                 raise RuntimeError("No aggregated metrics available")
             
-            data = response.data[0]
+            data = response[0]
             
             # Calculate throughput from recent count
             current_throughput = float(data.get("recent_24h_count", 0)) / 24.0
@@ -119,13 +116,10 @@ class MetricsService:
             return cached
 
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Query aggregated stage metrics view
-            response = client.table("vw_stage_metrics_aggregated", schema="public").select("*").execute()
-            stage_data = response.data or []
+            # Query aggregated stage metrics view using DatabaseAdapter
+            query = "SELECT * FROM public.vw_stage_metrics_aggregated"
+            stage_data = await self.adapter.execute_query(query)
+            stage_data = stage_data or []
 
             metrics = []
             for stage in stage_data:
@@ -161,22 +155,20 @@ class MetricsService:
             return cached
 
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Query aggregated view (server-side computation)
-            response = client.table("vw_queue_metrics_aggregated", schema="public").select("*").limit(1).execute()
+            # Query aggregated view using DatabaseAdapter
+            query = "SELECT * FROM public.vw_queue_metrics_aggregated LIMIT 1"
+            response = await self.adapter.execute_query(query)
             
-            if not response.data or len(response.data) == 0:
+            if not response or len(response) == 0:
                 raise RuntimeError("No aggregated queue metrics available")
             
-            data = response.data[0]
+            data = response[0]
             
-            # Get task type breakdown (still need to query for this)
-            type_response = client.table("processing_queue", schema="krai_system").select("task_type").execute()
+            # Get task type breakdown
+            type_query = "SELECT task_type FROM krai_system.processing_queue"
+            type_response = await self.adapter.execute_query(type_query)
             by_task_type: Dict[str, int] = {}
-            for item in (type_response.data or []):
+            for item in (type_response or []):
                 task_type = item.get("task_type", "unknown")
                 by_task_type[task_type] = by_task_type.get(task_type, 0) + 1
 
@@ -208,18 +200,28 @@ class MetricsService:
     async def get_queue_items(self, limit: int = 100, status_filter: Optional[str] = None) -> List[QueueItem]:
         """Get queue items with optional filtering."""
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Build query
-            query = client.table("processing_queue", schema="krai_system").select("*")
+            # Build query dynamically
+            conditions = []
+            params = []
+            param_count = 0
+            
             if status_filter:
-                query = query.eq("status", status_filter)
-            query = query.order("priority", desc=True).order("scheduled_at").limit(limit)
+                param_count += 1
+                conditions.append(f"status = ${param_count}")
+                params.append(status_filter)
+            
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            
+            query = f"""
+                SELECT * FROM krai_system.processing_queue 
+                {where_clause}
+                ORDER BY priority DESC, scheduled_at 
+                LIMIT ${param_count + 1}
+            """
+            params.append(limit)
 
-            response = query.execute()
-            items = response.data or []
+            items = await self.adapter.execute_query(query, params)
+            items = items or []
 
             return [
                 QueueItem(
@@ -247,23 +249,13 @@ class MetricsService:
             return cached
 
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
+            # Query duplicates by file_hash using RPC
+            hash_duplicates = await self.adapter.rpc("get_duplicate_hashes", {})
+            hash_duplicates = hash_duplicates or []
 
-            # Query duplicates by file_hash
-            hash_response = client.rpc(
-                "get_duplicate_hashes",
-                {},
-            ).execute()
-            hash_duplicates = hash_response.data or []
-
-            # Query duplicates by filename
-            filename_response = client.rpc(
-                "get_duplicate_filenames",
-                {},
-            ).execute()
-            filename_duplicates = filename_response.data or []
+            # Query duplicates by filename using RPC
+            filename_duplicates = await self.adapter.rpc("get_duplicate_filenames", {})
+            filename_duplicates = filename_duplicates or []
 
             duplicate_documents = []
             for dup in hash_duplicates:
@@ -299,13 +291,10 @@ class MetricsService:
             return cached
 
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Query documents with errors
-            response = client.table("documents", schema="krai_core").select("id, filename, stage_status").execute()
-            documents = response.data or []
+            # Query documents with errors using DatabaseAdapter
+            query = "SELECT id, filename, stage_status FROM krai_core.documents"
+            documents = await self.adapter.execute_query(query)
+            documents = documents or []
 
             errors_by_stage: Dict[str, int] = {}
             documents_with_errors = []
@@ -346,13 +335,10 @@ class MetricsService:
             return cached
 
         try:
-            client = self.adapter.service_client or self.adapter.client
-            if not client:
-                raise RuntimeError("Supabase client not available")
-
-            # Query documents
-            response = client.table("vw_documents", schema="public").select("*").execute()
-            documents = response.data or []
+            # Query documents using DatabaseAdapter
+            query = "SELECT * FROM public.vw_documents"
+            documents = await self.adapter.execute_query(query)
+            documents = documents or []
 
             total_processed = len(documents)
             successful = sum(1 for d in documents if d.get("processing_status") == "completed")

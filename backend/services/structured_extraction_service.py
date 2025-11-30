@@ -16,8 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from services.config_service import ConfigService
-from services.web_scraping_service import WebScrapingService
+from .config_service import ConfigService
+from .web_scraping_service import WebScrapingService
 
 class StructuredExtractionService:
     """Service coordinating schema-based structured extractions via Firecrawl."""

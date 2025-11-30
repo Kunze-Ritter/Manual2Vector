@@ -9,7 +9,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
-from api.app import get_supabase_adapter
+from api.app import get_database_adapter
 from api.middleware.auth_middleware import require_permission
 from api.routes.response_models import SuccessResponse
 from models.batch import (
@@ -28,7 +28,7 @@ from models.batch import (
 )
 from services.batch_task_service import BatchTaskService
 from services.transaction_manager import TransactionManager
-from services.supabase_adapter import SupabaseAdapter
+from services.database_adapter import DatabaseAdapter
 
 LOGGER = logging.getLogger("krai.api.batch")
 
@@ -74,13 +74,6 @@ def _split_schema_table(table_name: str) -> Tuple[Optional[str], str]:
     return None, table_name
 
 
-def _get_table_query(client: Any, table_name: str):
-    schema, base_table = _split_schema_table(table_name)
-    if schema:
-        return client.table(base_table, schema=schema)
-    return client.table(base_table)
-
-
 def should_run_async(item_count: int) -> bool:
     return item_count >= ASYNC_THRESHOLD
 
@@ -91,7 +84,7 @@ def _get_resource_permission(resource_type: str, action: str) -> str:
     return f"{RESOURCE_PERMISSIONS[resource_type]}:{action}"
 
 
-async def _get_services(supabase: SupabaseAdapter) -> Dict[str, Any]:
+async def _get_services(database_adapter: DatabaseAdapter) -> Dict[str, Any]:
     from api.app import get_batch_task_service, get_transaction_manager  # Circular import guard
 
     task_service = await get_batch_task_service()
@@ -100,7 +93,7 @@ async def _get_services(supabase: SupabaseAdapter) -> Dict[str, Any]:
     return {
         "task_service": task_service,
         "transaction_manager": transaction_manager,
-        "supabase_adapter": supabase,
+        "database_adapter": database_adapter,
     }
 
 
@@ -120,7 +113,7 @@ def _ensure_user_permission(current_user: Dict[str, Any], permission: str) -> No
 
 async def _fetch_record(
     connection: Optional[Any],
-    client: Any,
+    adapter: DatabaseAdapter,
     table_name: str,
     record_id: str,
 ) -> Optional[Dict[str, Any]]:
@@ -129,20 +122,16 @@ async def _fetch_record(
         row = await connection.fetchrow(query, record_id)
         return dict(row) if row else None
 
-    response = (
-        _get_table_query(client, table_name)
-        .select("*")
-        .eq("id", record_id)
-        .limit(1)
-        .execute()
+    result = await adapter.execute_query(
+        f"SELECT * FROM {table_name} WHERE id = $1 LIMIT 1",
+        [record_id]
     )
-    data = response.data or []
-    return data[0] if data else None
+    return result[0] if result else None
 
 
 async def _delete_record(
     connection: Optional[Any],
-    client: Any,
+    adapter: DatabaseAdapter,
     table_name: str,
     record_id: str,
 ) -> None:
@@ -151,12 +140,15 @@ async def _delete_record(
         await connection.execute(query, record_id)
         return
 
-    _get_table_query(client, table_name).delete().eq("id", record_id).execute()
+    await adapter.execute_query(
+        f"DELETE FROM {table_name} WHERE id = $1",
+        [record_id]
+    )
 
 
 async def _update_record(
     connection: Optional[Any],
-    client: Any,
+    adapter: DatabaseAdapter,
     table_name: str,
     record_id: str,
     update_data: Dict[str, Any],
@@ -182,12 +174,32 @@ async def _update_record(
         await connection.execute(query, *parameters)
         return
 
-    _get_table_query(client, table_name).update(update_data).eq("id", record_id).execute()
+    # Build dynamic UPDATE query for DatabaseAdapter
+    set_clauses = []
+    params = []
+    param_count = 0
+    
+    for column, value in update_data.items():
+        if not COLUMN_NAME_PATTERN.match(column):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Invalid update column: {column}")
+        
+        param_count += 1
+        cast_suffix = "::jsonb" if isinstance(value, (dict, list)) else ""
+        set_clauses.append(f"{column} = ${param_count}{cast_suffix}")
+        params.append(value)
+    
+    param_count += 1
+    params.append(record_id)
+    
+    await adapter.execute_query(
+        f"UPDATE {table_name} SET {', '.join(set_clauses)} WHERE id = ${param_count}",
+        params
+    )
 
 
 async def _insert_audit_log(
     connection: Optional[Any],
-    client: Any,
+    adapter: DatabaseAdapter,
     payload: Dict[str, Any],
 ) -> None:
     old_values = payload.get("old_values")
@@ -222,7 +234,27 @@ async def _insert_audit_log(
         )
         return
 
-    _get_table_query(client, "krai_system.audit_log").insert(payload).execute()
+    await adapter.execute_query(
+        "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, old_values, new_values, notes, rollback_point_id, is_rollback) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9)",
+        [
+            payload.get("table_name"),
+            payload.get("record_id"),
+            payload.get("operation"),
+            payload.get("changed_by"),
+            payload.get("old_values"),
+            payload.get("new_values"),
+            payload.get("notes"),
+            payload.get("rollback_point_id"),
+            payload.get("is_rollback", False),
+        ]
+    )
+
+
+def _prepare_update_value(value: Any) -> Any:
+    """Prepare a value for SQL query - handle JSON serialization for complex types."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return value
 
 
 def _build_result(
@@ -242,7 +274,7 @@ def _build_result(
 
 async def _execute_sync_delete(
     *,
-    supabase: SupabaseAdapter,
+    adapter: DatabaseAdapter,
     transaction_manager: TransactionManager,
     resource_type: str,
     ids: List[str],
@@ -250,25 +282,22 @@ async def _execute_sync_delete(
     progress_callback: Optional[ProgressCallback] = None,
 ) -> BatchOperationResponse:
     table_name = RESOURCE_TABLE_MAP[resource_type]
-    client = supabase.service_client or supabase.client
-    if client is None:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database client not available")
-
+    
     operations: List[Callable[[Optional[Any]], Awaitable[BatchOperationResult]]] = []
 
     for record_id in ids:
 
         async def _delete_operation(connection: Optional[Any], record_id: str = record_id) -> BatchOperationResult:
             try:
-                existing_data = await _fetch_record(connection, client, table_name, record_id)
+                existing_data = await _fetch_record(connection, adapter, table_name, record_id)
                 if not existing_data:
                     LOGGER.info("Skipping delete for %s - not found", record_id)
                     return _build_result(identifier=record_id, success=False, error="Not found")
 
-                await _delete_record(connection, client, table_name, record_id)
+                await _delete_record(connection, adapter, table_name, record_id)
                 await _insert_audit_log(
                     connection,
-                    client,
+                    adapter,
                     {
                         "table_name": table_name,
                         "record_id": record_id,
@@ -304,7 +333,7 @@ async def _execute_sync_delete(
 
 async def _execute_sync_update(
     *,
-    supabase: SupabaseAdapter,
+    adapter: DatabaseAdapter,
     transaction_manager: TransactionManager,
     resource_type: str,
     updates: List[Dict[str, Any]],
@@ -312,26 +341,30 @@ async def _execute_sync_update(
     progress_callback: Optional[ProgressCallback] = None,
 ) -> BatchOperationResponse:
     table_name = RESOURCE_TABLE_MAP[resource_type]
-    client = supabase.service_client or supabase.client
-    if client is None:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database client not available")
 
     operations: List[Callable[[Optional[Any]], Awaitable[BatchOperationResult]]] = []
     for payload in updates:
-        record_id = payload["id"]
-        update_data = dict(payload["update_data"])
+        record_id = payload.get("id")
+        if not record_id:
+            LOGGER.warning("Skipping update without record ID: %s", payload)
+            continue
+
+        update_data = {k: v for k, v in payload.items() if k != "id"}
+        if not update_data:
+            LOGGER.info("Skipping update %s - no data to update", record_id)
+            continue
 
         async def _update_operation(connection: Optional[Any], record_id: str = record_id, update_data: Dict[str, Any] = update_data) -> BatchOperationResult:
             try:
-                existing_data = await _fetch_record(connection, client, table_name, record_id)
+                existing_data = await _fetch_record(connection, adapter, table_name, record_id)
                 if not existing_data:
                     LOGGER.info("Skipping update for %s - not found", record_id)
                     return _build_result(identifier=record_id, success=False, error="Not found")
 
-                await _update_record(connection, client, table_name, record_id, update_data)
+                await _update_record(connection, adapter, table_name, record_id, update_data)
                 await _insert_audit_log(
                     connection,
-                    client,
+                    adapter,
                     {
                         "table_name": table_name,
                         "record_id": record_id,
@@ -349,8 +382,8 @@ async def _execute_sync_update(
                         "operation": "update",
                         "table": table_name,
                         "record_id": record_id,
-                        "old_values": existing_data,
                         "new_values": update_data,
+                        "old_values": existing_data,
                     },
                 )
             except Exception as exc:  # pragma: no cover - defensive logging
@@ -369,7 +402,7 @@ async def _execute_sync_update(
 
 async def _execute_sync_status_change(
     *,
-    supabase: SupabaseAdapter,
+    adapter: DatabaseAdapter,
     transaction_manager: TransactionManager,
     resource_type: str,
     ids: List[str],
@@ -379,21 +412,18 @@ async def _execute_sync_status_change(
     progress_callback: Optional[ProgressCallback] = None,
 ) -> BatchOperationResponse:
     table_name = RESOURCE_TABLE_MAP[resource_type]
-    client = supabase.service_client or supabase.client
-    if client is None:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database client not available")
 
     operations: List[Callable[[Optional[Any]], Awaitable[BatchOperationResult]]] = []
     for record_id in ids:
         async def _status_operation(connection: Optional[Any], record_id: str = record_id) -> BatchOperationResult:
             try:
-                existing_data = await _fetch_record(connection, client, table_name, record_id)
+                existing_data = await _fetch_record(connection, adapter, table_name, record_id)
                 if not existing_data:
                     LOGGER.info("Skipping status change for %s - not found", record_id)
                     return _build_result(identifier=record_id, success=False, error="Not found")
 
                 update_payload = {"status": new_status}
-                await _update_record(connection, client, table_name, record_id, update_payload)
+                await _update_record(connection, adapter, table_name, record_id, update_payload)
 
                 audit_payload = {
                     "table_name": table_name,
@@ -405,7 +435,7 @@ async def _execute_sync_status_change(
                 }
                 if reason:
                     audit_payload["notes"] = reason
-                await _insert_audit_log(connection, client, audit_payload)
+                await _insert_audit_log(connection, adapter, audit_payload)
 
                 return _build_result(
                     identifier=record_id,
@@ -437,7 +467,7 @@ def _build_task_executor(
     operation: str,
     resource_type: str,
     payload: Dict[str, Any],
-    supabase: SupabaseAdapter,
+    adapter: DatabaseAdapter,
     transaction_manager: TransactionManager,
     user_id: str,
     progress_callback: Optional[ProgressCallback],
@@ -448,7 +478,7 @@ def _build_task_executor(
             if not isinstance(ids, list) or not ids:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="delete operation requires non-empty 'ids' list")
             return await _execute_sync_delete(
-                supabase=supabase,
+                adapter=adapter,
                 transaction_manager=transaction_manager,
                 resource_type=resource_type,
                 ids=ids,
@@ -461,7 +491,7 @@ def _build_task_executor(
             if not isinstance(updates, list) or not updates:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="update operation requires non-empty 'updates' list")
             return await _execute_sync_update(
-                supabase=supabase,
+                adapter=adapter,
                 transaction_manager=transaction_manager,
                 resource_type=resource_type,
                 updates=updates,
@@ -477,7 +507,7 @@ def _build_task_executor(
             if not new_status:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="status_change operation requires 'new_status'")
             return await _execute_sync_status_change(
-                supabase=supabase,
+                adapter=adapter,
                 transaction_manager=transaction_manager,
                 resource_type=resource_type,
                 ids=ids,
@@ -497,7 +527,7 @@ async def _schedule_async_operation(
     background_tasks: BackgroundTasks,
     task_service: BatchTaskService,
     transaction_manager: TransactionManager,
-    supabase: SupabaseAdapter,
+    adapter: DatabaseAdapter,
     request: BatchOperationRequest,
     user_id: str,
 ) -> BatchOperationResponse:
@@ -549,7 +579,7 @@ async def _schedule_async_operation(
             operation=request.operation,
             resource_type=request.resource_type,
             payload=payload,
-            supabase=supabase,
+            adapter=adapter,
             transaction_manager=transaction_manager,
             user_id=user_id,
             progress_callback=_progress_callback,
@@ -586,13 +616,13 @@ async def batch_delete(
     request: BatchDeleteRequest,
     background_tasks: BackgroundTasks,
     current_user: Dict[str, Any] = Depends(require_permission("batch:delete")),
-    supabase: SupabaseAdapter = Depends(get_supabase_adapter),
+    database_adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[BatchOperationResponse]:
     await _validate_resource_type(request.resource_type)
     permission = _get_resource_permission(request.resource_type, "delete")
     _ensure_user_permission(current_user, permission)
 
-    services = await _get_services(supabase)
+    services = await _get_services(database_adapter)
     task_service: BatchTaskService = services["task_service"]
     transaction_manager: TransactionManager = services["transaction_manager"]
 
@@ -610,14 +640,14 @@ async def batch_delete(
             background_tasks=background_tasks,
             task_service=task_service,
             transaction_manager=transaction_manager,
-            supabase=supabase,
+            adapter=database_adapter,
             request=batch_request,
             user_id=current_user.get("id"),
         )
         return SuccessResponse(data=response)
 
     response = await _execute_sync_delete(
-        supabase=supabase,
+        adapter=database_adapter,
         transaction_manager=transaction_manager,
         resource_type=request.resource_type,
         ids=request.ids,
@@ -631,13 +661,13 @@ async def batch_update(
     request: BatchUpdateRequest,
     background_tasks: BackgroundTasks,
     current_user: Dict[str, Any] = Depends(require_permission("batch:update")),
-    supabase: SupabaseAdapter = Depends(get_supabase_adapter),
+    database_adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[BatchOperationResponse]:
     await _validate_resource_type(request.resource_type)
     permission = _get_resource_permission(request.resource_type, "write")
     _ensure_user_permission(current_user, permission)
 
-    services = await _get_services(supabase)
+    services = await _get_services(database_adapter)
     task_service: BatchTaskService = services["task_service"]
     transaction_manager: TransactionManager = services["transaction_manager"]
 
@@ -655,14 +685,14 @@ async def batch_update(
             background_tasks=background_tasks,
             task_service=task_service,
             transaction_manager=transaction_manager,
-            supabase=supabase,
+            adapter=database_adapter,
             request=batch_request,
             user_id=current_user.get("id"),
         )
         return SuccessResponse(data=response)
 
     response = await _execute_sync_update(
-        supabase=supabase,
+        adapter=database_adapter,
         transaction_manager=transaction_manager,
         resource_type=request.resource_type,
         updates=request.updates,
@@ -676,13 +706,13 @@ async def batch_status_change(
     request: BatchStatusChangeRequest,
     background_tasks: BackgroundTasks,
     current_user: Dict[str, Any] = Depends(require_permission("batch:update")),
-    supabase: SupabaseAdapter = Depends(get_supabase_adapter),
+    database_adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[BatchOperationResponse]:
     await _validate_resource_type(request.resource_type)
     permission = _get_resource_permission(request.resource_type, "write")
     _ensure_user_permission(current_user, permission)
 
-    services = await _get_services(supabase)
+    services = await _get_services(database_adapter)
     task_service: BatchTaskService = services["task_service"]
     transaction_manager: TransactionManager = services["transaction_manager"]
 
@@ -706,14 +736,14 @@ async def batch_status_change(
             background_tasks=background_tasks,
             task_service=task_service,
             transaction_manager=transaction_manager,
-            supabase=supabase,
+            adapter=database_adapter,
             request=batch_request,
             user_id=current_user.get("id"),
         )
         return SuccessResponse(data=response)
 
     response = await _execute_sync_status_change(
-        supabase=supabase,
+        adapter=database_adapter,
         transaction_manager=transaction_manager,
         resource_type=request.resource_type,
         ids=request.ids,
@@ -728,9 +758,9 @@ async def batch_status_change(
 async def get_batch_task_status(
     task_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("batch:read")),
-    supabase: SupabaseAdapter = Depends(get_supabase_adapter),
+    database_adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[BatchTaskResponse]:
-    services = await _get_services(supabase)
+    services = await _get_services(database_adapter)
     task_service: BatchTaskService = services["task_service"]
     status_response = await task_service.get_task_status(task_id)
     return SuccessResponse(data=status_response)
@@ -741,9 +771,9 @@ async def list_batch_tasks(
     status_filter: Optional[BatchTaskStatus] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     current_user: Dict[str, Any] = Depends(require_permission("batch:read")),
-    supabase: SupabaseAdapter = Depends(get_supabase_adapter),
+    database_adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[List[BatchTaskResponse]]:
-    services = await _get_services(supabase)
+    services = await _get_services(database_adapter)
     task_service: BatchTaskService = services["task_service"]
     tasks = await task_service.list_tasks(
         user_id=current_user.get("id"),
@@ -758,9 +788,9 @@ async def cancel_batch_task(
     task_id: str,
     reason: str = Query(..., min_length=5, max_length=200),
     current_user: Dict[str, Any] = Depends(require_permission("batch:delete")),
-    supabase: SupabaseAdapter = Depends(get_supabase_adapter),
+    database_adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[Dict[str, Any]]:
-    services = await _get_services(supabase)
+    services = await _get_services(database_adapter)
     task_service: BatchTaskService = services["task_service"]
     await task_service.cancel_task(task_id, reason)
     return SuccessResponse(data={"success": True, "message": "Task cancelled"})
@@ -770,9 +800,9 @@ async def cancel_batch_task(
 async def rollback_batch_operation(
     request: RollbackRequest,
     current_user: Dict[str, Any] = Depends(require_permission("batch:rollback")),
-    supabase: SupabaseAdapter = Depends(get_supabase_adapter),
+    database_adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[RollbackResponse]:
-    services = await _get_services(supabase)
+    services = await _get_services(database_adapter)
     task_service: BatchTaskService = services["task_service"]
     transaction_manager: TransactionManager = services["transaction_manager"]
 

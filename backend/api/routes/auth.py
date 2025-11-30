@@ -24,6 +24,7 @@ from api.dependencies.auth import get_auth_service, set_auth_service
 from api.middleware.auth_middleware import (
     get_current_user, require_admin, require_permission
 )
+from api.middleware.rate_limit_middleware import limiter, rate_limit_auth
 from services.database_service import DatabaseService
 from config.auth_config import ACCESS_TOKEN
 
@@ -35,19 +36,25 @@ security = HTTPBearer()
 
 def get_client_ip(request: Request) -> str:
     """Get client IP address"""
-    # Check for forwarded headers first (if behind proxy/load balancer)
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        # Take the first IP if multiple are listed
-        return forwarded_for.split(",")[0].strip()
-    
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip
-    
-    # Fall back to direct client IP
-    client_ip = request.client.host
-    return client_ip if client_ip else "unknown"
+    try:
+        # Check for forwarded headers first (if behind proxy/load balancer)
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            # Take the first IP if multiple are listed
+            return forwarded_for.split(",")[0].strip()
+        
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip
+        
+        # Fall back to direct client IP
+        if request.client and request.client.host:
+            return request.client.host
+            
+        return "unknown"
+    except Exception as e:
+        logger.error(f"Error resolving client IP: {e}")
+        return "unknown"
 
 # Request/Response Models
 class LoginRequest(UserLogin):
@@ -116,8 +123,8 @@ class ErrorResponseModel(BaseModel):
     500: {"description": "Internal server error", "model": ErrorResponseModel}
 })
 async def login(
-    request: LoginRequest,
-    req: Request,
+    request: Request,
+    payload: LoginRequest,
     service: AuthService = Depends(get_auth_service)
 ):
     """
@@ -127,15 +134,17 @@ async def login(
     - **password**: User's password
     - **remember_me**: Whether to generate a refresh token (default: false)
     """
+    print("DEBUG: Login endpoint called")
     try:
         # Get client IP for rate limiting
-        client_ip = get_client_ip(req)
+        client_ip = get_client_ip(request)
+        print(f"DEBUG: Client IP resolved: {client_ip}")
         
         # Create login data
         login_data = UserLogin(
-            username=request.username,
-            password=request.password,
-            remember_me=request.remember_me
+            username=payload.username,
+            password=payload.password,
+            remember_me=payload.remember_me
         )
         
         # Authenticate user
@@ -175,6 +184,8 @@ async def login(
             ).dict()
         )
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"Login error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -192,6 +203,7 @@ async def login(
     409: {"description": "Username or email already exists", "model": ErrorResponseModel},
     500: {"description": "Internal server error", "model": ErrorResponseModel}
 })
+@limiter.limit(rate_limit_auth)
 async def register(
     request: RegisterRequest,
     service: AuthService = Depends(get_auth_service)
@@ -265,6 +277,7 @@ async def register(
     401: {"description": "Invalid or expired refresh token", "model": ErrorResponseModel},
     500: {"description": "Internal server error", "model": ErrorResponseModel}
 })
+@limiter.limit(rate_limit_auth)
 async def refresh_token(
     request: TokenRefreshRequest,
     service: AuthService = Depends(get_auth_service)
@@ -335,6 +348,7 @@ async def get_current_user_info(
     401: {"description": "Not authenticated", "model": ErrorResponseModel},
     500: {"description": "Internal server error", "model": ErrorResponseModel}
 })
+@limiter.limit("10/minute")
 async def logout(
     request: Request,
     current_user: dict = Depends(get_current_user()),

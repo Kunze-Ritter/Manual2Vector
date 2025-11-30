@@ -18,13 +18,13 @@ try:
 except ImportError:
     raise ImportError("asyncpg not available. Please install: pip install asyncpg")
 
-from core.data_models import (
+from backend.core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
     ErrorCodeModel, SearchAnalyticsModel, ProcessingQueueModel,
     AuditLogModel, SystemMetricsModel, PrintDefectModel
 )
-from services.database_adapter import DatabaseAdapter
+from .database_adapter import DatabaseAdapter
 
 
 class PostgreSQLAdapter(DatabaseAdapter):
@@ -78,8 +78,10 @@ class PostgreSQLAdapter(DatabaseAdapter):
         if not isinstance(params, dict):
             return query, [params]
 
-        # Named parameters
-        pattern = re.compile(r":([a-zA-Z0-9_]+)")
+        # Named parameters (ignore PostgreSQL type casts like '::text', '::uuid')
+        # We only treat a single ':' followed by an identifier as a parameter,
+        # not a double-colon type cast.
+        pattern = re.compile(r"(?<!:):(?!:)([a-zA-Z0-9_]+)")
         values: List[Any] = []
         index_map: Dict[str, int] = {}
 
@@ -118,7 +120,8 @@ class PostgreSQLAdapter(DatabaseAdapter):
         async with pool.acquire() as conn:
             # Return rows for SELECT/RETURNING/CTE statements
             if lower_query.startswith(("select", "with")) or " returning " in lower_query:
-                return await conn.fetch(formatted_query, *values)
+                rows = await conn.fetch(formatted_query, *values)
+                return [dict(row) for row in rows]
 
             status = await conn.execute(formatted_query, *values)
 
@@ -132,6 +135,54 @@ class PostgreSQLAdapter(DatabaseAdapter):
                 rowcount = 0
 
             return SimpleNamespace(status=status, rowcount=rowcount)
+    
+    async def rpc(
+        self,
+        function_name: str,
+        params: Optional[Dict[str, Any]] = None
+    ) -> Any:
+        """Execute a PostgreSQL stored procedure.
+        
+        Args:
+            function_name: Name of the stored procedure (with schema prefix)
+            params: Named parameters for the procedure
+            
+        Returns:
+            Procedure result
+        """
+        if not self.pg_pool:
+            await self.connect()
+        
+        # Build function call with named parameters
+        param_names = list(params.keys()) if params else []
+        param_values = list(params.values()) if params else []
+        
+        # Create placeholders: $1, $2, $3, ...
+        placeholders = ', '.join([f'${i+1}' for i in range(len(param_values))])
+        
+        # Build query: SELECT * FROM schema.function_name($1, $2, ...)
+        # If function_name already has schema prefix, use it as-is
+        if '.' in function_name:
+            query = f"SELECT * FROM {function_name}({placeholders})"
+        else:
+            query = f"SELECT * FROM {self.schema_prefix}.{function_name}({placeholders})"
+        
+        async with self.pg_pool.acquire() as conn:
+            try:
+                rows = await conn.fetch(query, *param_values)
+                
+                # Return single value if only one row and one column
+                if len(rows) == 1 and len(rows[0]) == 1:
+                    return rows[0][0]
+                
+                # Return list of dicts for multiple rows
+                return [dict(row) for row in rows]
+                
+            except Exception as e:
+                self.logger.error(f"RPC call failed: {function_name}")
+                self.logger.error(f"Params: {params}")
+                self.logger.error(f"Error: {e}")
+                raise
 
     def _prepare_insert(self, data: Dict[str, Any]) -> tuple[list[str], list[str], list[Any]]:
         columns = list(data.keys())
@@ -201,7 +252,21 @@ class PostgreSQLAdapter(DatabaseAdapter):
                 f"SELECT * FROM {self.schema_prefix}_core.documents WHERE id = $1",
                 document_id
             )
-            return DocumentModel(**dict(row)) if row else None
+            if not row:
+                return None
+
+            # Normalize row for Pydantic DocumentModel
+            row_dict = dict(row)
+
+            # Ensure id is a string (asyncpg may return UUID objects)
+            if "id" in row_dict and row_dict["id"] is not None and not isinstance(row_dict["id"], str):
+                row_dict["id"] = str(row_dict["id"])
+
+            # Ensure models is always a list (database may store NULL)
+            if "models" in row_dict and row_dict["models"] is None:
+                row_dict["models"] = []
+
+            return DocumentModel(**row_dict)
     
     async def get_document_by_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
         """Get document by file hash for deduplication"""
@@ -227,9 +292,30 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.info(f"Updated document {document_id}")
             return True
     
-    # Placeholder implementations for remaining methods
-    # TODO: Implement all methods from DatabaseAdapter interface
-    
+    async def get_chunks_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all chunks for a document (alias for get_intelligence_chunks_by_document)"""
+        return await self.get_intelligence_chunks_by_document(document_id)
+
+    async def get_intelligence_chunks_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all intelligence chunks for a document"""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM krai_intelligence.chunks WHERE document_id = $1 ORDER BY chunk_index",
+                document_id
+            )
+            return [dict(row) for row in rows]
+
+    async def get_images_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Get all images for a document"""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM krai_content.images WHERE document_id = $1 ORDER BY page_number",
+                document_id
+            )
+            return [dict(row) for row in rows]
+
     async def create_manufacturer(self, manufacturer: ManufacturerModel) -> str:
         pool = self._ensure_pool()
         manufacturer_data = manufacturer.model_dump(mode='python', exclude_none=True)
@@ -1265,4 +1351,154 @@ class PostgreSQLAdapter(DatabaseAdapter):
         except Exception as e:
             self.logger.error(f"Failed to delete document: {e}")
             return False
+
+    # ========== STAGE TRACKING METHODS ==========
+    
+    async def start_stage(self, document_id: str, stage: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Start processing stage for a document"""
+        try:
+            result = await self.rpc('krai_core.start_stage', {
+                'document_id': document_id,
+                'stage': stage,
+                'metadata': metadata or {}
+            })
+            return result or {'success': True}
+        except Exception as e:
+            self.logger.error(f"Failed to start stage {stage} for document {document_id}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def update_stage_progress(
+        self, 
+        document_id: str, 
+        stage: str, 
+        progress: int, 
+        metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Update progress for a processing stage"""
+        try:
+            result = await self.rpc('krai_core.update_stage_progress', {
+                'document_id': document_id,
+                'stage': stage,
+                'progress': progress,
+                'metadata': metadata or {}
+            })
+            return result or {'success': True}
+        except Exception as e:
+            self.logger.error(f"Failed to update progress for stage {stage}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def complete_stage(
+        self, 
+        document_id: str, 
+        stage: str, 
+        metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Mark a processing stage as completed"""
+        try:
+            result = await self.rpc('krai_core.complete_stage', {
+                'document_id': document_id,
+                'stage': stage,
+                'metadata': metadata or {}
+            })
+            return result or {'success': True}
+        except Exception as e:
+            self.logger.error(f"Failed to complete stage {stage}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def fail_stage(
+        self, 
+        document_id: str, 
+        stage: str, 
+        error: str, 
+        metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Mark a processing stage as failed"""
+        try:
+            result = await self.rpc('krai_core.fail_stage', {
+                'document_id': document_id,
+                'stage': stage,
+                'error': error,
+                'metadata': metadata or {}
+            })
+            return result or {'success': True}
+        except Exception as e:
+            self.logger.error(f"Failed to mark stage {stage} as failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def skip_stage(
+        self, 
+        document_id: str, 
+        stage: str, 
+        reason: str = None, 
+        metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Skip a processing stage"""
+        try:
+            result = await self.rpc('krai_core.skip_stage', {
+                'document_id': document_id,
+                'stage': stage,
+                'reason': reason,
+                'metadata': metadata or {}
+            })
+            return result or {'success': True}
+        except Exception as e:
+            self.logger.error(f"Failed to skip stage {stage}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def get_document_progress(self, document_id: str) -> Dict[str, Any]:
+        """Get current progress for a document"""
+        try:
+            result = await self.rpc('krai_core.get_document_progress', {
+                'document_id': document_id
+            })
+            return result or {}
+        except Exception as e:
+            self.logger.error(f"Failed to get document progress: {e}")
+            return {}
+    
+    async def get_current_stage(self, document_id: str) -> Optional[str]:
+        """Get the current processing stage for a document"""
+        try:
+            result = await self.rpc('krai_core.get_current_stage', {
+                'document_id': document_id
+            })
+            return result.get('current_stage') if result else None
+        except Exception as e:
+            self.logger.error(f"Failed to get current stage: {e}")
+            return None
+    
+    async def can_start_stage(self, document_id: str, stage: str) -> bool:
+        """Check if a stage can be started for a document"""
+        try:
+            result = await self.rpc('krai_core.can_start_stage', {
+                'document_id': document_id,
+                'stage': stage
+            })
+            return result.get('can_start', False) if result else False
+        except Exception as e:
+            self.logger.error(f"Failed to check if stage can start: {e}")
+            return False
+    
+    async def get_stage_status(self, document_id: str, stage: str) -> Dict[str, Any]:
+        """Get status for a specific stage"""
+        try:
+            result = await self.rpc('krai_core.get_stage_status', {
+                'document_id': document_id,
+                'stage': stage
+            })
+            return result or {}
+        except Exception as e:
+            self.logger.error(f"Failed to get stage status: {e}")
+            return {}
+    
+    async def get_stage_statistics(self) -> Dict[str, Any]:
+        """Get overall stage statistics"""
+        try:
+            result = await self.execute_query(
+                "SELECT * FROM public.vw_stage_statistics LIMIT 1"
+            )
+            return result[0] if result else {}
+        except Exception as e:
+            self.logger.error(f"Failed to get stage statistics: {e}")
+            return {}
 

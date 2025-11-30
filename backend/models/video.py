@@ -5,11 +5,16 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, PositiveInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, PositiveInt, model_validator, validator
 
 from models.document import DocumentResponse, PaginationParams, SortOrder
 from models.manufacturer import ManufacturerResponse
 from models.product import ProductResponse, ProductSeriesResponse
+from models.validators import (
+    sanitize_string,
+    validate_no_sql_injection,
+    validate_uuid,
+)
 
 
 class VideoPlatform(str, Enum):
@@ -82,6 +87,27 @@ class VideoBase(BaseModel):
             raise ValueError("published_at cannot be in the future.")
         return values
 
+    @validator("manufacturer_id", "series_id", "document_id")
+    def validate_related_ids(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator(
+        "title",
+        "description",
+        "channel_title",
+        "youtube_id",
+        "link_id",
+        pre=True,
+    )
+    def sanitize_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        sanitized = sanitize_string(value)
+        validate_no_sql_injection(sanitized)
+        return sanitized
+
 
 class VideoCreateRequest(VideoBase):
     """Payload for creating a new video record."""
@@ -151,6 +177,21 @@ class VideoFilterParams(BaseModel):
             }
         }
     )
+
+    @validator("manufacturer_id", "series_id", "document_id")
+    def validate_filter_ids(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator("search")
+    def validate_search(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if len(value) > 150:
+            raise ValueError("search must be 150 characters or less")
+        validate_no_sql_injection(value)
+        return value
 
 
 class VideoSortParams(BaseModel):
@@ -241,6 +282,12 @@ class VideoProductLinkRequest(BaseModel):
             "example": {"product_ids": ["prod-001", "prod-002"]}
         }
     )
+
+    @validator("product_ids")
+    def validate_product_ids(cls, value: List[str]) -> List[str]:
+        if not value:
+            raise ValueError("product_ids cannot be empty")
+        return [validate_uuid(product_id) for product_id in value]
 
 
 class VideoEnrichmentRequest(BaseModel):

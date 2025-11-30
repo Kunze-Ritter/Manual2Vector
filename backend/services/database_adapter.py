@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 import logging
 
-from core.data_models import (
+from backend.core.data_models import (
     DocumentModel, ManufacturerModel, ProductSeriesModel, ProductModel,
     ChunkModel, ImageModel, IntelligenceChunkModel, EmbeddingModel,
     ErrorCodeModel, SearchAnalyticsModel, ProcessingQueueModel,
@@ -252,3 +252,47 @@ class DatabaseAdapter(ABC):
         Optional method - adapters can override for performance optimization.
         """
         raise NotImplementedError("Batch operations not implemented for this adapter")
+    
+    # Generic Query Execution
+    @abstractmethod
+    async def execute_query(
+        self,
+        query: str,
+        params: Optional[List[Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Execute a raw SQL query with parameters.
+        
+        Args:
+            query: SQL query string with %s placeholders
+            params: List of parameters for the query
+            
+        Returns:
+            List of dictionaries representing query results
+        """
+        pass
+    
+    # RPC Method (Optional - Supabase-specific)
+    async def rpc(
+        self,
+        function_name: str,
+        params: Optional[Dict[str, Any]] = None
+    ) -> Any:
+        """Execute a database RPC function (Supabase-specific).
+        
+        Optional method - only implemented by adapters that support RPC.
+        PostgreSQL adapter can implement this for stored procedures.
+        
+        Args:
+            function_name: Name of the RPC function
+            params: Parameters for the function
+            
+        Returns:
+            Function result
+            
+        Raises:
+            NotImplementedError: If adapter doesn't support RPC
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support RPC calls. "
+            "Use direct SQL queries or implement stored procedures."
+        )

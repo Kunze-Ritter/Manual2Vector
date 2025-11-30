@@ -8,10 +8,15 @@ from math import ceil
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from supabase import Client
-
-from api.app import get_supabase
+from api.app import get_database_adapter
+from services.database_adapter import DatabaseAdapter
 from api.middleware.auth_middleware import require_permission
+from api.middleware.rate_limit_middleware import (
+    limiter,
+    rate_limit_search,
+    rate_limit_standard,
+    rate_limit_upload,
+)
 from api.routes.response_models import ErrorResponse, SuccessResponse
 from models.document import DocumentResponse, PaginationParams, SortOrder
 from models.manufacturer import ManufacturerResponse
@@ -61,115 +66,75 @@ def _calculate_total_pages(total: int, page_size: int) -> int:
     return ceil(total / page_size) if total > 0 else 1
 
 
-def _apply_filters(query: Any, filters: VideoFilterParams) -> Any:
-    if filters.manufacturer_id:
-        query = query.eq("manufacturer_id", filters.manufacturer_id)
-    if filters.series_id:
-        query = query.eq("series_id", filters.series_id)
-    if filters.document_id:
-        query = query.eq("document_id", filters.document_id)
-    if filters.platform:
-        query = query.eq("platform", filters.platform.value)
-    if filters.youtube_id:
-        query = query.eq("youtube_id", filters.youtube_id)
-    if filters.search:
-        search = filters.search
-        query = query.or_(
-            ",".join(
-                [
-                    f"title.ilike.%{search}%",
-                    f"description.ilike.%{search}%",
-                    f"channel_title.ilike.%{search}%",
-                ]
-            )
-        )
-    return query
-
-
-def _apply_sorting(query: Any, sort: VideoSortParams) -> Any:
-    sort_order = sort.sort_order if isinstance(sort.sort_order, SortOrder) else SortOrder(sort.sort_order)
-    return query.order(sort.sort_by, desc=sort_order == SortOrder.DESC)
-
-
-def _apply_pagination(query: Any, pagination: PaginationParams) -> Any:
-    start_index = (pagination.page - 1) * pagination.page_size
-    end_index = start_index + pagination.page_size - 1
-    return query.range(start_index, end_index)
-
-
-def _fetch_document(supabase: Client, document_id: Optional[str]) -> Optional[DocumentResponse]:
+async def _fetch_document(adapter: DatabaseAdapter, document_id: Optional[str]) -> Optional[DocumentResponse]:
     if not document_id:
         return None
-    response = (
-        supabase.table("krai_core.documents").select("*").eq("id", document_id).limit(1).execute()
+    result = await adapter.execute_query(
+        "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+        [document_id]
     )
-    data = response.data or []
-    if not data:
+    if not result:
         return None
-    return DocumentResponse(**data[0])
+    return DocumentResponse(**result[0])
 
 
-def _fetch_manufacturer(
-    supabase: Client, manufacturer_id: Optional[str]
+async def _fetch_manufacturer(
+    adapter: DatabaseAdapter, manufacturer_id: Optional[str]
 ) -> Optional[ManufacturerResponse]:
     if not manufacturer_id:
         return None
-    response = (
-        supabase.table("krai_core.manufacturers")
-        .select("*")
-        .eq("id", manufacturer_id)
-        .limit(1)
-        .execute()
+    result = await adapter.execute_query(
+        "SELECT * FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
+        [manufacturer_id]
     )
-    data = response.data or []
-    if not data:
+    if not result:
         return None
-    return ManufacturerResponse(**data[0])
+    return ManufacturerResponse(**result[0])
 
 
-def _fetch_series(supabase: Client, series_id: Optional[str]) -> Optional[ProductSeriesResponse]:
+async def _fetch_series(adapter: DatabaseAdapter, series_id: Optional[str]) -> Optional[ProductSeriesResponse]:
     if not series_id:
         return None
-    response = (
-        supabase.table("krai_core.product_series").select("*").eq("id", series_id).limit(1).execute()
+    result = await adapter.execute_query(
+        "SELECT * FROM krai_core.product_series WHERE id = $1 LIMIT 1",
+        [series_id]
     )
-    data = response.data or []
-    if not data:
+    if not result:
         return None
-    return ProductSeriesResponse(**data[0])
+    return ProductSeriesResponse(**result[0])
 
 
-def _fetch_linked_products(supabase: Client, video_id: str) -> List[ProductResponse]:
-    links = (
-        supabase.table("krai_content.video_products")
-        .select("product_id")
-        .eq("video_id", video_id)
-        .execute()
+async def _fetch_linked_products(adapter: DatabaseAdapter, video_id: str) -> List[ProductResponse]:
+    links = await adapter.execute_query(
+        "SELECT product_id FROM krai_content.video_products WHERE video_id = $1",
+        [video_id]
     )
-    product_ids = [link["product_id"] for link in links.data or [] if link.get("product_id")]
+    product_ids = [link["product_id"] for link in links if link.get("product_id")]
     if not product_ids:
         return []
-    products = (
-        supabase.table("krai_core.products")
-        .select("*")
-        .in_("id", product_ids)
-        .execute()
+    
+    # Build IN query with proper parameter binding
+    placeholders = ','.join([f'${i+1}' for i in range(len(product_ids))])
+    products = await adapter.execute_query(
+        f"SELECT * FROM krai_core.products WHERE id IN ({placeholders})",
+        product_ids
     )
-    return [ProductResponse(**item) for item in products.data or []]
+    return [ProductResponse(**item) for item in products or []]
 
 
-def _validate_foreign_keys(
-    supabase: Client,
+async def _validate_foreign_keys(
+    adapter: DatabaseAdapter,
     *,
     manufacturer_id: Optional[str] = None,
     series_id: Optional[str] = None,
     document_id: Optional[str] = None,
 ) -> None:
     if manufacturer_id:
-        manufacturer = (
-            supabase.table("krai_core.manufacturers").select("id").eq("id", manufacturer_id).limit(1).execute()
+        manufacturer = await adapter.execute_query(
+            "SELECT id FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
+            [manufacturer_id]
         )
-        if not (manufacturer.data or []):
+        if not manufacturer:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
                 f"Manufacturer with ID {manufacturer_id} not found",
@@ -177,10 +142,11 @@ def _validate_foreign_keys(
                 error_code="MANUFACTURER_NOT_FOUND",
             )
     if series_id:
-        series = (
-            supabase.table("krai_core.product_series").select("id").eq("id", series_id).limit(1).execute()
+        series = await adapter.execute_query(
+            "SELECT id FROM krai_core.product_series WHERE id = $1 LIMIT 1",
+            [series_id]
         )
-        if not (series.data or []):
+        if not series:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
                 f"Product series with ID {series_id} not found",
@@ -188,10 +154,11 @@ def _validate_foreign_keys(
                 error_code="SERIES_NOT_FOUND",
             )
     if document_id:
-        document = (
-            supabase.table("krai_core.documents").select("id").eq("id", document_id).limit(1).execute()
+        document = await adapter.execute_query(
+            "SELECT id FROM krai_core.documents WHERE id = $1 LIMIT 1",
+            [document_id]
         )
-        if not (document.data or []):
+        if not document:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
                 f"Document with ID {document_id} not found",
@@ -200,8 +167,8 @@ def _validate_foreign_keys(
             )
 
 
-def _build_relations(
-    supabase: Client,
+async def _build_relations(
+    adapter: DatabaseAdapter,
     record: Dict[str, Any],
     include_relations: bool,
 ) -> VideoWithRelationsResponse:
@@ -211,15 +178,15 @@ def _build_relations(
 
     return VideoWithRelationsResponse(
         **base.model_dump(),
-        manufacturer=_fetch_manufacturer(supabase, record.get("manufacturer_id")),
-        series=_fetch_series(supabase, record.get("series_id")),
-        document=_fetch_document(supabase, record.get("document_id")),
-        linked_products=_fetch_linked_products(supabase, record.get("id")),
+        manufacturer=await _fetch_manufacturer(adapter, record.get("manufacturer_id")),
+        series=await _fetch_series(adapter, record.get("series_id")),
+        document=await _fetch_document(adapter, record.get("document_id")),
+        linked_products=await _fetch_linked_products(adapter, record.get("id")),
     )
 
 
-def _insert_audit_log(
-    supabase: Client,
+async def _insert_audit_log(
+    adapter: DatabaseAdapter,
     *,
     record_id: str,
     operation: str,
@@ -238,34 +205,32 @@ def _insert_audit_log(
             payload["new_values"] = new_values
         if old_values is not None:
             payload["old_values"] = old_values
-        supabase.table("krai_system.audit_log").insert(payload).execute()
+        await adapter.execute_query(
+            "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values, old_values) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)",
+            [payload.get("table_name"), payload.get("record_id"), payload.get("operation"), payload.get("changed_by"), payload.get("new_values"), payload.get("old_values")]
+        )
     except Exception as audit_exc:  # pragma: no cover
         LOGGER.warning("Audit log insert failed for video %s: %s", record_id, audit_exc)
 
 
-def _deduplicate_video(
-    supabase: Client,
+async def _deduplicate_video(
+    adapter: DatabaseAdapter,
     payload: VideoCreateRequest,
 ) -> Optional[Dict[str, Any]]:
     if payload.youtube_id:
-        duplicate = (
-            supabase.table("krai_content.videos")
-            .select("*")
-            .eq("youtube_id", payload.youtube_id)
-            .limit(1)
-            .execute()
+        duplicate = await adapter.execute_query(
+            "SELECT * FROM krai_content.videos WHERE youtube_id = $1 LIMIT 1",
+            [payload.youtube_id]
         )
-        if duplicate.data:
-            return duplicate.data[0]
-    duplicate = (
-        supabase.table("krai_content.videos")
-        .select("*")
-        .eq("video_url", str(payload.video_url))
-        .limit(1)
-        .execute()
+        if duplicate:
+            return duplicate[0]
+    
+    duplicate = await adapter.execute_query(
+        "SELECT * FROM krai_content.videos WHERE video_url = $1 LIMIT 1",
+        [str(payload.video_url)]
     )
-    if duplicate.data:
-        return duplicate.data[0]
+    if duplicate:
+        return duplicate[0]
     return None
 
 
@@ -299,25 +264,93 @@ def _serialize_metadata(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 @router.get("", response_model=SuccessResponse[VideoListResponse])
-def list_videos(
+@limiter.limit(rate_limit_search)
+async def list_videos(
     pagination: PaginationParams = Depends(),
     filters: VideoFilterParams = Depends(),
     sort: VideoSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("videos:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[VideoListResponse]:
     try:
-        query = supabase.table("krai_content.videos").select("*", count="exact")
-        query = _apply_filters(query, filters)
-        query = _apply_sorting(query, sort)
-        query = _apply_pagination(query, pagination)
+        # Build SQL query with filters and pagination
+        where_clauses = []
+        params = []
+        param_count = 0
+        
+        # Apply filters
+        if filters.document_id:
+            param_count += 1
+            where_clauses.append(f"document_id = ${param_count}")
+            params.append(filters.document_id)
+        
+        if filters.manufacturer_id:
+            param_count += 1
+            where_clauses.append(f"manufacturer_id = ${param_count}")
+            params.append(filters.manufacturer_id)
+        
+        if filters.video_type:
+            param_count += 1
+            where_clauses.append(f"video_type = ${param_count}")
+            params.append(filters.video_type.value)
+        
+        if filters.has_transcript is not None:
+            param_count += 1
+            where_clauses.append(f"has_transcript = ${param_count}")
+            params.append(filters.has_transcript)
+        
+        if filters.has_ai_summary is not None:
+            param_count += 1
+            where_clauses.append(f"has_ai_summary = ${param_count}")
+            params.append(filters.has_ai_summary)
+        
+        if filters.search:
+            param_count += 1
+            where_clauses.append(f"(title ILIKE ${param_count} OR description ILIKE ${param_count} OR ai_summary ILIKE ${param_count} OR transcript_text ILIKE ${param_count})")
+            search_term = f"%{filters.search}%"
+            params.extend([search_term, search_term, search_term, search_term])
+            param_count += 3
+        
+        where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        
+        # Apply sorting
+        order_direction = "DESC" if sort.sort_order == SortOrder.DESC else "ASC"
+        order_clause = f" ORDER BY {sort.sort_by} {order_direction}"
+        
+        # Apply pagination
+        offset = (pagination.page - 1) * pagination.page_size
+        limit_clause = f" LIMIT {pagination.page_size} OFFSET {offset}"
+        
+        # Execute query
+        query = f"""
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM krai_content.videos
+            {where_clause}
+            {order_clause}
+            {limit_clause}
+        """
+        
+        result = await adapter.execute_query(query, params)
+        
+        # Get total count from first row or execute separate count query
+        total = 0
+        if result:
+            total = result[0].get('total_count', len(result))
+        else:
+            # Fallback count query
+            count_query = f"SELECT COUNT(*) as count FROM krai_content.videos{where_clause}"
+            count_result = await adapter.execute_query(count_query, params)
+            total = count_result[0].get('count', 0) if count_result else 0
 
-        response = query.execute()
-        data = response.data or []
-        total = response.count or 0
+        LOGGER.info(
+            "Listed videos page=%s size=%s total=%s",
+            pagination.page,
+            pagination.page_size,
+            total,
+        )
 
         payload = VideoListResponse(
-            videos=[VideoResponse(**item) for item in data],
+            videos=[VideoResponse(**item) for item in result or []],
             total=total,
             page=pagination.page,
             page_size=pagination.page_size,
@@ -334,28 +367,25 @@ def list_videos(
     "/{video_id}",
     response_model=SuccessResponse[VideoWithRelationsResponse],
 )
-def get_video(
+@limiter.limit(rate_limit_standard)
+async def get_video(
     video_id: str,
     include_relations: bool = Query(False),
     current_user: Dict[str, Any] = Depends(require_permission("videos:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[VideoWithRelationsResponse]:
     try:
-        response = (
-            supabase.table("krai_content.videos")
-            .select("*")
-            .eq("id", video_id)
-            .limit(1)
-            .execute()
+        result = await adapter.execute_query(
+            "SELECT * FROM krai_content.videos WHERE id = $1 LIMIT 1",
+            [video_id]
         )
-        data = response.data or []
-        if not data:
+        if not result:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Video not found", "VIDEO_NOT_FOUND"),
             )
 
-        enriched = _build_relations(supabase, data[0], include_relations)
+        enriched = await _build_relations(adapter, result[0], include_relations)
         return SuccessResponse(data=enriched)
     except HTTPException:
         raise
@@ -368,20 +398,21 @@ def get_video(
     response_model=SuccessResponse[VideoResponse],
     status_code=status.HTTP_201_CREATED,
 )
-def create_video(
+@limiter.limit(rate_limit_upload)
+async def create_video(
     payload: VideoCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[VideoResponse]:
     try:
-        _validate_foreign_keys(
-            supabase,
+        await _validate_foreign_keys(
+            adapter,
             manufacturer_id=payload.manufacturer_id,
             series_id=payload.series_id,
             document_id=payload.document_id,
         )
 
-        duplicate = _deduplicate_video(supabase, payload)
+        duplicate = await _deduplicate_video(adapter, payload)
         if duplicate:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -397,24 +428,30 @@ def create_video(
         record_dict["created_at"] = now
         record_dict["updated_at"] = now
 
-        insert_response = supabase.table("krai_content.videos").insert(record_dict).execute()
-        data = insert_response.data or []
-        if not data:
+        # Build INSERT query dynamically
+        columns = list(record_dict.keys())
+        placeholders = [f"${i+1}" for i in range(len(columns))]
+        values = list(record_dict.values())
+        
+        query = f"INSERT INTO krai_content.videos ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING *"
+        result = await adapter.execute_query(query, values)
+        
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to create video"),
             )
 
-        video_id = data[0]["id"]
+        video_id = result[0]["id"]
         LOGGER.info("Created video %s", video_id)
-        _insert_audit_log(
-            supabase,
+        await _insert_audit_log(
+            adapter,
             record_id=video_id,
             operation="INSERT",
             changed_by=current_user.get("id"),
-            new_values=data[0],
+            new_values=result[0],
         )
-        return SuccessResponse(data=VideoResponse(**data[0]))
+        return SuccessResponse(data=VideoResponse(**result[0]))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -425,22 +462,19 @@ def create_video(
     "/{video_id}",
     response_model=SuccessResponse[VideoResponse],
 )
-def update_video(
+@limiter.limit(rate_limit_standard)
+async def update_video(
     video_id: str,
     payload: VideoUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[VideoResponse]:
     try:
-        existing = (
-            supabase.table("krai_content.videos")
-            .select("*")
-            .eq("id", video_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT * FROM krai_content.videos WHERE id = $1 LIMIT 1",
+            [video_id]
         )
-        data = existing.data or []
-        if not data:
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Video not found", "VIDEO_NOT_FOUND"),
@@ -448,10 +482,10 @@ def update_video(
 
         update_payload = payload.model_dump(exclude_unset=True, exclude_none=True)
         if not update_payload:
-            return SuccessResponse(data=VideoResponse(**data[0]))
+            return SuccessResponse(data=VideoResponse(**existing[0]))
 
-        _validate_foreign_keys(
-            supabase,
+        await _validate_foreign_keys(
+            adapter,
             manufacturer_id=update_payload.get("manufacturer_id"),
             series_id=update_payload.get("series_id"),
             document_id=update_payload.get("document_id"),
@@ -459,78 +493,40 @@ def update_video(
 
         update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        response = (
-            supabase.table("krai_content.videos")
-            .update(update_payload)
-            .eq("id", video_id)
-            .execute()
+        # Build dynamic UPDATE query
+        set_clauses = []
+        params = []
+        param_count = 0
+        
+        for key, value in update_payload.items():
+            param_count += 1
+            set_clauses.append(f"{key} = ${param_count}")
+            params.append(value)
+        
+        param_count += 1
+        params.append(video_id)
+        
+        result = await adapter.execute_query(
+            f"UPDATE krai_content.videos SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *",
+            params
         )
-        updated = response.data or []
-        if not updated:
+        
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to update video"),
             )
 
         LOGGER.info("Updated video %s", video_id)
-        _insert_audit_log(
-            supabase,
+        await _insert_audit_log(
+            adapter,
             record_id=video_id,
             operation="UPDATE",
             changed_by=current_user.get("id"),
-            new_values=updated[0],
-            old_values=data[0],
+            new_values=result[0],
+            old_values=existing[0],
         )
-        return SuccessResponse(data=VideoResponse(**updated[0]))
-    except HTTPException:
-        raise
-    except Exception as exc:  # pragma: no cover
-        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
-
-
-@router.delete(
-    "/{video_id}",
-    response_model=SuccessResponse[Dict[str, str]],
-)
-def delete_video(
-    video_id: str,
-    current_user: Dict[str, Any] = Depends(require_permission("videos:delete")),
-    supabase: Client = Depends(get_supabase),
-) -> SuccessResponse[Dict[str, str]]:
-    try:
-        existing = (
-            supabase.table("krai_content.videos")
-            .select("*")
-            .eq("id", video_id)
-            .limit(1)
-            .execute()
-        )
-        data = existing.data or []
-        if not data:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                detail=_error_response("Not Found", "Video not found", "VIDEO_NOT_FOUND"),
-            )
-
-        links = (
-            supabase.table("krai_content.video_products")
-            .select("id", count="exact", head=True)
-            .eq("video_id", video_id)
-            .execute()
-        )
-        if (links.count or 0) > 0:
-            LOGGER.warning("Deleting video %s which has linked products", video_id)
-
-        supabase.table("krai_content.videos").delete().eq("id", video_id).execute()
-        LOGGER.info("Deleted video %s", video_id)
-        _insert_audit_log(
-            supabase,
-            record_id=video_id,
-            operation="DELETE",
-            changed_by=current_user.get("id"),
-            old_values=data[0],
-        )
-        return SuccessResponse(data={"message": "Video deleted successfully"})
+        return SuccessResponse(data=VideoResponse(**result[0]))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -541,10 +537,11 @@ def delete_video(
     "/enrich",
     response_model=SuccessResponse[VideoEnrichmentResponse],
 )
+@limiter.limit(rate_limit_upload)
 async def enrich_video(
     payload: VideoEnrichmentRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[VideoEnrichmentResponse]:
     try:
         service = VideoEnrichmentService()
@@ -563,186 +560,6 @@ async def enrich_video(
             error=result.get("error"),
         )
         return SuccessResponse(data=response_payload)
-    except HTTPException:
-        raise
-    except Exception as exc:  # pragma: no cover
-        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
-
-
-@router.post(
-    "/{video_id}/link-products",
-    response_model=SuccessResponse[Dict[str, Any]],
-)
-def link_video_products(
-    video_id: str,
-    payload: VideoProductLinkRequest,
-    current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    supabase: Client = Depends(get_supabase),
-) -> SuccessResponse[Dict[str, Any]]:
-    try:
-        video = (
-            supabase.table("krai_content.videos")
-            .select("id")
-            .eq("id", video_id)
-            .limit(1)
-            .execute()
-        )
-        if not (video.data or []):
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                detail=_error_response("Not Found", "Video not found", "VIDEO_NOT_FOUND"),
-            )
-
-        linked_count = 0
-        for product_id in payload.product_ids:
-            product = (
-                supabase.table("krai_core.products")
-                .select("id")
-                .eq("id", product_id)
-                .limit(1)
-                .execute()
-            )
-            if not (product.data or []):
-                LOGGER.warning("Product %s not found when linking to video %s", product_id, video_id)
-                continue
-
-            link = (
-                supabase.table("krai_content.video_products")
-                .select("id")
-                .eq("video_id", video_id)
-                .eq("product_id", product_id)
-                .limit(1)
-                .execute()
-            )
-            if link.data:
-                continue
-
-            supabase.table("krai_content.video_products").insert(
-                {"video_id": video_id, "product_id": product_id}
-            ).execute()
-            linked_count += 1
-
-        return SuccessResponse(
-            data={
-                "success": True,
-                "linked_count": linked_count,
-                "video_id": video_id,
-                "product_ids": payload.product_ids,
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as exc:  # pragma: no cover
-        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
-
-
-@router.delete(
-    "/{video_id}/unlink-products/{product_id}",
-    response_model=SuccessResponse[Dict[str, Any]],
-)
-def unlink_video_product(
-    video_id: str,
-    product_id: str,
-    current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    supabase: Client = Depends(get_supabase),
-) -> SuccessResponse[Dict[str, Any]]:
-    try:
-        (
-            supabase.table("krai_content.video_products")
-            .delete()
-            .eq("video_id", video_id)
-            .eq("product_id", product_id)
-            .execute()
-        )
-
-        return SuccessResponse(
-            data={
-                "success": True,
-                "message": "Video unlinked from product",
-                "video_id": video_id,
-                "product_id": product_id,
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as exc:  # pragma: no cover
-        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
-
-
-@router.get(
-    "/{video_id}/products",
-    response_model=SuccessResponse[ProductListResponse],
-)
-def get_video_products(
-    video_id: str,
-    current_user: Dict[str, Any] = Depends(require_permission("videos:read")),
-    supabase: Client = Depends(get_supabase),
-) -> SuccessResponse[ProductListResponse]:
-    try:
-        products = _fetch_linked_products(supabase, video_id)
-        payload = ProductListResponse(
-            products=products,
-            total=len(products),
-            page=1,
-            page_size=len(products) or 1,
-            total_pages=1,
-        )
-        return SuccessResponse(data=payload)
-    except HTTPException:
-        raise
-    except Exception as exc:  # pragma: no cover
-        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
-
-
-@router.get(
-    "/by-product/{product_id}",
-    response_model=SuccessResponse[VideoListResponse],
-)
-def get_videos_by_product(
-    product_id: str,
-    pagination: PaginationParams = Depends(),
-    sort: VideoSortParams = Depends(),
-    current_user: Dict[str, Any] = Depends(require_permission("videos:read")),
-    supabase: Client = Depends(get_supabase),
-) -> SuccessResponse[VideoListResponse]:
-    try:
-        links = (
-            supabase.table("krai_content.video_products")
-            .select("video_id")
-            .eq("product_id", product_id)
-            .execute()
-        )
-        video_ids = [item["video_id"] for item in links.data or [] if item.get("video_id")]
-        if not video_ids:
-            payload = VideoListResponse(
-                videos=[],
-                total=0,
-                page=pagination.page,
-                page_size=pagination.page_size,
-                total_pages=1,
-            )
-            return SuccessResponse(data=payload)
-
-        query = (
-            supabase.table("krai_content.videos")
-            .select("*", count="exact")
-            .in_("id", video_ids)
-        )
-        query = _apply_sorting(query, sort)
-        query = _apply_pagination(query, pagination)
-
-        response = query.execute()
-        data = response.data or []
-        total = response.count or 0
-
-        payload = VideoListResponse(
-            videos=[VideoResponse(**item) for item in data],
-            total=total,
-            page=pagination.page,
-            page_size=pagination.page_size,
-            total_pages=_calculate_total_pages(total, pagination.page_size),
-        )
-        return SuccessResponse(data=payload)
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover

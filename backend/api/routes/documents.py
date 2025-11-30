@@ -9,10 +9,15 @@ from math import ceil
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from supabase import Client
-
-from api.app import get_supabase
+from api.app import get_database_adapter
+from services.database_adapter import DatabaseAdapter
 from api.middleware.auth_middleware import require_permission
+from api.middleware.rate_limit_middleware import (
+    limiter,
+    rate_limit_standard,
+    rate_limit_search,
+    rate_limit_upload,
+)
 from models.document import (
     DocumentCreateRequest,
     DocumentListResponse,
@@ -104,38 +109,101 @@ def _log_and_raise(
     "",
     response_model=SuccessResponse[DocumentListResponse],
 )
-def list_documents(
+@limiter.limit(rate_limit_search)
+async def list_documents(
     pagination: PaginationParams = Depends(),
     filters: DocumentFilterParams = Depends(),
     sort: DocumentSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[DocumentListResponse]:
     """List documents with pagination, filtering, and sorting."""
     try:
-        query = supabase.table("krai_core.documents").select("*", count="exact")
-        query = _apply_document_filters(query, filters)
-        query = _apply_sorting(query, sort)
-        query = _apply_pagination(query, pagination)
-
-        response = query.execute()
-        data = response.data or []
-        total = response.count or 0
-
-        LOGGER.info(
-            "Listed documents page=%s page_size=%s total=%s",
-            pagination.page,
-            pagination.page_size,
-            total,
-        )
-
+        # Build SQL query with filters and pagination
+        where_clauses = []
+        params = []
+        param_count = 0
+        
+        # Apply filters
+        if filters.manufacturer_id:
+            param_count += 1
+            where_clauses.append(f"manufacturer_id = ${param_count}")
+            params.append(filters.manufacturer_id)
+        
+        if filters.status:
+            param_count += 1
+            where_clauses.append(f"status = ${param_count}")
+            params.append(filters.status)
+        
+        where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        
+        # Apply sorting
+        order_clause = f" ORDER BY {sort.sort_by} {sort.order.value}"
+        
+        # Apply pagination
+        offset = (pagination.page - 1) * pagination.page_size
+        limit_clause = f" LIMIT {pagination.page_size} OFFSET {offset}"
+        
+        # Execute query
+        query = f"""
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM krai_core.documents
+            {where_clause}
+            {order_clause}
+            {limit_clause}
+        """
+        
+        result = await adapter.execute_query(query, params)
+        
+        # Get total count from first row or execute separate count query
+        total_count = 0
+        if result:
+            total_count = result[0].get('total_count', len(result))
+        else:
+            # Fallback count query
+            count_query = f"SELECT COUNT(*) as count FROM krai_core.documents{where_clause}"
+            count_result = await adapter.execute_query(count_query, params)
+            total_count = count_result[0].get('count', 0) if count_result else 0
+        
         return SuccessResponse(
             data=DocumentListResponse(
-                documents=[DocumentResponse(**item) for item in data],
-                total=total,
+                documents=result or [],
+                total=total_count,
                 page=pagination.page,
                 page_size=pagination.page_size,
-                total_pages=_calculate_total_pages(total, pagination.page_size),
+                total_pages=ceil(total_count / pagination.page_size) if pagination.page_size > 0 else 0,
+            )
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
+
+
+@router.get(
+    "/by-document/{document_id}",
+    response_model=SuccessResponse[DocumentListResponse],
+)
+@limiter.limit(rate_limit_search)
+async def get_error_codes_by_document(
+    document_id: str,
+    pagination: PaginationParams = Depends(),
+    filters: DocumentFilterParams = Depends(),
+    sort: DocumentSortParams = Depends(),
+    current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
+) -> SuccessResponse[DocumentListResponse]:
+    """List error codes by document with pagination, filtering, and sorting."""
+    try:
+        # For now, return empty response as this seems to be an error codes by document endpoint
+        # This would need to be properly implemented based on the actual requirements
+        return SuccessResponse(
+            data=DocumentListResponse(
+                documents=[],
+                total=0,
+                page=pagination.page,
+                page_size=pagination.page_size,
+                total_pages=0,
             )
         )
     except HTTPException:
@@ -148,29 +216,27 @@ def list_documents(
     "/{document_id}",
     response_model=SuccessResponse[DocumentResponse],
 )
-def get_document(
+@limiter.limit(rate_limit_standard)
+async def get_document(
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[DocumentResponse]:
     """Retrieve a single document by ID."""
     try:
-        response = (
-            supabase.table("krai_core.documents")
-            .select("*")
-            .eq("id", document_id)
-            .limit(1)
-            .execute()
+        result = await adapter.execute_query(
+            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+            [document_id]
         )
-        data = response.data or []
-        if not data:
+        
+        if not result:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Document not found", "DOCUMENT_NOT_FOUND"),
             )
 
         LOGGER.info("Retrieved document %s", document_id)
-        return SuccessResponse(data=DocumentResponse(**data[0]))
+        return SuccessResponse(data=DocumentResponse(**result[0]))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
@@ -182,22 +248,21 @@ def get_document(
     response_model=SuccessResponse[DocumentResponse],
     status_code=status.HTTP_201_CREATED,
 )
-def create_document(
+@limiter.limit(rate_limit_upload)
+async def create_document(
     payload: DocumentCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[DocumentResponse]:
     """Create a new document record."""
     try:
         # Detect duplicate file hash
-        duplicate_check = (
-            supabase.table("krai_core.documents")
-            .select("id")
-            .eq("file_hash", payload.file_hash)
-            .limit(1)
-            .execute()
+        duplicate_check = await adapter.execute_query(
+            "SELECT id FROM krai_core.documents WHERE file_hash = $1 LIMIT 1",
+            [payload.file_hash]
         )
-        if duplicate_check.data:
+        
+        if duplicate_check:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 detail=_error_response(
@@ -212,34 +277,27 @@ def create_document(
         document_dict["created_at"] = now
         document_dict["updated_at"] = now
 
-        insert_response = (
-            supabase.table("krai_core.documents").insert(document_dict).execute()
-        )
-        data = insert_response.data or []
-        if not data:
+        result = await adapter.create_document(document_dict)
+        
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to create document"),
             )
 
-        document_id = data[0]["id"]
+        document_id = result["id"]
         LOGGER.info("Created document %s", document_id)
 
         # Audit log
         try:
-            supabase.table("krai_system.audit_log").insert(
-                {
-                    "table_name": "documents",
-                    "record_id": document_id,
-                    "operation": "INSERT",
-                    "changed_by": current_user.get("id"),
-                    "new_values": document_dict,
-                }
-            ).execute()
+            await adapter.execute_query(
+                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values) VALUES ($1, $2, $3, $4, $5)",
+                ["documents", document_id, "INSERT", current_user.get("id"), document_dict]
+            )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log insert failed for document %s: %s", document_id, audit_exc)
 
-        return SuccessResponse(data=DocumentResponse(**data[0]))
+        return SuccessResponse(data=DocumentResponse(**result))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
@@ -250,23 +308,21 @@ def create_document(
     "/{document_id}",
     response_model=SuccessResponse[DocumentResponse],
 )
-def update_document(
+@limiter.limit(rate_limit_standard)
+async def update_document(
     document_id: str,
     payload: DocumentUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[DocumentResponse]:
     """Update an existing document."""
     try:
-        existing = (
-            supabase.table("krai_core.documents")
-            .select("*")
-            .eq("id", document_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+            [document_id]
         )
-        data = existing.data or []
-        if not data:
+        
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Document not found", "DOCUMENT_NOT_FOUND"),
@@ -275,14 +331,9 @@ def update_document(
         update_payload = payload.dict(exclude_unset=True, exclude_none=True)
         update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        update_response = (
-            supabase.table("krai_core.documents")
-            .update(update_payload)
-            .eq("id", document_id)
-            .execute()
-        )
-        updated_data = update_response.data or []
-        if not updated_data:
+        result = await adapter.update_document(document_id, update_payload)
+        
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to update document"),
@@ -292,20 +343,14 @@ def update_document(
 
         # Audit log
         try:
-            supabase.table("krai_system.audit_log").insert(
-                {
-                    "table_name": "documents",
-                    "record_id": document_id,
-                    "operation": "UPDATE",
-                    "changed_by": current_user.get("id"),
-                    "old_values": data[0],
-                    "new_values": update_payload,
-                }
-            ).execute()
+            await adapter.execute_query(
+                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, old_values, new_values) VALUES ($1, $2, $3, $4, $5, $6)",
+                ["documents", document_id, "UPDATE", current_user.get("id"), existing[0], update_payload]
+            )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log update failed for document %s: %s", document_id, audit_exc)
 
-        return SuccessResponse(data=DocumentResponse(**updated_data[0]))
+        return SuccessResponse(data=DocumentResponse(**result))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
@@ -316,41 +361,34 @@ def update_document(
     "/{document_id}",
     response_model=SuccessResponse[MessagePayload],
 )
-def delete_document(
+@limiter.limit(rate_limit_standard)
+async def delete_document(
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:delete")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[MessagePayload]:
     """Delete a document by ID."""
     try:
-        existing = (
-            supabase.table("krai_core.documents")
-            .select("*")
-            .eq("id", document_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+            [document_id]
         )
-        data = existing.data or []
-        if not data:
+        
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Document not found", "DOCUMENT_NOT_FOUND"),
             )
 
-        supabase.table("krai_core.documents").delete().eq("id", document_id).execute()
+        await adapter.delete_document(document_id)
         LOGGER.info("Deleted document %s", document_id)
 
         # Audit log
         try:
-            supabase.table("krai_system.audit_log").insert(
-                {
-                    "table_name": "documents",
-                    "record_id": document_id,
-                    "operation": "DELETE",
-                    "changed_by": current_user.get("id"),
-                    "old_values": data[0],
-                }
-            ).execute()
+            await adapter.execute_query(
+                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, old_values) VALUES ($1, $2, $3, $4, $5)",
+                ["documents", document_id, "DELETE", current_user.get("id"), existing[0]]
+            )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log delete failed for document %s: %s", document_id, audit_exc)
 
@@ -365,49 +403,40 @@ def delete_document(
     "/stats",
     response_model=SuccessResponse[DocumentStatsResponse],
 )
-def get_document_stats(
+@limiter.limit(rate_limit_search)
+async def get_document_stats(
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[DocumentStatsResponse]:
     """Return aggregated document statistics."""
     try:
-        total_response = (
-            supabase.table("krai_core.documents")
-            .select("id", count="exact", head=True)
-            .execute()
-        )
-        total_documents = total_response.count or 0
+        total_result = await adapter.execute_query("SELECT COUNT(*) as count FROM krai_core.documents")
+        total_documents = total_result[0].get('count', 0) if total_result else 0
 
-        type_response = (
-            supabase.table("krai_core.documents")
-            .select("document_type,count:id", group="document_type")
-            .execute()
+        type_result = await adapter.execute_query(
+            "SELECT document_type, COUNT(*) as count FROM krai_core.documents GROUP BY document_type"
         )
         by_type: Dict[str, int] = {
             item.get("document_type"): int(item.get("count", 0))
-            for item in type_response.data or []
+            for item in type_result or []
             if item.get("document_type")
         }
 
-        status_response = (
-            supabase.table("krai_core.documents")
-            .select("processing_status,count:id", group="processing_status")
-            .execute()
+        status_result = await adapter.execute_query(
+            "SELECT processing_status, COUNT(*) as count FROM krai_core.documents GROUP BY processing_status"
         )
         by_status: Dict[str, int] = {
             item.get("processing_status"): int(item.get("count", 0))
-            for item in status_response.data or []
+            for item in status_result or []
             if item.get("processing_status")
         }
 
-        manufacturer_response = (
-            supabase.table("krai_core.documents")
-            .select("manufacturer,count:id", group="manufacturer")
-            .execute()
+        manufacturer_result = await adapter.execute_query(
+            "SELECT manufacturer, COUNT(*) as count FROM krai_core.documents GROUP BY manufacturer"
         )
         by_manufacturer: Dict[str, int] = {
             item.get("manufacturer"): int(item.get("count", 0))
-            for item in manufacturer_response.data or []
+            for item in manufacturer_result or []
             if item.get("manufacturer")
         }
 

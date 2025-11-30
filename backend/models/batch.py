@@ -41,7 +41,7 @@ class BatchOperationRequest(BaseModel):
             raise ValueError(f"operation must be one of: {allowed}")
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _validate_item_count(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         items = values.get("items") or []
         if not items:

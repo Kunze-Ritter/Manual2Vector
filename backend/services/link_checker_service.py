@@ -6,10 +6,12 @@ Wraps the link checker script for use in the API
 import logging
 import sys
 import os
+from pathlib import Path
 from typing import Optional, Dict, Any
 
-# Add scripts directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
+# Add scripts directory to path (resolve to /app/scripts inside container)
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
+sys.path.insert(0, str(SCRIPTS_DIR))
 
 from check_and_fix_links import LinkChecker
 

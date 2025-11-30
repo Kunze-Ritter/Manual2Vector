@@ -5,19 +5,19 @@ Core services for database, storage, and AI operations
 
 from .database_service import DatabaseService
 from .object_storage_service import ObjectStorageService
-from services.ai_service import AIService, create_ai_service
-from services.config_service import ConfigService
-from services.storage_factory import StorageFactory, create_storage_service
-from services.web_scraping_service import (
+from .ai_service import AIService, create_ai_service
+from .config_service import ConfigService
+from .storage_factory import StorageFactory, create_storage_service
+from .web_scraping_service import (
     WebScrapingService,
     create_web_scraping_service,
     FirecrawlBackend,
     BeautifulSoupBackend,
     WebScraperBackend,
 )
-from services.link_enrichment_service import LinkEnrichmentService
-from services.structured_extraction_service import StructuredExtractionService
-from services.manufacturer_crawler import ManufacturerCrawler
+from .link_enrichment_service import LinkEnrichmentService
+from .structured_extraction_service import StructuredExtractionService
+from .manufacturer_crawler import ManufacturerCrawler
 
 __all__ = [
     "AIService",

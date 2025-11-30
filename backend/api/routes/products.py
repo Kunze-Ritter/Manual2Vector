@@ -8,11 +8,16 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from supabase import Client
-
-from constants.product_types import ALLOWED_PRODUCT_TYPES
-from api.app import get_supabase
+from backend.services.database_adapter import DatabaseAdapter
+from api.app import get_database_adapter
+from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
 from api.middleware.auth_middleware import require_permission
+from api.middleware.rate_limit_middleware import (
+    limiter,
+    rate_limit_standard,
+    rate_limit_search,
+    rate_limit_upload,
+)
 from api.routes.response_models import ErrorResponse, SuccessResponse
 from models.document import PaginationParams
 from models.manufacturer import ManufacturerResponse
@@ -124,7 +129,7 @@ def _calculate_total_pages(total: int, page_size: int) -> int:
 
 def _build_product_relations(
     product: Dict[str, Any],
-    supabase: Client,
+    adapter: DatabaseAdapter,
     include_relations: bool,
 ) -> ProductWithRelationsResponse:
     product_payload: Dict[str, Any] = {**product}
@@ -133,40 +138,31 @@ def _build_product_relations(
 
     manufacturer_id = product.get("manufacturer_id")
     if manufacturer_id:
-        manufacturer_resp = (
-            supabase.table("krai_core.manufacturers")
-            .select("*")
-            .eq("id", manufacturer_id)
-            .limit(1)
-            .execute()
+        manufacturer_resp = adapter.execute_query(
+            "SELECT * FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
+            [manufacturer_id]
         )
-        manufacturer_data = (manufacturer_resp.data or [None])[0]
+        manufacturer_data = manufacturer_resp[0] if manufacturer_resp else None
         if manufacturer_data:
             product_payload["manufacturer"] = ManufacturerResponse(**manufacturer_data)
 
     series_id = product.get("series_id")
     if series_id:
-        series_resp = (
-            supabase.table("krai_core.product_series")
-            .select("*")
-            .eq("id", series_id)
-            .limit(1)
-            .execute()
+        series_resp = adapter.execute_query(
+            "SELECT * FROM krai_core.product_series WHERE id = $1 LIMIT 1",
+            [series_id]
         )
-        series_data = (series_resp.data or [None])[0]
+        series_data = series_resp[0] if series_resp else None
         if series_data:
             product_payload["series"] = ProductSeriesResponse(**series_data)
 
     parent_id = product.get("parent_id")
     if parent_id:
-        parent_resp = (
-            supabase.table("krai_core.products")
-            .select("*")
-            .eq("id", parent_id)
-            .limit(1)
-            .execute()
+        parent_resp = adapter.execute_query(
+            "SELECT * FROM krai_core.products WHERE id = $1 LIMIT 1",
+            [parent_id]
         )
-        parent_data = (parent_resp.data or [None])[0]
+        parent_data = parent_resp[0] if parent_resp else None
         if parent_data:
             product_payload["parent_product"] = ProductResponse(**parent_data)
 
@@ -177,38 +173,82 @@ def _build_product_relations(
     "",
     response_model=SuccessResponse[ProductListResponse],
 )
-def list_products(
+@limiter.limit(rate_limit_search)
+async def list_products(
     pagination: PaginationParams = Depends(),
     filters: ProductFilterParams = Depends(),
     sort: ProductSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductListResponse]:
     try:
-        query = supabase.table("krai_core.products").select("*", count="exact")
-        query = _apply_product_filters(query, filters)
-        query = _apply_sorting(query, sort)
-        query = _apply_pagination(query, pagination)
+        where_clauses = []
+        params = []
+        param_count = 0
 
-        response = query.execute()
-        data = response.data or []
-        total = response.count or 0
+        if filters.manufacturer_id:
+            param_count += 1
+            where_clauses.append(f"manufacturer_id = ${param_count}")
+            params.append(filters.manufacturer_id)
+
+        if filters.series_id:
+            param_count += 1
+            where_clauses.append(f"series_id = ${param_count}")
+            params.append(filters.series_id)
+
+        if filters.product_type:
+            param_count += 1
+            where_clauses.append(f"product_type = ${param_count}")
+            params.append(filters.product_type.value)
+
+        if filters.search:
+            param_count += 1
+            where_clauses.append(f"(model_number ILIKE ${param_count} OR model_name ILIKE ${param_count} OR description ILIKE ${param_count})")
+            search_term = f"%{filters.search}%"
+            params.extend([search_term, search_term, search_term])
+            param_count += 2
+
+        where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        order_direction = "DESC" if sort.sort_order == SortOrder.DESC else "ASC"
+        order_clause = f" ORDER BY {sort.sort_by} {order_direction}"
+
+        offset = (pagination.page - 1) * pagination.page_size
+        limit_clause = f" LIMIT {pagination.page_size} OFFSET {offset}"
+
+        query = f"""
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM krai_core.products
+            {where_clause}
+            {order_clause}
+            {limit_clause}
+        """
+
+        result = await adapter.execute_query(query, params)
+
+        total = 0
+        if result:
+            total = result[0].get('total_count', len(result))
+        else:
+            count_query = f"SELECT COUNT(*) as count FROM krai_core.products{where_clause}"
+            count_result = await adapter.execute_query(count_query, params)
+            total = count_result[0].get('count', 0) if count_result else 0
 
         LOGGER.info(
-            "Listed products page=%s page_size=%s total=%s",
+            "Listed products page=%s size=%s total=%s",
             pagination.page,
             pagination.page_size,
             total,
         )
 
-        product_list = ProductListResponse(
-            products=[ProductResponse(**item) for item in data],
+        payload = ProductListResponse(
+            products=[ProductResponse(**item) for item in result or []],
             total=total,
             page=pagination.page,
             page_size=pagination.page_size,
             total_pages=_calculate_total_pages(total, pagination.page_size),
         )
-        return SuccessResponse(data=product_list)
+        return SuccessResponse(data=payload)
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
@@ -219,6 +259,7 @@ def list_products(
     "/types",
     response_model=SuccessResponse[ProductTypesResponse],
 )
+@limiter.limit(rate_limit_search)
 def get_product_types(
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
 ) -> SuccessResponse[ProductTypesResponse]:
@@ -232,28 +273,25 @@ def get_product_types(
     "/{product_id}",
     response_model=SuccessResponse[ProductWithRelationsResponse],
 )
-def get_product(
+@limiter.limit(rate_limit_standard)
+async def get_product(
     product_id: str,
     include_relations: bool = Query(False),
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductWithRelationsResponse]:
     try:
-        response = (
-            supabase.table("krai_core.products")
-            .select("*")
-            .eq("id", product_id)
-            .limit(1)
-            .execute()
+        result = await adapter.execute_query(
+            "SELECT * FROM krai_core.products WHERE id = $1 LIMIT 1",
+            [product_id]
         )
-        data = response.data or []
-        if not data:
+        if not result:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Product not found", "PRODUCT_NOT_FOUND"),
             )
 
-        product = _build_product_relations(data[0], supabase, include_relations)
+        product = _build_product_relations(result[0], adapter, include_relations)
         LOGGER.info("Retrieved product %s include_relations=%s", product_id, include_relations)
         return SuccessResponse(data=product)
     except HTTPException:
@@ -267,10 +305,11 @@ def get_product(
     response_model=SuccessResponse[ProductResponse],
     status_code=status.HTTP_201_CREATED,
 )
-def create_product(
+@limiter.limit(rate_limit_upload)
+async def create_product(
     payload: ProductCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductResponse]:
     try:
         now = datetime.now(timezone.utc).isoformat()
@@ -278,31 +317,90 @@ def create_product(
         product_dict["created_at"] = now
         product_dict["updated_at"] = now
 
-        response = supabase.table("krai_core.products").insert(product_dict).execute()
-        data = response.data or []
-        if not data:
+        result = await adapter.execute_query(
+            """
+                INSERT INTO krai_core.products (
+                    model_number,
+                    model_name,
+                    product_type,
+                    manufacturer_id,
+                    series_id,
+                    launch_date,
+                    end_of_life_date,
+                    msrp_usd,
+                    print_technology,
+                    network_capable,
+                    description,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    $8,
+                    $9,
+                    $10,
+                    $11,
+                    $12,
+                    $13
+                ) RETURNING *
+            """,
+            [
+                product_dict["model_number"],
+                product_dict["model_name"],
+                product_dict["product_type"],
+                product_dict["manufacturer_id"],
+                product_dict["series_id"],
+                product_dict["launch_date"],
+                product_dict["end_of_life_date"],
+                product_dict["msrp_usd"],
+                product_dict["print_technology"],
+                product_dict["network_capable"],
+                product_dict["description"],
+                product_dict["created_at"],
+                product_dict["updated_at"],
+            ]
+        )
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to create product"),
             )
 
-        product_id = data[0]["id"]
+        product_id = result[0]["id"]
         LOGGER.info("Created product %s", product_id)
 
         try:
-            supabase.table("krai_system.audit_log").insert(
-                {
-                    "table_name": "products",
-                    "record_id": product_id,
-                    "operation": "INSERT",
-                    "changed_by": current_user.get("id"),
-                    "new_values": data[0],
-                }
-            ).execute()
+            await adapter.execute_query(
+                """
+                    INSERT INTO krai_system.audit_log (
+                        table_name,
+                        record_id,
+                        operation,
+                        changed_by,
+                        new_values
+                    ) VALUES (
+                        'products',
+                        $1,
+                        'INSERT',
+                        $2,
+                        $3
+                    )
+                """,
+                [
+                    product_id,
+                    current_user.get("id"),
+                    result[0],
+                ]
+            )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log insert failed for product %s: %s", product_id, audit_exc)
 
-        return SuccessResponse(data=ProductResponse(**data[0]))
+        return SuccessResponse(data=ProductResponse(**result[0]))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
@@ -313,40 +411,65 @@ def create_product(
     "/{product_id}",
     response_model=SuccessResponse[ProductResponse],
 )
-def update_product(
+@limiter.limit(rate_limit_standard)
+async def update_product(
     product_id: str,
     payload: ProductUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductResponse]:
     try:
-        existing = (
-            supabase.table("krai_core.products")
-            .select("*")
-            .eq("id", product_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT * FROM krai_core.products WHERE id = $1 LIMIT 1",
+            [product_id]
         )
-        data = existing.data or []
-        if not data:
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Product not found", "PRODUCT_NOT_FOUND"),
             )
 
-        previous_record = data[0]
+        previous_record = existing[0]
 
         update_payload = payload.dict(exclude_unset=True, exclude_none=True)
         update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        response = (
-            supabase.table("krai_core.products")
-            .update(update_payload)
-            .eq("id", product_id)
-            .execute()
+        result = await adapter.execute_query(
+            """
+                UPDATE krai_core.products
+                SET
+                    model_number = $1,
+                    model_name = $2,
+                    product_type = $3,
+                    manufacturer_id = $4,
+                    series_id = $5,
+                    launch_date = $6,
+                    end_of_life_date = $7,
+                    msrp_usd = $8,
+                    print_technology = $9,
+                    network_capable = $10,
+                    description = $11,
+                    updated_at = $12
+                WHERE id = $13
+                RETURNING *
+            """,
+            [
+                update_payload.get("model_number"),
+                update_payload.get("model_name"),
+                update_payload.get("product_type"),
+                update_payload.get("manufacturer_id"),
+                update_payload.get("series_id"),
+                update_payload.get("launch_date"),
+                update_payload.get("end_of_life_date"),
+                update_payload.get("msrp_usd"),
+                update_payload.get("print_technology"),
+                update_payload.get("network_capable"),
+                update_payload.get("description"),
+                update_payload.get("updated_at"),
+                product_id,
+            ]
         )
-        updated = response.data or []
-        if not updated:
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to update product"),
@@ -355,20 +478,35 @@ def update_product(
         LOGGER.info("Updated product %s", product_id)
 
         try:
-            supabase.table("krai_system.audit_log").insert(
-                {
-                    "table_name": "products",
-                    "record_id": product_id,
-                    "operation": "UPDATE",
-                    "changed_by": current_user.get("id"),
-                    "old_values": previous_record,
-                    "new_values": update_payload,
-                }
-            ).execute()
+            await adapter.execute_query(
+                """
+                    INSERT INTO krai_system.audit_log (
+                        table_name,
+                        record_id,
+                        operation,
+                        changed_by,
+                        old_values,
+                        new_values
+                    ) VALUES (
+                        'products',
+                        $1,
+                        'UPDATE',
+                        $2,
+                        $3,
+                        $4
+                    )
+                """,
+                [
+                    product_id,
+                    current_user.get("id"),
+                    previous_record,
+                    update_payload,
+                ]
+            )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log update failed for product %s: %s", product_id, audit_exc)
 
-        return SuccessResponse(data=ProductResponse(**updated[0]))
+        return SuccessResponse(data=ProductResponse(**result[0]))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
@@ -379,39 +517,52 @@ def update_product(
     "/{product_id}",
     response_model=SuccessResponse[MessagePayload],
 )
-def delete_product(
+@limiter.limit(rate_limit_standard)
+async def delete_product(
     product_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("products:delete")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[MessagePayload]:
     try:
-        existing = (
-            supabase.table("krai_core.products")
-            .select("*")
-            .eq("id", product_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT * FROM krai_core.products WHERE id = $1 LIMIT 1",
+            [product_id]
         )
-        data = existing.data or []
-        if not data:
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Product not found", "PRODUCT_NOT_FOUND"),
             )
 
-        supabase.table("krai_core.products").delete().eq("id", product_id).execute()
+        await adapter.execute_query(
+            "DELETE FROM krai_core.products WHERE id = $1",
+            [product_id]
+        )
         LOGGER.info("Deleted product %s", product_id)
 
         try:
-            supabase.table("krai_system.audit_log").insert(
-                {
-                    "table_name": "products",
-                    "record_id": product_id,
-                    "operation": "DELETE",
-                    "changed_by": current_user.get("id"),
-                    "old_values": data[0],
-                }
-            ).execute()
+            await adapter.execute_query(
+                """
+                    INSERT INTO krai_system.audit_log (
+                        table_name,
+                        record_id,
+                        operation,
+                        changed_by,
+                        old_values
+                    ) VALUES (
+                        'products',
+                        $1,
+                        'DELETE',
+                        $2,
+                        $3
+                    )
+                """,
+                [
+                    product_id,
+                    current_user.get("id"),
+                    existing[0],
+                ]
+            )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log delete failed for product %s: %s", product_id, audit_exc)
 
@@ -426,50 +577,48 @@ def delete_product(
     "/stats",
     response_model=SuccessResponse[ProductStatsResponse],
 )
-def get_product_stats(
+@limiter.limit(rate_limit_search)
+async def get_product_stats(
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductStatsResponse]:
     try:
-        total_resp = (
-            supabase.table("krai_core.products")
-            .select("id", count="exact", head=True)
-            .execute()
+        total_result = await adapter.execute_query(
+            "SELECT COUNT(*) as count FROM krai_core.products"
         )
-        total_products = total_resp.count or 0
+        total_products = total_result[0].get('count', 0) if total_result else 0
 
-        type_resp = (
-            supabase.table("krai_core.products")
-            .select("product_type,count:id", group="product_type")
-            .execute()
+        type_result = await adapter.execute_query(
+            "SELECT product_type, COUNT(*) as count FROM krai_core.products GROUP BY product_type"
         )
         by_type = {
-            item.get("product_type"): int(item.get("count", 0))
-            for item in type_resp.data or []
+            item.get("product_type"): item.get("count", 0)
+            for item in type_result or []
             if item.get("product_type")
         }
 
-        manufacturer_resp = (
-            supabase.table("krai_core.products")
-            .select("manufacturer_id,count:id", group="manufacturer_id")
-            .execute()
+        manufacturer_result = await adapter.execute_query(
+            "SELECT manufacturer_id, COUNT(*) as count FROM krai_core.products GROUP BY manufacturer_id"
         )
         manufacturer_counts = {
-            item.get("manufacturer_id"): int(item.get("count", 0))
-            for item in manufacturer_resp.data or []
+            item.get("manufacturer_id"): item.get("count", 0)
+            for item in manufacturer_result or []
             if item.get("manufacturer_id")
         }
 
         manufacturer_names: Dict[str, str] = {}
         if manufacturer_counts:
             ids = list(manufacturer_counts.keys())
-            manufacturer_data = (
-                supabase.table("krai_core.manufacturers")
-                .select("id,name")
-                .in_("id", ids)
-                .execute()
-            ).data or []
-            manufacturer_names = {item["id"]: item["name"] for item in manufacturer_data if item.get("id")}
+            placeholders = ','.join([f'${i+1}' for i in range(len(ids))])
+            manufacturer_data_result = await adapter.execute_query(
+                f"SELECT id, name FROM krai_core.manufacturers WHERE id IN ({placeholders})",
+                ids
+            )
+            manufacturer_names = {
+                item["id"]: item["name"] 
+                for item in manufacturer_data_result or [] 
+                if item.get("id")
+            }
 
         by_manufacturer = {
             manufacturer_names.get(manufacturer_id, manufacturer_id): count
@@ -477,21 +626,17 @@ def get_product_stats(
         }
 
         today = date.today().isoformat()
-        active_resp = (
-            supabase.table("krai_core.products")
-            .select("id", count="exact", head=True)
-            .or_(f"end_of_life_date.is.null,end_of_life_date.gt.{today}")
-            .execute()
+        active_result = await adapter.execute_query(
+            "SELECT COUNT(*) as count FROM krai_core.products WHERE end_of_life_date IS NULL OR end_of_life_date > $1",
+            [today]
         )
-        active_products = active_resp.count or 0
+        active_products = active_result[0].get('count', 0) if active_result else 0
 
-        discontinued_resp = (
-            supabase.table("krai_core.products")
-            .select("id", count="exact", head=True)
-            .lt("end_of_life_date", today)
-            .execute()
+        discontinued_result = await adapter.execute_query(
+            "SELECT COUNT(*) as count FROM krai_core.products WHERE end_of_life_date < $1",
+            [today]
         )
-        discontinued_products = discontinued_resp.count or 0
+        discontinued_products = discontinued_result[0].get('count', 0) if discontinued_result else 0
 
         LOGGER.info(
             "Product stats computed totals=%s types=%s manufacturers=%s",
@@ -518,10 +663,11 @@ def get_product_stats(
     "/batch/create",
     response_model=SuccessResponse[ProductBatchResponse],
 )
-def batch_create_products(
+@limiter.limit(rate_limit_upload)
+async def batch_create_products(
     payload: ProductBatchCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductBatchResponse]:
     results: List[ProductBatchResult] = []
     success_count = 0
@@ -532,27 +678,74 @@ def batch_create_products(
                 product_dict = product.dict(exclude_none=True)
                 product_dict["created_at"] = now
                 product_dict["updated_at"] = now
-                response = supabase.table("krai_core.products").insert(product_dict).execute()
-                data = response.data or []
-                if not data:
+                
+                result = await adapter.execute_query(
+                    """
+                        INSERT INTO krai_core.products (
+                            model_number,
+                            model_name,
+                            product_type,
+                            manufacturer_id,
+                            series_id,
+                            launch_date,
+                            end_of_life_date,
+                            msrp_usd,
+                            print_technology,
+                            network_capable,
+                            description,
+                            created_at,
+                            updated_at
+                        ) VALUES (
+                            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+                        ) RETURNING *
+                    """,
+                    [
+                        product_dict.get("model_number"),
+                        product_dict.get("model_name"),
+                        product_dict.get("product_type"),
+                        product_dict.get("manufacturer_id"),
+                        product_dict.get("series_id"),
+                        product_dict.get("launch_date"),
+                        product_dict.get("end_of_life_date"),
+                        product_dict.get("msrp_usd"),
+                        product_dict.get("print_technology"),
+                        product_dict.get("network_capable"),
+                        product_dict.get("description"),
+                        product_dict.get("created_at"),
+                        product_dict.get("updated_at"),
+                    ]
+                )
+                
+                if not result:
                     raise ValueError("Failed to insert product")
-                results.append(ProductBatchResult(id=data[0]["id"], status="success"))
+                
+                product_id = result[0]["id"]
+                results.append(ProductBatchResult(id=product_id, status="success"))
                 success_count += 1
 
                 try:
-                    supabase.table("krai_system.audit_log").insert(
-                        {
-                            "table_name": "products",
-                            "record_id": data[0]["id"],
-                            "operation": "INSERT",
-                            "changed_by": current_user.get("id"),
-                            "new_values": data[0],
-                        }
-                    ).execute()
+                    await adapter.execute_query(
+                        """
+                            INSERT INTO krai_system.audit_log (
+                                table_name,
+                                record_id,
+                                operation,
+                                changed_by,
+                                new_values
+                            ) VALUES (
+                                'products', $1, 'INSERT', $2, $3
+                            )
+                        """,
+                        [
+                            product_id,
+                            current_user.get("id"),
+                            result[0],
+                        ]
+                    )
                 except Exception as audit_exc:  # pragma: no cover - defensive
                     LOGGER.warning(
                         "Batch audit log insert failed for product %s: %s",
-                        data[0]["id"],
+                        product_id,
                         audit_exc,
                     )
             except Exception as inner_exc:
@@ -583,10 +776,11 @@ def batch_create_products(
     "/batch/update",
     response_model=SuccessResponse[ProductBatchResponse],
 )
-def batch_update_products(
+@limiter.limit(rate_limit_standard)
+async def batch_update_products(
     payload: ProductBatchUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductBatchResponse]:
     results: List[ProductBatchResult] = []
     success_count = 0
@@ -597,28 +791,54 @@ def batch_update_products(
                 if not update_data:
                     raise ValueError("No update data provided")
                 update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-                response = (
-                    supabase.table("krai_core.products")
-                    .update(update_data)
-                    .eq("id", item.id)
-                    .execute()
-                )
-                data = response.data or []
-                if not data:
+                
+                # Build dynamic UPDATE query
+                set_clauses = []
+                params = []
+                param_count = 0
+                
+                for key, value in update_data.items():
+                    param_count += 1
+                    set_clauses.append(f"{key} = ${param_count}")
+                    params.append(value)
+                
+                param_count += 1  # For the WHERE clause
+                params.append(item.id)
+                
+                query = f"""
+                    UPDATE krai_core.products
+                    SET {', '.join(set_clauses)}
+                    WHERE id = ${param_count}
+                    RETURNING *
+                """
+                
+                result = await adapter.execute_query(query, params)
+                
+                if not result:
                     raise ValueError("Product not found or update failed")
+                
                 results.append(ProductBatchResult(id=item.id, status="success"))
                 success_count += 1
 
                 try:
-                    supabase.table("krai_system.audit_log").insert(
-                        {
-                            "table_name": "products",
-                            "record_id": item.id,
-                            "operation": "UPDATE",
-                            "changed_by": current_user.get("id"),
-                            "new_values": update_data,
-                        }
-                    ).execute()
+                    await adapter.execute_query(
+                        """
+                            INSERT INTO krai_system.audit_log (
+                                table_name,
+                                record_id,
+                                operation,
+                                changed_by,
+                                new_values
+                            ) VALUES (
+                                'products', $1, 'UPDATE', $2, $3
+                            )
+                        """,
+                        [
+                            item.id,
+                            current_user.get("id"),
+                            update_data,
+                        ]
+                    )
                 except Exception as audit_exc:  # pragma: no cover - defensive
                     LOGGER.warning(
                         "Batch audit log update failed for product %s: %s",
@@ -653,37 +873,53 @@ def batch_update_products(
     "/batch/delete",
     response_model=SuccessResponse[ProductBatchResponse],
 )
-def batch_delete_products(
+@limiter.limit(rate_limit_standard)
+async def batch_delete_products(
     payload: ProductBatchDeleteRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:delete")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductBatchResponse]:
     results: List[ProductBatchResult] = []
     success_count = 0
     try:
         for product_id in payload.product_ids:
             try:
-                response = (
-                    supabase.table("krai_core.products")
-                    .delete()
-                    .eq("id", product_id)
-                    .execute()
+                # First get the existing product for audit log
+                existing = await adapter.execute_query(
+                    "SELECT * FROM krai_core.products WHERE id = $1 LIMIT 1",
+                    [product_id]
                 )
-                deleted = response.data or []
-                if not deleted:
+                if not existing:
                     raise ValueError("Product not found")
+                
+                # Delete the product
+                await adapter.execute_query(
+                    "DELETE FROM krai_core.products WHERE id = $1",
+                    [product_id]
+                )
+                
                 results.append(ProductBatchResult(id=product_id, status="success"))
                 success_count += 1
 
                 try:
-                    supabase.table("krai_system.audit_log").insert(
-                        {
-                            "table_name": "products",
-                            "record_id": product_id,
-                            "operation": "DELETE",
-                            "changed_by": current_user.get("id"),
-                        }
-                    ).execute()
+                    await adapter.execute_query(
+                        """
+                            INSERT INTO krai_system.audit_log (
+                                table_name,
+                                record_id,
+                                operation,
+                                changed_by,
+                                old_values
+                            ) VALUES (
+                                'products', $1, 'DELETE', $2, $3
+                            )
+                        """,
+                        [
+                            product_id,
+                            current_user.get("id"),
+                            existing[0],
+                        ]
+                    )
                 except Exception as audit_exc:  # pragma: no cover - defensive
                     LOGGER.warning(
                         "Batch audit log delete failed for product %s: %s",
@@ -718,21 +954,19 @@ def batch_delete_products(
     "/series/by-manufacturer/{manufacturer_id}",
     response_model=SuccessResponse[List[ProductSeriesResponse]],
 )
-def get_manufacturer_series(
+@limiter.limit(rate_limit_search)
+async def get_manufacturer_series(
     manufacturer_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[List[ProductSeriesResponse]]:
     """Get all product series for a manufacturer."""
     try:
-        response = (
-            supabase.table("krai_core.product_series")
-            .select("*")
-            .eq("manufacturer_id", manufacturer_id)
-            .execute()
+        result = await adapter.execute_query(
+            "SELECT * FROM krai_core.product_series WHERE manufacturer_id = $1",
+            [manufacturer_id]
         )
-        series_data = response.data or []
-        series_list = [ProductSeriesResponse(**item) for item in series_data]
+        series_list = [ProductSeriesResponse(**item) for item in result or []]
         return SuccessResponse(data=series_list)
     except HTTPException:
         raise

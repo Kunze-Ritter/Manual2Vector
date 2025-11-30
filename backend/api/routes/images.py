@@ -9,9 +9,8 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel
-from supabase import Client
-
-from api.app import get_supabase
+from api.app import get_database_adapter
+from services.database_adapter import DatabaseAdapter
 from api.middleware.auth_middleware import require_permission
 from api.routes.response_models import ErrorResponse, SuccessResponse
 from models.document import DocumentResponse, PaginationParams, SortOrder
@@ -110,75 +109,32 @@ def _calculate_total_pages(total: int, page_size: int) -> int:
     return ceil(total / page_size) if total > 0 else 1
 
 
-def _apply_filters(query: Any, filters: ImageFilterParams) -> Any:
-    if filters.document_id:
-        query = query.eq("document_id", filters.document_id)
-    if filters.chunk_id:
-        query = query.eq("chunk_id", filters.chunk_id)
-    if filters.page_number is not None:
-        query = query.eq("page_number", filters.page_number)
-    if filters.image_type:
-        query = query.eq("image_type", filters.image_type.value)
-    if filters.contains_text is not None:
-        query = query.eq("contains_text", filters.contains_text)
-    if filters.file_hash:
-        query = query.eq("file_hash", filters.file_hash)
-    if filters.search:
-        search = filters.search
-        query = query.or_(
-            ",".join(
-                [
-                    f"filename.ilike.%{search}%",
-                    f"ai_description.ilike.%{search}%",
-                    f"manual_description.ilike.%{search}%",
-                    f"ocr_text.ilike.%{search}%",
-                ]
-            )
-        )
-    return query
-
-
-def _apply_sorting(query: Any, sort: ImageSortParams) -> Any:
-    sort_order = sort.sort_order if isinstance(sort.sort_order, SortOrder) else SortOrder(sort.sort_order)
-    return query.order(sort.sort_by, desc=sort_order == SortOrder.DESC)
-
-
-def _apply_pagination(query: Any, pagination: PaginationParams) -> Any:
-    start_index = (pagination.page - 1) * pagination.page_size
-    end_index = start_index + pagination.page_size - 1
-    return query.range(start_index, end_index)
-
-
-def _fetch_document(supabase: Client, document_id: Optional[str]) -> Optional[DocumentResponse]:
+async def _fetch_document(adapter: DatabaseAdapter, document_id: Optional[str]) -> Optional[DocumentResponse]:
     if not document_id:
         return None
-    response = (
-        supabase.table("krai_core.documents").select("*").eq("id", document_id).limit(1).execute()
+    result = await adapter.execute_query(
+        "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+        [document_id]
     )
-    data = response.data or []
-    if not data:
+    if not result:
         return None
-    return DocumentResponse(**data[0])
+    return DocumentResponse(**result[0])
 
 
-def _fetch_chunk(supabase: Client, chunk_id: Optional[str]) -> Optional[Dict[str, Any]]:
+async def _fetch_chunk(adapter: DatabaseAdapter, chunk_id: Optional[str]) -> Optional[Dict[str, Any]]:
     if not chunk_id:
         return None
-    response = (
-        supabase.table("krai_intelligence.chunks")
-        .select("text_chunk,page_start,page_end")
-        .eq("id", chunk_id)
-        .limit(1)
-        .execute()
+    result = await adapter.execute_query(
+        "SELECT text_chunk,page_start,page_end FROM krai_intelligence.chunks WHERE id = $1 LIMIT 1",
+        [chunk_id]
     )
-    data = response.data or []
-    if not data:
+    if not result:
         return None
-    return data[0]
+    return result[0]
 
 
-def _build_relations(
-    supabase: Client,
+async def _build_relations(
+    adapter: DatabaseAdapter,
     record: Dict[str, Any],
     include_relations: bool,
 ) -> ImageWithRelationsResponse:
@@ -186,22 +142,21 @@ def _build_relations(
     if not include_relations:
         return ImageWithRelationsResponse(**base.model_dump())
 
-    chunk = _fetch_chunk(supabase, record.get("chunk_id"))
+    chunk = await _fetch_chunk(adapter, record.get("chunk_id"))
     chunk_payload = None
     if chunk:
         from models.image import ChunkSnippet
-
         chunk_payload = ChunkSnippet(**chunk)
 
     return ImageWithRelationsResponse(
         **base.model_dump(),
-        document=_fetch_document(supabase, record.get("document_id")),
+        document=await _fetch_document(adapter, record.get("document_id")),
         chunk=chunk_payload,
     )
 
 
-def _insert_audit_log(
-    supabase: Client,
+async def _insert_audit_log(
+    adapter: DatabaseAdapter,
     *,
     record_id: str,
     operation: str,
@@ -220,22 +175,26 @@ def _insert_audit_log(
             payload["new_values"] = new_values
         if old_values is not None:
             payload["old_values"] = old_values
-        supabase.table("krai_system.audit_log").insert(payload).execute()
+        await adapter.execute_query(
+            "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values, old_values) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)",
+            [payload.get("table_name"), payload.get("record_id"), payload.get("operation"), payload.get("changed_by"), payload.get("new_values"), payload.get("old_values")]
+        )
     except Exception as audit_exc:  # pragma: no cover
         LOGGER.warning("Audit log insert failed for image %s: %s", record_id, audit_exc)
 
 
-def _validate_foreign_keys(
-    supabase: Client,
+async def _validate_foreign_keys(
+    adapter: DatabaseAdapter,
     *,
     document_id: Optional[str] = None,
     chunk_id: Optional[str] = None,
 ) -> None:
     if document_id:
-        document = (
-            supabase.table("krai_core.documents").select("id").eq("id", document_id).limit(1).execute()
+        document = await adapter.execute_query(
+            "SELECT id FROM krai_core.documents WHERE id = $1 LIMIT 1",
+            [document_id]
         )
-        if not (document.data or []):
+        if not document:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
                 f"Document with ID {document_id} not found",
@@ -243,10 +202,11 @@ def _validate_foreign_keys(
                 error_code="DOCUMENT_NOT_FOUND",
             )
     if chunk_id:
-        chunk = (
-            supabase.table("krai_intelligence.chunks").select("id").eq("id", chunk_id).limit(1).execute()
+        chunk = await adapter.execute_query(
+            "SELECT id FROM krai_intelligence.chunks WHERE id = $1 LIMIT 1",
+            [chunk_id]
         )
-        if not (chunk.data or []):
+        if not chunk:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
                 f"Chunk with ID {chunk_id} not found",
@@ -255,16 +215,16 @@ def _validate_foreign_keys(
             )
 
 
-def _deduplicate_hash(supabase: Client, file_hash: Optional[str]) -> Optional[Dict[str, Any]]:
+async def _deduplicate_hash(adapter: DatabaseAdapter, file_hash: Optional[str]) -> Optional[Dict[str, Any]]:
     if not file_hash:
         return None
-    response = (
-        supabase.table("krai_content.images").select("*").eq("file_hash", file_hash).limit(1).execute()
+    result = await adapter.execute_query(
+        "SELECT * FROM krai_content.images WHERE file_hash = $1 LIMIT 1",
+        [file_hash]
     )
-    data = response.data or []
-    if not data:
+    if not result:
         return None
-    return data[0]
+    return result[0]
 
 
 def _map_bucket(bucket: Optional[str]) -> BucketType:
@@ -326,25 +286,87 @@ def _calculate_stats(records: List[Dict[str, Any]]) -> ImageStatsResponse:
 
 
 @router.get("", response_model=SuccessResponse[ImageListResponse])
-def list_images(
+async def list_images(
     pagination: PaginationParams = Depends(),
     filters: ImageFilterParams = Depends(),
     sort: ImageSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("images:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ImageListResponse]:
     try:
-        query = supabase.table("krai_content.images").select("*", count="exact")
-        query = _apply_filters(query, filters)
-        query = _apply_sorting(query, sort)
-        query = _apply_pagination(query, pagination)
+        # Build SQL query with filters and pagination
+        where_clauses = []
+        params = []
+        param_count = 0
+        
+        # Apply filters
+        if filters.document_id:
+            param_count += 1
+            where_clauses.append(f"document_id = ${param_count}")
+            params.append(filters.document_id)
+        
+        if filters.bucket_type:
+            param_count += 1
+            where_clauses.append(f"bucket_type = ${param_count}")
+            params.append(filters.bucket_type.value)
+        
+        if filters.has_ocr_text is not None:
+            param_count += 1
+            where_clauses.append(f"has_ocr_text = ${param_count}")
+            params.append(filters.has_ocr_text)
+        
+        if filters.has_ai_description is not None:
+            param_count += 1
+            where_clauses.append(f"has_ai_description = ${param_count}")
+            params.append(filters.has_ai_description)
+        
+        if filters.search:
+            param_count += 1
+            where_clauses.append(f"(filename ILIKE ${param_count} OR original_filename ILIKE ${param_count} OR ai_description ILIKE ${param_count} OR ocr_text ILIKE ${param_count})")
+            search_term = f"%{filters.search}%"
+            params.extend([search_term, search_term, search_term, search_term])
+            param_count += 3
+        
+        where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        
+        # Apply sorting
+        order_direction = "DESC" if sort.sort_order == SortOrder.DESC else "ASC"
+        order_clause = f" ORDER BY {sort.sort_by} {order_direction}"
+        
+        # Apply pagination
+        offset = (pagination.page - 1) * pagination.page_size
+        limit_clause = f" LIMIT {pagination.page_size} OFFSET {offset}"
+        
+        # Execute query
+        query = f"""
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM krai_content.images
+            {where_clause}
+            {order_clause}
+            {limit_clause}
+        """
+        
+        result = await adapter.execute_query(query, params)
+        
+        # Get total count from first row or execute separate count query
+        total = 0
+        if result:
+            total = result[0].get('total_count', len(result))
+        else:
+            # Fallback count query
+            count_query = f"SELECT COUNT(*) as count FROM krai_content.images{where_clause}"
+            count_result = await adapter.execute_query(count_query, params)
+            total = count_result[0].get('count', 0) if count_result else 0
 
-        response = query.execute()
-        data = response.data or []
-        total = response.count or 0
+        LOGGER.info(
+            "Listed images page=%s size=%s total=%s",
+            pagination.page,
+            pagination.page_size,
+            total,
+        )
 
         payload = ImageListResponse(
-            images=[ImageResponse(**item) for item in data],
+            images=[ImageResponse(**item) for item in result or []],
             total=total,
             page=pagination.page,
             page_size=pagination.page_size,
@@ -361,28 +383,24 @@ def list_images(
     "/{image_id}",
     response_model=SuccessResponse[ImageWithRelationsResponse],
 )
-def get_image(
+async def get_image(
     image_id: str,
     include_relations: bool = Query(False),
     current_user: Dict[str, Any] = Depends(require_permission("images:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ImageWithRelationsResponse]:
     try:
-        response = (
-            supabase.table("krai_content.images")
-            .select("*")
-            .eq("id", image_id)
-            .limit(1)
-            .execute()
+        result = await adapter.execute_query(
+            "SELECT * FROM krai_content.images WHERE id = $1 LIMIT 1",
+            [image_id]
         )
-        data = response.data or []
-        if not data:
+        if not result:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Image not found", "IMAGE_NOT_FOUND"),
             )
 
-        enriched = _build_relations(supabase, data[0], include_relations)
+        enriched = await _build_relations(adapter, result[0], include_relations)
         return SuccessResponse(data=enriched)
     except HTTPException:
         raise
@@ -395,20 +413,20 @@ def get_image(
     response_model=SuccessResponse[ImageResponse],
     status_code=status.HTTP_201_CREATED,
 )
-def create_image(
+async def create_image(
     payload: ImageCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("images:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ImageResponse]:
     try:
-        _validate_foreign_keys(
-            supabase,
+        await _validate_foreign_keys(
+            adapter,
             document_id=payload.document_id,
             chunk_id=payload.chunk_id,
         )
 
         if payload.file_hash:
-            duplicate = _deduplicate_hash(supabase, payload.file_hash)
+            duplicate = await _deduplicate_hash(adapter, payload.file_hash)
             if duplicate:
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
@@ -419,24 +437,31 @@ def create_image(
                     ),
                 )
 
-        insert_response = supabase.table("krai_content.images").insert(payload.model_dump()).execute()
-        data = insert_response.data or []
-        if not data:
+        # Build INSERT query dynamically
+        record_dict = payload.model_dump()
+        columns = list(record_dict.keys())
+        placeholders = [f"${i+1}" for i in range(len(columns))]
+        values = list(record_dict.values())
+        
+        query = f"INSERT INTO krai_content.images ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING *"
+        result = await adapter.execute_query(query, values)
+        
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to create image"),
             )
 
-        image_id = data[0]["id"]
+        image_id = result[0]["id"]
         LOGGER.info("Created image %s", image_id)
-        _insert_audit_log(
-            supabase,
+        await _insert_audit_log(
+            adapter,
             record_id=image_id,
             operation="INSERT",
             changed_by=current_user.get("id"),
-            new_values=data[0],
+            new_values=result[0],
         )
-        return SuccessResponse(data=ImageResponse(**data[0]))
+        return SuccessResponse(data=ImageResponse(**result[0]))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -447,22 +472,18 @@ def create_image(
     "/{image_id}",
     response_model=SuccessResponse[ImageResponse],
 )
-def update_image(
+async def update_image(
     image_id: str,
     payload: ImageUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("images:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ImageResponse]:
     try:
-        existing = (
-            supabase.table("krai_content.images")
-            .select("*")
-            .eq("id", image_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT * FROM krai_content.images WHERE id = $1 LIMIT 1",
+            [image_id]
         )
-        data = existing.data or []
-        if not data:
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Image not found", "IMAGE_NOT_FOUND"),
@@ -470,37 +491,48 @@ def update_image(
 
         update_payload = payload.model_dump(exclude_unset=True, exclude_none=True)
         if not update_payload:
-            return SuccessResponse(data=ImageResponse(**data[0]))
+            return SuccessResponse(data=ImageResponse(**existing[0]))
 
-        _validate_foreign_keys(
-            supabase,
+        await _validate_foreign_keys(
+            adapter,
             document_id=update_payload.get("document_id"),
             chunk_id=update_payload.get("chunk_id"),
         )
 
-        response = (
-            supabase.table("krai_content.images")
-            .update(update_payload)
-            .eq("id", image_id)
-            .execute()
+        # Build dynamic UPDATE query
+        set_clauses = []
+        params = []
+        param_count = 0
+        
+        for key, value in update_payload.items():
+            param_count += 1
+            set_clauses.append(f"{key} = ${param_count}")
+            params.append(value)
+        
+        param_count += 1
+        params.append(image_id)
+        
+        result = await adapter.execute_query(
+            f"UPDATE krai_content.images SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *",
+            params
         )
-        updated = response.data or []
-        if not updated:
+        
+        if not result:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=_error_response("Server Error", "Failed to update image"),
             )
 
         LOGGER.info("Updated image %s", image_id)
-        _insert_audit_log(
-            supabase,
+        await _insert_audit_log(
+            adapter,
             record_id=image_id,
             operation="UPDATE",
             changed_by=current_user.get("id"),
-            new_values=updated[0],
-            old_values=data[0],
+            new_values=result[0],
+            old_values=existing[0],
         )
-        return SuccessResponse(data=ImageResponse(**updated[0]))
+        return SuccessResponse(data=ImageResponse(**result[0]))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -517,32 +549,31 @@ async def delete_image(
         False, description="Also delete the backing object from Cloudflare R2 storage."
     ),
     current_user: Dict[str, Any] = Depends(require_permission("images:delete")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[MessagePayload]:
     try:
-        existing = (
-            supabase.table("krai_content.images")
-            .select("*")
-            .eq("id", image_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT * FROM krai_content.images WHERE id = $1 LIMIT 1",
+            [image_id]
         )
-        data = existing.data or []
-        if not data:
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Image not found", "IMAGE_NOT_FOUND"),
             )
 
         storage_deleted = False
-        supabase.table("krai_content.images").delete().eq("id", image_id).execute()
+        await adapter.execute_query(
+            "DELETE FROM krai_content.images WHERE id = $1",
+            [image_id]
+        )
         LOGGER.info("Deleted image %s", image_id)
-        _insert_audit_log(
-            supabase,
+        await _insert_audit_log(
+            adapter,
             record_id=image_id,
             operation="DELETE",
             changed_by=current_user.get("id"),
-            old_values=data[0],
+            old_values=existing[0],
         )
 
         if delete_from_storage:
@@ -550,8 +581,8 @@ async def delete_image(
 
             try:
                 await storage_service.connect()
-                storage_url = (data[0].get("storage_url") or "") if data else ""
-                storage_path = data[0].get("storage_path") if data else None
+                storage_url = (existing[0].get("storage_url") or "") if existing else ""
+                storage_path = existing[0].get("storage_path") if existing else None
 
                 bucket_type = "document_images"
                 public_documents = os.getenv("R2_PUBLIC_URL_DOCUMENTS", "")
@@ -606,11 +637,10 @@ async def delete_image(
 )
 async def upload_image(
     file: UploadFile = File(...),
-    bucket: Optional[str] = Query(None, description="Bucket type (document_images, error_images, parts_images)."),
-    document_id: Optional[str] = Query(None),
-    chunk_id: Optional[str] = Query(None),
+    document_id: Optional[str] = None,
+    alt_text: Optional[str] = None,
     current_user: Dict[str, Any] = Depends(require_permission("images:write")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ImageUploadResponse]:
     try:
         if not file.content_type or not file.content_type.startswith("image/"):
@@ -636,8 +666,6 @@ async def upload_image(
                 ),
             )
 
-        bucket_type = _map_bucket(bucket)
-
         storage_service = create_storage_service()
 
         try:
@@ -656,7 +684,7 @@ async def upload_image(
         storage_result = await storage_service.upload_image(
             content=content,
             filename=file.filename or "upload.bin",
-            bucket_type=bucket_type.value,
+            bucket_type="document_images",
             metadata={}
         )
 
@@ -668,68 +696,72 @@ async def upload_image(
             or storage_result.get("url")
         )
 
-        if is_duplicate:
-            existing = _deduplicate_hash(supabase, file_hash)
-            if existing:
-                return SuccessResponse(
-                    data=ImageUploadResponse(
-                        success=True,
-                        image_id=existing.get("id"),
-                        storage_url=existing.get("storage_url"),
-                        storage_path=existing.get("storage_path"),
-                        file_hash=file_hash,
-                        file_size=existing.get("file_size"),
-                        is_duplicate=True,
-                        bucket=bucket_type.value,
-                    )
-                )
-
-        metadata_payload = {
-            "document_id": document_id,
-            "chunk_id": chunk_id,
-            "storage_url": resolved_url,
-            "storage_path": storage_result.get("storage_path"),
-            "filename": storage_result.get("key"),
-            "original_filename": file.filename,
-            "file_size": storage_result.get("size"),
-            "file_hash": file_hash,
-        }
-
-        _validate_foreign_keys(
-            supabase,
-            document_id=document_id,
-            chunk_id=chunk_id,
+        # Check for duplicates
+        existing = await adapter.execute_query(
+            "SELECT id FROM krai_content.images WHERE file_hash = $1 LIMIT 1",
+            [file_hash]
         )
-
-        insert_payload = ImageCreateRequest(**metadata_payload)
-        insert_response = supabase.table("krai_content.images").insert(insert_payload.model_dump()).execute()
-        data = insert_response.data or []
-        if not data:
-            raise HTTPException(
-                status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=_error_response("Server Error", "Failed to persist uploaded image"),
+        if existing:
+            existing_image = await adapter.execute_query(
+                "SELECT * FROM krai_content.images WHERE id = $1 LIMIT 1",
+                [existing[0]["id"]]
+            )
+            return SuccessResponse(
+                data=ImageUploadResponse(
+                    image_id=existing_image[0]["id"],
+                    file_url=existing_image[0]["file_url"],
+                    message="Image already exists (deduplicated)",
+                    is_duplicate=True,
+                )
             )
 
-        image_id = data[0]["id"]
-        LOGGER.info("Uploaded image %s via API", image_id)
-        _insert_audit_log(
-            supabase,
-            record_id=image_id,
-            operation="INSERT",
-            changed_by=current_user.get("id"),
-            new_values=data[0],
+        original_filename = file.filename or "upload.bin"
+        file_url = resolved_url
+        file_size = storage_result.get("size")
+        file_type = file.content_type
+
+        # Save to database
+        image_data = {
+            "id": str(uuid.uuid4()),
+            "filename": original_filename,
+            "file_url": file_url,
+            "file_size": file_size,
+            "mime_type": file_type,
+            "file_hash": file_hash,
+            "alt_text": alt_text,
+            "document_id": document_id,
+            "uploaded_by": current_user.get("id"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        
+        result = await adapter.execute_query(
+            """
+            INSERT INTO krai_content.images (
+                id, filename, file_url, file_size, mime_type, file_hash, 
+                alt_text, document_id, uploaded_by, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
+            """,
+            [
+                image_data["id"], image_data["filename"], image_data["file_url"],
+                image_data["file_size"], image_data["mime_type"], image_data["file_hash"],
+                image_data["alt_text"], image_data["document_id"], image_data["uploaded_by"],
+                image_data["created_at"]
+            ]
         )
 
+        await _insert_audit_log(
+            adapter,
+            record_id=result[0]["id"],
+            operation="CREATE",
+            changed_by=current_user.get("id"),
+            new_values=result[0],
+        )
+        
         return SuccessResponse(
             data=ImageUploadResponse(
-                success=True,
-                image_id=image_id,
-                storage_url=resolved_url,
-                storage_path=storage_result.get("storage_path"),
-                file_hash=file_hash,
-                file_size=storage_result.get("size"),
-                is_duplicate=False,
-                bucket=bucket_type.value,
+                image_id=result[0]["id"],
+                file_url=result[0]["file_url"],
+                message="Image uploaded successfully",
             )
         )
     except HTTPException:
@@ -744,24 +776,20 @@ async def upload_image(
 async def download_image(
     image_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("images:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> Response:
     try:
-        existing = (
-            supabase.table("krai_content.images")
-            .select("id, storage_url, storage_path, filename, image_format")
-            .eq("id", image_id)
-            .limit(1)
-            .execute()
+        existing = await adapter.execute_query(
+            "SELECT id, storage_url, storage_path, filename, image_format FROM krai_content.images WHERE id = $1 LIMIT 1",
+            [image_id]
         )
-        data = existing.data or []
-        if not data:
+        if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Image not found", "IMAGE_NOT_FOUND"),
             )
 
-        record = data[0]
+        record = existing[0]
         storage_path = record.get("storage_path")
         if not storage_path:
             raise HTTPException(
@@ -825,32 +853,56 @@ async def download_image(
     "/by-document/{document_id}",
     response_model=SuccessResponse[ImageListResponse],
 )
-def get_images_by_document(
+async def get_images_by_document(
     document_id: str,
     pagination: PaginationParams = Depends(),
     sort: ImageSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("images:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ImageListResponse]:
     try:
-        query = (
-            supabase.table("krai_content.images")
-            .select("*", count="exact")
-            .eq("document_id", document_id)
-        )
-        query = _apply_sorting(query, sort)
-        query = _apply_pagination(query, pagination)
-
-        response = query.execute()
-        data = response.data or []
-        total = response.count or 0
-
+        # Build base query
+        base_query = """
+            SELECT 
+                i.id,
+                i.filename,
+                i.file_url,
+                i.file_size,
+                i.mime_type,
+                i.file_hash,
+                i.alt_text,
+                i.document_id,
+                i.uploaded_by,
+                i.created_at,
+                i.updated_at,
+                COUNT(*) OVER() as total_count
+            FROM krai_content.images i
+            WHERE i.document_id = $1
+        """
+        
+        params = [document_id]
+        
+        # Add sorting
+        order_by = "ORDER BY " + sort.sort_by + (" DESC" if sort.sort_order == "desc" else " ASC")
+        
+        # Add pagination
+        limit_clause = f"LIMIT {pagination.limit} OFFSET {(pagination.page - 1) * pagination.limit}"
+        
+        full_query = f"{base_query} {order_by} {limit_clause}"
+        
+        result = await adapter.execute_query(full_query, params)
+        
+        # Extract total count from first row
+        total_count = result[0]["total_count"] if result else 0
+        
+        images = [ImageResponse(**row) for row in result]
+        
         payload = ImageListResponse(
-            images=[ImageResponse(**item) for item in data],
-            total=total,
+            images=images,
+            total=total_count,
             page=pagination.page,
-            page_size=pagination.page_size,
-            total_pages=_calculate_total_pages(total, pagination.page_size),
+            page_size=pagination.limit,
+            total_pages=(total_count + pagination.limit - 1) // pagination.limit,
         )
         return SuccessResponse(data=payload)
     except HTTPException:
@@ -863,13 +915,13 @@ def get_images_by_document(
     "/stats",
     response_model=SuccessResponse[ImageStatsResponse],
 )
-def get_image_stats(
+async def get_image_stats(
     current_user: Dict[str, Any] = Depends(require_permission("images:read")),
-    supabase: Client = Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ImageStatsResponse]:
     try:
-        response = supabase.table("krai_content.images").select("*").execute()
-        records = response.data or []
+        result = await adapter.execute_query("SELECT * FROM krai_content.images")
+        records = result or []
         stats = _calculate_stats(records)
         return SuccessResponse(data=stats)
     except HTTPException:

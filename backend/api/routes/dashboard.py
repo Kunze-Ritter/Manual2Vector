@@ -1,0 +1,178 @@
+"""Dashboard overview routes for aggregated production metrics."""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any, Dict, List
+import logging
+
+from fastapi import APIRouter, HTTPException
+
+from services.database_service import DatabaseService
+
+logger = logging.getLogger(__name__)
+
+
+def create_dashboard_router(database_service: DatabaseService) -> APIRouter:
+    """Create dashboard router with aggregated stats endpoints."""
+
+    router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+    async def _fetch_count(query: str) -> int:
+        row = await database_service.fetch_one(query)
+        if not row:
+            return 0
+        return int(row["count"] or 0)
+
+    async def _fetch_group_counts(query: str, key_field: str) -> Dict[str, int]:
+        rows = await database_service.fetch_all(query)
+        results: Dict[str, int] = {}
+        for row in rows or []:
+            key = row.get(key_field) or "unknown"
+            results[str(key)] = int(row.get("count", 0) or 0)
+        return results
+
+    async def _fetch_recent_documents(limit: int = 5) -> List[Dict[str, Any]]:
+        rows = await database_service.fetch_all(
+            """
+            SELECT id, filename, processing_status, manufacturer, updated_at
+            FROM krai_core.documents
+            ORDER BY updated_at DESC
+            LIMIT $1
+            """,
+            [limit],
+        )
+        recent: List[Dict[str, Any]] = []
+        for row in rows or []:
+            updated_at = row.get("updated_at")
+            if isinstance(updated_at, datetime):
+                updated_at = updated_at.astimezone(timezone.utc).isoformat()
+            recent.append(
+                {
+                    "id": str(row.get("id")),
+                    "filename": row.get("filename"),
+                    "manufacturer": row.get("manufacturer"),
+                    "status": row.get("processing_status"),
+                    "updated_at": updated_at,
+                }
+            )
+        return recent
+
+    @router.get("/overview")
+    async def get_dashboard_overview() -> Dict[str, Any]:
+        """Return aggregated dashboard stats for production data.
+
+        This endpoint is defensive by design: any failure to query optional
+        tables (or other runtime issues) is logged and a safe fallback
+        overview with zero/empty stats is returned instead of a 500 error.
+        """
+
+        try:
+            total_documents = await _fetch_count(
+                "SELECT COUNT(*) AS count FROM krai_core.documents"
+            )
+            documents_by_status = await _fetch_group_counts(
+                "SELECT processing_status, COUNT(*) AS count "
+                "FROM krai_core.documents GROUP BY processing_status",
+                "processing_status",
+            )
+            documents_by_type = await _fetch_group_counts(
+                "SELECT document_type, COUNT(*) AS count "
+                "FROM krai_core.documents GROUP BY document_type",
+                "document_type",
+            )
+            processed_last_24h = await _fetch_count(
+                "SELECT COUNT(*) AS count FROM krai_core.documents "
+                "WHERE processing_status = 'completed' "
+                "AND updated_at >= NOW() - INTERVAL '24 hours'",
+            )
+
+            total_products = await _fetch_count(
+                "SELECT COUNT(*) AS count FROM krai_core.products"
+            )
+            manufacturers_total = await _fetch_count(
+                "SELECT COUNT(*) AS count FROM krai_core.manufacturers"
+            )
+            active_products = await _fetch_count(
+                "SELECT COUNT(*) AS count FROM krai_core.products "
+                "WHERE end_of_life_date IS NULL OR end_of_life_date > NOW()"
+            )
+            discontinued_products = await _fetch_count(
+                "SELECT COUNT(*) AS count FROM krai_core.products "
+                "WHERE end_of_life_date IS NOT NULL AND end_of_life_date <= NOW()"
+            )
+
+            queue_by_status = await _fetch_group_counts(
+                "SELECT status, COUNT(*) AS count FROM krai_system.processing_queue GROUP BY status",
+                "status",
+            )
+            queue_total = sum(queue_by_status.values())
+
+            try:
+                images_total = await _fetch_count(
+                    "SELECT COUNT(*) AS count FROM krai_content.images"
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Dashboard images_total query failed: %s", exc)
+                images_total = 0
+
+            try:
+                videos_total = await _fetch_count(
+                    "SELECT COUNT(*) AS count FROM krai_content.videos"
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Dashboard videos_total query failed: %s", exc)
+                videos_total = 0
+
+            overview = {
+                "documents": {
+                    "total": total_documents,
+                    "by_status": documents_by_status,
+                    "by_type": documents_by_type,
+                    "processed_last_24h": processed_last_24h,
+                    "recent": await _fetch_recent_documents(),
+                },
+                "products": {
+                    "total": total_products,
+                    "manufacturers": manufacturers_total,
+                    "active": active_products,
+                    "discontinued": discontinued_products,
+                },
+                "queue": {
+                    "total": queue_total,
+                    "by_status": queue_by_status,
+                },
+                "media": {
+                    "images": images_total,
+                    "videos": videos_total,
+                },
+            }
+
+            return {"success": True, "data": overview}
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.error("Failed to load dashboard data, returning safe fallback: %s", exc)
+            fallback_overview = {
+                "documents": {
+                    "total": 0,
+                    "by_status": {},
+                    "by_type": {},
+                    "processed_last_24h": 0,
+                    "recent": [],
+                },
+                "products": {
+                    "total": 0,
+                    "manufacturers": 0,
+                    "active": 0,
+                    "discontinued": 0,
+                },
+                "queue": {
+                    "total": 0,
+                    "by_status": {},
+                },
+                "media": {
+                    "images": 0,
+                    "videos": 0,
+                },
+            }
+            return {"success": True, "data": fallback_overview}
+
+    return router

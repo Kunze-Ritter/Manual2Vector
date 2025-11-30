@@ -19,8 +19,8 @@ from models.batch import (
 class BatchTaskService:
     """Handles creation, tracking, and execution state of batch tasks."""
 
-    def __init__(self, supabase_adapter: "SupabaseAdapter") -> None:
-        self._adapter = supabase_adapter
+    def __init__(self, database_adapter: "DatabaseAdapter") -> None:
+        self._adapter = database_adapter
         self._logger = logging.getLogger("krai.services.batch_task_service")
         self._tasks: Dict[str, Dict[str, Any]] = {}
 
@@ -35,10 +35,6 @@ class BatchTaskService:
     async def create_task(self, task_request: BatchTaskRequest) -> str:
         """Persist a new batch task and return its identifier."""
 
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot create task")
-
         task_id = self._generate_task_id(task_request)
         metadata = {
             "resource_type": task_request.resource_type,
@@ -52,17 +48,24 @@ class BatchTaskService:
             "failed_items": 0,
         }
 
-        client.table("krai_system.processing_queue").insert(
-            {
-                "id": task_id,
-                "task_type": f"batch_{task_request.operation_type}",
-                "status": BatchTaskStatus.QUEUED.value,
-                "priority": task_request.priority,
-                "metadata": metadata,
-                "user_id": task_request.user_id,
-                "scheduled_at": self._now().isoformat(),
-            },
-        ).execute()
+        # Build INSERT query using DatabaseAdapter
+        query = """
+            INSERT INTO krai_system.processing_queue (
+                id, task_type, status, priority, metadata, user_id, scheduled_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        """
+        
+        values = [
+            task_id,
+            f"batch_{task_request.operation_type}",
+            BatchTaskStatus.QUEUED.value,
+            task_request.priority,
+            metadata,
+            task_request.user_id,
+            self._now().isoformat(),
+        ]
+        
+        await self._adapter.execute_query(query, values)
 
         self._tasks[task_id] = {
             "status": BatchTaskStatus.QUEUED,
@@ -76,10 +79,7 @@ class BatchTaskService:
     async def get_task_status(self, task_id: str) -> BatchTaskResponse:
         """Return the current status of a batch task."""
 
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot retrieve task status")
-
+        # Get in-memory status first
         in_memory = self._tasks.get(task_id)
         status = BatchTaskStatus.QUEUED
         progress = 0.0
@@ -96,22 +96,24 @@ class BatchTaskService:
             completed_at = in_memory.get("completed_at")
             error_message = in_memory.get("error")
 
-        response = (
-            client.table("krai_system.processing_queue")
-            .select("status, metadata, started_at, completed_at, error_message")
-            .eq("id", task_id)
-            .limit(1)
-            .execute()
-        )
-        data = response.data or []
+        # Query database for latest status
+        query = """
+            SELECT status, metadata, started_at, completed_at, error_message 
+            FROM krai_system.processing_queue 
+            WHERE id = $1 
+            LIMIT 1
+        """
+        
+        result = await self._adapter.execute_query(query, [task_id])
+        data = result[0] if result else None
+        
         if data:
-            entry = data[0]
-            status = BatchTaskStatus(entry.get("status", status.value))
-            metadata = entry.get("metadata", metadata) or {}
+            status = BatchTaskStatus(data.get("status", status.value))
+            metadata = data.get("metadata", metadata) or {}
             progress = float(metadata.get("progress", progress))
-            started_at = entry.get("started_at") or started_at
-            completed_at = entry.get("completed_at") or completed_at
-            error_message = entry.get("error_message") or error_message
+            started_at = data.get("started_at") or started_at
+            completed_at = data.get("completed_at") or completed_at
+            error_message = data.get("error_message") or error_message
 
         results = metadata.get("results") or []
         total_items = int(metadata.get("total_items", 0))
@@ -143,10 +145,6 @@ class BatchTaskService:
     ) -> None:
         """Update the task status and persist it in the processing queue."""
 
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot update task status")
-
         now_iso = self._now().isoformat()
         metadata = self._tasks.get(task_id, {}).get("metadata", {}).copy()
         if metadata_updates:
@@ -167,7 +165,15 @@ class BatchTaskService:
             update_payload["error_message"] = error
             metadata["error_message"] = error
 
-        client.table("krai_system.processing_queue").update(update_payload).eq("id", task_id).execute()
+        # Build dynamic UPDATE query
+        set_clauses = [f"{key} = ${i+2}" for i, key in enumerate(update_payload.keys())]
+        query = f"""
+            UPDATE krai_system.processing_queue 
+            SET {', '.join(set_clauses)}
+            WHERE id = $1
+        """
+        
+        await self._adapter.execute_query(query, [task_id] + list(update_payload.values()))
         self._tasks[task_id] = {
             **self._tasks.get(task_id, {}),
             "status": status,
@@ -249,30 +255,36 @@ class BatchTaskService:
     async def cleanup_completed_tasks(self, older_than_hours: int = 24) -> int:
         """Remove completed/cancelled tasks older than the specified age."""
 
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot cleanup tasks")
-
         cutoff = self._now() - timedelta(hours=older_than_hours)
-        query = (
-            client.table("processing_queue", schema="krai_system")
-            .select("id", count="exact")
-            .like("task_type", "batch_%")
-            .in_("status", [
-                BatchTaskStatus.COMPLETED.value,
-                BatchTaskStatus.FAILED.value,
-                BatchTaskStatus.CANCELLED.value,
-            ])
-            .lte("completed_at", cutoff.isoformat())
-        )
-        response = query.execute()
-        rows = response.data or []
-        count = response.count if response.count is not None else len(rows)
+        
+        # Count tasks to delete
+        count_query = """
+            SELECT COUNT(*) as count FROM krai_system.processing_queue 
+            WHERE task_type LIKE 'batch_%' 
+            AND status IN ($1, $2, $3) 
+            AND completed_at <= $4
+        """
+        
+        params = [
+            BatchTaskStatus.COMPLETED.value,
+            BatchTaskStatus.FAILED.value,
+            BatchTaskStatus.CANCELLED.value,
+            cutoff.isoformat(),
+        ]
+        
+        result = await self._adapter.execute_query(count_query, params)
+        count = result[0].get("count", 0) if result else 0
 
-        if rows:
-            ids_to_remove = [row["id"] for row in rows if row.get("id")]
-            if ids_to_remove:
-                client.table("processing_queue", schema="krai_system").delete().in_("id", ids_to_remove).execute()
+        if count > 0:
+            # Delete the tasks
+            delete_query = """
+                DELETE FROM krai_system.processing_queue 
+                WHERE task_type LIKE 'batch_%' 
+                AND status IN ($1, $2, $3) 
+                AND completed_at <= $4
+            """
+            
+            await self._adapter.execute_query(delete_query, params)
 
         # Remove from in-memory cache
         for task_id, details in list(self._tasks.items()):
@@ -298,23 +310,35 @@ class BatchTaskService:
     ) -> List[BatchTaskResponse]:
         """Return a list of tasks filtered by user or status."""
 
-        client = getattr(self._adapter, "service_client", None) or getattr(self._adapter, "client", None)
-        if client is None:
-            raise RuntimeError("Supabase client is not connected; cannot list tasks")
-
-        query = client.table("krai_system.processing_queue").select("id, status, metadata, started_at, completed_at, error_message").order(
-            "created_at", desc=True
-        )
+        # Build query dynamically
+        conditions = []
+        params = []
+        param_count = 0
+        
         if user_id:
-            query = query.eq("user_id", user_id)
+            param_count += 1
+            conditions.append(f"user_id = ${param_count}")
+            params.append(user_id)
         if status:
-            query = query.eq("status", status.value)
-        if limit:
-            query = query.limit(limit)
+            param_count += 1
+            conditions.append(f"status = ${param_count}")
+            params.append(status.value)
+        
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        
+        query = f"""
+            SELECT id, status, metadata, started_at, completed_at, error_message 
+            FROM krai_system.processing_queue 
+            {where_clause}
+            ORDER BY created_at DESC 
+            LIMIT ${param_count + 1}
+        """
+        params.append(limit)
 
-        response = query.execute()
-        rows = response.data or []
+        rows = await self._adapter.execute_query(query, params)
+        rows = rows or []
         results: List[BatchTaskResponse] = []
+        
         for row in rows:
             task_id = row["id"]
             metadata = row.get("metadata") or {}
@@ -352,5 +376,3 @@ class BatchTaskService:
         return await self.create_task(request)
 
 
-# Circular import guard
-from services.supabase_adapter import SupabaseAdapter  # noqa: E402, F401  # isort:skip

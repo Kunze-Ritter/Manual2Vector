@@ -2,15 +2,16 @@
 Database Adapter Factory
 
 Factory pattern for creating database adapters based on configuration.
-Supports multiple database backends: Supabase, PostgreSQL (local or remote).
+Supports PostgreSQL database backend.
 Note: Docker PostgreSQL is now handled by postgresql type with environment-based defaults.
 """
 
 import os
 import logging
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 
-from services.database_adapter import DatabaseAdapter
+from .database_adapter import DatabaseAdapter
 
 
 logger = logging.getLogger("krai.database.factory")
@@ -18,9 +19,6 @@ logger = logging.getLogger("krai.database.factory")
 
 def create_database_adapter(
     database_type: Optional[str] = None,
-    supabase_url: Optional[str] = None,
-    supabase_key: Optional[str] = None,
-    supabase_service_role_key: Optional[str] = None,
     postgres_url: Optional[str] = None,
     postgres_host: Optional[str] = None,
     postgres_port: Optional[int] = None,
@@ -33,11 +31,8 @@ def create_database_adapter(
     Create a database adapter based on the specified type.
     
     Args:
-        database_type: Type of database adapter ('supabase', 'postgresql')
-                      If None, reads from DATABASE_TYPE environment variable (default: 'supabase')
-        supabase_url: Supabase project URL (for Supabase adapter)
-        supabase_key: Supabase anon key (for Supabase adapter)
-        supabase_service_role_key: Supabase service role key (for cross-schema queries)
+        database_type: Type of database adapter ('postgresql')
+                      If None, reads from DATABASE_TYPE environment variable (default: 'postgresql')
         postgres_url: PostgreSQL connection URL (for PostgreSQL adapter)
         postgres_host: PostgreSQL host (alternative to postgres_url)
         postgres_port: PostgreSQL port (alternative to postgres_url)
@@ -54,10 +49,7 @@ def create_database_adapter(
         ImportError: If required dependencies for the adapter are not installed
     
     Environment Variables:
-        DATABASE_TYPE: Type of database adapter (default: 'supabase')
-        SUPABASE_URL: Supabase project URL
-        SUPABASE_ANON_KEY: Supabase anon key
-        SUPABASE_SERVICE_ROLE_KEY: Supabase service role key
+        DATABASE_TYPE: Type of database adapter (default: 'postgresql')
         DATABASE_CONNECTION_URL or POSTGRES_URL: PostgreSQL connection URL
         POSTGRES_HOST: PostgreSQL host
         POSTGRES_PORT: PostgreSQL port
@@ -71,7 +63,7 @@ def create_database_adapter(
     
     # Determine database type from parameter or environment
     if database_type is None:
-        database_type = os.getenv("DATABASE_TYPE", "supabase").lower()
+        database_type = os.getenv("DATABASE_TYPE", "postgresql").lower()
     else:
         database_type = database_type.lower()
     
@@ -81,15 +73,7 @@ def create_database_adapter(
     logger.info(f"Creating database adapter: {database_type}")
     
     # Create adapter based on type
-    if database_type == "supabase":
-        return _create_supabase_adapter(
-            supabase_url=supabase_url,
-            supabase_key=supabase_key,
-            supabase_service_role_key=supabase_service_role_key,
-            postgres_url=postgres_url
-        )
-    
-    elif database_type == "postgresql":
+    if database_type == "postgresql":
         return _create_postgresql_adapter(
             postgres_url=postgres_url,
             postgres_host=postgres_host,
@@ -103,41 +87,10 @@ def create_database_adapter(
     else:
         raise ValueError(
             f"Invalid database_type: {database_type}. "
-            f"Must be one of: 'supabase', 'postgresql'"
+            f"Must be one of: 'postgresql'"
         )
 
 
-def _create_supabase_adapter(
-    supabase_url: Optional[str] = None,
-    supabase_key: Optional[str] = None,
-    supabase_service_role_key: Optional[str] = None,
-    postgres_url: Optional[str] = None
-) -> DatabaseAdapter:
-    """Create a Supabase adapter with configuration from parameters or environment."""
-    from services.supabase_adapter import SupabaseAdapter
-    
-    # Get configuration from parameters or environment
-    url = supabase_url or os.getenv("SUPABASE_URL")
-    key = supabase_key or os.getenv("SUPABASE_ANON_KEY")
-    service_role_key = supabase_service_role_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    pg_url = postgres_url or os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL")
-    
-    # Validate required configuration
-    if not url:
-        raise ValueError("SUPABASE_URL is required for Supabase adapter")
-    if not key:
-        raise ValueError("SUPABASE_ANON_KEY is required for Supabase adapter")
-    
-    logger.info(f"Creating Supabase adapter: {url}")
-    logger.info(f"Service role key: {'✅ Available' if service_role_key else '❌ Not available'}")
-    logger.info(f"Direct PostgreSQL: {'✅ Available' if pg_url else '❌ Not available'}")
-    
-    return SupabaseAdapter(
-        supabase_url=url,
-        supabase_key=key,
-        postgres_url=pg_url,
-        service_role_key=service_role_key
-    )
 
 
 def _create_postgresql_adapter(
@@ -150,7 +103,7 @@ def _create_postgresql_adapter(
     schema_prefix: Optional[str] = None
 ) -> DatabaseAdapter:
     """Create a PostgreSQL adapter with configuration from parameters or environment."""
-    from services.postgresql_adapter import PostgreSQLAdapter
+    from .postgresql_adapter import PostgreSQLAdapter
     
     # Get configuration from parameters or environment
     pg_url = postgres_url or os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL")
@@ -161,6 +114,40 @@ def _create_postgresql_adapter(
     password = postgres_password or os.getenv("POSTGRES_PASSWORD")
     prefix = schema_prefix or os.getenv("DATABASE_SCHEMA_PREFIX", "krai")
     
+    # If a full URL is provided, optionally normalize host when running outside Docker
+    if pg_url:
+        try:
+            parsed = urlparse(pg_url)
+            if parsed.hostname and not host:
+                host = parsed.hostname
+
+            # Simple Docker detection: /.dockerenv exists inside containers
+            running_in_docker = os.path.exists("/.dockerenv") or os.getenv("KRAI_IN_DOCKER") == "1"
+
+            if parsed.hostname in ("krai-postgres", "postgres") and not running_in_docker:
+                userinfo = ""
+                if parsed.username:
+                    if parsed.password:
+                        userinfo = f"{parsed.username}:{parsed.password}@"
+                    else:
+                        userinfo = f"{parsed.username}@"
+
+                port_str = f":{parsed.port}" if parsed.port else ""
+                netloc = f"{userinfo}127.0.0.1{port_str}"
+                parsed = parsed._replace(netloc=netloc)
+                original_pg_url = pg_url
+                pg_url = urlunparse(parsed)
+                host = "127.0.0.1"
+
+                logger.info(
+                    "Overriding PostgreSQL host for local execution: %r -> %r",
+                    original_pg_url,
+                    pg_url,
+                )
+        except Exception:
+            # Best-effort normalization only; fall back silently on errors
+            pass
+
     # Detect Docker environment and set defaults
     if not host:
         # Check if we're in a Docker environment
@@ -208,6 +195,13 @@ def _check_deprecated_database_type(database_type: str) -> str:
         logger.warning(
             "Database type 'docker_postgresql' is deprecated. "
             "Using 'postgresql' instead. Update your configuration to use 'postgresql'."
+        )
+        return 'postgresql'
+    
+    if database_type == 'supabase':
+        logger.warning(
+            "Database type 'supabase' is deprecated. "
+            "Using 'postgresql' instead. Supabase support has been removed."
         )
         return 'postgresql'
     

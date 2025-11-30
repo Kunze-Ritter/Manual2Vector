@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import os
 import secrets
-from supabase import create_client
 import sys
 import logging
 
@@ -34,9 +33,20 @@ from processors.stage_tracker import StageTracker
 from api.dependencies.auth import set_auth_service
 from api.dependencies.auth_factory import create_auth_service
 from api.middleware.auth_middleware import AuthMiddleware, require_permission
+from api.middleware.rate_limit_middleware import (
+    IPFilterMiddleware,
+    limiter,
+    rate_limit_health,
+    rate_limit_search,
+    rate_limit_standard,
+    rate_limit_upload,
+    rate_limit_exception_handler,
+)
+from api.middleware.request_validation_middleware import RequestValidationMiddleware
 from services.database_service import DatabaseService
 from services.auth_service import AuthService, AuthenticationError
-from services.supabase_adapter import SupabaseAdapter
+from services.database_adapter import DatabaseAdapter
+from services.database_factory import create_database_adapter
 from services.batch_task_service import BatchTaskService
 from services.transaction_manager import TransactionManager
 
@@ -48,14 +58,21 @@ from api.routes.videos import router as videos_router
 from api.routes.images import router as images_router
 from api.routes.batch import router as batch_router
 from api.routes.search import router as search_router
+from api.routes.api_keys import router as api_keys_router
 from api import websocket as websocket_api
 from services.metrics_service import MetricsService
 from services.alert_service import AlertService
 from processors.env_loader import load_all_env_files
+from config.security_config import get_security_config, get_cors_config
+from slowapi.errors import RateLimitExceeded
 
 # Load consolidated environment configuration
 project_root = Path(__file__).parent.parent.parent
 load_all_env_files(project_root)
+
+# Security configuration
+security_config = get_security_config()
+cors_config = get_cors_config(security_config)
 
 # Security configuration
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
@@ -68,13 +85,6 @@ DEFAULT_ADMIN_EMAIL = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
 DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
 DEFAULT_ADMIN_FIRST_NAME = os.getenv("DEFAULT_ADMIN_FIRST_NAME", "System")
 DEFAULT_ADMIN_LAST_NAME = os.getenv("DEFAULT_ADMIN_LAST_NAME", "Administrator")
-
-# CORS configuration
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "https://krai.example.com",
-]
 
 # Initialize FastAPI with security settings
 app = FastAPI(
@@ -89,32 +99,55 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["Content-Disposition"]
+    allow_origins=cors_config["allow_origins"],
+    allow_credentials=cors_config["allow_credentials"],
+    allow_methods=cors_config["allow_methods"],
+    allow_headers=cors_config["allow_headers"],
+    expose_headers=cors_config["expose_headers"],
+    max_age=cors_config["max_age"],
 )
+
+# IP blacklist/whitelist enforcement
+app.add_middleware(IPFilterMiddleware)
+
+# Request validation middleware
+app.add_middleware(RequestValidationMiddleware)
+
+# Rate limit configuration
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exception_handler)
 
 # Security headers middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    
+
     # Security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
-    
+    response.headers["Content-Security-Policy"] = security_config.CSP_POLICY
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+
+    if request.url.scheme == "https":
+        hsts_value = f"max-age={security_config.HSTS_MAX_AGE}"
+        if security_config.HSTS_INCLUDE_SUBDOMAINS:
+            hsts_value += "; includeSubDomains"
+        if security_config.HSTS_PRELOAD:
+            hsts_value += "; preload"
+        response.headers["Strict-Transport-Security"] = hsts_value
+
     return response
 
 security_scheme = HTTPBearer(auto_error=False)
 
 # Global state
-supabase_client = None
-supabase_adapter: SupabaseAdapter | None = None
+supabase_adapter: DatabaseAdapter | None = None  # Now holds DatabaseAdapter (unified interface)
 upload_processor = None
 document_processor = None
 agent_app = None
@@ -132,36 +165,20 @@ def ensure_auth_service() -> AuthService:
     """Ensure the singleton AuthService is available and registered."""
     global auth_service
     if auth_service is None:
-        service = create_auth_service()
-        set_auth_service(service)
-        auth_service = service
+        # Use database adapter for authentication
+        adapter = get_database_adapter()
+        return create_auth_service(adapter)
     return auth_service
 
 
 # === DEPENDENCY INJECTION ===
 
-def get_supabase():
-    """Get Supabase client"""
-    global supabase_client
-    if supabase_client is None:
-        supabase_client = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        )
-    return supabase_client
 
-
-def get_supabase_adapter() -> SupabaseAdapter:
-    """Provide shared SupabaseAdapter instance."""
-
+def get_database_adapter() -> DatabaseAdapter:
+    """Provide shared DatabaseAdapter instance (singleton)."""
     global supabase_adapter
     if supabase_adapter is None:
-        database_service = DatabaseService(
-            supabase_url=os.getenv("SUPABASE_URL"),
-            supabase_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
-            postgres_url=os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL"),
-        )
-        supabase_adapter = database_service
+        supabase_adapter = create_database_adapter()
     return supabase_adapter
 
 
@@ -169,9 +186,11 @@ def get_upload_processor():
     """Get Upload Processor instance"""
     global upload_processor
     if upload_processor is None:
-        upload_processor = UploadProcessor(
-            supabase_client=get_supabase(),
-            max_file_size_mb=int(os.getenv("MAX_FILE_SIZE_MB", "500"))
+        # UploadProcessor accepts DatabaseAdapter
+        adapter = get_database_adapter()
+        return UploadProcessor(
+            adapter=adapter,
+            stage_tracker=None  # StageTracker may need refactoring for PostgreSQL
         )
     return upload_processor
 
@@ -192,7 +211,7 @@ def get_agent_app():
     """Get Agent API app"""
     global agent_app
     if agent_app is None:
-        agent_app = create_agent_api(get_supabase())
+        agent_app = create_agent_api(get_database_adapter())
     return agent_app
 
 
@@ -201,7 +220,7 @@ async def get_batch_task_service() -> BatchTaskService:
 
     global batch_task_service
     if batch_task_service is None:
-        adapter = get_supabase_adapter()
+        adapter = get_database_adapter()
         batch_task_service = BatchTaskService(adapter)
     return batch_task_service
 
@@ -211,7 +230,7 @@ async def get_transaction_manager() -> TransactionManager:
 
     global transaction_manager
     if transaction_manager is None:
-        adapter = get_supabase_adapter()
+        adapter = get_database_adapter()
         transaction_manager = TransactionManager(adapter)
     return transaction_manager
 
@@ -220,10 +239,8 @@ async def get_metrics_service() -> MetricsService:
     """Return singleton MetricsService."""
     global metrics_service
     if metrics_service is None:
-        adapter = get_supabase_adapter()
-        # Import broadcast function for WebSocket integration
-        from api.websocket import broadcast_stage_event
-        stage_tracker = StageTracker(get_supabase(), websocket_callback=broadcast_stage_event)
+        adapter = get_database_adapter()
+        stage_tracker = StageTracker(adapter)
         metrics_service = MetricsService(adapter, stage_tracker)
     return metrics_service
 
@@ -232,7 +249,7 @@ async def get_alert_service() -> AlertService:
     """Return singleton AlertService."""
     global alert_service
     if alert_service is None:
-        adapter = get_supabase_adapter()
+        adapter = get_database_adapter()
         metrics_svc = await get_metrics_service()
         alert_service = AlertService(adapter, metrics_svc)
     return alert_service
@@ -334,8 +351,9 @@ async def root():
     }
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
+@limiter.limit(rate_limit_health)
 async def health_check(
-    supabase=Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ):
     """
     Health check endpoint
@@ -346,8 +364,7 @@ async def health_check(
     - Ollama status
     - Storage access
     """
-    adapter = get_supabase_adapter()
-    transaction_support = adapter.pg_pool is not None
+    transaction_support = getattr(adapter, 'pg_pool', None) is not None
 
     services = {
         "api": {"status": "healthy", "message": "API is running"},
@@ -359,7 +376,11 @@ async def health_check(
     
     # Check database
     try:
-        result = supabase.table("vw_documents").select("id").limit(1).execute()
+        # Use direct krai.documents table instead of view
+        result = await adapter.execute_query(
+            "SELECT id FROM krai_core.documents LIMIT 1",
+            []
+        )
         services["database"] = {
             "status": "healthy",
             "message": "Database connected"
@@ -470,6 +491,7 @@ async def health_check(
 # === UPLOAD ENDPOINTS ===
 
 @app.post("/upload", response_model=UploadResponse, tags=["Upload"])
+@limiter.limit(rate_limit_standard)
 async def upload_document(
     file: UploadFile = File(...),
     document_type: str = "service_manual",
@@ -540,16 +562,16 @@ async def startup_events():
         logger.error("Failed to ensure default admin user: %s", exc)
         raise
 
-    adapter = get_supabase_adapter()
+    adapter = get_database_adapter()
     if hasattr(adapter, "connect"):
         try:
             await adapter.connect()
         except Exception as exc:  # pragma: no cover - startup logging
-            logger.warning("Supabase adapter connection failed: %s", exc)
+            logger.warning("Database adapter connection failed: %s", exc)
 
     await get_batch_task_service()
     await get_transaction_manager()
-    logger.info("Batch services initialized (transaction support=%s)", adapter.pg_pool is not None)
+    logger.info("Batch services initialized (transaction support=%s)", getattr(adapter, 'pg_pool', None) is not None)
     
     # Initialize monitoring services
     metrics_svc = await get_metrics_service()
@@ -562,15 +584,22 @@ async def startup_events():
     asyncio.create_task(websocket_api.start_periodic_broadcast(metrics_svc))
     
     logger.info("Monitoring services initialized (metrics, alerts, websocket)")
+    logger.info(
+        "Security: CORS origins=%s, Rate limiting=%s, Request validation=%s",
+        cors_config["allow_origins"],
+        security_config.RATE_LIMIT_ENABLED,
+        security_config.REQUEST_VALIDATION_ENABLED,
+    )
 
 
 @app.post("/upload/directory", tags=["Upload"])
+@limiter.limit(rate_limit_upload)
 async def upload_directory(
     directory_path: str,
     document_type: str = "service_manual",
     recursive: bool = False,
     force_reprocess: bool = False,
-    supabase=Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
     current_user: dict = Depends(require_permission('documents:write'))
 ):
     """
@@ -590,7 +619,8 @@ async def upload_directory(
     if not directory.exists() or not directory.is_dir():
         raise HTTPException(status_code=404, detail="Directory not found")
     
-    batch_processor = BatchUploadProcessor(supabase, max_file_size_mb=500)
+    # BatchUploadProcessor accepts adapter
+    batch_processor = BatchUploadProcessor(adapter, max_file_size_mb=500)
     
     results = batch_processor.process_directory(
         directory=directory,
@@ -605,9 +635,10 @@ async def upload_directory(
 # === PROCESSING STATUS ===
 
 @app.get("/status/{document_id}", response_model=ProcessingStatus, tags=["Status"])
+@limiter.limit(rate_limit_standard)
 async def get_document_status(
     document_id: str,
-    supabase=Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
     current_user: dict = Depends(require_permission('documents:read'))
 ):
     """
@@ -620,65 +651,34 @@ async def get_document_status(
         Current processing status
     """
     try:
-        # Get document
-        doc_result = supabase.table("vw_documents") \
-            .select("*") \
-            .eq("id", document_id) \
-            .execute()
+        # Get document using adapter
+        doc = await adapter.get_document(document_id)
         
-        if not doc_result.data:
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        doc = doc_result.data[0]
-        
-        # Get stage status using StageTracker
-        tracker = StageTracker(supabase)
-        
-        current_stage = tracker.get_current_stage(document_id)
-        progress = tracker.get_progress(document_id)
-        stage_status = tracker.get_stage_status(document_id)
-        
-        # Get timestamps
-        started_at = doc.get("created_at")
-        completed_at = None
-        error = None
-        
-        # Check if all stages completed
-        if stage_status and current_stage == "completed":
-            # Get last stage completion time
-            for stage_name in reversed(StageTracker.STAGES):
-                stage_data = stage_status.get(stage_name, {})
-                if stage_data.get("completed_at"):
-                    completed_at = stage_data["completed_at"]
-                    break
-        
-        # Check for any errors
-        if stage_status:
-            for stage_name, stage_data in stage_status.items():
-                if stage_data.get("status") == "failed":
-                    error = stage_data.get("error")
-                    break
+        # Return proper ProcessingStatus model
+        # For now, use basic status from document processing_status field
+        processing_status = doc.get('processing_status', 'unknown')
         
         return ProcessingStatus(
             document_id=document_id,
-            status=doc.get("processing_status", "unknown"),
-            current_stage=current_stage,
-            progress=progress,
-            started_at=started_at,
-            completed_at=completed_at,
-            error=error,
-            stage_status=stage_status
+            status=processing_status,
+            current_stage='unknown',  # Stage tracking not available in PostgreSQL-only mode
+            progress=100.0 if processing_status == 'completed' else 0.0,
+            started_at=doc.get('created_at'),
+            completed_at=doc.get('updated_at') if processing_status == 'completed' else None,
+            error=None,
+            stage_status={}  # Empty stage status for now
         )
         
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/status/pipeline", response_model=List[StageStatistics], tags=["Status"])
+@app.get("/status/pipeline", tags=["Status"])
 async def get_pipeline_status(
-    supabase=Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
     current_user: dict = Depends(require_permission('documents:read'))
 ):
     """
@@ -688,18 +688,24 @@ async def get_pipeline_status(
         Statistics for all pipeline stages
     """
     try:
-        # Get all documents
-        documents = supabase.table("vw_documents").select("*").execute()
+        # Get all documents using direct table
+        documents = await adapter.execute_query(
+            "SELECT id, filename, processing_status, created_at FROM krai_core.documents",
+            []
+        )
         
         # Get queue
-        queue = supabase.table("processing_queue").select("*").execute()
+        queue = await adapter.execute_query(
+            "SELECT * FROM krai_core.processing_queue",
+            []
+        )
         
         stats = {
-            "total_documents": len(documents.data),
-            "in_queue": len([q for q in queue.data if q.get("status") == "pending"]),
-            "processing": len([q for q in queue.data if q.get("status") == "processing"]),
-            "completed": len([d for d in documents.data if d.get("processing_status") == "completed"]),
-            "failed": len([d for d in documents.data if d.get("processing_status") == "failed"]),
+            "total_documents": len(documents),
+            "in_queue": len([q for q in queue if q.get("status") == "pending"]),
+            "processing": len([q for q in queue if q.get("status") == "processing"]),
+            "completed": len([d for d in documents if d.get("processing_status") == "completed"]),
+            "failed": len([d for d in documents if d.get("processing_status") == "failed"]),
             "by_task_type": {}
         }
         
@@ -708,7 +714,7 @@ async def get_pipeline_status(
                       "metadata_extraction", "storage", "embedding", "search"]
         
         for task_type in task_types:
-            count = len([q for q in queue.data if q.get("task_type") == task_type])
+            count = len([q for q in queue if q.get("task_type") == task_type])
             stats["by_task_type"][task_type] = count
         
         return stats
@@ -722,7 +728,7 @@ async def get_pipeline_status(
 @app.get("/logs/{document_id}", tags=["Monitoring"])
 async def get_document_logs(
     document_id: str,
-    supabase=Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
     current_user: dict = Depends(require_permission('monitoring:read'))
 ):
     """
@@ -735,28 +741,28 @@ async def get_document_logs(
         Processing logs
     """
     try:
-        # Get audit logs
-        logs = supabase.table("audit_log") \
-            .select("*") \
-            .eq("entity_type", "document") \
-            .eq("entity_id", document_id) \
-            .order("created_at", desc=True) \
-            .limit(100) \
-            .execute()
+        # Get audit logs using adapter
+        logs = await adapter.execute_query(
+            """SELECT * FROM krai_core.audit_log 
+               WHERE entity_type = %s AND entity_id = %s 
+               ORDER BY created_at DESC 
+               LIMIT 100""",
+            ["document", document_id]
+        )
         
         return {
             "document_id": document_id,
-            "log_count": len(logs.data),
-            "logs": logs.data
+            "log_count": len(logs),
+            "logs": logs
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/stages/statistics", response_model=List[StageStatistics], tags=["Monitoring"])
+@app.get("/stages/statistics", tags=["Monitoring"])
 async def get_stage_statistics(
-    supabase=Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
     current_user: dict = Depends(require_permission('monitoring:read'))
 ):
     """
@@ -766,21 +772,21 @@ async def get_stage_statistics(
         Stage-wise statistics including pending, processing, completed counts
     """
     try:
-        tracker = StageTracker(supabase)
-        stats = tracker.get_statistics()
+        # Stage statistics require PostgreSQL equivalent of Supabase RPC
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Stage statistics require PostgreSQL functions (not implemented yet)"
+        )
         
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "stages": stats
-        }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/monitoring/system", tags=["Monitoring"])
 async def get_system_metrics(
-    supabase=Depends(get_supabase),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
     current_user: dict = Depends(require_permission('monitoring:read'))
 ):
     """
@@ -790,15 +796,17 @@ async def get_system_metrics(
         Performance statistics
     """
     try:
-        # Get metrics from database
-        metrics = supabase.table("vw_system_metrics") \
-            .select("*") \
-            .order("timestamp", desc=True) \
-            .limit(1) \
-            .execute()
+        # Get metrics from direct table
+        metrics = await adapter.execute_query(
+            """SELECT timestamp, cpu_usage, memory_usage, disk_usage, query_count 
+               FROM krai_system.system_metrics 
+               ORDER BY timestamp DESC 
+               LIMIT 1""",
+            []
+        )
         
-        if metrics.data:
-            return metrics.data[0]
+        if metrics:
+            return metrics[0]
         else:
             return {
                 "message": "No metrics available yet",
@@ -806,19 +814,20 @@ async def get_system_metrics(
             }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
 
 # Include API routes
 from api.routes import auth as auth_routes
 
 # Initialize auth routes
-auth_router = auth_routes.initialize_auth_routes(DatabaseService())
+auth_router = auth_routes.initialize_auth_routes(get_database_adapter())
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
 app.include_router(products.router, prefix="/api/v1")
 app.include_router(error_codes_router, prefix="/api/v1")
 app.include_router(videos_router, prefix="/api/v1")
+app.include_router(api_keys_router, prefix="/api/v1")
 app.include_router(images_router, prefix="/api/v1")
 app.include_router(batch_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")

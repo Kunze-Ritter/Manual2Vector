@@ -14,8 +14,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
-from services.config_service import ConfigService
-from services.web_scraping_service import (
+from .config_service import ConfigService
+from .web_scraping_service import (
     FirecrawlUnavailableError,
     WebScrapingService,
 )

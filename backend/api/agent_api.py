@@ -31,14 +31,14 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
-# Import Supabase client
+# Import database adapter
 import sys
 import os
 from pathlib import Path
 
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from supabase import Client
+from services.database_adapter import DatabaseAdapter
 from processors.env_loader import load_all_env_files
 
 # Load consolidated environment configuration (supports legacy overrides)
@@ -75,11 +75,12 @@ class ChatResponse(BaseModel):
 class KRAITools:
     """Tools for the KRAI agent"""
     
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
+    def __init__(self, adapter: DatabaseAdapter):
+        self.adapter = adapter
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f'Agent tools initialized with {type(adapter).__name__}')
     
-    def search_error_codes(self, query: str) -> str:
+    async def search_error_codes(self, query: str) -> str:
         """
         Search for error codes in the database.
         
@@ -91,9 +92,6 @@ class KRAITools:
         """
         try:
             self.logger.info(f"Tool called: search_error_codes with query='{query}'")
-            
-            # Call the search API endpoint logic directly
-            from fastapi import Query
             
             # Extract error code using the same logic as search_api
             import re
@@ -111,43 +109,47 @@ class KRAITools:
             
             self.logger.info(f"Extracted error code: '{search_term}' from query: '{query}'")
             
-            # Query Supabase
-            response = self.supabase.table('vw_error_codes') \
-                .select('error_code, error_description, solution_text, page_number, severity_level, confidence_score, manufacturer_id, document_id') \
-                .ilike('error_code', f'%{search_term}%') \
-                .order('confidence_score', desc=True) \
-                .limit(10) \
-                .execute()
+            # Query using direct krai tables with JOIN
+            error_codes = await self.adapter.execute_query(
+                """SELECT ec.error_code, ec.error_description, ec.solution_text, de.page_number, 
+                          ec.severity_level, ec.confidence_score, ec.manufacturer_id, ec.document_id
+                   FROM krai_content.error_codes ec
+                   JOIN krai_content.document_error_codes de ON ec.id = de.error_code_id
+                   WHERE ec.error_code ILIKE %s 
+                   ORDER BY ec.confidence_score DESC 
+                   LIMIT 10""",
+                [f'%{search_term}%']
+            )
             
-            if not response.data:
+            if not error_codes:
                 return json.dumps({
                     "found": False,
                     "message": f"Fehlercode '{search_term}' nicht in der Datenbank gefunden."
-                })
+                }, ensure_ascii=False)
             
-            # Get manufacturer and document names
-            manufacturer_ids = list(set([row['manufacturer_id'] for row in response.data if row.get('manufacturer_id')]))
-            document_ids = list(set([row['document_id'] for row in response.data if row.get('document_id')]))
+            # Get manufacturer and document names using array params
+            manufacturer_ids = list(set([row['manufacturer_id'] for row in error_codes if row.get('manufacturer_id')]))
+            document_ids = list(set([row['document_id'] for row in error_codes if row.get('document_id')]))
             
             manufacturers = {}
             if manufacturer_ids:
-                mfr_response = self.supabase.table('vw_manufacturers') \
-                    .select('id, name') \
-                    .in_('id', manufacturer_ids) \
-                    .execute()
-                manufacturers = {row['id']: row['name'] for row in mfr_response.data}
+                mfr_results = await self.adapter.execute_query(
+                    "SELECT id, name FROM krai_core.manufacturers WHERE id = ANY(%s)",
+                    [manufacturer_ids]
+                )
+                manufacturers = {row['id']: row['name'] for row in mfr_results}
             
             documents = {}
             if document_ids:
-                doc_response = self.supabase.table('vw_documents') \
-                    .select('id, filename') \
-                    .in_('id', document_ids) \
-                    .execute()
-                documents = {row['id']: row['filename'] for row in doc_response.data}
+                doc_results = await self.adapter.execute_query(
+                    "SELECT id, filename FROM krai_core.documents WHERE id = ANY(%s)",
+                    [document_ids]
+                )
+                documents = {row['id']: row['filename'] for row in doc_results}
             
             # Format results
             results = []
-            for row in response.data:
+            for row in error_codes:
                 results.append({
                     'error_code': row.get('error_code'),
                     'error_description': row.get('error_description'),
@@ -172,7 +174,7 @@ class KRAITools:
                 "error": str(e)
             })
     
-    def search_parts(self, query: str, manufacturer: Optional[str] = None) -> str:
+    async def search_parts(self, query: str, manufacturer: Optional[str] = None) -> str:
         """
         Search for spare parts in the database.
         
@@ -186,26 +188,38 @@ class KRAITools:
         try:
             self.logger.info(f"Tool called: search_parts with query='{query}', manufacturer='{manufacturer}'")
             
-            # Query Supabase using vw_parts view
-            query_builder = self.supabase.table('vw_parts') \
-                .select('part_number, part_name, description, manufacturer_name, manufacturer_code, price_usd') \
-                .or_(f'part_number.ilike.%{query}%,part_name.ilike.%{query}%,description.ilike.%{query}%')
-            
+            # Build query with optional manufacturer filter using JOIN
             if manufacturer:
-                # Filter by manufacturer name (already in view)
-                query_builder = query_builder.ilike('manufacturer_name', f'%{manufacturer}%')
+                parts = await self.adapter.execute_query(
+                    """SELECT p.part_number, p.part_name, p.description, m.name as manufacturer_name, 
+                              p.manufacturer_code, p.price_usd
+                       FROM krai_parts.parts p
+                       JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+                       WHERE (p.part_number ILIKE %s OR p.part_name ILIKE %s OR p.description ILIKE %s)
+                         AND m.name ILIKE %s
+                       LIMIT 10""",
+                    [f'%{query}%', f'%{query}%', f'%{query}%', f'%{manufacturer}%']
+                )
+            else:
+                parts = await self.adapter.execute_query(
+                    """SELECT p.part_number, p.part_name, p.description, m.name as manufacturer_name, 
+                              p.manufacturer_code, p.price_usd
+                       FROM krai_parts.parts p
+                       JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+                       WHERE p.part_number ILIKE %s OR p.part_name ILIKE %s OR p.description ILIKE %s
+                       LIMIT 10""",
+                    [f'%{query}%', f'%{query}%', f'%{query}%']
+                )
             
-            response = query_builder.limit(10).execute()
-            
-            if not response.data:
+            if not parts:
                 return json.dumps({
                     "found": False,
                     "message": f"Keine Ersatzteile für '{query}' gefunden."
-                })
+                }, ensure_ascii=False)
             
-            # Format results (manufacturer_name already in view!)
+            # Format results
             results = []
-            for row in response.data:
+            for row in parts:
                 results.append({
                     'part_number': row.get('part_number'),
                     'part_name': row.get('part_name'),
@@ -227,7 +241,7 @@ class KRAITools:
                 "error": str(e)
             })
     
-    def semantic_search(self, query: str, limit: int = 5) -> str:
+    async def semantic_search(self, query: str, limit: int = 5) -> str:
         """
         Semantic search across all content using embeddings.
         Finds relevant information even if exact keywords don't match.
@@ -265,25 +279,36 @@ class KRAITools:
             
             query_embedding = embedding_response.json()['embedding']
             
-            # 2. Search in Supabase using match_documents function
-            response = self.supabase.rpc(
-                'match_documents',
-                {
-                    'query_embedding': query_embedding,
-                    'match_count': limit,
-                    'filter': {}
-                }
-            ).execute()
+            # 2. Search using adapter RPC (if available) or fallback to search_embeddings
+            try:
+                response = await self.adapter.rpc(
+                    'match_documents',
+                    {
+                        'query_embedding': query_embedding,
+                        'match_count': limit,
+                        'filter': {}
+                    }
+                )
+                results_data = response if isinstance(response, list) else []
+            except NotImplementedError:
+                # Fallback to adapter.search_embeddings for PostgreSQL
+                self.logger.info("RPC not available, using search_embeddings fallback")
+                results_data = await self.adapter.search_embeddings(
+                    query_embedding=query_embedding,
+                    limit=limit,
+                    match_threshold=0.7,
+                    match_count=limit
+                )
             
-            if not response.data:
+            if not results_data:
                 return json.dumps({
                     "found": False,
                     "message": f"Keine relevanten Informationen für '{query}' gefunden."
-                })
+                }, ensure_ascii=False)
             
             # 3. Format results
             results = []
-            for row in response.data:
+            for row in results_data:
                 results.append({
                     'content': row.get('content'),
                     'similarity': round(row.get('similarity', 0), 4),
@@ -307,7 +332,7 @@ class KRAITools:
                 "found": False
             })
     
-    def search_videos(self, query: str) -> str:
+    async def search_videos(self, query: str) -> str:
         """
         Search for repair video tutorials.
         
@@ -320,32 +345,34 @@ class KRAITools:
         try:
             self.logger.info(f"Tool called: search_videos with query='{query}'")
             
-            # Query Supabase
-            response = self.supabase.table('vw_videos') \
-                .select('title, url, description, duration, manufacturer_id, model_series') \
-                .or_(f'title.ilike.%{query}%,description.ilike.%{query}%,model_series.ilike.%{query}%') \
-                .limit(10) \
-                .execute()
+            # Query using direct krai table
+            videos = await self.adapter.execute_query(
+                """SELECT title, url, description, duration, manufacturer_id, model_series
+                   FROM krai_content.instructional_videos 
+                   WHERE title ILIKE %s OR description ILIKE %s OR model_series ILIKE %s
+                   LIMIT 10""",
+                [f'%{query}%', f'%{query}%', f'%{query}%']
+            )
             
-            if not response.data:
+            if not videos:
                 return json.dumps({
                     "found": False,
                     "message": f"Keine Videos für '{query}' gefunden."
-                })
+                }, ensure_ascii=False)
             
-            # Get manufacturer names
-            manufacturer_ids = list(set([row['manufacturer_id'] for row in response.data if row.get('manufacturer_id')]))
+            # Get manufacturer names using array param or subquery
+            manufacturer_ids = list(set([row['manufacturer_id'] for row in videos if row.get('manufacturer_id')]))
             manufacturers = {}
             if manufacturer_ids:
-                mfr_response = self.supabase.table('vw_manufacturers') \
-                    .select('id, name') \
-                    .in_('id', manufacturer_ids) \
-                    .execute()
-                manufacturers = {row['id']: row['name'] for row in mfr_response.data}
+                mfr_results = await self.adapter.execute_query(
+                    "SELECT id, name FROM krai_core.manufacturers WHERE id = ANY(%s)",
+                    [manufacturer_ids]
+                )
+                manufacturers = {row['id']: row['name'] for row in mfr_results}
             
             # Format results
             results = []
-            for row in response.data:
+            for row in videos:
                 results.append({
                     'title': row.get('title'),
                     'url': row.get('url'),
@@ -373,7 +400,8 @@ class KRAITools:
         return [
             Tool(
                 name="search_error_codes",
-                func=self.search_error_codes,
+                func=lambda x: x,  # Placeholder for sync signature
+                coroutine=self.search_error_codes,  # Actual async implementation
                 description="""
                 Suche nach Fehlercodes in der Datenbank.
                 Verwende dieses Tool wenn der Benutzer nach einem Fehlercode fragt.
@@ -385,7 +413,8 @@ class KRAITools:
             ),
             Tool(
                 name="search_parts",
-                func=self.search_parts,
+                func=lambda x: x,  # Placeholder for sync signature
+                coroutine=self.search_parts,  # Actual async implementation
                 description="""
                 Suche nach Ersatzteilen in der Datenbank.
                 Verwende dieses Tool wenn der Benutzer nach Ersatzteilen, Komponenten oder Teilenummern fragt.
@@ -395,7 +424,8 @@ class KRAITools:
             ),
             Tool(
                 name="search_videos",
-                func=self.search_videos,
+                func=lambda x: x,  # Placeholder for sync signature
+                coroutine=self.search_videos,  # Actual async implementation
                 description="""
                 Suche nach Reparatur-Videos und Tutorials.
                 Verwende dieses Tool wenn der Benutzer nach Videos, Anleitungen oder Tutorials fragt.
@@ -405,7 +435,8 @@ class KRAITools:
             ),
             Tool(
                 name="semantic_search",
-                func=self.semantic_search,
+                func=lambda x: x,  # Placeholder for sync signature
+                coroutine=self.semantic_search,  # Actual async implementation
                 description="""
                 Semantische Suche über alle Inhalte mit KI-Embeddings.
                 Verwende dieses Tool für allgemeine Fragen oder wenn die anderen Tools keine Ergebnisse liefern.
@@ -424,8 +455,8 @@ class KRAITools:
 class KRAIAgent:
     """KRAI conversational agent"""
     
-    def __init__(self, supabase: Client, ollama_base_url: str = None):
-        self.supabase = supabase
+    def __init__(self, adapter: DatabaseAdapter, ollama_base_url: str = None):
+        self.adapter = adapter
         
         # Get Ollama URL from environment
         if ollama_base_url is None:
@@ -433,6 +464,7 @@ class KRAIAgent:
         
         self.ollama_base_url = ollama_base_url
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f'Agent initialized with {type(adapter).__name__}')
         
         # Store for chat histories (session_id -> InMemoryChatMessageHistory)
         self.chat_histories = {}
@@ -452,7 +484,7 @@ class KRAIAgent:
         )
         
         # Initialize tools
-        self.tools_manager = KRAITools(supabase)
+        self.tools_manager = KRAITools(adapter)
         self.tools = self.tools_manager.get_tools()
         
         # Create prompt for tool-calling agent (simpler, works better with Ollama)
@@ -609,7 +641,7 @@ Antworte auf Deutsch."""),
 # FastAPI Application
 # ============================================================================
 
-def create_agent_api(supabase: Client) -> FastAPI:
+def create_agent_api(adapter: DatabaseAdapter) -> FastAPI:
     """Create FastAPI application for the agent"""
     
     app = FastAPI(
@@ -619,7 +651,7 @@ def create_agent_api(supabase: Client) -> FastAPI:
     )
     
     # Initialize agent
-    agent = KRAIAgent(supabase)
+    agent = KRAIAgent(adapter)
     
     @app.post("/chat", response_model=ChatResponse)
     async def chat(message: ChatMessage):

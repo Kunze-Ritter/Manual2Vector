@@ -7,6 +7,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
+from uuid import UUID
 
 from passlib.context import CryptContext
 
@@ -173,7 +174,7 @@ class AuthService:
             if user_data.password != user_data.confirm_password:
                 raise AuthenticationError("Passwords do not match")
             
-            # Check if username or email already exists
+            # Check if username or email already exists (case-insensitive)
             if await self._user_exists(user_data.username, user_data.email):
                 raise AuthenticationError("Username or email already exists")
             
@@ -193,7 +194,7 @@ class AuthService:
             user_record = {
                 "id": user_id,
                 "email": user_data.email,
-                "username": user_data.username,
+                "username": user_data.username.lower(),
                 "first_name": user_data.first_name,
                 "last_name": user_data.last_name,
                 "password_hash": password_hash,
@@ -236,13 +237,30 @@ class AuthService:
     async def _user_exists(self, username: str, email: str) -> bool:
         """Check if user exists"""
         try:
-            query = "SELECT COUNT(*) FROM krai_users.users WHERE username = :username OR email = :email"
+            query = """
+                SELECT COUNT(*) FROM krai_users.users
+                WHERE LOWER(username) = LOWER(:username) OR LOWER(email) = LOWER(:email)
+            """
             result = await self.db.fetch_one(query, {"username": username, "email": email})
             return result[0] > 0 if result else False
         except Exception as e:
             logger.error(f"Check user exists error: {e}")
             return True  # Assume exists to be safe
     
+    def _normalize_user_record(self, record: Any) -> Dict[str, Any]:
+        """Normalize database record values for Pydantic models."""
+        # Preserve existing dicts to avoid losing nested structures
+        data = record if isinstance(record, dict) else dict(record)
+
+        # Convert UUID instances to strings for Pydantic compatibility
+        for key in ("id", "preferred_manufacturer_id", "user_id"):
+            value = data.get(key)
+            if isinstance(value, UUID):
+                data[key] = str(value)
+
+        # Convert timestamps to aware datetime if needed (already handled by DB adapter)
+        return data
+
     async def _get_user_by_id(self, user_id: str) -> Optional[UserResponse]:
         """Get user by ID"""
         try:
@@ -258,7 +276,7 @@ class AuthService:
                 return None
             
             # Convert to UserResponse
-            user_dict = dict(result)
+            user_dict = self._normalize_user_record(result)
             user_dict["locked_until"] = user_dict.get("locked_until")
             permissions = user_dict.get("permissions")
             if permissions is None:
@@ -285,7 +303,7 @@ class AuthService:
             if not result:
                 return None
 
-            user_dict = dict(result)
+            user_dict = self._normalize_user_record(result)
             if not user_dict.get("permissions"):
                 user_dict["permissions"] = self._get_default_permissions(user_dict.get("role"))
 
@@ -332,7 +350,7 @@ class AuthService:
             if not result:
                 raise AuthenticationError("Failed to promote user to admin")
 
-            user_dict = dict(result)
+            user_dict = self._normalize_user_record(result)
             if not user_dict.get("permissions"):
                 user_dict["permissions"] = self._get_default_permissions(user_dict.get("role"))
 
@@ -409,38 +427,51 @@ class AuthService:
     async def authenticate_user(self, login_data: UserLogin, client_ip: str = None) -> AuthResponse:
         """Authenticate user with rate limiting and security checks"""
         try:
+            print(f"DEBUG: Attempting authentication for user: {login_data.username}")
+            
             # Rate limiting check
             identifier = client_ip or login_data.username
             if self._is_rate_limited(identifier):
                 raise RateLimitError("Too many login attempts. Please try again later.")
             
             # Get user from database
+            print("DEBUG: Fetching user from database...")
             user = await self._get_user_by_username(login_data.username)
             if not user:
+                print(f"DEBUG: User not found: {login_data.username}")
                 self._record_login_attempt(identifier)
                 raise AuthenticationError("Invalid credentials")
+            print(f"DEBUG: User found: {user.username} (active={user.is_active}, status={user.status})")
             
             # Check if user is active
             if not user.is_active or user.status != UserStatus.ACTIVE:
+                print(f"DEBUG: User inactive or invalid status: {user.username}")
                 self._record_login_attempt(identifier)
                 raise AuthenticationError("Account is not active")
             
             # Get full user record for password verification
+            print("DEBUG: Fetching full user record...")
             user_record = await self._get_user_record_by_username(login_data.username)
             if not user_record:
+                print("DEBUG: Failed to fetch full user record")
                 self._record_login_attempt(identifier)
                 raise AuthenticationError("Invalid credentials")
             
             # Check if account is locked
             if user_record.get("locked_until") and user_record["locked_until"] > datetime.now(timezone.utc):
+                print(f"DEBUG: Account locked: {user.username}")
                 self._record_login_attempt(identifier)
                 raise AuthenticationError("Account is temporarily locked")
             
             # Verify password
+            print("DEBUG: Verifying password...")
             if not self.verify_password(login_data.password, user_record["password_hash"]):
+                print(f"DEBUG: Invalid password for user: {user.username}")
                 # Increment failed attempts
                 await self._increment_failed_attempts(user_record["id"], identifier)
                 raise AuthenticationError("Invalid credentials")
+            
+            print("DEBUG: Password verified successfully")
             
             # Successful login - reset failed attempts and update login info
             await self._successful_login(user_record["id"], identifier, login_data.remember_me)
@@ -462,7 +493,9 @@ class AuthService:
         except (AuthenticationError, RateLimitError):
             raise
         except Exception as e:
-            logger.error(f"Authenticate user error: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"DEBUG: Authenticate user error: {e}")
             raise AuthenticationError("Authentication failed")
     
     # ====== User Management Methods ======
@@ -474,7 +507,7 @@ class AuthService:
                 SELECT id, email, username, first_name, last_name, role, status,
                        is_active, is_verified, last_login, login_count, failed_login_attempts,
                        created_at, updated_at, locked_until, permissions
-                FROM krai_users.users WHERE username = :username
+                FROM krai_users.users WHERE LOWER(username) = LOWER(:username)
             """
             result = await self.db.fetch_one(query, {"username": username})
             
@@ -482,16 +515,17 @@ class AuthService:
                 return None
                 
             # Convert to dict and handle permissions
-            user_dict = dict(result)
+            user_dict = self._normalize_user_record(result)
             if 'permissions' not in user_dict or not user_dict['permissions']:
                 # Set default permissions based on role if none exist
                 user_dict['permissions'] = self._get_default_permissions(user_dict.get('role'))
-            
+
             return UserResponse(**user_dict)
             
         except Exception as e:
             logger.error(f"Error fetching user by username {username}: {str(e)}")
             raise AuthenticationError("Error fetching user information")
+    
 
     def _get_default_permissions(self, role: str) -> List[str]:
         """Get default permissions for a role"""
@@ -563,6 +597,9 @@ class AuthService:
             return result is not None
         except Exception as e:
             logger.error(f"Error checking token blacklist: {e}")
+            message = str(e)
+            if "krai_users.token_blacklist" in message or 'relation "krai_users.token_blacklist" does not exist' in message:
+                return False
             return True  # Fail safe - block token if we can't verify
     
     async def revoke_token(self, jti: str, user_id: str = None) -> bool:
@@ -700,8 +737,13 @@ class AuthService:
             
             users = await self.db.fetch_all(query, {"limit": page_size, "offset": offset})
             
-            # Convert to UserResponse list
-            user_list = [UserResponse(**dict(user)) for user in users]
+            # Convert to UserResponse list with normalization
+            user_list = []
+            for user in users:
+                normalized = self._normalize_user_record(user)
+                if not normalized.get("permissions"):
+                    normalized["permissions"] = self._get_default_permissions(normalized.get("role"))
+                user_list.append(UserResponse(**normalized))
             
             return UserListResponse(
                 items=user_list,
@@ -817,7 +859,7 @@ class AuthService:
                 FROM krai_users.users WHERE id = :user_id
             """
             result = await self.db.fetch_one(query, {"user_id": user_id})
-            return dict(result) if result else None
+            return self._normalize_user_record(result) if result else None
         except Exception as e:
             logger.error(f"Get user record by id error: {e}")
             return None
@@ -828,12 +870,10 @@ class AuthService:
             query = """
                 SELECT id, email, username, password_hash, role, status, is_active,
                        login_count, failed_login_attempts, locked_until
-                FROM krai_users.users WHERE username = :username
+                FROM krai_users.users WHERE LOWER(username) = LOWER(:username)
             """
             result = await self.db.fetch_one(query, {"username": username})
-            
-            return dict(result) if result else None
-            
+            return self._normalize_user_record(result) if result else None
         except Exception as e:
             logger.error(f"Get user record error: {e}")
             return None

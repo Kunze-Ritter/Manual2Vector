@@ -6,9 +6,15 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import Enum
 from math import ceil
-from typing import Dict, List, Optional, Union
+from typing import ClassVar, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, HttpUrl, root_validator, validator
+
+from models.validators import (
+    validate_uuid,
+    validate_no_sql_injection,
+    sanitize_string,
+)
 
 
 class SortOrder(str, Enum):
@@ -69,9 +75,19 @@ class ProductCreateRequest(BaseModel):
                 "driver_download_url": "https://example.com/drivers/cs920",
                 "option_dependencies": {"finisher": ["duplex_module"]},
                 "replacement_parts": {"fuser": ["40X7702"]},
-                "common_issues": {"900.01": "Controller board reset"},
+                "common_issues": {"900.01": "Controller board reset"}
             }
         }
+
+    @validator("manufacturer_id", "series_id")
+    def validate_required_ids(cls, value: str) -> str:
+        return validate_uuid(value)
+
+    @validator("model_number", "model_name", "product_type", "print_technology", "max_paper_size", "firmware_version", pre=True)
+    def sanitize_strings(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return sanitize_string(value)
 
     @validator("color_options", "connectivity_options", "supported_languages")
     def validate_non_empty_lists(
@@ -102,7 +118,7 @@ class ProductCreateRequest(BaseModel):
                 )
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_dates(cls, values: Dict[str, object]) -> Dict[str, object]:
         launch_date = values.get("launch_date")
         end_of_life = values.get("end_of_life_date")
@@ -155,6 +171,26 @@ class ProductUpdateRequest(BaseModel):
             }
         }
 
+    @validator("manufacturer_id", "series_id", pre=True)
+    def validate_optional_ids(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator(
+        "model_number",
+        "model_name",
+        "product_type",
+        "print_technology",
+        "max_paper_size",
+        "firmware_version",
+        pre=True,
+    )
+    def sanitize_optional_strings(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return sanitize_string(value)
+
     @validator("color_options", "connectivity_options", "supported_languages")
     def validate_non_empty_lists(
         cls, value: Optional[List[str]]
@@ -184,7 +220,7 @@ class ProductUpdateRequest(BaseModel):
                 )
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_dates(cls, values: Dict[str, object]) -> Dict[str, object]:
         launch_date = values.get("launch_date")
         end_of_life = values.get("end_of_life_date")
@@ -223,7 +259,28 @@ class ProductFilterParams(BaseModel):
             }
         }
 
-    @root_validator
+    @validator("manufacturer_id", "series_id")
+    def validate_filter_ids(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_uuid(value)
+
+    @validator("product_type", pre=True)
+    def sanitize_filter_product_type(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return sanitize_string(value)
+
+    @validator("search")
+    def validate_search(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if len(value) > 100:
+            raise ValueError("search must be 100 characters or less")
+        validate_no_sql_injection(value)
+        return value
+
+    @root_validator(skip_on_failure=True)
     def validate_ranges(cls, values: Dict[str, object]) -> Dict[str, object]:
         launch_from = values.get("launch_date_from")
         launch_to = values.get("launch_date_to")
@@ -255,7 +312,7 @@ class ProductSortParams(BaseModel):
         SortOrder.DESC, description="Sort order: asc or desc"
     )
 
-    ALLOWED_SORT_FIELDS = {
+    ALLOWED_SORT_FIELDS: ClassVar[set[str]] = {
         "created_at",
         "updated_at",
         "model_number",
@@ -413,15 +470,6 @@ class ProductListResponse(BaseModel):
             }
         }
 
-    @root_validator
-    def validate_pagination(cls, values: Dict[str, int]) -> Dict[str, int]:
-        total = values.get("total", 0)
-        page_size = values.get("page_size", 1)
-        if page_size <= 0:
-            raise ValueError("page_size must be greater than 0")
-        values["total_pages"] = max(1, ceil(total / page_size)) if total else 1
-        return values
-
 
 class ProductStatsResponse(BaseModel):
     """Aggregated statistics about products."""
@@ -481,6 +529,10 @@ class ProductBatchUpdateItem(BaseModel):
             }
         }
 
+    @validator("id")
+    def validate_id(cls, value: str) -> str:
+        return validate_uuid(value)
+
 
 class ProductBatchUpdateRequest(BaseModel):
     """Batch update payload for products."""
@@ -510,9 +562,12 @@ class ProductBatchDeleteRequest(BaseModel):
     def validate_ids(cls, value: List[str]) -> List[str]:
         if len(value) > 100:
             raise ValueError("Maximum 100 products per batch")
-        if any(not item for item in value):
-            raise ValueError("product_ids cannot contain empty strings")
-        return value
+        cleaned = []
+        for item in value:
+            if not item:
+                raise ValueError("product_ids cannot contain empty strings")
+            cleaned.append(validate_uuid(item))
+        return cleaned
 
     class Config:
         json_schema_extra = {

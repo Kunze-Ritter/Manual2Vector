@@ -8,8 +8,9 @@ Supports multiple S3-compatible backends: MinIO, AWS S3, Cloudflare R2, Wasabi, 
 import os
 import logging
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 
-from services.object_storage_service import ObjectStorageService
+from .object_storage_service import ObjectStorageService
 
 
 logger = logging.getLogger("krai.storage.factory")
@@ -101,7 +102,26 @@ def create_storage_service(
     # Load configuration from parameters or environment
     endpoint = (endpoint_url or 
                 get_env_var('OBJECT_STORAGE_ENDPOINT', 'R2_ENDPOINT_URL'))
-    
+
+    # Normalize endpoint when running outside Docker and talking to Docker-internal MinIO
+    if endpoint:
+        try:
+            parsed = urlparse(endpoint)
+            running_in_docker = os.path.exists("/.dockerenv") or os.getenv("KRAI_IN_DOCKER") == "1"
+            if parsed.hostname in ("krai-minio", "minio") and not running_in_docker:
+                port_str = f":{parsed.port}" if parsed.port else ""
+                netloc = f"127.0.0.1{port_str}"
+                original_endpoint = endpoint
+                endpoint = urlunparse(parsed._replace(netloc=netloc))
+                logger.info(
+                    "Overriding object storage endpoint for local execution: %r -> %r",
+                    original_endpoint,
+                    endpoint,
+                )
+        except Exception:
+            # Best-effort normalization only; fall back silently on errors
+            pass
+
     access_key = (access_key or 
                   get_env_var('OBJECT_STORAGE_ACCESS_KEY', 'R2_ACCESS_KEY_ID'))
     
