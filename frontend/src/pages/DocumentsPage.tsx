@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { format } from 'date-fns'
 import { FileText, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
@@ -12,8 +12,14 @@ import {
   type DocumentFormHandle,
   type DocumentFormSubmit,
 } from '@/components/forms/DocumentForm'
+import { FileUploadDialog } from '@/components/upload/FileUploadDialog'
+import { DocumentProcessingTimeline } from '@/components/documents/DocumentProcessingTimeline'
+import { DocumentStageDetailsModal } from '@/components/documents/DocumentStageDetailsModal'
+import { DocumentStageProgressCell } from '@/components/documents/DocumentStageProgressCell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +45,7 @@ import {
   useDocuments,
   useUpdateDocument,
 } from '@/hooks/use-documents'
+import { useDocumentStages } from '@/hooks/use-document-stages'
 import type { Document, DocumentCreateInput, DocumentFilters, DocumentUpdateInput } from '@/types/api'
 import { DocumentType, ProcessingStatus } from '@/types/api'
 import { usePermissions } from '@/lib/permissions'
@@ -105,10 +112,26 @@ export default function DocumentsPage() {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
   const [modalState, setModalState] = useState<ModalState>(initialModalState)
   const [deleteConfirmState, setDeleteConfirmState] = useState<DeleteConfirmState>(initialDeleteConfirmState)
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [stageModalState, setStageModalState] = useState<{
+    open: boolean
+    documentId?: string
+    stageName?: string
+  }>({ open: false })
   const formRef = useRef<DocumentFormHandle | null>(null)
 
   const { canWrite, canDelete } = usePermissions()
   const { notify, success: toastSuccess, error: toastError } = useToast()
+
+  // Check URL parameter for upload dialog
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('dialog') === 'upload') {
+      setUploadDialogOpen(true)
+      // Remove query param
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   const queryParams = useMemo(
     () => ({
@@ -267,6 +290,27 @@ export default function DocumentsPage() {
             next.language = String(value)
           }
           break
+        case 'has_failed_stages':
+          if (typeof value === 'boolean') {
+            next.has_failed_stages = value
+          } else {
+            delete next.has_failed_stages
+          }
+          break
+        case 'has_incomplete_stages':
+          if (typeof value === 'boolean') {
+            next.has_incomplete_stages = value
+          } else {
+            delete next.has_incomplete_stages
+          }
+          break
+        case 'stage_name':
+          if (isEmpty) {
+            delete next.stage_name
+          } else {
+            next.stage_name = String(value)
+          }
+          break
         default:
           break
       }
@@ -303,6 +347,16 @@ export default function DocumentsPage() {
       {
         key: 'manual_review_required',
         label: 'Needs review',
+        type: 'switch',
+      },
+      {
+        key: 'has_failed_stages',
+        label: 'Has failed stages',
+        type: 'switch',
+      },
+      {
+        key: 'has_incomplete_stages',
+        label: 'Has incomplete stages',
         type: 'switch',
       },
       {
@@ -380,6 +434,16 @@ export default function DocumentsPage() {
               : 'secondary'
           return <Badge variant={variant}>{formatLabel(status)}</Badge>
         },
+      },
+      {
+        accessorKey: 'stage_progress',
+        header: 'Pipeline Progress',
+        cell: ({ row }) => (
+          <DocumentStageProgressCell
+            documentId={row.original.id}
+            onViewClick={() => setStageModalState({ open: true, documentId: row.original.id })}
+          />
+        ),
       },
       {
         accessorKey: 'manual_review_required',
@@ -468,10 +532,24 @@ export default function DocumentsPage() {
             </p>
           </div>
           {canCreate && (
-            <Button onClick={openCreateModal} className="self-start md:self-auto" data-testid="create-document-button">
-              <Plus className="mr-2 h-4 w-4" />
-              New document
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setUploadDialogOpen(true)} 
+                className="self-start md:self-auto" 
+                data-testid="upload-document-button"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Upload documents
+              </Button>
+              <Button 
+                onClick={openCreateModal} 
+                variant="outline"
+                className="self-start md:self-auto" 
+                data-testid="create-document-button"
+              >
+                New document
+              </Button>
+            </div>
           )}
         </div>
 
@@ -571,6 +649,36 @@ export default function DocumentsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FileUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+      />
+
+      {/* Stage Timeline Modal */}
+      {stageModalState.documentId && !stageModalState.stageName && (
+        <Dialog open={stageModalState.open} onOpenChange={(open) => setStageModalState({ ...stageModalState, open })}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Processing Pipeline</DialogTitle>
+            </DialogHeader>
+            <DocumentProcessingTimeline
+              documentId={stageModalState.documentId}
+              onStageClick={(stageName) => setStageModalState({ ...stageModalState, stageName })}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Stage Details Modal */}
+      {stageModalState.documentId && stageModalState.stageName && (
+        <DocumentStageDetailsModal
+          documentId={stageModalState.documentId}
+          stageName={stageModalState.stageName}
+          open={Boolean(stageModalState.stageName)}
+          onOpenChange={(open) => !open && setStageModalState({ ...stageModalState, stageName: undefined })}
+        />
+      )}
     </div>
   )
 }

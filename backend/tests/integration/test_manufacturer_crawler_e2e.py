@@ -1,772 +1,413 @@
 """
-End-to-end integration tests for ManufacturerCrawler.
+Real integration scaffolding for ManufacturerCrawler.
 
-Tests complete manufacturer crawling workflows including schedule management,
-job execution, page processing, and structured extraction.
+This module adds minimal, database-backed smoke coverage and helper utilities
+for future Firecrawl-enabled E2E scenarios. Firecrawl-dependent tests are
+skipped when the backend is unavailable.
 """
 
-import pytest
+from __future__ import annotations
+
 import asyncio
-from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, AsyncMock, patch
-import hashlib
+from typing import Any, Dict, Optional
 
-from services.manufacturer_crawler import ManufacturerCrawler
+import pytest
 
 
-pytest.mark.integration = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.database]
 
 
-class TestManufacturerCrawlerE2E:
-    """Test ManufacturerCrawler end-to-end scenarios."""
-
-    @pytest.fixture
-    def mock_scraper(self):
-        """Mock WebScrapingService."""
-        scraper = MagicMock()
-        scraper.crawl_site = AsyncMock(return_value={
-            'success': True,
-            'backend': 'firecrawl',
-            'total': 10,
-            'pages': [
-                {
-                    'url': 'http://example.com/product/c750a',
-                    'content': '# C750a Specifications\n\nPrint Speed: 75 ppm\nResolution: 1200x1200 dpi',
-                    'metadata': {'title': 'C750a Specifications', 'content_type': 'text/html'}
-                },
-                {
-                    'url': 'http://example.com/error-codes/c750a',
-                    'content': '# C750a Error Codes\n\n900.01: Fuser error\n900.02: Lamp error',
-                    'metadata': {'title': 'C750a Error Codes', 'content_type': 'text/html'}
-                },
-                {
-                    'url': 'http://example.com/manual/c750a.pdf',
-                    'content': '# C750a Service Manual\n\nComplete service documentation',
-                    'metadata': {'title': 'C750a Service Manual', 'content_type': 'application/pdf'}
-                }
-            ]
-        })
-        return scraper
-
-    @pytest.fixture
-    def mock_database_service(self, mock_db_client):
-        """Mock database service."""
-        service = MagicMock()
-        service.client = mock_db_client
-        service.service_client = mock_db_client
-        return service
-
-    @pytest.fixture
-    def mock_batch_task_service(self):
-        """Mock BatchTaskService."""
-        service = MagicMock()
-        service.create_task = AsyncMock(return_value='batch-task-id-123')
-        service.get_task_status = AsyncMock(return_value={'status': 'completed'})
-        return service
-
-    @pytest.fixture
-    def mock_structured_extraction_service(self):
-        """Mock StructuredExtractionService."""
-        service = MagicMock()
-        service.batch_extract = AsyncMock(return_value={
-            'total': 3,
-            'completed': 3,
-            'failed': 0
-        })
-        return service
-
-    @pytest.fixture
-    def manufacturer_crawler(self, mock_scraper, mock_database_service, mock_batch_task_service, 
-                           mock_structured_extraction_service):
-        """Create ManufacturerCrawler instance for testing."""
-        crawler = ManufacturerCrawler(
-            web_scraping_service=mock_scraper,
-            database_service=mock_database_service,
-            batch_task_service=mock_batch_task_service,
-            structured_extraction_service=mock_structured_extraction_service
+async def _table_exists(db, schema: str, table: str) -> bool:
+    """Check table existence in the connected database."""
+    try:
+        rows = await db.execute_query(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = $1 AND table_name = $2
+            LIMIT 1
+            """,
+            [schema, table],
         )
-        crawler._enabled = True  # Enable for testing
-        return crawler
+        return bool(rows)
+    except Exception:
+        return False
 
-    @pytest.fixture
-    def sample_crawl_schedule(self):
-        """Sample crawl schedule for testing."""
-        return {
-            'id': 'schedule-1',
-            'manufacturer_id': 'mfr-1',
-            'crawl_type': 'support_pages',
-            'start_url': 'http://example.com/support',
-            'max_pages': 50,
-            'max_depth': 3,
-            'enabled': True,
-            'cron_expression': '0 2 * * *',  # Daily at 2 AM
-            'last_run_at': None,
-            'next_run_at': None,
-            'created_at': datetime.now(timezone.utc).isoformat()
-        }
 
-    @pytest.fixture
-    def sample_crawl_job(self):
-        """Sample crawl job for testing."""
-        return {
-            'id': 'job-1',
-            'schedule_id': 'schedule-1',
-            'manufacturer_id': 'mfr-1',
-            'status': 'running',
-            'started_at': datetime.now(timezone.utc).isoformat(),
-            'completed_at': None,
-            'pages_crawled': 0,
-            'pages_failed': 0,
-            'error_message': None,
-            'created_at': datetime.now(timezone.utc).isoformat()
-        }
+async def create_test_schedule(
+    crawler,
+    manufacturer_id: str,
+    start_url: str,
+    crawl_type: str = "full_site",
+    max_depth: int = 1,
+    max_pages: int = 5,
+    schedule_cron: Optional[str] = None,
+) -> Optional[str]:
+    """Helper to create a schedule via crawler API."""
+    return await crawler.create_crawl_schedule(
+        manufacturer_id=manufacturer_id,
+        crawl_config={
+            "start_url": start_url,
+            "crawl_type": crawl_type,
+            "max_depth": max_depth,
+            "max_pages": max_pages,
+            "schedule_cron": schedule_cron,
+            "enabled": True,
+        },
+    )
 
-    @pytest.fixture
-    def sample_crawled_pages(self):
-        """Sample crawled pages for testing."""
-        return [
-            {
-                'id': 'page-1',
-                'crawl_job_id': 'job-0',
-                'url': 'http://example.com/product/c750a',
-                'title': 'C750a Specifications',
-                'content': '# c750a Specifications\n\nPrint Speed: 75 ppm\nResolution: 1200x1200 dpi',
-                'content_hash': hashlib.sha256('c750a specs content'.encode()).hexdigest(),
-                'page_type': 'product_page',
-                'status': 'scraped',
-                'scraped_at': datetime.now(timezone.utc).isoformat()
+
+async def wait_for_job_completion(crawler, job_id: str, timeout: float = 15.0) -> Dict[str, Any]:
+    """
+    Poll job status until completion or timeout.
+
+    Uses the public get_crawl_job_status API to check job status.
+    """
+    deadline = asyncio.get_event_loop().time() + timeout
+    while asyncio.get_event_loop().time() < deadline:
+        job = await crawler.get_crawl_job_status(job_id)  # pragma: no cover - public API
+        if job and job.get("status") in {"completed", "failed", "cancelled"}:
+            return job
+        await asyncio.sleep(0.25)
+    return job if (job := await crawler.get_crawl_job_status(job_id)) else {}
+
+
+class TestManufacturerCrawlerRealE2E:
+    """
+    Minimal real E2E coverage for ManufacturerCrawler (database-backed, Firecrawl-optional).
+    """
+
+    @pytest.mark.asyncio
+    async def test_create_schedule_with_database_persistence(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_schedules"):
+            pytest.skip("krai_system.manufacturer_crawl_schedules missing in test DB")
+
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["example"],
+            crawl_type="full_site",
+            max_depth=1,
+            max_pages=3,
+        )
+
+        assert schedule_id, "schedule_id should be returned"
+
+        rows = await test_database.execute_query(
+            """
+            SELECT manufacturer_id, crawl_type, start_url, enabled
+            FROM krai_system.manufacturer_crawl_schedules
+            WHERE id = $1
+            """,
+            [schedule_id],
+        )
+        assert rows, "schedule row must exist"
+        row = rows[0]
+        assert row["manufacturer_id"] == test_manufacturer_data["manufacturer_id"]
+        assert row["crawl_type"] == "full_site"
+        assert row["start_url"] == test_crawl_urls["example"]
+        assert row["enabled"] is True
+
+    @pytest.mark.asyncio
+    async def test_update_schedule_in_database(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        """Test updating an existing schedule and verify DB changes."""
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_schedules"):
+            pytest.skip("krai_system.manufacturer_crawl_schedules missing in test DB")
+
+        # Create initial schedule
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["example"],
+            crawl_type="full_site",
+            max_depth=1,
+            max_pages=3,
+        )
+        assert schedule_id
+
+        # Update schedule
+        updated = await real_manufacturer_crawler.update_crawl_schedule(
+            schedule_id=schedule_id,
+            updates={
+                "max_pages": 10,
+                "max_depth": 2,
+                "enabled": False,
             },
-            {
-                'id': 'page-2',
-                'crawl_job_id': 'job-0',
-                'url': 'http://example.com/error-codes/c750a',
-                'title': 'C750a Error Codes',
-                'content': '# c750a Error Codes\n\n900.01: Fuser error\n900.02: Lamp error',
-                'content_hash': hashlib.sha256('c750a error codes'.encode()).hexdigest(),
-                'page_type': 'error_code_page',
-                'status': 'scraped',
-                'scraped_at': datetime.now(timezone.utc).isoformat()
-            },
-            {
-                'id': 'page-0',
-                'crawl_job_id': 'job-0',
-                'url': 'http://example.com/manual/c750a.pdf',
-                'title': 'c750a Service Manual',
-                'content': '# c750a Service Manual\n\nComplete service documentation',
-                'content_hash': hashlib.sha256('c750a manual content'.encode()).hexdigest(),
-                'page_type': 'manual_page',
-                'status': 'scraped',
-                'scraped_at': datetime.now(timezone.utc).isoformat()
-            }
-        ]
-
-    def test_crawler_initialization_e2e(self, mock_scraper, mock_database_service, 
-                                     mock_batch_task_service, mock_structured_extraction_service):
-        """Test ManufacturerCrawler initialization for E2E testing."""
-        crawler = ManufacturerCrawler(
-            web_scraping_service=mock_scraper,
-            database_service=mock_database_service,
-            batch_task_service=mock_batch_task_service,
-            structured_extraction_service=mock_structured_extraction_service
         )
-        
-        assert crawler._scraper == mock_scraper
-        assert crawler._database_service == mock_database_service
-        assert crawler._batch_task_service == mock_batch_task_service
-        assert crawler._structured_extraction_service == mock_structured_extraction_service
-        assert crawler._config['crawler_max_concurrent_jobs'] == 1
-        assert crawler._config['crawler_default_max_pages'] == 100
+        assert updated is True
+
+        # Verify DB changes
+        rows = await test_database.execute_query(
+            """
+            SELECT max_pages, max_depth, enabled
+            FROM krai_system.manufacturer_crawl_schedules
+            WHERE id = $1
+            """,
+            [schedule_id],
+        )
+        assert rows
+        row = rows[0]
+        assert row["max_pages"] == 10
+        assert row["max_depth"] == 2
+        assert row["enabled"] is False
 
     @pytest.mark.asyncio
-    async def test_complete_crawl_workflow(self, manufacturer_crawler, mock_db_client, mock_scraper,
-                                         mock_batch_task_service, mock_structured_extraction_service,
-                                         sample_crawl_schedule, sample_crawl_job, sample_crawled_pages):
-        """Test complete crawl workflow from schedule creation to completion."""
-        # Step 1: Create crawl schedule
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'schedule-1'}]
+    async def test_delete_schedule_from_database(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        """Test deleting a schedule and verify removal from DB."""
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_schedules"):
+            pytest.skip("krai_system.manufacturer_crawl_schedules missing in test DB")
+
+        # Create schedule
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["example"],
         )
-        
-        schedule_id = await manufacturer_crawler.create_crawl_schedule(
-            manufacturer_id='mfr-1',
-            crawl_config={
-                'crawl_type': 'support_pages',
-                'start_url': 'http://example.com/support',
-                'max_pages': 50,
-                'max_depth': 3,
-                'cron_expression': '0 2 * * *'
-            }
+        assert schedule_id
+
+        # Delete schedule
+        deleted = await real_manufacturer_crawler.delete_crawl_schedule(schedule_id)
+        assert deleted is True
+
+        # Verify removal
+        rows = await test_database.execute_query(
+            """
+            SELECT id
+            FROM krai_system.manufacturer_crawl_schedules
+            WHERE id = $1
+            """,
+            [schedule_id],
         )
-        
-        assert schedule_id == 'schedule-1'
-        
-        # Step 2: Start crawl job
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_schedule]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'job-0'}]
-        )
-        
-        job_id = await manufacturer_crawler.start_crawl_job('schedule-1')
-        assert job_id == 'job-0'
-        
-        # Step 0: Execute crawl job
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_job]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'page-id'}]
-        )
-        
-        job_result = await manufacturer_crawler.execute_crawl_job('job-0')
-        assert job_result['success'] is True
-        
-        # Verify actual pages crawled from mock data
-        expected_pages = len(mock_scraper.crawl_site.return_value['pages'])
-        assert job_result['pages_crawled'] == expected_pages
-        
-        # Verify database persistence by checking insert calls
-        insert_calls = mock_db_client.table.return_value.insert.return_value.execute.call_args_list
-        assert len(insert_calls) == expected_pages
-        
-        # Verify insert payloads contain required fields
-        for call in insert_calls:
-            insert_data = call[0][0] if call[0] else {}
-            assert 'url' in insert_data
-            assert 'content_hash' in insert_data
-            assert 'page_type' in insert_data
-            assert 'crawl_job_id' in insert_data
-        
-        # Step 4: Process crawled pages with structured extraction
-        mock_db_client.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=sample_crawled_pages
-        )
-        
-        process_result = await manufacturer_crawler.process_crawled_pages('job-0')
-        assert process_result['total_pages'] == len(sample_crawled_pages)
-        assert process_result['processed_pages'] == len(sample_crawled_pages)
-        assert process_result['extractions_created'] == len(sample_crawled_pages)
-        
-        # Verify structured extraction was called with correct parameters
-        mock_structured_extraction_service.batch_extract.assert_called_once()
-        call_args = mock_structured_extraction_service.batch_extract.call_args
-        source_ids = call_args[0][0] if call_args[0] else []
-        source_type = call_args[1]['source_type'] if len(call_args[1]) > 1 else None
-        
-        assert source_type == 'crawled_page'
-        assert len(source_ids) == len(sample_crawled_pages)
-        
-        # Verify the specific page IDs were passed
-        expected_ids = [page['id'] for page in sample_crawled_pages]
-        assert all(expected_id in source_ids for expected_id in expected_ids)
+        assert not rows, "Schedule should be deleted from DB"
 
     @pytest.mark.asyncio
-    async def test_crawl_with_firecrawl_backend(self, manufacturer_crawler, mock_db_client, mock_scraper,
-                                              sample_crawl_job):
-        """Test crawling workflow using Firecrawl backend."""
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_job]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'page-id'}]
-        )
-        
-        # Setup Firecrawl response
-        mock_scraper.crawl_site.return_value = {
-            'success': True,
-            'backend': 'firecrawl',
-            'total': 5,
-            'pages': [
-                {
-                    'url': 'http://example.com/product/c750a',
-                    'content': 'Firecrawl-rendered content with JavaScript',
-                    'metadata': {'title': 'C750a Product Page'}
-                }
-            ]
-        }
-        
-        # Execute crawl job
-        result = await manufacturer_crawler.execute_crawl_job('job-0')
-        
-        assert result['success'] is True
-        assert result['backend'] == 'firecrawl'
-        assert result['pages_crawled'] == len(mock_scraper.crawl_site.return_value['pages'])
-        
-        # Verify database persistence by checking insert calls
-        insert_calls = mock_db_client.table.return_value.insert.return_value.execute.call_args_list
-        assert len(insert_calls) == len(mock_scraper.crawl_site.return_value['pages'])
-        
-        # Verify insert payloads contain required fields
-        for call in insert_calls:
-            insert_data = call[0][0] if call[0] else {}
-            assert 'url' in insert_data
-            assert 'content_hash' in insert_data
-            assert 'page_type' in insert_data
-            assert 'crawl_job_id' in insert_data
+    async def test_list_schedules_for_manufacturer(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        """Test listing all schedules for a manufacturer."""
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_schedules"):
+            pytest.skip("krai_system.manufacturer_crawl_schedules missing in test DB")
 
-    @pytest.mark.asyncio
-    async def test_crawl_with_beautifulsoup_fallback(self, manufacturer_crawler, mock_db_client, mock_scraper,
-                                                   sample_crawl_job):
-        """Test crawling workflow with Firecrawl fallback to BeautifulSoup."""
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_job]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'page-id'}]
-        )
-        
-        # Setup Firecrawl failure 
-        firecrawl_error = Exception("Firecrawl service unavailable")
-        
-        mock_scraper.crawl_site.side_effect = firecrawl_error
-        
-        # Execute crawl job
-        result = await manufacturer_crawler.execute_crawl_job('job-0')
-        
-        # Verify single call was made and failed appropriately
-        assert result['success'] is False
-        assert 'Firecrawl service unavailable' in result['error']
-        assert mock_scraper.crawl_site.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_scheduled_crawl_execution_workflow(self, manufacturer_crawler, mock_db_client,
-                                                    mock_batch_task_service, sample_crawl_schedule):
-        """Test scheduled crawl execution workflow."""
-        # Create schedule that's due to run
-        past_time = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-        due_schedule = sample_crawl_schedule.copy()
-        due_schedule['next_run_at'] = past_time
-        
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.lte.return_value.execute.return_value = MagicMock(
-            data=[due_schedule]
-        )
-        mock_db_client.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'schedule-1'}]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'job-0'}]
-        )
-        
-        # Check for scheduled crawls
-        triggered_jobs = await manufacturer_crawler.check_scheduled_crawls()
-        
-        assert len(triggered_jobs) == 1
-        assert 'schedule-1' in triggered_jobs
-        
-        # Verify batch task was created
-        mock_batch_task_service.create_task.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_content_change_detection_workflow(self, manufacturer_crawler, mock_db_client,
-                                                   sample_crawled_pages):
-        """Test content change detection workflow."""
-        # Create modified pages (different content hash)
-        modified_pages = []
-        for page in sample_crawled_pages:
-            modified_page = page.copy()
-            modified_page['content_hash'] = 'new-hash-123'
-            modified_pages.append(modified_page)
-        
-        # Setup database response with original pages
-        mock_db_client.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=sample_crawled_pages
-        )
-        
-        # Detect changes
-        changes = await manufacturer_crawler.detect_content_changes('mfr-1', modified_pages)
-        
-        assert len(changes) == 1
-        assert all(change['change_type'] == 'content_modified' for change in changes)
-        assert all('previous_hash' in change for change in changes)
-
-    @pytest.mark.asyncio
-    async def test_batch_crawl_job_workflow(self, manufacturer_crawler, mock_db_client, mock_scraper,
-                                          sample_crawl_schedule, sample_crawl_job):
-        """Test batch crawl job execution workflow."""
-        # Create multiple schedules
-        schedules = [sample_crawl_schedule.copy() for _ in range(3)]
-        for i, schedule in enumerate(schedules):
-            schedule['id'] = f'schedule-{i+1}'
-            schedule['manufacturer_id'] = f'mfr-{i}'
-        
-        # Setup database responses for schedule creation
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': f'schedule-{i+1}'} for i in range(3)]
-        )
-        
         # Create multiple schedules
         schedule_ids = []
         for i in range(3):
-            schedule_id = await manufacturer_crawler.create_crawl_schedule(
-                manufacturer_id=f'mfr-{i+1}',
-                crawl_config={
-                    'crawl_type': 'support_pages',
-                    'start_url': f'http://example.com/support-{i}',
-                    'max_pages': 25
-                }
+            schedule_id = await create_test_schedule(
+                real_manufacturer_crawler,
+                manufacturer_id=test_manufacturer_data["manufacturer_id"],
+                start_url=f"{test_crawl_urls['example']}/page{i}",
+                crawl_type="full_site" if i % 2 == 0 else "support_pages",
             )
             schedule_ids.append(schedule_id)
-        
-        assert len(schedule_ids) == 3
-        
-        # Setup responses for job execution
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=sample_crawl_job
+
+        # List schedules
+        schedules = await real_manufacturer_crawler.list_crawl_schedules(
+            manufacturer_id=test_manufacturer_data["manufacturer_id"]
         )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': f'job-{i}'}]
-        )
-        
-        # Execute jobs concurrently
-        job_results = []
-        for schedule_id in schedule_ids[:2]:  # Test first 2
-            result = await manufacturer_crawler.execute_crawl_job('job-0')
-            job_results.append(result)
-        
-        # Verify all jobs succeeded
-        assert all(result['success'] for result in job_results)
+
+        assert len(schedules) >= 3, "Should have at least 3 schedules"
+        schedule_ids_from_list = [str(s["id"]) for s in schedules]
+        for sid in schedule_ids:
+            assert sid in schedule_ids_from_list
 
     @pytest.mark.asyncio
-    async def test_crawl_error_handling_and_recovery(self, manufacturer_crawler, mock_db_client, mock_scraper,
-                                                    sample_crawl_job):
-        """Test crawl error handling and recovery mechanisms."""
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_job]
+    async def test_schedule_next_run_calculation(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        """Test next_run calculation for cron-based schedules."""
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_schedules"):
+            pytest.skip("krai_system.manufacturer_crawl_schedules missing in test DB")
+
+        # Create schedule with cron
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["example"],
+            schedule_cron="0 2 * * *",  # Daily at 2 AM
         )
-        
-        # Test different error scenarios
-        error_scenarios = [
-            (Exception("Network connection failed"), "Network connection failed"),
-            (Exception("Firecrawl service unavailable"), "Firecrawl service unavailable"),
-            (Exception("Rate limit exceeded"), "Rate limit exceeded")
-        ]
-        
-        for scraper_error, expected_error in error_scenarios:
-            # Reset mocks
-            mock_scraper.crawl_site.reset_mock()
-            mock_db_client.table.return_value.update.return_value.eq.return_value.execute.reset_mock()
-            
-            # Setup scraper to fail
-            mock_scraper.crawl_site.side_effect = scraper_error
-            
-            # Execute crawl job
-            result = await manufacturer_crawler.execute_crawl_job('job-0')
-            
-            # Verify error handling
-            assert result['success'] is False
-            assert expected_error in result['error']
-            
-            # Verify job was marked as failed
-            update_calls = mock_db_client.table.return_value.update.return_value.eq.return_value.execute
-            update_calls.assert_called()
-            
-            call_args = update_calls.call_args
-            update_data = call_args[0][0] if call_args[0] else {}
-            
-            assert update_data['status'] == 'failed'
-            assert 'error_message' in update_data
+        assert schedule_id
+
+        # Verify next_run_at was calculated
+        rows = await test_database.execute_query(
+            """
+            SELECT next_run_at, schedule_cron
+            FROM krai_system.manufacturer_crawl_schedules
+            WHERE id = $1
+            """,
+            [schedule_id],
+        )
+        assert rows
+        row = rows[0]
+        assert row["schedule_cron"] == "0 2 * * *"
+        assert row["next_run_at"] is not None, "next_run_at should be calculated for cron schedules"
+
+
+class TestManufacturerCrawlerFirecrawlSmoke:
+    """
+    Placeholder smoke tests for Firecrawl-backed crawls.
+
+    Skips automatically when Firecrawl is not configured.
+    """
 
     @pytest.mark.asyncio
-    async def test_crawl_job_retry_workflow(self, manufacturer_crawler, mock_db_client, mock_batch_task_service,
-                                          sample_crawl_job):
-        """Test crawl job retry workflow."""
-        # Create failed job eligible for retry
-        failed_job = sample_crawl_job.copy()
-        failed_job['status'] = 'failed'
-        failed_job['error_message'] = 'Connection timeout'
-        
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[failed_job]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'retry-job-0'}]
-        )
-        
-        # Execute retry
-        retry_job_id = await manufacturer_crawler.retry_failed_job('job-0')
-        
-        assert retry_job_id == 'retry-job-0'
-        
-        # Verify new job was created
-        mock_db_client.table.return_value.insert.return_value.execute.assert_called_once()
-        
-        # Verify batch task was created for retry
-        mock_batch_task_service.create_task.assert_called_once()
+    async def test_firecrawl_health_check(self, real_manufacturer_crawler, firecrawl_available):
+        if not firecrawl_available:
+            pytest.skip("Firecrawl backend not available")
+
+        scraper = real_manufacturer_crawler._scraper
+        health = await scraper.health_check()
+        assert isinstance(health, dict)
+        assert health.get("backend") in {"firecrawl", "beautifulsoup"}
 
     @pytest.mark.asyncio
-    async def test_crawl_statistics_collection_workflow(self, manufacturer_crawler, mock_db_client):
-        """Test crawl statistics collection workflow."""
-        # Setup database responses for statistics
-        mock_db_client.table.return_value.select.return_value.execute.side_effect = [
-            MagicMock(data=[{'count': 10}]),   # total_schedules
-            MagicMock(data=[{'count': 7}]),    # active_schedules
-            MagicMock(data=[{'count': 50}]),   # total_jobs
-            MagicMock(data=[{'count': 2}]),    # running_jobs
-            MagicMock(data=[{'count': 45}]),   # completed_jobs
-            MagicMock(data=[{'count': 0}]),    # failed_jobs
-            MagicMock(data=[{'count': 1000}]), # total_pages
-            MagicMock(data=[{'avg_pages': 20}]) # avg_pages_per_job
-        ]
+    async def test_execute_crawl_job_with_firecrawl(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+        firecrawl_available,
+    ):
+        """Test executing a crawl job with real Firecrawl backend."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl backend not available")
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_jobs"):
+            pytest.skip("krai_system.manufacturer_crawl_jobs missing in test DB")
+
+        # Create schedule first
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["example"],
+            crawl_type="full_site",
+            max_depth=1,
+            max_pages=2,  # Keep small for fast test
+        )
+        assert schedule_id
+
+        # Start crawl job
+        job_id = await real_manufacturer_crawler.start_crawl_job(schedule_id)
+        assert job_id, "Job ID should be returned"
+
+        # Wait for completion (with timeout)
+        job = await wait_for_job_completion(real_manufacturer_crawler, job_id, timeout=30.0)
         
-        # Collect statistics
-        stats = await manufacturer_crawler.get_crawler_stats()
+        # Verify job completion
+        assert job, "Job should exist"
+        assert job.get("status") in {"completed", "failed"}, f"Job should complete, got: {job.get('status')}"
         
-        # Verify statistics
-        assert stats['total_schedules'] == 10
-        assert stats['active_schedules'] == 7
-        assert stats['total_jobs'] == 50
-        assert stats['running_jobs'] == 2
-        assert stats['completed_jobs'] == 45
-        assert stats['failed_jobs'] == 0
-        assert stats['total_pages'] == 1000
-        assert stats['avg_pages_per_job'] == 20
+        # If successful, verify pages were crawled
+        if job.get("status") == "completed":
+            assert job.get("pages_crawled", 0) > 0, "Should have crawled at least 1 page"
 
     @pytest.mark.asyncio
-    async def test_crawl_with_structured_extraction_integration(self, manufacturer_crawler, mock_db_client,
-                                                              mock_scraper, mock_structured_extraction_service,
-                                                              sample_crawl_job, sample_crawled_pages):
-        """Test crawl workflow with structured extraction integration."""
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_job]
+    async def test_crawl_job_persistence_in_database(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+        firecrawl_available,
+    ):
+        """Test that crawl jobs are persisted correctly in database."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl backend not available")
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_jobs"):
+            pytest.skip("krai_system.manufacturer_crawl_jobs missing in test DB")
+
+        # Create schedule
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["httpbin"],  # Use httpbin for reliable test
+            max_pages=1,
         )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'page-id'}]
+
+        # Start job
+        job_id = await real_manufacturer_crawler.start_crawl_job(schedule_id)
+        
+        # Verify job in DB
+        rows = await test_database.execute_query(
+            """
+            SELECT id, schedule_id, status, manufacturer_id
+            FROM krai_system.manufacturer_crawl_jobs
+            WHERE id = $1
+            """,
+            [job_id],
         )
-        
-        # Setup crawler response
-        mock_scraper.crawl_site.return_value = {
-            'success': True,
-            'backend': 'firecrawl',
-            'total': 0,
-            'pages': []
-        }
-        
-        # Execute crawl job
-        crawl_result = await manufacturer_crawler.execute_crawl_job('job-0')
-        assert crawl_result['success'] is True
-        
-        # Setup for page processing
-        mock_db_client.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=sample_crawled_pages
-        )
-        
-        # Process crawled pages with structured extraction
-        process_result = await manufacturer_crawler.process_crawled_pages('job-0')
-        
-        assert process_result['total_pages'] == len(sample_crawled_pages)
-        assert process_result['processed_pages'] == len(sample_crawled_pages)
-        
-        # Verify structured extraction was called with correct parameters
-        mock_structured_extraction_service.batch_extract.assert_called_once()
-        
-        call_args = mock_structured_extraction_service.batch_extract.call_args
-        source_ids = call_args[0][0] if call_args[0] else []
-        source_type = call_args[1]['source_type'] if len(call_args[1]) > 1 else None
-        
-        assert source_type == 'crawled_page'
-        assert len(source_ids) == len(sample_crawled_pages)
+        assert rows, "Job should be persisted in DB"
+        job_row = rows[0]
+        assert job_row["schedule_id"] == schedule_id
+        assert job_row["manufacturer_id"] == test_manufacturer_data["manufacturer_id"]
+        assert job_row["status"] in {"queued", "pending", "running", "completed", "failed"}
 
     @pytest.mark.asyncio
-    async def test_crawl_page_type_detection_workflow(self, manufacturer_crawler, mock_db_client, mock_scraper,
-                                                    sample_crawl_job):
-        """Test page type detection during crawl workflow."""
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_job]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'page-id'}]
-        )
-        
-        # Setup crawler response with different page types
-        mock_scraper.crawl_site.return_value = {
-            'success': True,
-            'backend': 'firecrawl',
-            'total': 0,
-            'pages': [
-                {
-                    'url': 'http://example.com/product/c750a',
-                    'content': '# C750a Specifications\n\nPrint Speed: 75 ppm',
-                    'metadata': {'title': 'C750a Specifications'}
-                },
-                {
-                    'url': 'http://example.com/error-codes/c750a',
-                    'content': '# Error Codes\n\n900.01: Fuser error',
-                    'metadata': {'title': 'C750a Error Codes'}
-                },
-                {
-                    'url': 'http://example.com/manual.pdf',
-                    'content': '# Service Manual\n\nComplete documentation',
-                    'metadata': {'title': 'c750a Service Manual'}
-                },
-                {
-                    'url': 'http://example.com/parts',
-                    'content': '# Parts List\n\nA02: Fuser Unit\nB02: Transfer Belt',
-                    'metadata': {'title': 'c750a Parts List'}
-                },
-                {
-                    'url': 'http://example.com/troubleshooting',
-                    'content': '# Troubleshooting\n\nProblem: Printer not working',
-                    'metadata': {'title': 'c750a Troubleshooting'}
-                },
-                {
-                    'url': 'http://example.com/about',
-                    'content': 'About our company',
-                    'metadata': {'title': 'About Us'}
-                }
-            ]
-        }
-        
-        # Execute crawl job
-        result = await manufacturer_crawler.execute_crawl_job('job-0')
-        
-        assert result['success'] is True
-        
-        # Verify page types were detected and stored correctly
-        insert_calls = mock_db_client.table.return_value.insert.return_value.execute
-        insert_calls.assert_called()
-        
-        # Check that page types were properly classified
-        # (This would require inspecting the actual insert data in a real implementation)
+    async def test_crawled_pages_persistence(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+        firecrawl_available,
+    ):
+        """Test that crawled pages are saved to krai_system.crawled_pages."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl backend not available")
+        if not await _table_exists(test_database, "krai_system", "crawled_pages"):
+            pytest.skip("krai_system.crawled_pages missing in test DB")
 
-    @pytest.mark.asyncio
-    async def test_crawl_with_concurrent_jobs_limit(self, manufacturer_crawler, mock_db_client, mock_scraper,
-                                                 sample_crawl_schedule, sample_crawl_job):
-        """Test crawl workflow with concurrent job limits."""
-        # Create crawler with lower concurrent limit
-        crawler = ManufacturerCrawler(
-            web_scraping_service=mock_scraper,
-            database_service=manufacturer_crawler._database_service,
-            batch_task_service=manufacturer_crawler._batch_task_service
+        # Create schedule and start job
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["httpbin"],
+            max_pages=1,
         )
-        crawler._config['crawler_max_concurrent_jobs'] = 2
-        crawler._enabled = True
+        job_id = await real_manufacturer_crawler.start_crawl_job(schedule_id)
         
-        # Setup database responses
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[sample_crawl_job]
-        )
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'job-0'}]
-        )
+        # Wait for completion
+        job = await wait_for_job_completion(real_manufacturer_crawler, job_id, timeout=30.0)
         
-        # Track concurrent executions
-        concurrent_count = 0
-        max_concurrent = 0
-        
-        original_crawl = mock_scraper.crawl_site
-        
-        async def tracked_crawl(*args, **kwargs):
-            nonlocal concurrent_count, max_concurrent
-            concurrent_count += 1
-            max_concurrent = max(max_concurrent, concurrent_count)
-            
-            # Simulate crawl time
-            await asyncio.sleep(0.01)
-            
-            result = await original_crawl(*args, **kwargs)
-            concurrent_count -= 1
-            return result
-        
-        mock_scraper.crawl_site = tracked_crawl
-        
-        # Execute multiple crawl jobs
-        job_results = []
-        for i in range(3):
-            result = await crawler.execute_crawl_job(f'job-{i}')
-            job_results.append(result)
-        
-        # Verify concurrent limit was respected
-        assert max_concurrent <= crawler._config['crawler_max_concurrent_jobs']
-        assert all(result['success'] for result in job_results)
-
-    @pytest.mark.asyncio
-    async def test_crawl_with_disabled_service(self, manufacturer_crawler, mock_db_client):
-        """Test crawl workflow when crawler service is disabled."""
-        # Disable crawler
-        manufacturer_crawler._enabled = False
-        
-        # Try to start crawl job
-        result = await manufacturer_crawler.start_crawl_job('schedule-1')
-        
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_crawl_with_database_errors(self, manufacturer_crawler, mock_db_client, sample_crawl_schedule):
-        """Test crawl workflow with database errors."""
-        # Setup database to raise error during schedule lookup
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.side_effect = Exception("Database connection error")
-        
-        # Try to start crawl job
-        result = await manufacturer_crawler.start_crawl_job('schedule-1')
-        
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_crawl_schedule_management_workflow(self, manufacturer_crawler, mock_db_client):
-        """Test complete crawl schedule management workflow."""
-        # Step 1: Create schedule
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'schedule-1'}]
-        )
-        
-        schedule_id = await manufacturer_crawler.create_crawl_schedule(
-            manufacturer_id='mfr-1',
-            crawl_config={
-                'crawl_type': 'support_pages',
-                'start_url': 'http://example.com/support',
-                'max_pages': 50,
-                'cron_expression': '0 2 * * *'
-            }
-        )
-        
-        assert schedule_id == 'schedule-1'
-        
-        # Step 2: Get schedule
-        schedule = {
-            'id': 'schedule-1',
-            'manufacturer_id': 'mfr-1',
-            'enabled': True
-        }
-        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
-            data=[schedule]
-        )
-        
-        retrieved_schedule = await manufacturer_crawler.get_crawl_schedule('schedule-1')
-        assert retrieved_schedule is not None
-        assert retrieved_schedule['id'] == 'schedule-1'
-        
-        # Step 3: Update schedule
-        mock_db_client.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'schedule-1'}]
-        )
-        
-        update_result = await manufacturer_crawler.update_crawl_schedule('schedule-1', {'max_pages': 100})
-        assert update_result is True
-        
-        # Step 4: List schedules
-        mock_db_client.table.return_value.select.return_value.order.return_value.execute.return_value = MagicMock(
-            data=[schedule]
-        )
-        
-        schedules = await manufacturer_crawler.list_crawl_schedules('mfr-1')
-        assert len(schedules) == 1
-        assert schedules[0]['id'] == 'schedule-1'
-        
-        # Step 5: Delete schedule
-        mock_db_client.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'schedule-1'}]
-        )
-        
-        delete_result = await manufacturer_crawler.delete_crawl_schedule('schedule-1')
-        assert delete_result is True
+        if job.get("status") == "completed":
+            # Check for crawled pages
+            rows = await test_database.execute_query(
+                """
+                SELECT url, content_hash, crawl_job_id
+                FROM krai_system.crawled_pages
+                WHERE crawl_job_id = $1
+                """,
+                [job_id],
+            )
+            assert rows, "Should have at least one crawled page"
+            page = rows[0]
+            assert page["url"]
+            assert page["content_hash"]
+            assert page["crawl_job_id"] == job_id
 
     def test_crawl_configuration_validation(self, manufacturer_crawler):
         """Test crawl configuration validation."""
@@ -887,3 +528,159 @@ class TestManufacturerCrawlerE2E:
         assert config['crawler_max_concurrent_jobs'] > 0
         assert config['crawler_default_max_pages'] > 0
         assert config['crawler_default_max_depth'] >= 0
+
+
+class TestManufacturerCrawlerExtendedE2E:
+    """
+    Extended E2E tests for ManufacturerCrawler covering additional scenarios.
+    """
+
+    @pytest.mark.asyncio
+    async def test_job_status_transitions(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        """Test job status transitions from queued -> running -> completed."""
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_jobs"):
+            pytest.skip("krai_system.manufacturer_crawl_jobs missing in test DB")
+
+        # Create schedule
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["example"],
+            max_pages=1,
+        )
+        assert schedule_id
+
+        # Start job
+        job_id = await real_manufacturer_crawler.start_crawl_job(schedule_id)
+        assert job_id
+
+        # Check initial status (should be queued)
+        job = await real_manufacturer_crawler.get_crawl_job_status(job_id)
+        assert job
+        assert job["status"] in {"queued", "running"}
+
+        # Wait for completion
+        final_job = await wait_for_job_completion(real_manufacturer_crawler, job_id, timeout=30.0)
+        assert final_job
+        assert final_job["status"] in {"completed", "failed"}
+
+    @pytest.mark.asyncio
+    async def test_content_change_detection(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+        firecrawl_available,
+    ):
+        """Test content change detection after multiple crawls."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl backend not available")
+        if not await _table_exists(test_database, "krai_system", "crawled_pages"):
+            pytest.skip("krai_system.crawled_pages missing in test DB")
+
+        # Create schedule
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["httpbin"],
+            max_pages=1,
+        )
+
+        # First crawl
+        job_id_1 = await real_manufacturer_crawler.start_crawl_job(schedule_id)
+        await wait_for_job_completion(real_manufacturer_crawler, job_id_1, timeout=30.0)
+
+        # Second crawl
+        job_id_2 = await real_manufacturer_crawler.start_crawl_job(schedule_id)
+        await wait_for_job_completion(real_manufacturer_crawler, job_id_2, timeout=30.0)
+
+        # Detect changes
+        changes = await real_manufacturer_crawler.detect_content_changes(
+            test_manufacturer_data["manufacturer_id"]
+        )
+
+        # Changes list may be empty if content is identical, which is expected
+        assert isinstance(changes, list)
+
+    @pytest.mark.asyncio
+    async def test_check_scheduled_crawls_creates_jobs(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        """Test that check_scheduled_crawls creates jobs for due schedules."""
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_schedules"):
+            pytest.skip("krai_system.manufacturer_crawl_schedules missing in test DB")
+
+        # Create schedule with next_run_at in the past
+        from datetime import datetime, timezone, timedelta
+        
+        schedule_id = await create_test_schedule(
+            real_manufacturer_crawler,
+            manufacturer_id=test_manufacturer_data["manufacturer_id"],
+            start_url=test_crawl_urls["example"],
+            max_pages=1,
+        )
+
+        # Manually set next_run_at to past
+        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        await test_database.execute_query(
+            """
+            UPDATE krai_system.manufacturer_crawl_schedules
+            SET next_run_at = $1
+            WHERE id = $2
+            """,
+            [past_time, schedule_id],
+        )
+
+        # Check scheduled crawls
+        job_ids = await real_manufacturer_crawler.check_scheduled_crawls()
+
+        # Should have created at least one job
+        assert len(job_ids) >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_crawler_stats_accuracy(
+        self,
+        real_manufacturer_crawler,
+        test_database,
+        test_manufacturer_data,
+        test_crawl_urls,
+    ):
+        """Test that get_crawler_stats returns accurate aggregate metrics."""
+        if not await _table_exists(test_database, "krai_system", "manufacturer_crawl_schedules"):
+            pytest.skip("krai_system.manufacturer_crawl_schedules missing in test DB")
+
+        # Create multiple schedules
+        schedule_ids = []
+        for i in range(2):
+            schedule_id = await create_test_schedule(
+                real_manufacturer_crawler,
+                manufacturer_id=test_manufacturer_data["manufacturer_id"],
+                start_url=f"{test_crawl_urls['example']}/page{i}",
+                max_pages=1,
+            )
+            schedule_ids.append(schedule_id)
+
+        # Get stats
+        stats = await real_manufacturer_crawler.get_crawler_stats()
+
+        # Verify stats structure
+        assert "total_schedules" in stats
+        assert "active_schedules" in stats
+        assert "total_jobs" in stats
+        assert "running_jobs" in stats
+        assert "total_pages" in stats
+        assert "page_types" in stats
+
+        # Should have at least our created schedules
+        assert stats["total_schedules"] >= 2

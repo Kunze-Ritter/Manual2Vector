@@ -10,6 +10,9 @@ import type {
   PipelineMetrics,
   QueueMetrics,
   HardwareStatus,
+  ProcessorHealthResponse,
+  StageQueueResponse,
+  StageErrorLogsResponse,
 } from '@/types/api';
 
 // Query keys
@@ -22,6 +25,11 @@ const queryKeys = {
     ['monitoring', 'alerts', params],
   alertRules: ['monitoring', 'alert-rules'],
   metrics: ['monitoring', 'metrics'],
+  processorHealth: ['monitoring', 'processor-health'],
+  stageQueue: (stageName: string, limit?: number) => 
+    ['monitoring', 'stage-queue', stageName, limit],
+  stageErrors: (stageName: string, limit?: number) => 
+    ['monitoring', 'stage-errors', stageName, limit],
 };
 
 // Pipeline status hook
@@ -166,6 +174,56 @@ export function useMetrics(options = {}) {
   });
 }
 
+// Processor health hook
+export function useProcessorHealth(options = {}) {
+  return useQuery<ProcessorHealthResponse, Error>({
+    queryKey: queryKeys.processorHealth,
+    queryFn: () => monitoringApi.getProcessorHealth(),
+    refetchInterval: 5000, // 5 seconds
+    staleTime: 2000, // 2 seconds
+    ...options,
+  });
+}
+
+// Stage queue hook
+export function useStageQueue(stageName: string, limit: number = 50, options = {}) {
+  return useQuery<StageQueueResponse, Error>({
+    queryKey: queryKeys.stageQueue(stageName, limit),
+    queryFn: () => monitoringApi.getStageQueue(stageName, limit),
+    refetchInterval: 10000, // 10 seconds
+    enabled: !!stageName,
+    ...options,
+  });
+}
+
+// Stage errors hook
+export function useStageErrors(stageName: string, limit: number = 100, options = {}) {
+  return useQuery<StageErrorLogsResponse, Error>({
+    queryKey: queryKeys.stageErrors(stageName, limit),
+    queryFn: () => monitoringApi.getStageErrors(stageName, limit),
+    refetchInterval: 30000, // 30 seconds
+    enabled: !!stageName,
+    ...options,
+  });
+}
+
+// Retry stage mutation
+export function useRetryStage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ stageName, documentId }: { stageName: string; documentId: string }) =>
+      monitoringApi.retryStage(stageName, documentId),
+    onSuccess: (_, variables) => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.stageErrors(variables.stageName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stageQueue(variables.stageName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.processorHealth });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pipelineStatus });
+    },
+  });
+}
+
 // Combined hook for monitoring data
 export function useMonitoringData() {
   const pipelineStatus = usePipelineStatus();
@@ -173,6 +231,7 @@ export function useMonitoringData() {
   const dataQuality = useDataQuality();
   const alerts = useAlerts({ limit: 10, acknowledged: false });
   const metrics = useMetrics();
+  const processorHealth = useProcessorHealth();
 
   const isLoading = [
     pipelineStatus.isLoading,
@@ -180,6 +239,7 @@ export function useMonitoringData() {
     dataQuality.isLoading,
     alerts.isLoading,
     metrics.isLoading,
+    processorHealth.isLoading,
   ].some(Boolean);
 
   const error = [
@@ -188,6 +248,7 @@ export function useMonitoringData() {
     dataQuality.error,
     alerts.error,
     metrics.error,
+    processorHealth.error,
   ].find(Boolean);
 
   return {
@@ -196,6 +257,7 @@ export function useMonitoringData() {
     dataQuality: dataQuality.data,
     alerts: alerts.data,
     metrics: metrics.data,
+    processorHealth: processorHealth.data,
     isLoading,
     error,
     refetchers: {
@@ -204,6 +266,7 @@ export function useMonitoringData() {
       dataQuality: dataQuality.refetch,
       alerts: alerts.refetch,
       metrics: metrics.refetch,
+      processorHealth: processorHealth.refetch,
     },
     refetchAll: () =>
       Promise.all([
@@ -212,6 +275,7 @@ export function useMonitoringData() {
         dataQuality.refetch(),
         alerts.refetch(),
         metrics.refetch(),
+        processorHealth.refetch(),
       ]).then(() => undefined),
     // Backwards compatibility for existing consumers
     refetch: () =>
@@ -221,6 +285,7 @@ export function useMonitoringData() {
         dataQuality.refetch(),
         alerts.refetch(),
         metrics.refetch(),
+        processorHealth.refetch(),
       ]).then(() => undefined),
   };
 }

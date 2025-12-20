@@ -49,6 +49,7 @@ class TestManufacturerCrawler:
         service = MagicMock()
         service.client = mock_db_client
         service.service_client = mock_db_client
+        service.execute_query = AsyncMock(return_value=[])
         return service
 
     @pytest.fixture
@@ -182,35 +183,33 @@ class TestManufacturerCrawler:
         assert crawler._batch_task_service == mock_batch_task_service
 
     @pytest.mark.asyncio
-    async def test_create_crawl_schedule_success(self, manufacturer_crawler, mock_db_client):
+    async def test_create_crawl_schedule_success(self, manufacturer_crawler, mock_database_service):
         """Test successful crawl schedule creation."""
         # Setup database response
-        mock_db_client.table.return_value.insert.return_value.execute.return_value = MagicMock(
-            data=[{'id': 'new-schedule-id'}]
-        )
+        mock_database_service.execute_query = AsyncMock(return_value=[{'id': 'new-schedule-id'}])
         
         crawl_config = {
             'crawl_type': 'support_pages',
             'start_url': 'http://example.com/support',
             'max_pages': 50,
             'max_depth': 3,
-            'cron_expression': '0 2 * * *'
+            'schedule_cron': '0 2 * * *'
         }
         
         result = await manufacturer_crawler.create_crawl_schedule('mfr-id-123', crawl_config)
         
         assert result == 'new-schedule-id'
         
-        # Verify schedule was inserted
-        mock_db_client.table.return_value.insert.return_value.execute.assert_called_once()
+        # Verify execute_query was called with INSERT
+        mock_database_service.execute_query.assert_called_once()
+        call_args = mock_database_service.execute_query.call_args
+        query = call_args[0][0]
+        params = call_args[0][1]
         
-        call_args = mock_db_client.table.return_value.insert.return_value.execute.call_args
-        insert_data = call_args[0][0] if call_args[0] else {}
-        
-        assert insert_data['manufacturer_id'] == 'mfr-id-123'
-        assert insert_data['crawl_type'] == 'support_pages'
-        assert insert_data['start_url'] == 'http://example.com/support'
-        assert insert_data['enabled'] is True
+        assert 'INSERT INTO krai_system.manufacturer_crawl_schedules' in query
+        assert params[0] == 'mfr-id-123'  # manufacturer_id
+        assert params[1] == 'support_pages'  # crawl_type
+        assert params[2] == 'http://example.com/support'  # start_url
 
     @pytest.mark.asyncio
     async def test_create_crawl_schedule_invalid_config(self, manufacturer_crawler):

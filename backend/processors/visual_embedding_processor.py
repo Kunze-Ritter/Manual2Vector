@@ -30,8 +30,9 @@ except ImportError:
     COLPALI_AVAILABLE = False
     logging.warning("colpali-engine not available - visual embeddings disabled")
 
-from backend.core.base_processor import BaseProcessor, ProcessingResult, Stage, ProcessingContext
+from backend.core.base_processor import BaseProcessor, ProcessingError, ProcessingResult, Stage, ProcessingContext
 from backend.config.ai_config import get_ai_config
+from .stage_tracker import StageTracker
 
 
 class VisualEmbeddingProcessor(BaseProcessor):
@@ -48,12 +49,18 @@ class VisualEmbeddingProcessor(BaseProcessor):
         super().__init__(name="VisualEmbeddingProcessor")
         self.stage = Stage.VISUAL_EMBEDDING
         self.database_service = database_service
+        self.stage_tracker = StageTracker(database_service) if database_service else None
         self.model_name = model_name or os.getenv('AI_VISUAL_EMBEDDING_MODEL', 'vidore/colqwen2.5-v0.2')
         self.batch_size = batch_size
         self.embedding_dimension = embedding_dimension
+        self.storage_embedding_dimension = embedding_dimension
+        self._logged_embedding_dimension_mismatch = False
         
         # Device detection
         self.device = self._detect_device(device)
+
+        # Dtype selection (avoid bfloat16 on GPUs that don't support it)
+        self.torch_dtype = self._select_torch_dtype()
         
         # Model loading (lazy)
         self.model = None
@@ -91,6 +98,35 @@ class VisualEmbeddingProcessor(BaseProcessor):
             with self.logger_context() as adapter:
                 adapter.info(f"Using specified device: {device}")
         return device
+
+    def _select_torch_dtype(self):
+        """Select a safe dtype for inference based on device capabilities."""
+        if not self.device.startswith('cuda'):
+            return torch.float32
+
+        env_dtype = (os.getenv('VISUAL_EMBEDDING_TORCH_DTYPE') or '').strip().lower()
+        if env_dtype:
+            if env_dtype in ('bf16', 'bfloat16'):
+                if hasattr(torch.cuda, 'is_bf16_supported') and torch.cuda.is_bf16_supported():
+                    return torch.bfloat16
+                with self.logger_context() as adapter:
+                    adapter.warning(
+                        "VISUAL_EMBEDDING_TORCH_DTYPE=%s requested but bf16 not supported on this GPU; falling back to float16",
+                        env_dtype,
+                    )
+                return torch.float16
+            if env_dtype in ('fp16', 'float16', 'half'):
+                return torch.float16
+            if env_dtype in ('fp32', 'float32'):
+                return torch.float32
+
+            with self.logger_context() as adapter:
+                adapter.warning(
+                    "Unknown VISUAL_EMBEDDING_TORCH_DTYPE=%s; falling back to float16",
+                    env_dtype,
+                )
+
+        return torch.float16
     
     def _load_model(self) -> bool:
         """Lazy load ColQwen2.5 model and processor"""
@@ -102,7 +138,7 @@ class VisualEmbeddingProcessor(BaseProcessor):
                 adapter.info(f"Loading ColQwen2.5 model: {self.model_name}")
             
             # Load model with appropriate dtype
-            torch_dtype = torch.bfloat16 if self.device.startswith('cuda') else torch.float32
+            torch_dtype = self.torch_dtype
             
             self.model = ColQwen2_5.from_pretrained(
                 self.model_name,
@@ -149,7 +185,10 @@ class VisualEmbeddingProcessor(BaseProcessor):
                             self.stage.value,
                             error="Document ID is required"
                         )
-                    return self.create_error_result("Document ID is required")
+                    return self.create_error_result(
+                        ProcessingError("Document ID is required", self.name, "MISSING_DOCUMENT_ID"),
+                        data={'embeddings_created': 0, 'failed_count': 0},
+                    )
                 
                 if not hasattr(context, 'images') or not context.images:
                     adapter.info("No images to process")
@@ -166,8 +205,25 @@ class VisualEmbeddingProcessor(BaseProcessor):
                 
                 # Process images
                 result = await self.process_document(context.document_id, context.images)
-                
-                if result['success']:
+
+                if not isinstance(result, dict):
+                    result = {
+                        'success': False,
+                        'error': 'Visual embedding processor returned no result',
+                        'embeddings_created': 0,
+                        'failed_count': len(context.images) if hasattr(context, 'images') else 0,
+                    }
+
+                if result.get('success'):
+                    if self.stage_tracker:
+                        await self.stage_tracker.complete_stage(
+                            str(context.document_id),
+                            self.stage.value,
+                            metadata={
+                                'embeddings_created': result.get('embeddings_created', 0),
+                                'failed_count': result.get('failed_count', 0),
+                            },
+                        )
                     return self.create_success_result(
                         data={
                             'embeddings_created': result['embeddings_created'],
@@ -187,7 +243,12 @@ class VisualEmbeddingProcessor(BaseProcessor):
                             error=result.get('error', 'Unknown error')
                         )
                     return self.create_error_result(
-                        result.get('error', 'Unknown error'),
+                        ProcessingError(
+                            result.get('error', 'Unknown error'),
+                            self.name,
+                            "VISUAL_EMBEDDING_FAILED",
+                        ),
+                        metadata={'stage': self.stage.value},
                         data={'embeddings_created': 0, 'failed_count': len(context.images)}
                     )
                 
@@ -200,7 +261,8 @@ class VisualEmbeddingProcessor(BaseProcessor):
                         error=str(e)
                     )
                 return self.create_error_result(
-                    str(e),
+                    ProcessingError(str(e), self.name, "VISUAL_EMBEDDING_EXCEPTION"),
+                    metadata={'stage': self.stage.value},
                     data={'embeddings_created': 0, 'failed_count': len(context.images) if hasattr(context, 'images') else 0}
                 )
     
@@ -257,6 +319,26 @@ class VisualEmbeddingProcessor(BaseProcessor):
                     with self.logger_context() as adapter:
                         adapter.error(f"Batch {i//self.batch_size + 1} failed: {e}")
                     total_failed += len(batch_images)
+
+            processing_time = time.time() - start_time
+            if self.stage_tracker:
+                await self.stage_tracker.complete_stage(
+                    str(document_id),
+                    self.stage.value,
+                    metadata={
+                        'embeddings_created': total_processed,
+                        'failed_count': total_failed,
+                        'processing_time': processing_time,
+                    },
+                )
+
+            return {
+                'success': True,
+                'embeddings_created': total_processed,
+                'failed_count': total_failed,
+                'embedding_ids': embeddings_created,
+                'processing_time': processing_time,
+            }
         
         except Exception as e:
             with self.logger_context(document_id=document_id, stage=self.stage.value) as adapter:
@@ -325,7 +407,14 @@ class VisualEmbeddingProcessor(BaseProcessor):
                 # Try alternative approach
                 inputs = self.processor(images=pil_images, return_tensors="pt")
             
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            def _move_tensor(value):
+                if not torch.is_tensor(value):
+                    return value
+                if value.is_floating_point():
+                    return value.to(self.device, dtype=self.torch_dtype)
+                return value.to(self.device)
+
+            inputs = {k: _move_tensor(v) for k, v in inputs.items()}
             
             with torch.no_grad():
                 # Generate embeddings - verify the correct method
@@ -409,11 +498,33 @@ class VisualEmbeddingProcessor(BaseProcessor):
                 img = images[original_index]
                 
                 try:
+                    try:
+                        embedding_list = embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+                    except Exception:
+                        embedding_list = list(embedding)
+
+                    target_dim = int(getattr(self, "storage_embedding_dimension", 768) or 768)
+                    actual_dim = len(embedding_list)
+                    if actual_dim != target_dim:
+                        if not self._logged_embedding_dimension_mismatch:
+                            with self.logger_context() as adapter:
+                                adapter.warning(
+                                    "Visual embedding dimension mismatch (actual=%d target=%d) - padding/truncating to target for DB storage",
+                                    actual_dim,
+                                    target_dim,
+                                )
+                            self._logged_embedding_dimension_mismatch = True
+
+                        if actual_dim > target_dim:
+                            embedding_list = embedding_list[:target_dim]
+                        else:
+                            embedding_list = embedding_list + ([0.0] * (target_dim - actual_dim))
+
                     # Store via database adapter with positional arguments
-                    embedding_id = await self.database_service.create_embedding_v2(
+                    embedding_id = await self.database_service.create_unified_embedding(
                         source_id=img.get('id'),
                         source_type='image',
-                        embedding=embedding,
+                        embedding=embedding_list,
                         model_name=self.model_name,
                         embedding_context=img.get('ai_description', '')[:500],
                         metadata={
@@ -423,6 +534,7 @@ class VisualEmbeddingProcessor(BaseProcessor):
                             'height': img.get('height'),
                             'file_size': img.get('file_size'),
                             'embedding_dimension': self.embedding_dimension,
+                            'stored_embedding_dimension': target_dim,
                             'embedding_model': self.model_name
                         }
                     )

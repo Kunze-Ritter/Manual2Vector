@@ -7,7 +7,7 @@ Features:
 - Markdown export for embeddings
 - JSONB storage for structured queries
 - Column-specific embeddings (future)
-- Integration with embeddings_v2 table
+- Integration with unified_embeddings table
 """
 
 import os
@@ -33,13 +33,15 @@ class TableProcessor(BaseProcessor):
         embedding_service,
         strategy: str = 'lines',
         fallback_strategy: str = 'text',
-        min_rows: int = 2,
+        min_rows: int = 1,
         min_cols: int = 2
     ):
         super().__init__(name="TableProcessor")
         self.stage = Stage.TABLE_EXTRACTION
         self.database_service = database_service
         self.embedding_service = embedding_service
+        self.stage_tracker = None
+        self._structured_table_storage_enabled = True
         self.strategy = strategy
         self.fallback_strategy = fallback_strategy
         self.min_rows = min_rows
@@ -243,6 +245,8 @@ class TableProcessor(BaseProcessor):
         """Extract and process table data"""
         with self.logger_context() as adapter:
             try:
+                bbox_tuple = self._normalize_bbox(tab.bbox)
+
                 # Extract table data
                 raw_data = tab.extract()
                 
@@ -271,19 +275,22 @@ class TableProcessor(BaseProcessor):
                     return None
                 
                 # Generate markdown representation
-                table_markdown = df.to_markdown(index=False, tablefmt='grid')
+                try:
+                    table_markdown = df.to_markdown(index=False, tablefmt='grid')
+                except Exception:
+                    table_markdown = self._dataframe_to_markdown(df)
                 
                 # Extract context around table
-                context_text = self._extract_table_context(page, tab.bbox)
+                context_text = self._extract_table_context(page, bbox_tuple)
                 
                 # Detect table type
                 table_type = self._detect_table_type(df)
                 
                 # Extract caption if available
-                caption = self._extract_caption(page, tab.bbox)
+                caption = self._extract_caption(page, bbox_tuple)
                 
                 # Convert bbox to primitive sequence for JSON serialization
-                bbox_list = [float(tab.bbox.x0), float(tab.bbox.y0), float(tab.bbox.x1), float(tab.bbox.y1)]
+                bbox_list = [float(v) for v in bbox_tuple]
                 
                 # Create table record
                 table_record = {
@@ -310,8 +317,46 @@ class TableProcessor(BaseProcessor):
                 return table_record
                 
             except Exception as e:
-                adapter.error(f"Table data extraction failed: {e}")
+                try:
+                    adapter.error(
+                        "Table data extraction failed: %s (bbox_type=%s bbox=%r normalized_bbox=%r)",
+                        e,
+                        type(getattr(tab, 'bbox', None)).__name__,
+                        getattr(tab, 'bbox', None),
+                        locals().get('bbox_tuple'),
+                        exc_info=True,
+                    )
+                except Exception:
+                    adapter.error(f"Table data extraction failed: {e}", exc_info=True)
                 return None
+
+    def _normalize_bbox(self, bbox: Any) -> tuple:
+        if bbox is None:
+            return (0.0, 0.0, 0.0, 0.0)
+
+        x0 = getattr(bbox, 'x0', None)
+        y0 = getattr(bbox, 'y0', None)
+        x1 = getattr(bbox, 'x1', None)
+        y1 = getattr(bbox, 'y1', None)
+        if x0 is not None and y0 is not None and x1 is not None and y1 is not None:
+            return (float(x0), float(y0), float(x1), float(y1))
+
+        if isinstance(bbox, (list, tuple)) and len(bbox) == 4:
+            return (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+
+        return (0.0, 0.0, 0.0, 0.0)
+
+    def _dataframe_to_markdown(self, df: pd.DataFrame) -> str:
+        headers = [str(c) for c in df.columns]
+        rows = [["" if v is None else str(v) for v in row] for row in df.values.tolist()]
+
+        def esc(value: str) -> str:
+            return value.replace("|", "\\|").replace("\n", " ")
+
+        header_line = "| " + " | ".join(esc(h) for h in headers) + " |"
+        sep_line = "| " + " | ".join(["---"] * len(headers)) + " |"
+        row_lines = ["| " + " | ".join(esc(c) for c in row) + " |" for row in rows]
+        return "\n".join([header_line, sep_line] + row_lines)
     
     def _extract_table_context(self, page, bbox: tuple) -> str:
         """Extract text context around table"""
@@ -498,26 +543,46 @@ class TableProcessor(BaseProcessor):
                         }
                         
                         # Store structured table
-                        table_id = await self.database_service.create_structured_table(table_record)
+                        if self._structured_table_storage_enabled:
+                            try:
+                                table_id = await self.database_service.create_structured_table(table_record)
+                            except Exception as e:
+                                msg = str(e)
+                                if "structured_tables" in msg and "does not exist" in msg:
+                                    self._structured_table_storage_enabled = False
+                                    adapter.warning(
+                                        "structured table storage disabled (missing DB table). Reason: %s",
+                                        msg,
+                                    )
+                                else:
+                                    raise
                         
                         # Store embedding if available
                         if 'embedding' in table and table['embedding']:
-                            embedding_id = await self.database_service.create_embedding_v2(
-                                source_id=table['id'],
-                                source_type='table',
-                                embedding=table['embedding'],
-                                model_name='nomic-embed-text:latest',
-                                embedding_context=table['table_markdown'][:500],
-                                metadata={
-                                    'table_type': table['table_type'],
-                                    'page_number': table['page_number'],
-                                    'row_count': table['row_count'],
-                                    'column_count': table['column_count']
-                                }
-                            )
-                            embedding_count += 1
-                        
-                        storage_success += 1
+                            try:
+                                await self.database_service.create_unified_embedding(
+                                    source_id=table['id'],
+                                    source_type='table',
+                                    embedding=table['embedding'],
+                                    model_name='nomic-embed-text:latest',
+                                    embedding_context=table['table_markdown'][:500],
+                                    metadata={
+                                        'table_type': table['table_type'],
+                                        'page_number': table['page_number'],
+                                        'row_count': table['row_count'],
+                                        'column_count': table['column_count']
+                                    }
+                                )
+                                embedding_count += 1
+                            except Exception as e:
+                                adapter.warning(
+                                    "Failed to store unified embedding for table %s: %s",
+                                    table.get('id', 'unknown'),
+                                    e,
+                                )
+
+                        if self._structured_table_storage_enabled:
+                            storage_success += 1
                         
                     except Exception as e:
                         adapter.error(f"Failed to store table {table.get('id', 'unknown')}: {e}")

@@ -1,292 +1,247 @@
+"""Master pipeline unit and configuration tests.
+
+This module replaces the legacy manual test harness with a modern pytest-based
+suite focused on KRMasterPipeline orchestration helpers:
+
+- Initialization and configuration (max_concurrent, services, processors)
+- Processor mapping for the canonical Stage enum
+- Single- and multi-stage execution helpers (run_single_stage, run_stages)
+- Stage/status helper (`get_available_stages`, `get_stage_status`)
+
+Heavy end-to-end flows and real-database tests live in dedicated E2E and
+integration modules; these tests stay fast and rely only on the shared
+`mock_master_pipeline` + `mock_database_adapter` fixtures.
 """
-Test Master Pipeline - End-to-End Integration Test
 
-Tests the complete document processing pipeline.
-"""
+from typing import Any, Dict, List
 
-import sys
-from pathlib import Path
-
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import pytest
+from unittest.mock import AsyncMock
 
 from backend.pipeline.master_pipeline import KRMasterPipeline
+from backend.core.base_processor import Stage
 
 
-def test_configuration():
-    """Test 1: Pipeline configuration"""
-    print("="*80)
-    print("TEST 1: Pipeline Configuration")
-    print("="*80)
-    
-    # Mock Supabase client (for testing without DB)
-    class MockSupabase:
-        def table(self, name):
-            return self
-        def upsert(self, data):
-            return self
-        def update(self, data):
-            return self
-        def eq(self, field, value):
-            return self
-        def execute(self):
-            return type('obj', (object,), {'data': []})
-    
-    try:
-        pipeline = KRMasterPipeline(
-            supabase_client=MockSupabase(),
-            manufacturer="HP",
-            enable_images=True,
-            enable_ocr=True,
-            enable_vision=True,
-            enable_r2_storage=False,
-            enable_embeddings=True
-        )
-        
-        print("\n✅ Pipeline initialized successfully!")
-        print(f"   Manufacturer: {pipeline.manufacturer}")
-        print(f"   Images: {pipeline.enable_images}")
-        print(f"   OCR: {pipeline.enable_ocr}")
-        print(f"   Vision AI: {pipeline.enable_vision}")
-        print(f"   R2 Storage: {pipeline.enable_r2_storage}")
-        print(f"   Embeddings: {pipeline.enable_embeddings}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"\n❌ Failed to initialize pipeline: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+pytestmark = [pytest.mark.master_pipeline, pytest.mark.unit]
 
 
-def test_processors_availability():
-    """Test 2: Check all processors are available"""
-    print("\n" + "="*80)
-    print("TEST 2: Processor Availability")
-    print("="*80)
-    
-    class MockSupabase:
-        def table(self, name):
-            return self
-        def upsert(self, data):
-            return self
-        def update(self, data):
-            return self
-        def eq(self, field, value):
-            return self
-        def execute(self):
-            return type('obj', (object,), {'data': []})
-    
-    pipeline = KRMasterPipeline(
-        supabase_client=MockSupabase(),
-        manufacturer="HP"
-    )
-    
-    processors = {
-        'Upload Processor': pipeline.upload_processor,
-        'Document Processor': pipeline.document_processor,
-        'Image Storage': pipeline.image_storage,
-        'Embedding Processor': pipeline.embedding_processor,
-        'Stage Tracker': pipeline.stage_tracker
-    }
-    
-    all_available = True
-    
-    print("\n📦 Checking processors...")
-    for name, processor in processors.items():
-        if processor is not None:
-            print(f"   ✅ {name}")
-        else:
-            print(f"   ❌ {name} - NOT AVAILABLE")
-            all_available = False
-    
-    if all_available:
-        print("\n✅ All processors available!")
-        return True
-    else:
-        print("\n⚠️  Some processors missing")
-        return False
+class TestMasterPipelineConfiguration:
+    """Basic initialization and configuration tests for KRMasterPipeline."""
+
+    @pytest.mark.asyncio
+    async def test_pipeline_initialization_with_mocks(
+        self,
+        mock_master_pipeline: KRMasterPipeline,
+    ) -> None:
+        """Pipeline fixture should provide initialized services and processors.
+
+        This verifies that the `mock_master_pipeline` fixture wires services into
+        the KRMasterPipeline instance without touching real env files or
+        external systems.
+        """
+
+        pipeline = mock_master_pipeline
+
+        # Core services
+        assert pipeline.database_service is not None
+        assert pipeline.storage_service is not None
+        assert pipeline.ai_service is not None
+        assert pipeline.config_service is not None
+        assert pipeline.features_service is not None
+
+        # Processor registry
+        assert isinstance(pipeline.processors, dict)
+        assert "upload" in pipeline.processors
+        assert "text" in pipeline.processors
+        assert "embedding" in pipeline.processors
+        assert pipeline.processors["upload"] is not None
+
+        # Concurrency settings must be sane and >= 4 as in implementation
+        assert pipeline.max_concurrent >= 4
+
+    def test_get_available_stages_matches_enum(self) -> None:
+        """`get_available_stages` should expose all Stage enum values."""
+
+        pipeline = KRMasterPipeline()
+        available = pipeline.get_available_stages()
+
+        expected = [stage.value for stage in Stage]
+        assert sorted(available) == sorted(expected)
 
 
-def test_stage_execution_logic():
-    """Test 3: Stage execution with retry logic"""
-    print("\n" + "="*80)
-    print("TEST 3: Stage Execution & Retry Logic")
-    print("="*80)
-    
-    class MockSupabase:
-        def table(self, name):
-            return self
-        def upsert(self, data):
-            return self
-        def update(self, data):
-            return self
-        def eq(self, field, value):
-            return self
-        def execute(self):
-            return type('obj', (object,), {'data': []})
-    
-    pipeline = KRMasterPipeline(
-        supabase_client=MockSupabase(),
-        max_retries=2
-    )
-    
-    print("\n🧪 Testing successful stage...")
-    result = pipeline._run_stage(
-        stage_name="test_success",
-        stage_func=lambda: {'success': True, 'data': 'test'}
-    )
-    
-    if result['success']:
-        print("   ✅ Successful stage handled correctly")
-    else:
-        print("   ❌ Successful stage failed")
-        return False
-    
-    print("\n🧪 Testing optional failed stage...")
-    result = pipeline._run_stage(
-        stage_name="test_optional_fail",
-        stage_func=lambda: {'success': False, 'error': 'test error'},
-        optional=True
-    )
-    
-    if not result['success']:
-        print("   ✅ Optional failed stage handled correctly")
-    else:
-        print("   ❌ Optional stage logic incorrect")
-        return False
-    
-    print("\n🧪 Testing skipped stage...")
-    result = pipeline._run_stage(
-        stage_name="test_skipped",
-        stage_func=lambda: {'success': False, 'skipped': True}
-    )
-    
-    if result.get('skipped'):
-        print("   ✅ Skipped stage handled correctly")
-    else:
-        print("   ❌ Skipped stage logic incorrect")
-        return False
-    
-    print("\n✅ Stage execution logic working!")
-    return True
+class TestMasterPipelineProcessors:
+    """Tests around processor mapping and availability."""
+
+    def test_processor_mapping_covers_core_stages(
+        self,
+        mock_master_pipeline: KRMasterPipeline,
+    ) -> None:
+        """Ensure the processor registry has handlers for all core stages.
+
+        We intentionally focus on the core runtime keys used by
+        `run_single_stage` and `process_single_document_full_pipeline`.
+        """
+
+        pipeline = mock_master_pipeline
+        processors = pipeline.processors
+
+        required_keys = [
+            "upload",
+            "text",
+            "table",
+            "svg",
+            "image",
+            "visual_embedding",
+            "classification",
+            "chunk_prep",
+            "links",
+            "metadata",
+            "storage",
+            "embedding",
+            "search",
+        ]
+
+        for key in required_keys:
+            assert key in processors, f"Processor key '{key}' missing from registry"
+
+    @pytest.mark.asyncio
+    async def test_run_single_stage_invalid_stage_returns_error(
+        self,
+        mock_master_pipeline: KRMasterPipeline,
+    ) -> None:
+        """Passing an invalid stage name should produce a clean error dict."""
+
+        result = await mock_master_pipeline.run_single_stage("doc-1", "not_a_real_stage")
+
+        assert not result["success"]
+        assert "Invalid stage" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_run_single_stage_executes_mapped_processor(
+        self,
+        mock_master_pipeline: KRMasterPipeline,
+        mock_database_adapter,
+    ) -> None:
+        """`run_single_stage` should call the mapped processor with a context.
+
+        We stub the embedding processor with an async stub so that we exercise
+        the mapping and context construction without running the real stage
+        implementation.
+        """
+
+        pipeline = mock_master_pipeline
+
+        # Seed a minimal document so that get_document() succeeds
+        document_id = "doc-embedding-1"
+        mock_database_adapter.documents[document_id] = {
+            "id": document_id,
+            "document_type": "service_manual",
+        }
+
+        # Replace embedding processor with an async stub
+        calls: Dict[str, Any] = {"contexts": []}
+
+        async def _fake_process(context):  # type: ignore[override]
+            calls["contexts"].append(context)
+            # Mimic a ProcessingResult-like object
+            class _Result:
+                success = True
+                data: Dict[str, Any] = {"embeddings_created": 0}
+
+            return _Result()
+
+        stub = AsyncMock(side_effect=_fake_process)
+        # The processor object only needs a .process coroutine
+        class _Processor:
+            async def process(self, context):  # type: ignore[override]
+                return await stub(context)
+
+        pipeline.processors["embedding"] = _Processor()
+        pipeline.database_service = mock_database_adapter
+
+        result = await pipeline.run_single_stage(document_id, Stage.EMBEDDING)
+
+        assert result["success"] is True
+        assert result["stage"] == Stage.EMBEDDING.value
+        assert result["processor"] == "embedding"
+        assert len(calls["contexts"]) == 1
+        ctx = calls["contexts"][0]
+        assert getattr(ctx, "document_id") == document_id
+        assert getattr(ctx, "document_type") == "service_manual"
 
 
-def test_end_to_end():
-    """Test 4: End-to-end pipeline (dry run)"""
-    print("\n" + "="*80)
-    print("TEST 4: End-to-End Pipeline (Dry Run)")
-    print("="*80)
-    
-    # Find test PDF
-    test_pdf = Path("../../AccurioPress_C4080_C4070_C84hc_C74hc_AccurioPrint_C4065_C4065P_SM_EN_20250127.pdf")
-    
-    if not test_pdf.exists():
-        test_pdf = Path("C:/Users/haast/Docker/KRAI-minimal/AccurioPress_C4080_C4070_C84hc_C74hc_AccurioPrint_C4065_C4065P_SM_EN_20250127.pdf")
-    
-    if not test_pdf.exists():
-        print("\n⚠️  Test PDF not found - skipping end-to-end test")
-        print("   Place a test PDF at:")
-        print("   C:/Users/haast/Docker/KRAI-minimal/test.pdf")
-        return True  # Not a failure, just skipped
-    
-    print(f"\n📄 Test PDF: {test_pdf.name}")
-    print("\n⚠️  Note: This will run WITHOUT database connection")
-    print("   Some stages will be skipped/mocked")
-    
-    # This would need real Supabase client for full test
-    print("\n✅ End-to-end test structure validated")
-    print("   Run with real Supabase client for full test")
-    
-    return True
+class TestMasterPipelineStageExecution:
+    """Tests for multi-stage orchestration helpers (run_stages/get_stage_status)."""
 
+    @pytest.mark.asyncio
+    async def test_run_stages_stops_on_failure_when_flag_false(
+        self,
+        mock_master_pipeline: KRMasterPipeline,
+    ) -> None:
+        """When `force_continue_on_errors` is False, pipeline stops on first fail."""
 
-def test_batch_structure():
-    """Test 5: Batch processing structure"""
-    print("\n" + "="*80)
-    print("TEST 5: Batch Processing Structure")
-    print("="*80)
-    
-    class MockSupabase:
-        def table(self, name):
-            return self
-        def upsert(self, data):
-            return self
-        def update(self, data):
-            return self
-        def eq(self, field, value):
-            return self
-        def execute(self):
-            return type('obj', (object,), {'data': []})
-    
-    pipeline = KRMasterPipeline(
-        supabase_client=MockSupabase()
-    )
-    
-    # Check batch method exists
-    if hasattr(pipeline, 'process_batch'):
-        print("\n✅ Batch processing method available")
-        print("   Method signature:")
-        print("   process_batch(file_paths, document_type, manufacturer)")
-        return True
-    else:
-        print("\n❌ Batch processing method missing")
-        return False
+        pipeline = mock_master_pipeline
+        pipeline.force_continue_on_errors = False
 
+        # Stub run_single_stage to simulate success -> failure -> success
+        async def _run_single_stage(document_id: str, stage: Any) -> Dict[str, Any]:
+            if stage == "ok-1":
+                return {"success": True, "stage": "ok-1"}
+            if stage == "fail":
+                return {"success": False, "stage": "fail", "error": "boom"}
+            return {"success": True, "stage": "ok-2"}
 
-def main():
-    """Run all tests"""
-    
-    print("\n" + "🧪"*40)
-    print("\n   MASTER PIPELINE - TEST SUITE")
-    print("   End-to-End Integration Testing")
-    print("\n" + "🧪"*40)
-    
-    results = {}
-    
-    # Test 1: Configuration
-    results['configuration'] = test_configuration()
-    
-    # Test 2: Processors
-    results['processors'] = test_processors_availability()
-    
-    # Test 3: Stage logic
-    results['stage_logic'] = test_stage_execution_logic()
-    
-    # Test 4: End-to-end
-    results['end_to_end'] = test_end_to_end()
-    
-    # Test 5: Batch
-    results['batch'] = test_batch_structure()
-    
-    # Summary
-    print("\n" + "="*80)
-    print("  📊 TEST SUMMARY")
-    print("="*80)
-    
-    passed_count = sum(1 for v in results.values() if v)
-    total = len(results)
-    
-    print(f"\n  Results: {passed_count}/{total} passed")
-    
-    for test_name, test_passed in results.items():
-        status = "✅" if test_passed else "❌"
-        print(f"    {status} {test_name}")
-    
-    if passed_count == total:
-        print("\n  🎉 ALL TESTS PASSED!")
-        print("\n  Master Pipeline ready for production!")
-        print("\n  Usage:")
-        print("    from backend.pipeline.master_pipeline import KRMasterPipeline")
-        print("    pipeline = KRMasterPipeline(supabase_client)")
-        print("    result = pipeline.process_document(Path('document.pdf'))")
-    else:
-        print("\n  ⚠️  SOME TESTS FAILED")
-        print(f"\n  {passed_count}/{total} tests passed")
-    
-    print("\n" + "="*80 + "\n")
+        pipeline.run_single_stage = _run_single_stage  # type: ignore[assignment]
 
+        stages: List[Any] = ["ok-1", "fail", "ok-2"]
+        results = await pipeline.run_stages("doc-1", stages)
 
-if __name__ == "__main__":
-    main()
+        assert results["total_stages"] == 3
+        assert results["successful"] == 1
+        assert results["failed"] == 1
+        # Only two stage results should be recorded (stopped after first failure)
+        assert len(results["stage_results"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_run_stages_continues_on_failure_when_flag_true(
+        self,
+        mock_master_pipeline: KRMasterPipeline,
+    ) -> None:
+        """When `force_continue_on_errors` is True, all stages are attempted."""
+
+        pipeline = mock_master_pipeline
+        pipeline.force_continue_on_errors = True
+
+        async def _run_single_stage(document_id: str, stage: Any) -> Dict[str, Any]:
+            return {"success": stage != "fail", "stage": stage}
+
+        pipeline.run_single_stage = _run_single_stage  # type: ignore[assignment]
+
+        stages: List[Any] = ["ok-1", "fail", "ok-2"]
+        results = await pipeline.run_stages("doc-1", stages)
+
+        assert results["total_stages"] == 3
+        assert results["successful"] == 2
+        assert results["failed"] == 1
+        assert len(results["stage_results"]) == 3
+
+    @pytest.mark.asyncio
+    async def test_get_stage_status_handles_missing_document_gracefully(
+        self,
+    ) -> None:
+        """`get_stage_status` should not raise when the document is missing."""
+
+        pipeline = KRMasterPipeline()
+
+        class _FakeDB:
+            async def execute_query(self, *_args, **_kwargs):  # type: ignore[override]
+                return []
+
+        pipeline.database_service = _FakeDB()
+
+        status = await pipeline.get_stage_status("non-existent-doc")
+
+        assert status["document_id"] == "non-existent-doc"
+        assert status["stage_status"] == {}
+        assert status["found"] is False
+

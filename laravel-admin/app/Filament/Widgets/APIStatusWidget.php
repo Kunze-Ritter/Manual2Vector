@@ -2,11 +2,12 @@
 
 namespace App\Filament\Widgets;
 
+use App\Services\FirecrawlService;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class APIStatusWidget extends BaseWidget
 {
@@ -15,6 +16,13 @@ class APIStatusWidget extends BaseWidget
     protected ?string $heading = 'API & Service Status';
     
     protected ?string $description = 'Real-time monitoring of all connected services and APIs';
+
+    protected function getPollingInterval(): ?string
+    {
+        $interval = config('krai.monitoring.polling_intervals.dashboard', '60s');
+
+        return is_numeric($interval) ? "{$interval}s" : $interval;
+    }
     
     protected $listeners = ['startService' => 'handleStartService'];
     
@@ -254,7 +262,8 @@ class APIStatusWidget extends BaseWidget
     {
         return Cache::remember('backend_status', 30, function () {
             try {
-                $response = Http::timeout(5)->get('http://krai-backend-prod:8000/health');
+                $backendUrl = config('krai.engine_url', env('KRAI_ENGINE_URL', 'http://krai-engine:8000'));
+                $response = Http::timeout(5)->get("{$backendUrl}/health");
 
                 if ($response->successful()) {
                     return [
@@ -264,23 +273,28 @@ class APIStatusWidget extends BaseWidget
                         'color' => 'text-green-600',
                         'details' => ['Status' => 'Running']
                     ];
-                } else {
-                    return [
-                        'status' => 'error',
-                        'message' => 'Backend error',
-                        'icon' => 'heroicon-o-x-circle',
-                        'color' => 'text-red-600',
-                        'details' => ['HTTP' => $response->status()]
-                    ];
                 }
-            } catch (\Exception $e) {
+
+                // Specific error messages based on HTTP status
+                $errorMessage = match ($response->status()) {
+                    404 => 'Backend health endpoint missing',
+                    401, 403 => 'Authentication failed',
+                    500, 502, 503 => 'Backend service error',
+                    default => 'Backend error',
+                };
+
                 return [
-                    'status' => 'offline',
-                    'message' => 'Backend unavailable',
+                    'status' => 'error',
+                    'message' => $errorMessage,
                     'icon' => 'heroicon-o-x-circle',
                     'color' => 'text-red-600',
-                    'details' => ['Error' => $e->getMessage()]
+                    'details' => [
+                        'HTTP' => $response->status(),
+                        'Action' => 'Check container logs: docker logs krai-engine-prod'
+                    ]
                 ];
+            } catch (\Exception $e) {
+                return $this->classifyServiceError($e, 'backend');
             }
         });
     }
@@ -345,12 +359,29 @@ class APIStatusWidget extends BaseWidget
                 ]
             ];
         } catch (\Exception $e) {
+            // Specific error handling for Redis
+            if (str_contains($e->getMessage(), 'Connection refused')) {
+                return [
+                    'status' => 'offline',
+                    'message' => 'Redis container offline',
+                    'icon' => 'heroicon-o-x-circle',
+                    'color' => 'text-red-600',
+                    'details' => [
+                        'Error' => 'Connection refused',
+                        'Action' => 'Run: docker start krai-redis-prod'
+                    ]
+                ];
+            }
+
             return [
                 'status' => 'offline',
                 'message' => 'Redis unavailable',
                 'icon' => 'heroicon-o-x-circle',
                 'color' => 'text-red-600',
-                'details' => ['Error' => $e->getMessage()]
+                'details' => [
+                    'Error' => $e->getMessage(),
+                    'Action' => 'Check Redis configuration'
+                ]
             ];
         }
     }
@@ -392,29 +423,77 @@ class APIStatusWidget extends BaseWidget
     {
         return Cache::remember('firecrawl_status', 60, function () {
             try {
-                $response = Http::timeout(10)->get('http://krai-firecrawl-api-prod:8002/health');
+                $service = app(FirecrawlService::class);
+                $health = $service->getHealth();
 
-                if ($response->successful()) {
+                if ($health['success']) {
+                    $data = $health['data'] ?? [];
+
                     return [
                         'status' => 'online',
                         'message' => 'Firecrawl API ready',
                         'icon' => 'heroicon-o-check-circle',
                         'color' => 'text-green-600',
                         'details' => [
-                            'Status' => 'Running',
-                            'Endpoint' => 'krai-firecrawl-api-prod:8002'
-                        ]
-                    ];
-                } else {
-                    return [
-                        'status' => 'error',
-                        'message' => 'Firecrawl API error',
-                        'icon' => 'heroicon-o-x-circle',
-                        'color' => 'text-red-600',
-                        'details' => ['HTTP' => $response->status()]
+                            'Status' => $data['status'] ?? 'healthy',
+                            'Version' => $data['version'] ?? 'Unknown',
+                            'Backend' => $data['backend'] ?? 'firecrawl',
+                            'Capabilities' => implode(', ', $data['capabilities'] ?? ['scrape', 'crawl']),
+                            'Endpoint' => 'krai-firecrawl-api-prod:8002',
+                        ],
                     ];
                 }
+
+                return [
+                    'status' => 'error',
+                    'message' => $health['error'] ?? 'Health check failed',
+                    'icon' => 'heroicon-o-x-circle',
+                    'color' => 'text-red-600',
+                    'details' => ['Error' => $health['error'] ?? 'Unknown'],
+                ];
             } catch (\Exception $e) {
+                // Specific error handling for Firecrawl
+                $message = $e->getMessage();
+                
+                if (str_contains($message, '404')) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Firecrawl endpoint not found',
+                        'icon' => 'heroicon-o-exclamation-triangle',
+                        'color' => 'text-yellow-600',
+                        'details' => [
+                            'Error' => 'Check FIRECRAWL_API_URL config',
+                            'Action' => 'Verify endpoint configuration'
+                        ]
+                    ];
+                }
+                
+                if (str_contains($message, 'Connection refused')) {
+                    return [
+                        'status' => 'offline',
+                        'message' => 'Firecrawl container offline',
+                        'icon' => 'heroicon-o-x-circle',
+                        'color' => 'text-red-600',
+                        'details' => [
+                            'Error' => 'Connection refused',
+                            'Action' => 'Run: docker ps | grep firecrawl'
+                        ]
+                    ];
+                }
+                
+                if (str_contains($message, 'timed out')) {
+                    return [
+                        'status' => 'timeout',
+                        'message' => 'Firecrawl health check timeout',
+                        'icon' => 'heroicon-o-clock',
+                        'color' => 'text-yellow-600',
+                        'details' => [
+                            'Error' => 'Request timeout',
+                            'Action' => 'Check Firecrawl performance'
+                        ]
+                    ];
+                }
+
                 return [
                     'status' => 'offline',
                     'message' => 'Firecrawl unavailable',
@@ -424,6 +503,65 @@ class APIStatusWidget extends BaseWidget
                 ];
             }
         });
+    }
+
+    /**
+     * Classify service errors and return appropriate status array
+     */
+    private function classifyServiceError(\Exception $e, string $service): array
+    {
+        $message = $e->getMessage();
+        
+        if (str_contains($message, 'Connection refused')) {
+            return [
+                'status' => 'offline',
+                'message' => ucfirst($service) . ' container offline',
+                'icon' => 'heroicon-o-x-circle',
+                'color' => 'text-red-600',
+                'details' => [
+                    'Error' => 'Connection refused',
+                    'Action' => "Run: docker start krai-{$service}-prod"
+                ]
+            ];
+        }
+        
+        if (str_contains($message, 'Could not resolve host')) {
+            return [
+                'status' => 'dns_error',
+                'message' => 'DNS resolution failed',
+                'icon' => 'heroicon-o-exclamation-triangle',
+                'color' => 'text-yellow-600',
+                'details' => [
+                    'Error' => 'Cannot resolve hostname',
+                    'Action' => 'Check Docker network configuration'
+                ]
+            ];
+        }
+        
+        if (str_contains($message, 'timed out')) {
+            return [
+                'status' => 'timeout',
+                'message' => ucfirst($service) . ' timeout',
+                'icon' => 'heroicon-o-clock',
+                'color' => 'text-yellow-600',
+                'details' => [
+                    'Error' => 'Request timeout',
+                    'Action' => "Check {$service} performance and logs"
+                ]
+            ];
+        }
+        
+        // Generic error fallback
+        return [
+            'status' => 'offline',
+            'message' => ucfirst($service) . ' unavailable',
+            'icon' => 'heroicon-o-x-circle',
+            'color' => 'text-red-600',
+            'details' => [
+                'Error' => $e->getMessage(),
+                'Action' => "Check {$service} status: docker ps | grep {$service}"
+            ]
+        ];
     }
 
     protected function formatBytes($bytes): string

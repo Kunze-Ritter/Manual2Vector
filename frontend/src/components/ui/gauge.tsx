@@ -26,7 +26,7 @@ const gaugeVariants = cva(
 );
 
 const gaugeFillVariants = cva(
-  'absolute top-0 left-0 h-full rounded-full transition-all duration-500',
+  'absolute top-0 left-0 h-full rounded-full transition-all duration-slower',
   {
     variants: {
       variant: {
@@ -72,7 +72,7 @@ const Gauge = React.forwardRef<HTMLDivElement, GaugeProps>(
     }, [percentage, variant]);
 
     return (
-      <div className={cn('flex items-center gap-2', className)}>
+      <div className={cn('flex items-center gap-sm', className)}>
         <div 
           ref={ref}
           className={cn(gaugeVariants({ variant: variantClass, size }))}

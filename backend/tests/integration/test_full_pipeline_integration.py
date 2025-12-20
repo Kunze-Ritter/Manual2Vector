@@ -376,7 +376,85 @@ class TestFullPipelineIntegration:
         assert embeddings_with_vectors[0]['count'] > 0, "No embedding vectors found"
         
         logger.info(f"Generated {embedding_summary['total_embeddings']} embeddings across {len(embedding_summary['by_type'])} types")
-    
+
+    @pytest.mark.asyncio
+    async def test_master_pipeline_full_document_processing(
+        self,
+        test_pipeline: KRMasterPipeline,
+        test_database,
+        sample_test_document: Dict[str, Any]
+    ):
+        """Full document processing through KRMasterPipeline orchestrator."""
+
+        result = await test_pipeline.process_single_document_full_pipeline(
+            sample_test_document['file_path'],
+            1,
+            1,
+        )
+
+        assert result['success'] is True
+        document_id = result.get('document_id')
+        assert document_id, "Master pipeline did not return document_id"
+
+        # Re-use existing helpers to validate DB state
+        await self._validate_document_data(test_database, document_id)
+
+    @pytest.mark.asyncio
+    async def test_master_pipeline_smart_processing_existing_document(
+        self,
+        test_pipeline: KRMasterPipeline,
+        sample_test_document: Dict[str, Any]
+    ):
+        """Smart reprocessing of an already processed document."""
+
+        first_result = await test_pipeline.process_single_document_full_pipeline(
+            sample_test_document['file_path'],
+            1,
+            1,
+        )
+        assert first_result['success'] is True
+        document_id = first_result.get('document_id')
+        assert document_id, "Initial master pipeline run did not return document_id"
+
+        filename = Path(sample_test_document['file_path']).name
+        smart_result = await test_pipeline.process_document_smart_stages(
+            document_id,
+            filename,
+            sample_test_document['file_path'],
+        )
+
+        assert smart_result['filename'] == filename
+        assert smart_result['success'] is True
+        # Different branches may expose either 'stages_completed' or 'completed_stages'
+        assert (
+            'stages_completed' in smart_result
+            or 'completed_stages' in smart_result
+        )
+        if 'quality_score' in smart_result:
+            assert 0 <= smart_result['quality_score'] <= 100
+
+    @pytest.mark.asyncio
+    async def test_master_pipeline_stage_status_tracking(
+        self,
+        test_pipeline: KRMasterPipeline,
+        sample_test_document: Dict[str, Any]
+    ):
+        """Stage status view should report status for processed documents."""
+
+        result = await test_pipeline.process_single_document_full_pipeline(
+            sample_test_document['file_path'],
+            1,
+            1,
+        )
+        assert result['success'] is True
+        document_id = result.get('document_id')
+        assert document_id
+
+        status = await test_pipeline.get_stage_status(document_id)
+        assert status['document_id'] == document_id
+        assert status['found'] is True
+        assert isinstance(status.get('stage_status'), dict)
+
     async def _validate_document_data(self, test_database, document_id: str):
         """Validate document data consistency across all schemas."""
         # Check core document exists

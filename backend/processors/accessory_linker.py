@@ -4,9 +4,10 @@ Links accessories mentioned in documents to the main products in those documents
 """
 import logging
 import time
-from typing import List, Dict, Optional, Set, Callable
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Dict, Optional, Set, Callable, Any
 from uuid import UUID
-from supabase import Client
 
 from utils.accessory_detector import detect_konica_minolta_accessory
 
@@ -16,9 +17,21 @@ logger = logging.getLogger(__name__)
 class AccessoryLinker:
     """Links accessories to products based on document co-occurrence"""
     
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
+    def __init__(self, database_service: Any):
+        self.database_service = database_service
         self.logger = logging.getLogger(__name__)
+
+    def _run_db(self, coro):
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                return executor.submit(lambda: asyncio.run(coro)).result()
+
+        return asyncio.run(coro)
 
     def _execute_with_retry(
         self,
@@ -27,7 +40,7 @@ class AccessoryLinker:
         max_attempts: int = 3,
         base_delay: float = 0.5
     ):
-        """Execute Supabase call with retry for transient DNS failures."""
+        """Execute DB call with retry for transient failures."""
         last_exception = None
         for attempt in range(1, max_attempts + 1):
             try:
@@ -153,22 +166,32 @@ class AccessoryLinker:
     def _get_products_from_document(self, document_id: UUID) -> List[Dict]:
         """Get all products mentioned in a document"""
         try:
-            # Query document_products junction table
-            response = self.supabase.schema('krai_core').table('document_products').select(
-                'product_id'
-            ).eq('document_id', str(document_id)).execute()
-            
-            if not response.data:
+            rows = self._run_db(
+                self.database_service.execute_query(
+                    "SELECT product_id FROM krai_core.document_products WHERE document_id = $1",
+                    [str(document_id)],
+                )
+            )
+
+            if not rows:
                 return []
-            
-            product_ids = [row['product_id'] for row in response.data]
-            
-            # Get product details
-            products_response = self.supabase.schema('krai_core').table('products').select(
-                'id, model_number, manufacturer_id, product_type'
-            ).in_('id', product_ids).execute()
-            
-            return products_response.data if products_response.data else []
+
+            product_ids = [str(row['product_id']) for row in rows if row.get('product_id')]
+            if not product_ids:
+                return []
+
+            products = self._run_db(
+                self.database_service.execute_query(
+                    """
+                    SELECT id, model_number, manufacturer_id, product_type
+                    FROM krai_core.products
+                    WHERE id = ANY($1::uuid[])
+                    """.strip(),
+                    [product_ids],
+                )
+            )
+
+            return products or []
             
         except Exception as e:
             self.logger.error(f"Error getting products from document: {e}")
@@ -231,14 +254,22 @@ class AccessoryLinker:
         """
         try:
             # Check if link already exists
-            existing = self._execute_with_retry(
+            existing_rows = self._execute_with_retry(
                 "Accessory link lookup",
-                lambda: self.supabase.schema('krai_core').table('product_accessories').select(
-                    'id'
-                ).eq('product_id', product_id).eq('accessory_id', accessory_id).execute()
+                lambda: self._run_db(
+                    self.database_service.execute_query(
+                        """
+                        SELECT id
+                        FROM krai_core.product_accessories
+                        WHERE product_id = $1 AND accessory_id = $2
+                        LIMIT 1
+                        """.strip(),
+                        [str(product_id), str(accessory_id)],
+                    )
+                ),
             )
-            
-            if existing.data:
+
+            if existing_rows:
                 return 'exists'
             
             # Create new link
@@ -249,12 +280,26 @@ class AccessoryLinker:
                 'is_standard': is_standard,
                 'compatibility_notes': compatibility_notes
             }
-            
+
             self._execute_with_retry(
                 "Accessory link insert",
-                lambda: self.supabase.schema('krai_core').table('product_accessories').insert(
-                    link_data
-                ).execute()
+                lambda: self._run_db(
+                    self.database_service.execute_query(
+                        """
+                        INSERT INTO krai_core.product_accessories
+                            (product_id, accessory_id, compatibility_type, is_standard, compatibility_notes)
+                        VALUES
+                            ($1::uuid, $2::uuid, $3, $4, $5)
+                        """.strip(),
+                        [
+                            str(link_data['product_id']),
+                            str(link_data['accessory_id']),
+                            link_data['compatibility_type'],
+                            bool(link_data['is_standard']),
+                            link_data['compatibility_notes'],
+                        ],
+                    )
+                ),
             )
             
             return 'created'
@@ -268,21 +313,36 @@ class AccessoryLinker:
     def get_accessories_for_product(self, product_id: UUID) -> List[Dict]:
         """Get all accessories linked to a product"""
         try:
-            response = self.supabase.schema('krai_core').table('product_accessories').select(
-                'accessory_id, is_standard, compatibility_notes'
-            ).eq('product_id', str(product_id)).execute()
-            
-            if not response.data:
+            rows = self._run_db(
+                self.database_service.execute_query(
+                    """
+                    SELECT accessory_id
+                    FROM krai_core.product_accessories
+                    WHERE product_id = $1
+                    """.strip(),
+                    [str(product_id)],
+                )
+            )
+
+            if not rows:
                 return []
-            
-            accessory_ids = [row['accessory_id'] for row in response.data]
-            
-            # Get accessory details
-            accessories_response = self.supabase.schema('krai_core').table('products').select(
-                'id, model_number, product_type'
-            ).in_('id', accessory_ids).execute()
-            
-            return accessories_response.data if accessories_response.data else []
+
+            accessory_ids = [str(row['accessory_id']) for row in rows if row.get('accessory_id')]
+            if not accessory_ids:
+                return []
+
+            accessories = self._run_db(
+                self.database_service.execute_query(
+                    """
+                    SELECT id, model_number, product_type
+                    FROM krai_core.products
+                    WHERE id = ANY($1::uuid[])
+                    """.strip(),
+                    [accessory_ids],
+                )
+            )
+
+            return accessories or []
             
         except Exception as e:
             self.logger.error(f"Error getting accessories for product: {e}")
@@ -291,21 +351,36 @@ class AccessoryLinker:
     def get_products_for_accessory(self, accessory_id: UUID) -> List[Dict]:
         """Get all products that an accessory is compatible with"""
         try:
-            response = self.supabase.schema('krai_core').table('product_accessories').select(
-                'product_id, is_standard, compatibility_notes'
-            ).eq('accessory_id', str(accessory_id)).execute()
-            
-            if not response.data:
+            rows = self._run_db(
+                self.database_service.execute_query(
+                    """
+                    SELECT product_id
+                    FROM krai_core.product_accessories
+                    WHERE accessory_id = $1
+                    """.strip(),
+                    [str(accessory_id)],
+                )
+            )
+
+            if not rows:
                 return []
-            
-            product_ids = [row['product_id'] for row in response.data]
-            
-            # Get product details
-            products_response = self.supabase.schema('krai_core').table('products').select(
-                'id, model_number, product_type'
-            ).in_('id', product_ids).execute()
-            
-            return products_response.data if products_response.data else []
+
+            product_ids = [str(row['product_id']) for row in rows if row.get('product_id')]
+            if not product_ids:
+                return []
+
+            products = self._run_db(
+                self.database_service.execute_query(
+                    """
+                    SELECT id, model_number, product_type
+                    FROM krai_core.products
+                    WHERE id = ANY($1::uuid[])
+                    """.strip(),
+                    [product_ids],
+                )
+            )
+
+            return products or []
             
         except Exception as e:
             self.logger.error(f"Error getting products for accessory: {e}")

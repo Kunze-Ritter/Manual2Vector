@@ -13,7 +13,11 @@ class SettingsResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static string|UnitEnum|null $navigationGroup = 'System';
+    protected static string|UnitEnum|null $navigationGroup = 'Services';
+
+    protected static ?string $navigationLabel = 'Einstellungen';
+
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $label = 'Settings';
 

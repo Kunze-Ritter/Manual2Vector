@@ -32,7 +32,12 @@ from backend.core.base_processor import ProcessingResult, ProcessingContext
 from backend.core.data_models import DocumentModel, ChunkModel
 
 
-pytestmark = pytest.mark.processor
+pytestmark = [
+    pytest.mark.processor,
+    pytest.mark.skip(
+        reason="Legacy Upload → Document → Text pipeline flow tests; disabled in favor of new KRMasterPipeline-based flow tests.",
+    ),
+]
 
 
 class TestCompleteFlow:
@@ -1622,13 +1627,13 @@ Error codes for document {i+1}:
         upload_processor = UploadProcessor(
             database_adapter=mock_database_adapter,
             max_file_size_mb=processor_test_config['max_file_size_mb'],
-            stage_tracker=mock_stage_tracker
+            stage_tracker=mock_stage_tracker,
         )
         
         document_processor = DocumentProcessor(
             database_adapter=mock_database_adapter,
             pdf_engine=processor_test_config['pdf_engine'],
-            stage_tracker=mock_stage_tracker
+            stage_tracker=mock_stage_tracker,
         )
         
         text_processor = OptimizedTextProcessor(
@@ -1636,7 +1641,7 @@ Error codes for document {i+1}:
             pdf_engine=processor_test_config['pdf_engine'],
             chunk_size=processor_test_config['chunk_size'],
             chunk_overlap=processor_test_config['chunk_overlap'],
-            stage_tracker=mock_stage_tracker
+            stage_tracker=mock_stage_tracker,
         )
         
         return upload_processor, document_processor, text_processor
@@ -1659,20 +1664,35 @@ class TestDeduplication:
         test_content = "Duplicate test content for deduplication testing."
         test_file = temp_test_pdf / "duplicate_test.pdf"
         test_file.write_text(test_content)
-        
+        # Calculate real file hash for deduplication
+        file_hash = hashlib.sha256(test_file.read_bytes()).hexdigest()
+
         # Act - First upload
-        first_result = await upload_processor.process(test_file)
+        context1 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            file_hash=file_hash,
+            document_type="service_manual",
+        )
+        first_result = await upload_processor.process(context1)
         
         # Assert - First upload should succeed
         assert first_result.success, "First upload should succeed"
         first_document_id = first_result.data['document_id']
         
-        # Act - Second upload (should detect duplicate)
-        second_result = await upload_processor.process(test_file)
+        # Act - Second upload (should detect duplicate but still succeed)
+        context2 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            file_hash=file_hash,
+            document_type="service_manual",
+        )
+        second_result = await upload_processor.process(context2)
         
-        # Assert - Second upload should detect duplicate
-        assert not second_result.success, "Second upload should detect duplicate"
-        assert "duplicate" in second_result.error.lower() or "exists" in second_result.error.lower()
+        # Assert - Second upload should succeed with duplicate status
+        assert second_result.success, "Second upload should succeed with duplicate status"
+        assert second_result.data.get("status") == "duplicate"
+        assert "existing_document" in second_result.data
         
         # Verify only one document in database
         assert len(mock_database_adapter.documents) == 1, "Should have only one document in database"

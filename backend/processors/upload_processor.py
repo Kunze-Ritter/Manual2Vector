@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult, Stage, ProcessingError
 from backend.core.data_models import DocumentModel, ProcessingQueueModel, ProcessingStatus, DocumentType
 from backend.services.database_adapter import DatabaseAdapter
+from backend.processors.logger import get_logger
 from .stage_tracker import StageTracker
 
 
@@ -47,7 +48,11 @@ class UploadProcessor(BaseProcessor):
         self.database = database_adapter
         
         self.max_file_size_bytes = max_file_size_mb * 1024 * 1024
-        self.allowed_extensions = allowed_extensions or ['.pdf']
+        # CURRENT SCOPE: PDF/PDFZ only
+        # Support standard PDFs and .pdfz variants (PDFs with custom extension)
+        # FUTURE: Extend to support DOCX, images (jpg, png), and video formats (mp4, avi)
+        # with appropriate validation and metadata extraction per type
+        self.allowed_extensions = allowed_extensions or ['.pdf', '.pdfz']
 
         # Stage tracking with database adapter
         self.stage_tracker = StageTracker(database_adapter) if database_adapter else None
@@ -91,6 +96,13 @@ class UploadProcessor(BaseProcessor):
             "file_path": str(file_path),
             "stage": self.stage.value,
         }
+
+        inner_meta = raw_result.get("metadata") or {}
+        if isinstance(inner_meta, dict):
+            metadata.update(inner_meta)
+
+        if "file_hash" not in metadata and "file_hash" in raw_result:
+            metadata["file_hash"] = raw_result["file_hash"]
 
         if raw_result.get("success"):
             return self.create_success_result(data=raw_result, metadata=metadata)
@@ -146,45 +158,51 @@ class UploadProcessor(BaseProcessor):
 
         language = getattr(context, "language", "en") if context is not None else "en"
 
-        # Step 5: Create or update database record via adapter
-        if existing_doc and force_reprocess:
-            # Update existing record
-            document_id = str(existing_doc.get('id') or existing_doc.get('document_id'))
-            with self.logger_context(stage=self.stage, document_id=document_id) as adapter:
-                adapter.info("Reprocessing existing document")
+        try:
+            if existing_doc and force_reprocess:
+                # Update existing record
+                document_id = str(existing_doc.get('id') or existing_doc.get('document_id'))
+                with self.logger_context(stage=self.stage, document_id=document_id) as adapter:
+                    adapter.info("Reprocessing existing document")
 
-            # Only update columns that are known to exist in krai_core.documents
-            updates = {
-                'file_hash': file_hash,
-                'file_size': metadata['file_size_bytes'],
-                'processing_status': ProcessingStatus.PENDING.value,
-            }
-            if hasattr(self.database, "update_document"):
-                await self.database.update_document(document_id, updates)
-            status = 'reprocessing'
-        else:
-            # Create new record
-            document_type_value = document_type
-            try:
-                document_type_value = DocumentType(document_type).value
-            except Exception:
-                # Fallback to raw string if enum conversion fails
+                # Only update columns that are known to exist in krai_core.documents
+                updates = {
+                    'file_hash': file_hash,
+                    'file_size': metadata['file_size_bytes'],
+                    'processing_status': ProcessingStatus.PENDING.value,
+                }
+                if hasattr(self.database, "update_document"):
+                    await self.database.update_document(document_id, updates)
+                status = 'reprocessing'
+            else:
+                # Create new record
                 document_type_value = document_type
+                try:
+                    document_type_value = DocumentType(document_type).value
+                except Exception:
+                    # Fallback to raw string if enum conversion fails
+                    document_type_value = document_type
 
-            doc_model = DocumentModel(
-                filename=file_path.name,
-                original_filename=file_path.name,
-                file_size=metadata['file_size_bytes'],
-                file_hash=file_hash,
-                document_type=document_type_value,
-                language=language,
-                processing_status=ProcessingStatus.PENDING,
-                storage_path=str(file_path),
-            )
+                doc_model = DocumentModel(
+                    filename=file_path.name,
+                    original_filename=file_path.name,
+                    file_size=metadata['file_size_bytes'],
+                    file_hash=file_hash,
+                    document_type=document_type_value,
+                    language=language,
+                    processing_status=ProcessingStatus.PENDING,
+                    storage_path=str(file_path),
+                )
 
-            document_id = await self.database.create_document(doc_model)
-            status = 'new'
-            self.logger.success(f"Created document record: {document_id}")
+                document_id = await self.database.create_document(doc_model)
+                status = 'new'
+                self.logger.success(f"Created document record: {document_id}")
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Database error: {e}",
+                'document_id': None,
+            }
 
         # Step 6: Add to processing queue via adapter (non-critical)
         try:
@@ -326,7 +344,42 @@ class BatchUploadProcessor:
         """Initialize batch processor"""
         self.upload_processor = UploadProcessor(database_adapter, max_file_size_mb)
         self.logger = get_logger()
-    
+
+    async def process_batch(
+        self,
+        files: list[Path],
+        document_type: str = "service_manual",
+        force_reprocess: bool = False,
+    ) -> list[ProcessingResult]:
+        results: list[ProcessingResult] = []
+
+        for file_path in files:
+            try:
+                context = ProcessingContext(
+                    document_id=str(uuid4()),
+                    file_path=str(file_path),
+                    document_type=document_type,
+                )
+                context.force_reprocess = force_reprocess
+                result = await self.upload_processor.process(context)
+                results.append(result)
+            except Exception as e:
+                self.logger.error(f"Error processing {file_path}: {e}")
+                error = ProcessingError(str(e), processor="batch_upload_processor", error_code="BATCH_UPLOAD_FAILED")
+                failed_metadata = {"file_path": str(file_path), "stage": Stage.UPLOAD.value}
+                results.append(
+                    ProcessingResult(
+                        success=False,
+                        processor="batch_upload_processor",
+                        status=ProcessingStatus.FAILED,
+                        data={},
+                        metadata=failed_metadata,
+                        error=error,
+                    )
+                )
+
+        return results
+
     async def process_directory(
         self,
         directory: Path,
@@ -364,43 +417,43 @@ class BatchUploadProcessor:
             'reprocessed': 0,
             'documents': []
         }
-        
-        for pdf_file in pdf_files:
-            try:
-                result = await self.upload_processor.process(
-                    ProcessingContext(
-                        file_path=pdf_file,
-                        document_type=document_type,
-                        force_reprocess=force_reprocess
-                    )
-                )
-                
-                if result.success:
-                    results['successful'] += 1
-                    
-                    if result.data.get('status') == 'duplicate':
-                        results['duplicates'] += 1
-                    elif result.data.get('status') == 'reprocessing':
-                        results['reprocessed'] += 1
-                    
-                    results['documents'].append({
-                        'filename': pdf_file.name,
-                        'document_id': result.data.get('document_id'),
-                        'status': result.data.get('status')
-                    })
-                else:
-                    results['failed'] += 1
-                    results['documents'].append({
-                        'filename': pdf_file.name,
-                        'error': str(result.error) if result.error else 'Processing failed'
-                    })
-                    
-            except Exception as e:
-                self.logger.error(f"Error processing {pdf_file.name}: {e}")
-                results['failed'] += 1
+
+        batch_results = await self.process_batch(
+            files=pdf_files,
+            document_type=document_type,
+            force_reprocess=force_reprocess,
+        )
+
+        for pdf_file, result in zip(pdf_files, batch_results):
+            if result.success:
+                results['successful'] += 1
+
+                status = None
+                if isinstance(getattr(result, "data", None), dict):
+                    status = result.data.get('status')
+
+                if status == 'duplicate':
+                    results['duplicates'] += 1
+                elif status == 'reprocessing':
+                    results['reprocessed'] += 1
+
+                document_id = None
+                if isinstance(getattr(result, "data", None), dict):
+                    document_id = result.data.get('document_id')
+
                 results['documents'].append({
                     'filename': pdf_file.name,
-                    'error': str(e)
+                    'document_id': document_id,
+                    'status': status,
+                })
+            else:
+                results['failed'] += 1
+                error_str = None
+                if hasattr(result, "error") and result.error is not None:
+                    error_str = str(result.error)
+                results['documents'].append({
+                    'filename': pdf_file.name,
+                    'error': error_str or 'Processing failed',
                 })
         
         # Summary

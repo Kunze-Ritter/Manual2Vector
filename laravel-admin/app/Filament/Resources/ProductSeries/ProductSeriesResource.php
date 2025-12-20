@@ -19,9 +19,13 @@ class ProductSeriesResource extends Resource
 {
     protected static ?string $model = ProductSeries::class;
 
-    public static UnitEnum|string|null $navigationGroup = 'Produkte';
+    protected static UnitEnum|string|null $navigationGroup = 'Data';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static ?string $navigationLabel = 'Produktserien';
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'series_name';
 

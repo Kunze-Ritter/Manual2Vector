@@ -45,9 +45,11 @@ class ObjectStorageService:
                  public_url_documents: str,
                  public_url_error: str,
                  public_url_parts: str,
+                 public_url_images: str = "",
                  use_ssl: bool = True,
                  region: str = 'auto',
                  bucket_documents: str = None,
+                 bucket_images: str = None,
                  bucket_error: str = None,
                  bucket_parts: str = None):
         self.access_key_id = access_key_id
@@ -57,6 +59,7 @@ class ObjectStorageService:
         self.region = region
         self.public_urls = {
             'documents': public_url_documents,
+            'images': public_url_images,
             'error': public_url_error,
             'parts': public_url_parts
         }
@@ -64,12 +67,40 @@ class ObjectStorageService:
         self.logger = logging.getLogger("krai.storage")
         self._setup_logging()
         
-        # Bucket configurations (use provided overrides or fall back to environment variables)
+        images_bucket_override = bucket_images or os.getenv('OBJECT_STORAGE_BUCKET_IMAGES')
+        documents_bucket_name = (
+            bucket_documents
+            or os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS')
+            or os.getenv('R2_BUCKET_NAME_DOCUMENTS', 'documents')
+        )
+
+        if not images_bucket_override:
+            images_bucket_override = 'images'
+
+        self._document_images_bucket_override = images_bucket_override
+        self._documents_bucket_name = documents_bucket_name
+
+        error_bucket = (
+            bucket_error
+            or os.getenv('OBJECT_STORAGE_BUCKET_ERROR')
+            or os.getenv('R2_BUCKET_NAME_ERROR')
+        )
+        parts_bucket = (
+            bucket_parts
+            or os.getenv('OBJECT_STORAGE_BUCKET_PARTS')
+            or os.getenv('R2_BUCKET_NAME_PARTS')
+        )
+
+        # Bucket configurations (only configure optional buckets when explicitly provided)
         self.buckets = {
-            'document_images': bucket_documents or os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS') or os.getenv('R2_BUCKET_NAME_DOCUMENTS', 'documents'),
-            'error_images': bucket_error or os.getenv('OBJECT_STORAGE_BUCKET_ERROR') or os.getenv('R2_BUCKET_NAME_ERROR', 'error'), 
-            'parts_images': bucket_parts or os.getenv('OBJECT_STORAGE_BUCKET_PARTS') or os.getenv('R2_BUCKET_NAME_PARTS', 'parts')
+            'document_images': images_bucket_override,
         }
+
+        if error_bucket:
+            self.buckets['error_images'] = error_bucket
+
+        if parts_bucket:
+            self.buckets['parts_images'] = parts_bucket
     
     def _setup_logging(self):
         """Setup logging for storage service"""
@@ -85,8 +116,14 @@ class ObjectStorageService:
         """Connect to S3-compatible storage"""
         try:
             if not BOTO3_AVAILABLE:
-                self.logger.warning("Boto3 not available. Running in mock mode.")
-                return
+                allow_mock = os.getenv('OBJECT_STORAGE_ALLOW_MOCK', 'false').lower() == 'true'
+                if allow_mock:
+                    self.logger.warning("Boto3 not available. Running in mock mode.")
+                    return
+                raise RuntimeError(
+                    "boto3 is not installed - object storage uploads are disabled. "
+                    "Install boto3 or set OBJECT_STORAGE_ALLOW_MOCK=true to run without uploads."
+                )
             
             # Create S3 client
             self.client = boto3.client(
@@ -143,10 +180,24 @@ class ObjectStorageService:
         """Generate SHA256 hash for file content"""
         return hashlib.sha256(content).hexdigest()
     
-    def _generate_storage_path(self, filename: str, bucket_type: str = 'document_images') -> str:
-        """Generate storage path - just the filename (hash-based)"""
-        # No folder structure - just use the hash-based filename directly
-        return filename
+    def _generate_storage_path(self, file_hash: str, bucket_type: str = 'document_images') -> str:
+        """Generate storage path for an object."""
+        prefix_map = {
+            'document_images': 'images',
+            'error_images': 'error',
+            'parts_images': 'parts',
+        }
+        bucket_name = None
+        if hasattr(self, 'buckets'):
+            bucket_name = self.buckets.get(bucket_type)
+
+        if bucket_name and hasattr(self, 'buckets'):
+            shared_bucket = sum(1 for name in self.buckets.values() if name == bucket_name) > 1
+            if not shared_bucket:
+                return file_hash
+
+        prefix = prefix_map.get(bucket_type, 'images')
+        return f"{prefix}/{file_hash}"
     
     def _get_content_type(self, filename: str) -> str:
         """Get content type for file"""
@@ -172,20 +223,34 @@ class ObjectStorageService:
         """
         try:
             if self.client is None:
+                allow_mock = os.getenv('OBJECT_STORAGE_ALLOW_MOCK', 'false').lower() == 'true'
+                if not allow_mock:
+                    raise RuntimeError(
+                        "Object storage client is not connected. "
+                        "Ensure boto3 is installed and connect() succeeded, or set OBJECT_STORAGE_ALLOW_MOCK=true."
+                    )
                 # Mock mode for testing
                 file_hash = hashlib.sha256(content).hexdigest()
-                # No folder structure - just use the hash-based filename directly
-                storage_path = filename
+                storage_path = self._generate_storage_path(file_hash=file_hash, bucket_type=bucket_type)
                 
                 # Generate public URL based on bucket type
                 if bucket_type == 'document_images':
-                    public_url = f"{self.public_urls['documents']}/{storage_path}"
+                    base_url = self.public_urls.get('images') or self.public_urls['documents']
                 elif bucket_type == 'error_images':
-                    public_url = f"{self.public_urls['error']}/{storage_path}"
+                    base_url = self.public_urls.get('error', '')
                 elif bucket_type == 'parts_images':
-                    public_url = f"{self.public_urls['parts']}/{storage_path}"
+                    base_url = self.public_urls.get('parts', '')
                 else:
-                    public_url = f"{self.public_urls['documents']}/{storage_path}"
+                    base_url = self.public_urls['documents']
+
+                bucket_name = self.buckets.get(bucket_type, 'krai-documents')
+                if bucket_type == 'document_images' and self._document_images_bucket_override and not self.public_urls.get('images'):
+                    base_url = ""
+
+                if not base_url:
+                    base_url = f"{self.endpoint_url}/{bucket_name}"
+
+                public_url = f"{base_url}/{storage_path}"
                 
                 result = {
                     'success': True,
@@ -225,7 +290,7 @@ class ObjectStorageService:
                 }
             
             # Generate storage path
-            storage_path = self._generate_storage_path(filename, bucket_type)
+            storage_path = self._generate_storage_path(file_hash=file_hash, bucket_type=bucket_type)
             
             # Prepare metadata (all values must be strings for S3)
             file_metadata = {
@@ -256,13 +321,21 @@ class ObjectStorageService:
             
             # Generate public URL based on bucket type
             if bucket_type == 'document_images':
-                public_url = f"{self.public_urls['documents']}/{storage_path}"
+                base_url = self.public_urls.get('images') or self.public_urls['documents']
             elif bucket_type == 'error_images':
-                public_url = f"{self.public_urls['error']}/{storage_path}"
+                base_url = self.public_urls.get('error', '')
             elif bucket_type == 'parts_images':
-                public_url = f"{self.public_urls['parts']}/{storage_path}"
+                base_url = self.public_urls.get('parts', '')
             else:
-                public_url = f"{self.public_urls['documents']}/{storage_path}"
+                base_url = self.public_urls['documents']
+
+            if bucket_type == 'document_images' and self._document_images_bucket_override and not self.public_urls.get('images'):
+                base_url = ""
+
+            if not base_url:
+                base_url = f"{self.endpoint_url}/{bucket_name}"
+
+            public_url = f"{base_url}/{storage_path}"
             
             result = {
                 'success': True,
@@ -420,13 +493,19 @@ class ObjectStorageService:
                 # Determine public URL based on bucket type
                 public_url = ""
                 if bucket_type == 'document_images':
-                    public_url = self.public_urls['documents']
+                    public_url = self.public_urls.get('images') or self.public_urls['documents']
                 elif bucket_type == 'error_images':
                     public_url = self.public_urls['error']
                 elif bucket_type == 'parts_images':
                     public_url = self.public_urls['parts']
                 else:
                     public_url = self.public_urls['documents']
+
+                if bucket_type == 'document_images' and self._document_images_bucket_override and not self.public_urls.get('images'):
+                    public_url = ""
+
+                if not public_url:
+                    public_url = f"{self.endpoint_url}/{bucket_name}"
                 
                 images.append({
                     'key': obj['Key'],
@@ -457,6 +536,66 @@ class ObjectStorageService:
             if self.client is None:
                 self.logger.warning("Object storage client not available. Cannot check duplicates in mock mode.")
                 return None
+
+            if bucket_type:
+                if bucket_type not in self.buckets:
+                    raise ValueError(f"Invalid bucket type: {bucket_type}")
+
+                bucket_name = self.buckets[bucket_type]
+                expected_key = self._generate_storage_path(file_hash=file_hash, bucket_type=bucket_type)
+
+                try:
+                    head_response = self.client.head_object(Bucket=bucket_name, Key=expected_key)
+
+                    if bucket_type == 'document_images':
+                        base_url = self.public_urls.get('images') or self.public_urls['documents']
+                    elif bucket_type == 'error_images':
+                        base_url = self.public_urls['error']
+                    elif bucket_type == 'parts_images':
+                        base_url = self.public_urls['parts']
+                    else:
+                        base_url = self.public_urls['documents']
+
+                    if bucket_type == 'document_images' and self._document_images_bucket_override and not self.public_urls.get('images'):
+                        base_url = ""
+
+                    if not base_url:
+                        base_url = f"{self.endpoint_url}/{bucket_name}"
+
+                    return {
+                        'bucket': bucket_name,
+                        'key': expected_key,
+                        'url': f"{base_url}/{expected_key}",
+                        'size': head_response.get('ContentLength'),
+                        'last_modified': head_response.get('LastModified'),
+                    }
+                except ClientError as e:
+                    error_code = (e.response.get('Error', {}) or {}).get('Code')
+                    if error_code not in ('404', 'NoSuchKey', 'NotFound'):
+                        raise
+
+                if bucket_type == 'document_images' and expected_key == file_hash:
+                    legacy_key = f"images/{file_hash}"
+                    try:
+                        head_response = self.client.head_object(Bucket=bucket_name, Key=legacy_key)
+
+                        base_url = self.public_urls.get('images') or self.public_urls['documents']
+                        if bucket_type == 'document_images' and self._document_images_bucket_override and not self.public_urls.get('images'):
+                            base_url = ""
+                        if not base_url:
+                            base_url = f"{self.endpoint_url}/{bucket_name}"
+
+                        return {
+                            'bucket': bucket_name,
+                            'key': legacy_key,
+                            'url': f"{base_url}/{legacy_key}",
+                            'size': head_response.get('ContentLength'),
+                            'last_modified': head_response.get('LastModified'),
+                        }
+                    except ClientError as legacy_error:
+                        legacy_code = (legacy_error.response.get('Error', {}) or {}).get('Code')
+                        if legacy_code not in ('404', 'NoSuchKey', 'NotFound'):
+                            raise
             
             buckets_to_search = [bucket_type] if bucket_type else list(self.buckets.keys())
             
@@ -477,13 +616,19 @@ class ObjectStorageService:
                             # Determine public URL based on bucket type
                             public_url = ""
                             if bucket_key == 'document_images':
-                                public_url = self.public_urls['documents']
+                                public_url = self.public_urls.get('images') or self.public_urls['documents']
                             elif bucket_key == 'error_images':
                                 public_url = self.public_urls['error']
                             elif bucket_key == 'parts_images':
                                 public_url = self.public_urls['parts']
                             else:
                                 public_url = self.public_urls['documents']
+
+                            if bucket_key == 'document_images' and self._document_images_bucket_override and not self.public_urls.get('images'):
+                                public_url = ""
+
+                            if not public_url:
+                                public_url = f"{self.endpoint_url}/{bucket_name}"
                             
                             return {
                                 'bucket': bucket_name,

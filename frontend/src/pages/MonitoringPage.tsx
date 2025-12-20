@@ -15,6 +15,7 @@ import {
   QueueStatus,
   SystemMetrics,
 } from '@/components/monitoring';
+import { ProcessorStatusCard } from '@/components/monitoring/ProcessorStatusCard';
 
 export default function MonitoringPage() {
   const dismissAlert = useDismissAlert();
@@ -27,9 +28,11 @@ export default function MonitoringPage() {
     dataQuality,
     alerts,
     metrics,
+    processorHealth,
     isLoading,
     error,
     refetch,
+    refetchers,
   } = useMonitoringData();
 
   // Set up WebSocket for real-time updates
@@ -38,10 +41,19 @@ export default function MonitoringPage() {
     onMessage: (message) => {
       switch (message.type) {
         case WebSocketEvent.PIPELINE_UPDATE:
+          refetchers.pipeline();
+          break;
         case WebSocketEvent.QUEUE_UPDATE:
+          refetchers.queue();
+          break;
         case WebSocketEvent.HARDWARE_UPDATE:
+          refetchers.metrics();
+          break;
         case WebSocketEvent.ALERT_TRIGGERED:
-          refetch();
+          refetchers.alerts();
+          break;
+        case WebSocketEvent.PROCESSOR_STATE_CHANGE:
+          refetchers.processorHealth();
           break;
         default:
           break;
@@ -102,6 +114,7 @@ export default function MonitoringPage() {
         <TabsList>
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="pipeline" data-testid="tab-pipeline">Pipeline</TabsTrigger>
+          <TabsTrigger value="processors" data-testid="tab-processors">Processors</TabsTrigger>
           <TabsTrigger value="queue" data-testid="tab-queue">Queue</TabsTrigger>
           <TabsTrigger value="data-quality" data-testid="tab-data-quality">Data Quality</TabsTrigger>
           <TabsTrigger value="alerts" data-testid="tab-alerts">Alerts</TabsTrigger>
@@ -127,7 +140,7 @@ export default function MonitoringPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {pipelineMetrics ? `${Math.round(pipelineMetrics.success_rate * 100)}%` : 'N/A'}
+                  {pipelineMetrics ? `${Math.round(pipelineMetrics.success_rate)}%` : 'N/A'}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {pipelineMetrics?.documents_processing ?? 0} processing • {pipelineMetrics?.documents_pending ?? 0} pending
@@ -181,7 +194,7 @@ export default function MonitoringPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {processingMetrics ? `${Math.round(processingMetrics.success_rate * 100)}%` : 'N/A'}
+                  {processingMetrics ? `${Math.round(processingMetrics.success_rate)}%` : 'N/A'}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {validationMetrics?.total_validation_errors ?? 0} validation errors detected
@@ -241,6 +254,28 @@ export default function MonitoringPage() {
 
         <TabsContent value="pipeline" className="space-y-4">
           <PipelineStatus data={pipelineStatus} />
+        </TabsContent>
+
+        <TabsContent value="processors" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Processor Health</CardTitle>
+              <CardDescription>
+                Real-time health status of all processing stages
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {processorHealth && processorHealth.processors.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {processorHealth.processors.map((processor) => (
+                    <ProcessorStatusCard key={processor.processor_name} processor={processor} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">No processor data available</p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="queue" className="space-y-4">

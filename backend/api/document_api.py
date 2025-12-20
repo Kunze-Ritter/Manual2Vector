@@ -31,8 +31,12 @@ from models.document import (
     DocumentListResponse,
     DocumentResponse,
     DocumentSortParams,
+    DocumentStageStatusResponse,
+    DocumentStageDetail,
+    CANONICAL_STAGES,
     PaginationParams,
     SortOrder,
+    StageStatus,
 )
 from services.database_service import DatabaseService
 from services.object_storage_service import ObjectStorageService
@@ -136,6 +140,29 @@ class DocumentAPI:
                         "(filename ILIKE :search OR manufacturer ILIKE :search OR series ILIKE :search)"
                     )
                     params["search"] = f"%{filters.search}%"
+                if filters.has_failed_stages is not None:
+                    if filters.has_failed_stages:
+                        conditions.append(
+                            "EXISTS (SELECT 1 FROM jsonb_each(stage_status) WHERE value->>'status' = 'failed')"
+                        )
+                    else:
+                        conditions.append(
+                            "NOT EXISTS (SELECT 1 FROM jsonb_each(stage_status) WHERE value->>'status' = 'failed')"
+                        )
+                if filters.has_incomplete_stages is not None:
+                    if filters.has_incomplete_stages:
+                        conditions.append(
+                            "EXISTS (SELECT 1 FROM jsonb_each(stage_status) WHERE value->>'status' IN ('pending', 'processing'))"
+                        )
+                    else:
+                        conditions.append(
+                            "NOT EXISTS (SELECT 1 FROM jsonb_each(stage_status) WHERE value->>'status' IN ('pending', 'processing'))"
+                        )
+                if filters.stage_name:
+                    conditions.append(
+                        "stage_status ? :stage_name"
+                    )
+                    params["stage_name"] = filters.stage_name
 
                 where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
 
@@ -538,7 +565,79 @@ class DocumentAPI:
                 self.logger.error(f"Multiple stage processing failed for {document_id}: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
-        @self.router.get("/{document_id}/stages", response_model=StageListResponse)
+        @self.router.get("/{document_id}/stages", response_model=SuccessResponse[DocumentStageStatusResponse])
+        async def get_document_stages(
+            document_id: str,
+            current_user: Dict[str, Any] = Depends(require_permission("documents:read"))
+        ):
+            """Get detailed stage-level processing status for a document"""
+            try:
+                # Check if document exists
+                document = await self.database_service.get_document(document_id)
+                if not document:
+                    raise HTTPException(status_code=404, detail="Document not found")
+                
+                # Get raw stage status from database
+                from processors.stage_tracker import StageTracker
+                tracker = StageTracker(self.database_service, websocket_callback=None)
+                raw_stage_status = await tracker.get_stage_status(document_id)
+                
+                # Build stages dictionary with DocumentStageDetail for each canonical stage
+                stages: Dict[str, DocumentStageDetail] = {}
+                for stage_name in CANONICAL_STAGES:
+                    stage_data = raw_stage_status.get(stage_name, {})
+                    
+                    # Map status string to StageStatus enum
+                    status_str = stage_data.get('status', 'pending')
+                    try:
+                        status = StageStatus(status_str)
+                    except ValueError:
+                        status = StageStatus.PENDING
+                    
+                    stages[stage_name] = DocumentStageDetail(
+                        status=status,
+                        started_at=stage_data.get('started_at'),
+                        completed_at=stage_data.get('completed_at'),
+                        duration_seconds=stage_data.get('duration_seconds'),
+                        progress=int(stage_data.get('progress', 0)),
+                        error=stage_data.get('error'),
+                        metadata=stage_data.get('metadata', {})
+                    )
+                
+                # Calculate overall progress
+                overall_progress = await tracker.get_progress(document_id)
+                
+                # Get current stage
+                current_stage = await tracker.get_current_stage(document_id)
+                
+                # Determine if any stages can be retried (failed stages)
+                can_retry = any(
+                    stage.status == StageStatus.FAILED 
+                    for stage in stages.values()
+                )
+                
+                # Get last updated timestamp
+                last_updated = document.updated_at.isoformat() if hasattr(document, 'updated_at') else datetime.utcnow().isoformat()
+                
+                response = DocumentStageStatusResponse(
+                    document_id=document_id,
+                    filename=document.filename,
+                    overall_progress=overall_progress,
+                    current_stage=current_stage,
+                    stages=stages,
+                    can_retry=can_retry,
+                    last_updated=last_updated
+                )
+                
+                return SuccessResponse(data=response)
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"Failed to get document stages for {document_id}: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.router.get("/{document_id}/stages/available", response_model=StageListResponse)
         async def get_available_stages(
             document_id: str,
             current_user: Dict[str, Any] = Depends(require_permission("documents:read"))
@@ -554,12 +653,55 @@ class DocumentAPI:
                 self.logger.error(f"Failed to get available stages: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
+        @self.router.post("/{document_id}/stages/{stage_name}/retry")
+        async def retry_document_stage(
+            document_id: str,
+            stage_name: str,
+            current_user: Dict[str, Any] = Depends(require_permission("documents:write"))
+        ):
+            """Retry a failed stage for a document"""
+            try:
+                # Validate stage name
+                valid_stages = [stage.value for stage in Stage]
+                if stage_name not in valid_stages:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid stage: {stage_name}. Valid stages: {valid_stages}"
+                    )
+                
+                # Check if document exists
+                document = await self.database_service.get_document(document_id)
+                if not document:
+                    raise HTTPException(status_code=404, detail="Document not found")
+                
+                # Run the single stage (this will reset and re-run it)
+                import time
+                start_time = time.time()
+                
+                result = await self.pipeline.run_single_stage(document_id, stage_name)
+                
+                processing_time = time.time() - start_time
+                
+                return SuccessResponse(data={
+                    "message": f"Stage {stage_name} retry completed",
+                    "success": result.get("success", False),
+                    "stage": stage_name,
+                    "processing_time": processing_time,
+                    "error": result.get("error")
+                })
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"Stage retry failed for {document_id}/{stage_name}: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
         @self.router.get("/{document_id}/stages/status", response_model=StageStatusResponse)
         async def get_stage_status(
             document_id: str,
             current_user: Dict[str, Any] = Depends(require_permission("documents:read"))
         ):
-            """Get processing status for all stages of a document"""
+            """Get processing status for all stages of a document (legacy endpoint)"""
             try:
                 # Check if document exists
                 document = await self.database_service.get_document(document_id)

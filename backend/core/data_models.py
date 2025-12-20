@@ -51,7 +51,7 @@ class DocumentModel(BaseModel):
     """Document model for krai_core.documents"""
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
     filename: str
-    original_filename: str
+    original_filename: Optional[str] = None
     file_size: int
     file_hash: str
     storage_path: Optional[str] = None  # Database only - no Object Storage

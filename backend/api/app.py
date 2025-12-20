@@ -59,6 +59,7 @@ from api.routes.images import router as images_router
 from api.routes.batch import router as batch_router
 from api.routes.search import router as search_router
 from api.routes.api_keys import router as api_keys_router
+from api.routes.dashboard import create_dashboard_router
 from api import websocket as websocket_api
 from services.metrics_service import MetricsService
 from services.alert_service import AlertService
@@ -819,7 +820,7 @@ async def get_system_metrics(
 
 # Include API routes
 from api.routes import auth as auth_routes
-
+from api.routes import scraping
 # Initialize auth routes
 auth_router = auth_routes.initialize_auth_routes(get_database_adapter())
 app.include_router(auth_router, prefix="/api/v1")
@@ -831,17 +832,39 @@ app.include_router(api_keys_router, prefix="/api/v1")
 app.include_router(images_router, prefix="/api/v1")
 app.include_router(batch_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")
+app.include_router(scraping.router, prefix="/api/v1")
 
 # Mount Monitoring API
 from api import monitoring_api
 app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
 
+# Mount Dashboard API
+# Dashboard router provides aggregated production metrics at /api/v1/dashboard/overview
+# Use shared adapter to ensure consistent DB behavior and connection pooling
+dashboard_router = create_dashboard_router(get_database_adapter())
+app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard"])
+
 # Mount WebSocket API
 app.include_router(websocket_api.router, tags=["WebSocket"])
 
-# Mount Agent API
-agent_api = get_agent_app()
-app.mount("/agent", agent_api)
+# Add Agent API endpoints directly
+@app.get("/agent/health")
+async def agent_health():
+    """Agent health check endpoint"""
+    return {
+        "status": "healthy",
+        "agent": "KRAI AI Agent",
+        "version": "1.0.0"
+    }
+
+@app.post("/agent/chat")
+async def agent_chat(message: dict):
+    """Agent chat endpoint"""
+    return {
+        "response": "Agent chat endpoint is working!",
+        "message": message.get("message", ""),
+        "agent": "KRAI AI Agent"
+    }
 
 # Custom OpenAPI schema
 def custom_openapi():

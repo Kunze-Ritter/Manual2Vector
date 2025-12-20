@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertCircle, Activity, Building2, FileText, Image, Package, RefreshCw, Settings, Video } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { FileUploadDialog } from '@/components/upload/FileUploadDialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -28,8 +29,22 @@ const navigationItems = [
   { label: 'Settings', icon: Settings, href: '/settings', description: 'Platform configuration' },
 ]
 
-const quickActions = [
-  { label: 'Upload Document', icon: FileText, href: '/documents?dialog=upload' },
+type QuickActionUpload = {
+  label: string
+  icon: typeof FileText
+  action: 'upload'
+}
+
+type QuickActionLink = {
+  label: string
+  icon: typeof FileText
+  href: string
+}
+
+type QuickAction = QuickActionUpload | QuickActionLink
+
+const quickActions: QuickAction[] = [
+  { label: 'Upload Document', icon: FileText, action: 'upload' },
   { label: 'Create Product', icon: Package, href: '/products?dialog=create' },
   { label: 'Create Manufacturer', icon: Building2, href: '/manufacturers?dialog=create' },
   { label: 'Open Monitoring', icon: Activity, href: '/monitoring' },
@@ -56,6 +71,7 @@ function formatRelative(dateString: string | null | undefined) {
 }
 
 export function HomePage() {
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const { data, isLoading, error, refetch, isFetching } = useDashboardOverview()
 
   const statCards = useMemo(() => {
@@ -294,20 +310,38 @@ export function HomePage() {
               <div className="grid gap-2">
                 {quickActions.map((action) => {
                   const Icon = action.icon
-                  return (
-                    <Button
-                      key={action.label}
-                      variant="secondary"
-                      asChild
-                      data-testid={`quick-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
-                      className="justify-start gap-3"
-                    >
-                      <Link to={action.href}>
+                  if ('action' in action && action.action === 'upload') {
+                    return (
+                      <Button
+                        key={action.label}
+                        variant="secondary"
+                        onClick={() => setUploadDialogOpen(true)}
+                        data-testid={`quick-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="justify-start gap-3"
+                      >
                         <Icon className="h-4 w-4" />
                         {action.label}
-                      </Link>
-                    </Button>
-                  )
+                      </Button>
+                    )
+                  }
+                  // TypeScript now knows this is QuickActionLink with href
+                  if ('href' in action) {
+                    return (
+                      <Button
+                        key={action.label}
+                        variant="secondary"
+                        asChild
+                        data-testid={`quick-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="justify-start gap-3"
+                      >
+                        <Link to={action.href}>
+                          <Icon className="h-4 w-4" />
+                          {action.label}
+                        </Link>
+                      </Button>
+                    )
+                  }
+                  return null
                 })}
               </div>
             </CardContent>
@@ -341,6 +375,11 @@ export function HomePage() {
           </Card>
         </div>
       </div>
+
+      <FileUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+      />
     </div>
   )
 }

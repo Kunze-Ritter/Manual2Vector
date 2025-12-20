@@ -1,18 +1,28 @@
-# 🚀 KR-AI-ENGINE SCHEMA MIGRATION
+# KRAI Database Migrations
 
-## ⚡ **OPTIMIZED 5-STEP MIGRATION**
+## ⚠️ Alte Migrationen archiviert
 
-Diese optimierte Version bietet eine **saubere 5-Schritt Migration** mit umfassendem Performance-Tuning:
+**Alle alten Migrationen (130+ SQL-Dateien) wurden nach `archive/` verschoben.**
 
-### 📊 **VORHER vs. NACHHER:**
+---
 
-| Aspekt | 🔴 Alt (12 Schritte) | ✅ **Neu (5 Schritte)** |
-|--------|---------------------|-------------------------|
-| **Dateien** | 12 SQL-Dateien | **5 SQL-Dateien** |
-| **Komplexität** | Sehr hoch | **Stark reduziert** |
-| **Fehlerrisiko** | Hoch (partielle Ausführung) | **Niedrig** |
-| **Wartbarkeit** | Schwierig | **Einfach** |
-| **Execution Zeit** | 5-8 Minuten | **2-3 Minuten** |
+## ✅ Für NEUE Installationen
+
+Verwende die **konsolidierten PostgreSQL-Migrationen** in `../migrations_postgresql/`:
+
+1. **`001_core_schema.sql`** - Schemas, Tabellen, Extensions, Indexes
+2. **`002_views.sql`** - Alle public vw_* Views  
+3. **`003_functions.sql`** - RPC Functions, Triggers, Stage Tracking
+
+**Siehe:** `../migrations_postgresql/README.md` für Details
+
+---
+
+## 📁 Archiv
+
+Alle alten Migrationen befinden sich in `archive/` für Referenzzwecke.
+
+**Wichtig:** Diese archivierten Dateien sollten **nicht** mehr für neue Installationen verwendet werden!
 
 ---
 
@@ -193,7 +203,7 @@ cd supabase && supabase db reset
 
 **Purpose**: Support multiple embeddings per source (text, visual, table, context)
 
-**New table**: krai_intelligence.embeddings_v2
+**New table**: krai_intelligence.unified_embeddings
 
 **Supports**: Text embeddings (nomic-embed-text), Visual embeddings (ColQwen2.5), Table embeddings, Context embeddings
 

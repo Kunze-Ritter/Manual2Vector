@@ -19,7 +19,10 @@ from models.monitoring import (
     CreateAlertRule,
     DataQualityResponse,
     PipelineStatusResponse,
+    ProcessorHealthResponse,
     QueueStatusResponse,
+    StageErrorLogsResponse,
+    StageQueueResponse,
 )
 from services.alert_service import AlertService
 from services.metrics_service import MetricsService
@@ -330,6 +333,56 @@ async def get_data_quality_metrics(
 ):
     """Get data quality metrics."""
     return await metrics_svc.get_data_quality_metrics()
+
+
+# Processor-level monitoring endpoints
+
+@router.get("/processors", response_model=ProcessorHealthResponse)
+async def get_processor_health(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+):
+    """Get processor health status for all stages."""
+    processors = await metrics_svc.get_processor_health()
+    return ProcessorHealthResponse(processors=processors)
+
+
+@router.get("/stages/{stage_name}/queue", response_model=StageQueueResponse)
+async def get_stage_queue(
+    stage_name: str,
+    limit: int = 50,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+):
+    """Get queue items for a specific stage."""
+    return await metrics_svc.get_stage_queue(stage_name, limit)
+
+
+@router.get("/stages/{stage_name}/errors", response_model=StageErrorLogsResponse)
+async def get_stage_errors(
+    stage_name: str,
+    limit: int = 100,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+):
+    """Get error logs for a specific stage."""
+    return await metrics_svc.get_stage_errors(stage_name, limit)
+
+
+@router.post("/stages/{stage_name}/retry")
+async def retry_stage_processing(
+    stage_name: str,
+    document_id: str,
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:write")),
+    metrics_svc: MetricsService = Depends(get_metrics_service),
+) -> Dict[str, Any]:
+    """Retry a failed stage for a document."""
+    success = await metrics_svc.retry_stage(document_id, stage_name)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Document or stage not found, or stage not in failed state")
+    
+    return {"success": True, "message": f"Stage {stage_name} retry triggered for document {document_id}"}
 
 
 # Alert endpoints

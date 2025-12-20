@@ -18,7 +18,24 @@ export interface CrudModalProps {
   mode: CrudModalMode
   title: string
   description?: string
-  children?: ReactNode
+  /**
+   * Modal body content. Can be either:
+   * - A standard React node (JSX elements, strings, etc.)
+   * - A render function that returns a React node
+   * 
+   * @example
+   * // Standard usage
+   * <CrudModal>
+   *   <MyForm />
+   * </CrudModal>
+   * 
+   * @example
+   * // Render-prop usage
+   * <CrudModal>
+   *   {() => <MyForm />}
+   * </CrudModal>
+   */
+  children?: ReactNode | (() => ReactNode)
   isSubmitting?: boolean
   disableSubmit?: boolean
   submitLabel?: string

@@ -31,7 +31,15 @@ from backend.core.base_processor import ProcessingResult, ProcessingContext
 from backend.core.data_models import ChunkModel
 
 
-pytestmark = pytest.mark.processor
+pytestmark = [
+    pytest.mark.processor,
+    pytest.mark.skip(
+        reason=(
+            "Legacy OptimizedTextProcessor E2E suite for old constructor/result API; "
+            "see test_text_processor_v2_e2e.py for current v2 tests."
+        )
+    ),
+]
 
 
 class TestTextExtraction:
@@ -1407,7 +1415,7 @@ Website: www.testdevice.com"""
         
         # Create PDF-like file with no text (binary content)
         no_text_file = temp_test_pdf / "no_text.pdf"
-        no_text_file.write_bytes(b"%PDF-1.4\n%âãÏÓ\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\n")
+        no_text_file.write_bytes(b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\n")
         
         context = ProcessingContext(
             document_id="test-doc-id",

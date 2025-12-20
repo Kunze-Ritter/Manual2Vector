@@ -4,6 +4,8 @@ from __future__ import annotations
 import io
 import logging
 import os
+import uuid
+from datetime import datetime, timezone
 from math import ceil
 from typing import Any, Dict, List, Optional
 
@@ -321,11 +323,35 @@ async def list_images(
             params.append(filters.has_ai_description)
         
         if filters.search:
-            param_count += 1
-            where_clauses.append(f"(filename ILIKE ${param_count} OR original_filename ILIKE ${param_count} OR ai_description ILIKE ${param_count} OR ocr_text ILIKE ${param_count})")
             search_term = f"%{filters.search}%"
-            params.extend([search_term, search_term, search_term, search_term])
-            param_count += 3
+            placeholders = []
+            for _ in range(4):
+                param_count += 1
+                placeholders.append(f"${param_count}")
+                params.append(search_term)
+            where_clauses.append(
+                f"(filename ILIKE {placeholders[0]} OR original_filename ILIKE {placeholders[1]} OR ai_description ILIKE {placeholders[2]} OR ocr_text ILIKE {placeholders[3]})"
+            )
+
+        if filters.file_size_min is not None:
+            param_count += 1
+            where_clauses.append(f"file_size >= ${param_count}")
+            params.append(filters.file_size_min)
+
+        if filters.file_size_max is not None:
+            param_count += 1
+            where_clauses.append(f"file_size <= ${param_count}")
+            params.append(filters.file_size_max)
+
+        if filters.date_from:
+            param_count += 1
+            where_clauses.append(f"created_at::date >= ${param_count}::date")
+            params.append(filters.date_from)
+
+        if filters.date_to:
+            param_count += 1
+            where_clauses.append(f"created_at::date <= ${param_count}::date")
+            params.append(filters.date_to)
         
         where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         
@@ -585,16 +611,14 @@ async def delete_image(
                 storage_path = existing[0].get("storage_path") if existing else None
 
                 bucket_type = "document_images"
-                public_documents = os.getenv("R2_PUBLIC_URL_DOCUMENTS", "")
-                public_error = os.getenv("R2_PUBLIC_URL_ERROR", "")
-                public_parts = os.getenv("R2_PUBLIC_URL_PARTS", "")
+
+                public_error = os.getenv("OBJECT_STORAGE_PUBLIC_URL_ERROR") or os.getenv("R2_PUBLIC_URL_ERROR", "")
+                public_parts = os.getenv("OBJECT_STORAGE_PUBLIC_URL_PARTS") or os.getenv("R2_PUBLIC_URL_PARTS", "")
 
                 if storage_url and public_error and storage_url.startswith(public_error):
                     bucket_type = "error_images"
                 elif storage_url and public_parts and storage_url.startswith(public_parts):
                     bucket_type = "parts_images"
-                elif storage_url and public_documents and storage_url.startswith(public_documents):
-                    bucket_type = "document_images"
 
                 if storage_path:
                     try:
@@ -709,44 +733,38 @@ async def upload_image(
             return SuccessResponse(
                 data=ImageUploadResponse(
                     image_id=existing_image[0]["id"],
-                    file_url=existing_image[0]["file_url"],
+                    storage_url=existing_image[0].get("storage_url"),
+                    storage_path=existing_image[0].get("storage_path"),
                     message="Image already exists (deduplicated)",
                     is_duplicate=True,
                 )
             )
 
+        storage_path = storage_result.get("storage_path") or storage_result.get("key")
         original_filename = file.filename or "upload.bin"
-        file_url = resolved_url
+        image_format = (original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else None)
         file_size = storage_result.get("size")
-        file_type = file.content_type
 
-        # Save to database
-        image_data = {
-            "id": str(uuid.uuid4()),
-            "filename": original_filename,
-            "file_url": file_url,
-            "file_size": file_size,
-            "mime_type": file_type,
-            "file_hash": file_hash,
-            "alt_text": alt_text,
-            "document_id": document_id,
-            "uploaded_by": current_user.get("id"),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        
+        image_id = str(uuid.uuid4())
         result = await adapter.execute_query(
             """
             INSERT INTO krai_content.images (
-                id, filename, file_url, file_size, mime_type, file_hash, 
-                alt_text, document_id, uploaded_by, created_at
+                id, filename, original_filename, storage_path, storage_url, file_size, image_format,
+                file_hash, document_id, created_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
             """,
             [
-                image_data["id"], image_data["filename"], image_data["file_url"],
-                image_data["file_size"], image_data["mime_type"], image_data["file_hash"],
-                image_data["alt_text"], image_data["document_id"], image_data["uploaded_by"],
-                image_data["created_at"]
-            ]
+                image_id,
+                storage_path or original_filename,
+                original_filename,
+                storage_path,
+                resolved_url,
+                file_size,
+                image_format,
+                file_hash,
+                document_id,
+                datetime.now(timezone.utc).isoformat(),
+            ],
         )
 
         await _insert_audit_log(
@@ -760,7 +778,8 @@ async def upload_image(
         return SuccessResponse(
             data=ImageUploadResponse(
                 image_id=result[0]["id"],
-                file_url=result[0]["file_url"],
+                storage_url=result[0].get("storage_url"),
+                storage_path=result[0].get("storage_path"),
                 message="Image uploaded successfully",
             )
         )
@@ -791,6 +810,29 @@ async def download_image(
 
         record = existing[0]
         storage_path = record.get("storage_path")
+        storage_url = record.get("storage_url") or ""
+
+        bucket_type = _infer_bucket_type_from_url(storage_url)
+
+        if not storage_path and storage_url:
+            public_documents = os.getenv("OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS") or os.getenv("R2_PUBLIC_URL_DOCUMENTS", "")
+            public_error = os.getenv("OBJECT_STORAGE_PUBLIC_URL_ERROR") or os.getenv("R2_PUBLIC_URL_ERROR", "")
+            public_parts = os.getenv("OBJECT_STORAGE_PUBLIC_URL_PARTS") or os.getenv("R2_PUBLIC_URL_PARTS", "")
+
+            prefix = ""
+            if public_documents and storage_url.startswith(public_documents):
+                prefix = public_documents
+            elif public_error and storage_url.startswith(public_error):
+                prefix = public_error
+            elif public_parts and storage_url.startswith(public_parts):
+                prefix = public_parts
+
+            if prefix:
+                trimmed = storage_url[len(prefix):]
+                if trimmed.startswith("/"):
+                    trimmed = trimmed[1:]
+                storage_path = trimmed or None
+
         if not storage_path:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -800,8 +842,6 @@ async def download_image(
                     "IMAGE_STORAGE_PATH_MISSING",
                 ),
             )
-
-        bucket_type = _infer_bucket_type_from_url(record.get("storage_url"))
 
         storage_service = create_storage_service()
 
@@ -866,13 +906,12 @@ async def get_images_by_document(
             SELECT 
                 i.id,
                 i.filename,
-                i.file_url,
+                i.original_filename,
+                i.storage_url,
+                i.storage_path,
                 i.file_size,
-                i.mime_type,
                 i.file_hash,
-                i.alt_text,
                 i.document_id,
-                i.uploaded_by,
                 i.created_at,
                 i.updated_at,
                 COUNT(*) OVER() as total_count

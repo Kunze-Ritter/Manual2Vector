@@ -69,8 +69,8 @@ class ChunkPreprocessor(BaseProcessor):
                 if not chunks:
                     adapter.warning("No chunks found to preprocess")
                     return self._create_result(
-                        success=False,
-                        message="No chunks found to preprocess",
+                        success=True,
+                        message="No chunks found to preprocess (skipped)",
                         data={'chunks_preprocessed': 0}
                     )
 
@@ -223,13 +223,12 @@ class ChunkPreprocessor(BaseProcessor):
     
     async def _get_document_chunks(self, document_id: str, adapter) -> List[Dict]:
         """Get all chunks for document"""
-        if not self.database_service:
+        if not self.database_service or not getattr(self.database_service, 'client', None):
             return []
         
         try:
-            if hasattr(self.database_service, 'client'):
-                result = self.database_service.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
-                return result.data if result.data else []
+            result = self.database_service.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
+            return result.data if result.data else []
         except Exception as e:
             adapter.warning("Could not get chunks: %s", e)
         
@@ -237,16 +236,15 @@ class ChunkPreprocessor(BaseProcessor):
     
     async def _update_chunk(self, chunk_id: str, content: str, metadata: Dict, adapter):
         """Update chunk with cleaned content and metadata"""
-        if not self.database_service:
+        if not self.database_service or not getattr(self.database_service, 'client', None):
             return
         
         try:
-            if hasattr(self.database_service, 'client'):
-                self.database_service.client.table('chunks').update({
-                    'content': content,
-                    'metadata': metadata,
-                    'char_count': len(content)
-                }).eq('id', chunk_id).execute()
+            self.database_service.client.table('chunks').update({
+                'content': content,
+                'metadata': metadata,
+                'char_count': len(content)
+            }).eq('id', chunk_id).execute()
         except Exception as e:
             adapter.warning("Failed to update chunk %s: %s", chunk_id, e)
     

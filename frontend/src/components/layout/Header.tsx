@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -11,34 +11,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Bell, Sun, Moon, User, Settings, LogOut } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { NavLink } from 'react-router-dom'
 
 export function Header() {
   const { user, logout } = useAuth()
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
-
-  // Initialize theme from localStorage or system preference
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('krai-theme') as 'light' | 'dark' | null
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light')
-
-    setTheme(initialTheme)
-    if (initialTheme === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }, [])
+  const { actualTheme, setTheme } = useTheme()
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-    localStorage.setItem('krai-theme', newTheme)
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    // Toggle between light and dark (not using 'system' for now)
+    setTheme(actualTheme === 'light' ? 'dark' : 'light')
   }
 
   const getInitials = () => {
@@ -49,15 +30,15 @@ export function Header() {
   }
 
   return (
-    <header className="fixed top-0 left-64 right-0 h-16 bg-card border-b border-border z-10">
-      <div className="flex items-center justify-between h-full px-6">
+    <header className="fixed top-0 left-64 right-0 h-16 bg-card border-b border-border z-fixed shadow-sm">
+      <div className="flex items-center justify-between h-full px-lg">
         {/* Left Section */}
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-foreground">Dashboard</h2>
         </div>
 
-        {/* Right Section */}
-        <div className="flex items-center gap-4">
+        {/* Right Section - Using spacing tokens */}
+        <div className="flex items-center gap-md">
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
@@ -68,7 +49,7 @@ export function Header() {
 
           {/* Theme Toggle */}
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
-            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            {actualTheme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
 
           {/* User Menu */}
@@ -89,16 +70,16 @@ export function Header() {
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <a href="/profile" className="flex items-center gap-2 cursor-pointer">
+                <NavLink to="/profile" className="flex items-center gap-2 cursor-pointer" data-testid="header-profile-link">
                   <User className="h-4 w-4" />
                   <span>Profile</span>
-                </a>
+                </NavLink>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href="/settings" className="flex items-center gap-2 cursor-pointer">
+                <NavLink to="/settings" className="flex items-center gap-2 cursor-pointer" data-testid="header-settings-link">
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
-                </a>
+                </NavLink>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

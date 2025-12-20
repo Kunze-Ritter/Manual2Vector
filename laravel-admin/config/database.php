@@ -85,17 +85,31 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DB_URL'),
+            'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
+            'database' => env('DB_DATABASE', 'forge'),
+            'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
-            'charset' => env('DB_CHARSET', 'utf8'),
+            'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => 'prefer',
+            'schema' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                \PDO::ATTR_EMULATE_PREPARES => false,
+                \PDO::ATTR_PERSISTENT => env('DB_PERSISTENT_CONNECTIONS', false),
+                \PDO::ATTR_TIMEOUT => env('DB_CONNECTION_TIMEOUT', 5),
+            ]) : [],
+            // Informational only: Laravel does not consume this block. If a future PgBouncer or
+            // external connection manager is added, pass these values to that layer explicitly.
+            'pool' => [
+                'min_connections' => env('DB_POOL_MIN_CONNECTIONS', 5),
+                'max_connections' => env('DB_POOL_MAX_CONNECTIONS', 50),
+                'max_idle_time' => env('DB_POOL_MAX_IDLE_TIME', 60),
+                'health_check_interval' => env('DB_POOL_HEALTH_CHECK_INTERVAL', 15),
+                'acquire_timeout' => env('DB_POOL_ACQUIRE_TIMEOUT', 5),
+            ],
         ],
 
         'sqlsrv' => [

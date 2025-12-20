@@ -14,7 +14,7 @@ Features:
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='langchain')
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, AsyncGenerator
@@ -641,19 +641,19 @@ Antworte auf Deutsch."""),
 # FastAPI Application
 # ============================================================================
 
-def create_agent_api(adapter: DatabaseAdapter) -> FastAPI:
-    """Create FastAPI application for the agent"""
+def create_agent_api(adapter: DatabaseAdapter) -> APIRouter:
+    """Create API router for the agent (to be included in main app)"""
     
-    app = FastAPI(
-        title="KRAI AI Agent API",
-        description="Conversational AI agent for technical support",
-        version="1.0.0"
+    print("DEBUG: Creating Agent API router...")
+    router = APIRouter(
+        prefix="/agent",
+        tags=["AI Agent"]
     )
     
     # Initialize agent
     agent = KRAIAgent(adapter)
     
-    @app.post("/chat", response_model=ChatResponse)
+    @router.post("/chat", response_model=ChatResponse)
     async def chat(message: ChatMessage):
         """
         Chat with the AI agent
@@ -677,7 +677,7 @@ def create_agent_api(adapter: DatabaseAdapter) -> FastAPI:
             logger.error(f"Error in chat endpoint: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
-    @app.post("/chat/stream")
+    @router.post("/chat/stream")
     async def chat_stream(message: ChatMessage):
         """
         Chat with the AI agent (streaming)
@@ -703,7 +703,7 @@ def create_agent_api(adapter: DatabaseAdapter) -> FastAPI:
             logger.error(f"Error in chat_stream endpoint: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
-    @app.get("/health")
+    @router.get("/health")
     async def health():
         """Health check endpoint"""
         return {
@@ -712,4 +712,4 @@ def create_agent_api(adapter: DatabaseAdapter) -> FastAPI:
             "version": "1.0.0"
         }
     
-    return app
+    return router

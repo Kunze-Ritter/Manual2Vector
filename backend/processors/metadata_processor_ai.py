@@ -10,7 +10,7 @@ Uses pattern matching and AI for intelligent extraction.
 from typing import Any, Dict, List
 from pathlib import Path
 
-from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage, ProcessingError
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
 
@@ -97,7 +97,24 @@ class MetadataProcessorAI(BaseProcessor):
                     adapter.info("No error codes found")
 
                 adapter.info("Extracting version information...")
-                version_info = self.version_extractor.extract(file_path)
+
+                version_info = None
+                version_text = None
+                page_texts = getattr(context, "page_texts", None)
+                if isinstance(page_texts, dict) and page_texts:
+                    first_pages = sorted(page_texts.keys())[:5]
+                    version_text = "\n\n".join(
+                        [page_texts.get(p, "") for p in first_pages if page_texts.get(p)]
+                    ).strip()
+
+                if version_text:
+                    best_version = self.version_extractor.extract_best_version(
+                        version_text,
+                        manufacturer=None if manufacturer == "AUTO" else manufacturer,
+                    )
+                    version_info = best_version.version_string if best_version else None
+                else:
+                    adapter.warning("No page text available - skipping version extraction")
 
                 if version_info:
                     self.logger.success(f"✅ Extracted version: {version_info}")
@@ -162,15 +179,26 @@ class MetadataProcessorAI(BaseProcessor):
         for error_code in error_codes:
             try:
                 # Prepare error code data
+                code_value = getattr(error_code, 'error_code', None)
+
                 error_data = {
+                    # Core identifiers
                     'document_id': str(document_id),
-                    'manufacturer': manufacturer,
-                    'code': error_code.code,
-                    'description': error_code.description,
-                    'solution': error_code.solution,
-                    'page_number': error_code.page_number,
-                    'severity': getattr(error_code, 'severity', None),
-                    'category': getattr(error_code, 'category', None)
+                    'error_code': code_value,
+                    'error_description': getattr(error_code, 'error_description', None),
+                    'solution_text': getattr(error_code, 'solution_text', None),
+                    'page_number': getattr(error_code, 'page_number', None),
+                    # Quality and extraction metadata
+                    'confidence_score': getattr(error_code, 'confidence', None),
+                    'extraction_method': getattr(error_code, 'extraction_method', None),
+                    'requires_technician': getattr(error_code, 'requires_technician', False),
+                    'requires_parts': getattr(error_code, 'requires_parts', False),
+                    'severity_level': getattr(error_code, 'severity_level', None),
+                    'context_text': getattr(error_code, 'context_text', None),
+                    # Optional relational fields aligned with krai_intelligence.error_codes
+                    'chunk_id': getattr(error_code, 'chunk_id', None),
+                    'product_id': getattr(error_code, 'product_id', None),
+                    'video_id': getattr(error_code, 'video_id', None),
                 }
                 
                 # Insert into database
@@ -180,7 +208,7 @@ class MetadataProcessorAI(BaseProcessor):
                         saved_count += 1
                         
             except Exception as e:
-                adapter.warning("Failed to save error code %s: %s", error_code.code, e)
+                adapter.warning("Failed to save error code %s: %s", getattr(error_code, 'error_code', None), e)
         
         return saved_count
     
@@ -203,13 +231,17 @@ class MetadataProcessorAI(BaseProcessor):
             adapter.info("Updated document version: %s", version_info)
         except Exception as e:
             adapter.warning("Failed to update document version: %s", e)
-    
-    def _create_result(self, success: bool, message: str, data: Dict) -> Any:
-        """Create a processing result object"""
-        class Result:
-            def __init__(self, success, message, data):
-                self.success = success
-                self.message = message
-                self.data = data
-        
-        return Result(success, message, data)
+
+    def _create_result(self, success: bool, message: str, data: Dict):
+        """Create a processing result object using BaseProcessor helpers.
+
+        Returns a ProcessingResult compatible with BaseProcessor.safe_process
+        and logging helpers instead of a custom ad-hoc result type.
+        """
+
+        if success:
+            # Attach human-readable message to metadata for downstream logging.
+            return self.create_success_result(data=data, metadata={"message": message})
+
+        error = ProcessingError(message, self.name, "METADATA_PROCESSING_ERROR")
+        return self.create_error_result(error=error, metadata={})

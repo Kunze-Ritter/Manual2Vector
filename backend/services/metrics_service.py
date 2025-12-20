@@ -11,9 +11,13 @@ from models.monitoring import (
     HardwareStatus,
     PipelineMetrics,
     ProcessingMetrics,
+    ProcessorHealthStatus,
     QueueItem,
     QueueMetrics,
+    StageErrorLog,
+    StageErrorLogsResponse,
     StageMetrics,
+    StageQueueResponse,
     ValidationMetrics,
 )
 from processors.stage_tracker import StageTracker
@@ -33,6 +37,18 @@ class MetricsService:
         self.stage_tracker = stage_tracker
         self._cache: Dict[str, Tuple[Any, datetime]] = {}
         self.logger = LOGGER
+
+    @staticmethod
+    def safe_parse_datetime(value: Any, default: Optional[datetime] = None) -> Optional[datetime]:
+        """Safely parse datetime from various formats, returning default on failure."""
+        if value is None:
+            return default
+        if isinstance(value, datetime):
+            return value
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            return default
 
     def _get_cached(self, key: str) -> Optional[Any]:
         """Get cached value if not expired."""
@@ -123,21 +139,62 @@ class MetricsService:
 
             metrics = []
             for stage in stage_data:
+                stage_name = stage.get("stage_name", "unknown")
                 completed = int(stage.get("completed_count", 0))
                 failed = int(stage.get("failed_count", 0))
                 total = int(stage.get("total_executions", 0))
                 success_rate = (completed / total * 100) if total > 0 else 0.0
 
+                # Get last activity and current document from stage_status
+                activity_query = """
+                    SELECT 
+                        MAX(updated_at) as last_activity,
+                        COUNT(*) FILTER (WHERE status = 'processing') as processing_count,
+                        (SELECT document_id FROM krai_core.stage_status 
+                         WHERE stage_name = $1 AND status = 'processing' 
+                         LIMIT 1) as current_document_id
+                    FROM krai_core.stage_status 
+                    WHERE stage_name = $1
+                """
+                activity_data = await self.adapter.execute_query(activity_query, [stage_name])
+                activity = activity_data[0] if activity_data else {}
+                
+                last_activity = activity.get("last_activity")
+                processing_count = int(activity.get("processing_count", 0))
+                current_document_id = activity.get("current_document_id")
+                
+                # Calculate is_active: True if processing_count > 0 OR last_activity < 60s
+                is_active = processing_count > 0
+                if not is_active and last_activity:
+                    last_activity_dt = self.safe_parse_datetime(last_activity)
+                    if last_activity_dt:
+                        is_active = (datetime.utcnow() - last_activity_dt.replace(tzinfo=None)) < timedelta(seconds=60)
+                
+                # Get error count in last hour
+                error_query = """
+                    SELECT COUNT(*) as error_count
+                    FROM krai_core.stage_status
+                    WHERE stage_name = $1 
+                      AND status = 'failed'
+                      AND updated_at > NOW() - INTERVAL '1 hour'
+                """
+                error_data = await self.adapter.execute_query(error_query, [stage_name])
+                error_count_last_hour = int(error_data[0].get("error_count", 0)) if error_data else 0
+
                 metrics.append(
                     StageMetrics(
-                        stage_name=stage.get("stage_name", "unknown"),
+                        stage_name=stage_name,
                         pending_count=0,  # Not in aggregated view
-                        processing_count=0,  # Not in aggregated view
+                        processing_count=processing_count,
                         completed_count=completed,
                         failed_count=failed,
                         skipped_count=0,  # Not in aggregated view
                         avg_duration_seconds=round(float(stage.get("avg_duration_seconds", 0.0)), 2),
                         success_rate=round(success_rate, 2),
+                        is_active=is_active,
+                        last_activity=self.safe_parse_datetime(last_activity),
+                        current_document_id=current_document_id,
+                        error_count_last_hour=error_count_last_hour,
                     )
                 )
 
@@ -230,8 +287,8 @@ class MetricsService:
                     status=item.get("status", "unknown"),
                     priority=item.get("priority", 0),
                     document_id=item.get("document_id"),
-                    scheduled_at=datetime.fromisoformat(item["scheduled_at"].replace("Z", "+00:00")) if item.get("scheduled_at") else datetime.utcnow(),
-                    started_at=datetime.fromisoformat(item["started_at"].replace("Z", "+00:00")) if item.get("started_at") else None,
+                    scheduled_at=self.safe_parse_datetime(item.get("scheduled_at"), datetime.utcnow()),
+                    started_at=self.safe_parse_datetime(item.get("started_at")),
                     retry_count=item.get("retry_count", 0),
                     error_message=item.get("error_message"),
                 )
@@ -452,3 +509,329 @@ class MetricsService:
                 ram_available_gb=0.0,
                 gpu_available=False,
             )
+
+    async def get_processor_health(self) -> List[ProcessorHealthStatus]:
+        """Get processor health status for all stages with caching."""
+        cached = self._get_cached("processor_health")
+        if cached:
+            return cached
+
+        try:
+            # Define all 15 stages with processor names
+            stages = [
+                ("upload", "UploadProcessor"),
+                ("text_extraction", "TextProcessor"),
+                ("table_extraction", "TableProcessor"),
+                ("svg_processing", "SVGProcessor"),
+                ("image_processing", "ImageProcessor"),
+                ("visual_embedding", "VisualEmbeddingProcessor"),
+                ("link_extraction", "LinkProcessor"),
+                ("chunk_prep", "ChunkPrepProcessor"),
+                ("classification", "ClassificationProcessor"),
+                ("metadata_extraction", "MetadataProcessor"),
+                ("parts_extraction", "PartsProcessor"),
+                ("series_detection", "SeriesDetectionProcessor"),
+                ("storage", "StorageProcessor"),
+                ("embedding", "EmbeddingProcessor"),
+                ("search_indexing", "SearchIndexingProcessor"),
+            ]
+
+            processors = []
+            for stage_name, processor_name in stages:
+                # Query stage status for this stage
+                query = """
+                    SELECT 
+                        COUNT(*) FILTER (WHERE status = 'processing') as documents_processing,
+                        COUNT(*) FILTER (WHERE status = 'pending') as documents_in_queue,
+                        MAX(updated_at) as last_activity,
+                        (SELECT document_id FROM krai_core.stage_status 
+                         WHERE stage_name = $1 AND status = 'processing' 
+                         LIMIT 1) as current_document_id,
+                        COUNT(*) FILTER (WHERE status = 'failed' AND updated_at > NOW() - INTERVAL '1 hour') as failed_last_hour,
+                        COUNT(*) FILTER (WHERE updated_at > NOW() - INTERVAL '1 hour') as total_last_hour,
+                        AVG(EXTRACT(EPOCH FROM (updated_at - created_at))) FILTER (WHERE status = 'completed') as avg_duration
+                    FROM krai_core.stage_status
+                    WHERE stage_name = $1
+                """
+                result = await self.adapter.execute_query(query, [stage_name])
+                data = result[0] if result else {}
+
+                documents_processing = int(data.get("documents_processing", 0))
+                documents_in_queue = int(data.get("documents_in_queue", 0))
+                last_activity = data.get("last_activity")
+                current_document_id = data.get("current_document_id")
+                failed_last_hour = int(data.get("failed_last_hour", 0))
+                total_last_hour = int(data.get("total_last_hour", 0))
+                avg_duration = float(data.get("avg_duration", 0.0))
+
+                # Calculate error rate
+                error_rate_percent = (failed_last_hour / total_last_hour * 100) if total_last_hour > 0 else 0.0
+
+                # Determine status
+                if documents_processing > 0:
+                    status = "running"
+                elif error_rate_percent > 10:
+                    status = "failed"
+                elif error_rate_percent > 5:
+                    status = "degraded"
+                else:
+                    status = "idle"
+
+                # Calculate is_active
+                is_active = documents_processing > 0
+                if not is_active and last_activity:
+                    last_activity_dt = self.safe_parse_datetime(last_activity)
+                    if last_activity_dt:
+                        is_active = (datetime.utcnow() - last_activity_dt.replace(tzinfo=None)) < timedelta(seconds=60)
+
+                # Calculate health score (0-100)
+                health_score = 100.0
+                health_score -= error_rate_percent * 10  # Deduct based on error rate
+                if avg_duration > 0:
+                    # Deduct if processing time is unusually high (arbitrary threshold)
+                    if avg_duration > 60:  # More than 60 seconds
+                        health_score -= min((avg_duration - 60) / 60 * 5, 20)  # Max 20 point deduction
+                health_score = max(0.0, min(100.0, health_score))
+
+                processors.append(
+                    ProcessorHealthStatus(
+                        processor_name=processor_name,
+                        stage_name=stage_name,
+                        status=status,
+                        is_active=is_active,
+                        documents_processing=documents_processing,
+                        documents_in_queue=documents_in_queue,
+                        last_activity=self.safe_parse_datetime(last_activity),
+                        current_document_id=current_document_id,
+                        error_rate_percent=round(error_rate_percent, 2),
+                        avg_processing_time_seconds=round(avg_duration, 2),
+                        health_score=round(health_score, 2),
+                    )
+                )
+
+            self._set_cache("processor_health", processors)
+            return processors
+
+        except Exception as e:
+            self.logger.error(f"Failed to get processor health: {e}", exc_info=True)
+            return []
+
+    async def get_stage_queue(self, stage_name: str, limit: int = 50) -> StageQueueResponse:
+        """Get queue items for a specific stage."""
+        try:
+            # Query stage_status for pending and processing items
+            query = """
+                SELECT 
+                    id,
+                    document_id,
+                    stage_name,
+                    status,
+                    created_at,
+                    updated_at,
+                    metadata
+                FROM krai_core.stage_status
+                WHERE stage_name = $1 
+                  AND status IN ('pending', 'processing')
+                ORDER BY created_at
+                LIMIT $2
+            """
+            items_data = await self.adapter.execute_query(query, [stage_name, limit])
+            items_data = items_data or []
+
+            # Convert to QueueItem format
+            queue_items = []
+            for item in items_data:
+                metadata = item.get("metadata", {})
+                queue_items.append(
+                    QueueItem(
+                        id=str(item.get("id", "")),
+                        task_type=f"{stage_name}_processing",
+                        status=item.get("status", "unknown"),
+                        priority=metadata.get("priority", 5) if isinstance(metadata, dict) else 5,
+                        document_id=item.get("document_id"),
+                        scheduled_at=self.safe_parse_datetime(item.get("created_at"), datetime.utcnow()),
+                        started_at=self.safe_parse_datetime(item.get("updated_at")) if item.get("status") == "processing" else None,
+                        retry_count=metadata.get("retry_count", 0) if isinstance(metadata, dict) else 0,
+                        error_message=None,
+                    )
+                )
+
+            # Calculate metrics
+            pending_count = sum(1 for item in items_data if item.get("status") == "pending")
+            processing_count = sum(1 for item in items_data if item.get("status") == "processing")
+
+            # Calculate average wait time
+            wait_times = []
+            for item in items_data:
+                if item.get("status") == "pending" and item.get("created_at"):
+                    created_at = self.safe_parse_datetime(item.get("created_at"))
+                    if created_at:
+                        wait_time = (datetime.utcnow() - created_at.replace(tzinfo=None)).total_seconds()
+                        wait_times.append(wait_time)
+            avg_wait_time = sum(wait_times) / len(wait_times) if wait_times else 0.0
+
+            # Get oldest item age
+            oldest_item_age = max(wait_times) if wait_times else 0.0
+
+            return StageQueueResponse(
+                stage_name=stage_name,
+                queue_items=queue_items,
+                pending_count=pending_count,
+                processing_count=processing_count,
+                avg_wait_time_seconds=round(avg_wait_time, 2),
+                oldest_item_age_seconds=round(oldest_item_age, 2),
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to get stage queue for {stage_name}: {e}", exc_info=True)
+            return StageQueueResponse(
+                stage_name=stage_name,
+                queue_items=[],
+                pending_count=0,
+                processing_count=0,
+                avg_wait_time_seconds=0.0,
+                oldest_item_age_seconds=0.0,
+            )
+
+    async def get_stage_errors(self, stage_name: str, limit: int = 100) -> StageErrorLogsResponse:
+        """Get error logs for a specific stage."""
+        try:
+            # Query failed stage_status entries
+            query = """
+                SELECT 
+                    id,
+                    document_id,
+                    stage_name,
+                    status,
+                    error,
+                    metadata,
+                    updated_at,
+                    created_at
+                FROM krai_core.stage_status
+                WHERE stage_name = $1 
+                  AND status = 'failed'
+                ORDER BY updated_at DESC
+                LIMIT $2
+            """
+            errors_data = await self.adapter.execute_query(query, [stage_name, limit])
+            errors_data = errors_data or []
+
+            # Convert to StageErrorLog format
+            errors = []
+            for error in errors_data:
+                metadata = error.get("metadata", {})
+                retry_count = metadata.get("retry_count", 0) if isinstance(metadata, dict) else 0
+                can_retry = retry_count < 3
+
+                errors.append(
+                    StageErrorLog(
+                        id=str(error.get("id", "")),
+                        document_id=error.get("document_id", ""),
+                        stage_name=error.get("stage_name", ""),
+                        error_message=error.get("error", "Unknown error"),
+                        error_code=metadata.get("error_code") if isinstance(metadata, dict) else None,
+                        stack_trace=metadata.get("stack_trace") if isinstance(metadata, dict) else None,
+                        occurred_at=self.safe_parse_datetime(error.get("updated_at"), datetime.utcnow()),
+                        retry_count=retry_count,
+                        can_retry=can_retry,
+                    )
+                )
+
+            # Calculate error rate for last 24 hours
+            error_rate_query = """
+                SELECT 
+                    COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
+                    COUNT(*) as total_count
+                FROM krai_core.stage_status
+                WHERE stage_name = $1 
+                  AND updated_at > NOW() - INTERVAL '1 day'
+            """
+            rate_data = await self.adapter.execute_query(error_rate_query, [stage_name])
+            rate = rate_data[0] if rate_data else {}
+            failed_count = int(rate.get("failed_count", 0))
+            total_count = int(rate.get("total_count", 0))
+            error_rate_percent = (failed_count / total_count * 100) if total_count > 0 else 0.0
+
+            return StageErrorLogsResponse(
+                stage_name=stage_name,
+                errors=errors,
+                total_errors=len(errors),
+                error_rate_percent=round(error_rate_percent, 2),
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to get stage errors for {stage_name}: {e}", exc_info=True)
+            return StageErrorLogsResponse(
+                stage_name=stage_name,
+                errors=[],
+                total_errors=0,
+                error_rate_percent=0.0,
+            )
+
+    async def retry_stage(self, document_id: str, stage_name: str) -> bool:
+        """Retry a failed stage for a document."""
+        try:
+            # Update stage_status to reset to pending
+            query = """
+                UPDATE krai_core.stage_status
+                SET 
+                    status = 'pending',
+                    error = NULL,
+                    metadata = jsonb_set(
+                        COALESCE(metadata, '{}'::jsonb),
+                        '{retry_count}',
+                        (COALESCE((metadata->>'retry_count')::int, 0) + 1)::text::jsonb
+                    ),
+                    updated_at = NOW()
+                WHERE document_id = $1 
+                  AND stage_name = $2
+                  AND status = 'failed'
+                RETURNING id
+            """
+            result = await self.adapter.execute_query(query, [document_id, stage_name])
+            
+            if result and len(result) > 0:
+                self.logger.info(f"Retry triggered for document {document_id}, stage {stage_name}")
+                # Invalidate relevant caches
+                self.invalidate_cache("processor_health")
+                self.invalidate_cache("stage_metrics")
+                
+                # Broadcast processor state change via WebSocket
+                try:
+                    from api.websocket import broadcast_processor_state_change
+                    # Map stage_name to processor_name
+                    stage_to_processor = {
+                        "upload": "UploadProcessor",
+                        "text_extraction": "TextProcessor",
+                        "table_extraction": "TableProcessor",
+                        "svg_processing": "SVGProcessor",
+                        "image_processing": "ImageProcessor",
+                        "visual_embedding": "VisualEmbeddingProcessor",
+                        "link_extraction": "LinkProcessor",
+                        "chunk_prep": "ChunkPrepProcessor",
+                        "classification": "ClassificationProcessor",
+                        "metadata_extraction": "MetadataProcessor",
+                        "parts_extraction": "PartsProcessor",
+                        "series_detection": "SeriesDetectionProcessor",
+                        "storage": "StorageProcessor",
+                        "embedding": "EmbeddingProcessor",
+                        "search_indexing": "SearchIndexingProcessor",
+                    }
+                    processor_name = stage_to_processor.get(stage_name, f"{stage_name}Processor")
+                    await broadcast_processor_state_change(
+                        processor_name=processor_name,
+                        stage_name=stage_name,
+                        status="pending",
+                        document_id=document_id
+                    )
+                except Exception as ws_error:
+                    self.logger.warning(f"Failed to broadcast processor state change: {ws_error}")
+                
+                return True
+            else:
+                self.logger.warning(f"No failed stage found for document {document_id}, stage {stage_name}")
+                return False
+
+        except Exception as e:
+            self.logger.error(f"Failed to retry stage {stage_name} for document {document_id}: {e}", exc_info=True)
+            return False

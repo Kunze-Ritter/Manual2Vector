@@ -2,18 +2,52 @@
 
 namespace App\Filament\Resources\Settings\Pages;
 
-use App\Filament\Resources\Settings\SettingsResource;
 use App\Filament\Resources\Ollama\OllamaResource;
+use App\Filament\Resources\Settings\Schemas\SettingsFormSchema;
+use App\Filament\Resources\Settings\SettingsResource;
 use Filament\Actions\Action;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\File;
 
-class ManageSettings extends Page
+class ManageSettings extends Page implements HasForms
 {
+    use InteractsWithForms;
+
     protected static string $resource = SettingsResource::class;
 
-    protected string $view = 'filament.resources.settings.pages.manage-settings';
+    protected static bool $shouldCheckUnsavedChangesBeforeLeaving = true;
+
+    protected const ALLOWED_ENV_KEYS = [
+        'AI_SERVICE_TYPE',
+        'AI_SERVICE_URL',
+        'OLLAMA_URL',
+        'AI_PROVIDER',
+        'OPENAI_API_KEY',
+        'OLLAMA_GPU_MEMORY',
+        'OLLAMA_GPU_LAYERS',
+        'OLLAMA_NUM_GPU',
+        'OLLAMA_MODEL_EMBEDDING',
+        'OLLAMA_MODEL_EXTRACTION',
+        'OLLAMA_MODEL_CHAT',
+        'OLLAMA_MODEL_VISION',
+        'OLLAMA_NUM_CTX',
+        'ENABLE_PRODUCT_EXTRACTION',
+        'ENABLE_PARTS_EXTRACTION',
+        'ENABLE_ERROR_CODE_EXTRACTION',
+        'ENABLE_IMAGE_EXTRACTION',
+        'ENABLE_OCR',
+        'ENABLE_VISION_AI',
+        'ENABLE_EMBEDDINGS',
+        'LLM_MAX_PAGES',
+        'MAX_VISION_IMAGES',
+        'DISABLE_VISION_PROCESSING',
+        'ENABLE_SOLUTION_TRANSLATION',
+        'SOLUTION_TRANSLATION_LANGUAGE',
+    ];
 
     public array $data = [];
     public array $models = [];
@@ -21,9 +55,13 @@ class ManageSettings extends Page
 
     public function mount(): void
     {
-        $this->data = $this->loadEnvValues();
-        // Load Ollama data for AI Settings tab
         $this->loadOllamaData();
+        $this->form->fill($this->loadEnvValues());
+    }
+
+    public function form(Form $form): Form
+    {
+        return SettingsFormSchema::configure($form)->statePath('data');
     }
 
     protected function getHeaderActions(): array
@@ -31,13 +69,26 @@ class ManageSettings extends Page
         return [
             Action::make('save')
                 ->label('Save Settings')
-                ->action('save')
+                ->submit('save')
+                ->icon('heroicon-o-check'),
+        ];
+    }
+
+    public function getFormActions(): array
+    {
+        return [
+            Action::make('save')
+                ->label('Save Settings')
+                ->submit('save')
+                ->color('primary')
                 ->icon('heroicon-o-check'),
         ];
     }
 
     public function save(): void
     {
+        $state = $this->form->getState();
+
         $envPath = env('KRAI_ROOT_ENV_PATH', base_path('.env'));
 
         if (! File::exists($envPath)) {
@@ -54,7 +105,7 @@ class ManageSettings extends Page
         $lines = explode("\n", $content);
         $updatedLines = [];
 
-        $allowedKeys = array_keys($this->data);
+        $allowedKeys = array_keys($state);
 
         foreach ($lines as $line) {
             $trimmed = trim($line);
@@ -72,7 +123,7 @@ class ManageSettings extends Page
             $key = trim($key);
 
             if (in_array($key, $allowedKeys, true)) {
-                $value = $this->data[$key];
+                $value = $state[$key] ?? null;
                 if (is_bool($value)) {
                     $value = $value ? 'true' : 'false';
                 }
@@ -134,8 +185,6 @@ class ManageSettings extends Page
 
     public function showPullModelModal(): void
     {
-        // For now, just show a notification. In a real implementation, 
-        // this would open a modal to select and pull a model
         Notification::make()
             ->title('Pull Model')
             ->body('Model pull functionality will be implemented in the modal.')
@@ -155,34 +204,6 @@ class ManageSettings extends Page
         $lines = explode("\n", $content);
         $values = [];
 
-        $allowedKeys = [
-            'AI_SERVICE_TYPE',
-            'AI_SERVICE_URL',
-            'OLLAMA_URL',
-            'AI_PROVIDER',
-            'OPENAI_API_KEY',
-            'OLLAMA_GPU_MEMORY',
-            'OLLAMA_GPU_LAYERS',
-            'OLLAMA_NUM_GPU',
-            'OLLAMA_MODEL_EMBEDDING',
-            'OLLAMA_MODEL_EXTRACTION',
-            'OLLAMA_MODEL_CHAT',
-            'OLLAMA_MODEL_VISION',
-            'OLLAMA_NUM_CTX',
-            'ENABLE_PRODUCT_EXTRACTION',
-            'ENABLE_PARTS_EXTRACTION',
-            'ENABLE_ERROR_CODE_EXTRACTION',
-            'ENABLE_IMAGE_EXTRACTION',
-            'ENABLE_OCR',
-            'ENABLE_VISION_AI',
-            'ENABLE_EMBEDDINGS',
-            'LLM_MAX_PAGES',
-            'MAX_VISION_IMAGES',
-            'DISABLE_VISION_PROCESSING',
-            'ENABLE_SOLUTION_TRANSLATION',
-            'SOLUTION_TRANSLATION_LANGUAGE',
-        ];
-
         foreach ($lines as $line) {
             $trimmed = trim($line);
             if ($trimmed === '' || str_starts_with($trimmed, '#') || ! str_contains($trimmed, '=')) {
@@ -193,7 +214,7 @@ class ManageSettings extends Page
             $key = trim($key);
             $value = trim($value);
 
-            if (in_array($key, $allowedKeys, true)) {
+            if (in_array($key, self::ALLOWED_ENV_KEYS, true)) {
                 if (in_array($value, ['true', 'false'], true)) {
                     $values[$key] = $value === 'true';
                 } elseif (is_numeric($value)) {
@@ -205,5 +226,16 @@ class ManageSettings extends Page
         }
 
         return $values;
+    }
+
+    public function getOllamaModelOptions(): array
+    {
+        if (empty($this->models)) {
+            return [];
+        }
+
+        return collect($this->models)
+            ->pluck('name', 'name')
+            ->toArray();
     }
 }

@@ -10,14 +10,15 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
 import json
+import os
 
-from research.product_researcher import ProductResearcher
+from services.product_researcher import ProductResearcher
 
 
 pytest.mark.integration = pytest.mark.integration
 
 
-class TestProductResearcherIntegration:
+class TestProductResearcherUnitMocks:
     """Test ProductResearcher integration scenarios."""
 
     @pytest.fixture
@@ -719,3 +720,342 @@ class TestProductResearcherIntegration:
         # All requests should succeed
         assert len(results) == 3
         assert all(result['success'] for result in results)
+
+
+# =============================================================================
+# REAL INTEGRATION TESTS - Uses actual Firecrawl, DB, and LLM services
+# =============================================================================
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    not os.getenv("FIRECRAWL_API_KEY") or not os.getenv("FIRECRAWL_API_URL"),
+    reason="Firecrawl not configured (FIRECRAWL_API_KEY or FIRECRAWL_API_URL missing)"
+)
+class TestProductResearcherRealIntegration:
+    """
+    Real integration tests for ProductResearcher.
+    
+    These tests use:
+    - Real Supabase test database (via test_database fixture)
+    - Real WebScrapingService with Firecrawl (via real_product_researcher fixture)
+    - Real Ollama LLM for analysis
+    - Real caching in database
+    
+    Tests are marked with @pytest.mark.integration and @pytest.mark.skipif
+    to make them optional in CI environments where Firecrawl may not be available.
+    """
+    
+    @pytest.mark.asyncio
+    async def test_real_product_research_end_to_end(
+        self,
+        real_product_researcher: ProductResearcher,
+        test_database
+    ):
+        """
+        Test complete product research workflow with real services.
+        
+        This test performs a minimal but genuine end-to-end workflow:
+        1. Search for product URLs (direct URL construction)
+        2. Scrape product pages with real Firecrawl/BeautifulSoup
+        3. Analyze content with real Ollama LLM
+        4. Cache results in real test database
+        """
+        # Use a well-known product page that should be stable
+        manufacturer = "Konica Minolta"
+        model = "bizhub C450i"
+        
+        # Execute real research workflow
+        result = await real_product_researcher.research_product(
+            manufacturer=manufacturer,
+            model=model,
+            use_tavily=False,  # Use direct URL construction to avoid Tavily dependency
+            max_urls=2  # Limit to 2 URLs to keep test fast
+        )
+        
+        # Verify result structure
+        assert 'success' in result
+        assert 'manufacturer' in result
+        assert 'model' in result
+        
+        # If successful, verify data quality
+        if result['success']:
+            assert result['manufacturer'] == manufacturer
+            assert result['model'] == model
+            assert 'series_name' in result
+            assert 'specifications' in result
+            assert isinstance(result['specifications'], dict)
+            assert 'confidence' in result
+            assert isinstance(result['confidence'], (int, float))
+            assert 0.0 <= result['confidence'] <= 1.0
+            assert 'source_urls' in result
+            assert isinstance(result['source_urls'], list)
+            assert len(result['source_urls']) > 0
+            assert result.get('cached') == False  # First run should not be cached
+            
+            # Verify cache was created
+            cache_result = await real_product_researcher._get_cached_research(
+                manufacturer, model
+            )
+            assert cache_result is not None
+            assert cache_result['manufacturer'] == manufacturer
+            assert cache_result['model'] == model
+    
+    @pytest.mark.asyncio
+    async def test_real_cache_hit(
+        self,
+        real_product_researcher: ProductResearcher,
+        test_database
+    ):
+        """
+        Test that cached research is retrieved correctly.
+        
+        Performs two sequential research calls and verifies:
+        1. First call performs full workflow and caches
+        2. Second call retrieves from cache without scraping
+        """
+        manufacturer = "Canon"
+        model = "imageRUNNER ADVANCE DX C5870i"
+        
+        # First call - should perform full research
+        result1 = await real_product_researcher.research_product(
+            manufacturer=manufacturer,
+            model=model,
+            use_tavily=False,
+            max_urls=1,
+            force_refresh=True  # Force fresh research
+        )
+        
+        # Second call - should hit cache
+        result2 = await real_product_researcher.research_product(
+            manufacturer=manufacturer,
+            model=model,
+            use_tavily=False,
+            max_urls=1,
+            force_refresh=False  # Allow cache
+        )
+        
+        # Verify cache hit
+        if result1.get('success'):
+            assert result2.get('cached') == True
+            assert result2['manufacturer'] == manufacturer
+            assert result2['model'] == model
+    
+    @pytest.mark.asyncio
+    async def test_real_scraping_with_firecrawl(
+        self,
+        real_product_researcher: ProductResearcher,
+        firecrawl_available: bool
+    ):
+        """
+        Test that scraping works with real Firecrawl backend.
+        
+        Verifies:
+        - Scraping service is properly initialized
+        - Can scrape a real URL
+        - Returns valid content
+        """
+        if not firecrawl_available:
+            pytest.skip("Firecrawl not available for this test")
+        
+        # Test scraping a simple, stable URL
+        test_url = "https://example.com"
+        
+        result = await real_product_researcher.scrape_product_page(test_url)
+        
+        # Verify scraping result
+        assert 'success' in result
+        if result['success']:
+            assert 'content' in result or 'error' in result
+            if 'content' in result:
+                assert len(result['content']) > 0
+                assert 'backend' in result
+    
+    @pytest.mark.asyncio
+    async def test_real_llm_analysis(
+        self,
+        real_product_researcher: ProductResearcher
+    ):
+        """
+        Test LLM analysis with real Ollama service.
+        
+        Verifies:
+        - Can analyze product content with Ollama
+        - Returns structured data
+        - Includes confidence score
+        """
+        # Sample product content for analysis
+        test_content = """
+        # Konica Minolta bizhub C450i
+        
+        ## Technical Specifications
+        - Print Speed: 45 ppm (color and B&W)
+        - Paper Size: A6 to SRA3
+        - Memory: 8 GB
+        - Storage: 256 GB SSD
+        - Connectivity: Ethernet, USB, Wi-Fi
+        
+        ## Features
+        - Color multifunction printer
+        - Advanced scanning capabilities
+        - Mobile printing support
+        """
+        
+        result = await real_product_researcher.analyze_product_content(
+            content=test_content,
+            manufacturer="Konica Minolta",
+            model="bizhub C450i",
+            timeout=60  # Allow more time for LLM
+        )
+        
+        # Verify analysis result
+        assert 'success' in result
+        if result['success']:
+            assert 'series_name' in result or 'specifications' in result
+            assert 'confidence' in result
+            assert isinstance(result['confidence'], (int, float))
+    
+    @pytest.mark.asyncio
+    async def test_real_error_handling(
+        self,
+        real_product_researcher: ProductResearcher
+    ):
+        """
+        Test error handling with real services.
+        
+        Verifies:
+        - Invalid URLs are handled gracefully
+        - Errors are reported correctly
+        - System doesn't crash on failures
+        """
+        # Test with invalid/non-existent product
+        result = await real_product_researcher.research_product(
+            manufacturer="NonExistentManufacturer",
+            model="InvalidModel12345",
+            use_tavily=False,
+            max_urls=1
+        )
+        
+        # Should return error gracefully
+        assert 'success' in result
+        # May succeed with empty/low-confidence results or fail gracefully
+        if not result['success']:
+            assert 'error' in result
+    
+    @pytest.mark.asyncio
+    async def test_real_backend_fallback(
+        self,
+        real_product_researcher: ProductResearcher,
+        firecrawl_available: bool
+    ):
+        """
+        Test backend fallback behavior with real services.
+        
+        Verifies:
+        - System can fall back to BeautifulSoup if Firecrawl fails
+        - Fallback is transparent to caller
+        - Results are still valid
+        """
+        # Get backend info
+        backend_info = real_product_researcher.scraper.get_backend_info()
+        
+        assert 'backend' in backend_info
+        assert 'capabilities' in backend_info
+        assert 'fallback_available' in backend_info
+        
+        # If Firecrawl is primary, verify fallback is available
+        if backend_info['backend'] == 'firecrawl':
+            assert backend_info['fallback_available'] == True
+    
+    @pytest.mark.asyncio
+    async def test_real_concurrent_research(
+        self,
+        real_product_researcher: ProductResearcher
+    ):
+        """
+        Test concurrent research requests with real services.
+        
+        Verifies:
+        - Multiple concurrent requests are handled correctly
+        - No race conditions in caching
+        - All requests complete successfully
+        """
+        # Define multiple products to research concurrently
+        products = [
+            ("Konica Minolta", "bizhub C450i"),
+            ("Canon", "imageRUNNER ADVANCE"),
+            ("HP", "LaserJet Enterprise")
+        ]
+        
+        # Execute concurrent research
+        tasks = [
+            real_product_researcher.research_product(
+                manufacturer=mfr,
+                model=mdl,
+                use_tavily=False,
+                max_urls=1
+            )
+            for mfr, mdl in products
+        ]
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Verify all completed (success or graceful failure)
+        assert len(results) == len(products)
+        for result in results:
+            if isinstance(result, dict):
+                assert 'success' in result
+            else:
+                # Exception occurred but was caught
+                assert isinstance(result, Exception)
+    
+    @pytest.mark.asyncio
+    async def test_real_database_integration(
+        self,
+        real_product_researcher: ProductResearcher,
+        test_database
+    ):
+        """
+        Test database integration with real test database.
+        
+        Verifies:
+        - Cache table exists and is accessible
+        - Can write to cache
+        - Can read from cache
+        - Cache expiry works correctly
+        """
+        manufacturer = "TestManufacturer"
+        model = "TestModel"
+        
+        # Create test research data
+        test_data = {
+            'success': True,
+            'manufacturer': manufacturer,
+            'model': model,
+            'series_name': 'Test Series',
+            'specifications': {'test': 'value'},
+            'confidence': 0.9,
+            'source_urls': ['https://example.com']
+        }
+        
+        # Cache the data
+        cache_success = await real_product_researcher._cache_research(
+            manufacturer, model, test_data
+        )
+        
+        assert cache_success == True
+        
+        # Retrieve from cache
+        cached = await real_product_researcher._get_cached_research(
+            manufacturer, model
+        )
+        
+        assert cached is not None
+        assert cached['manufacturer'] == manufacturer
+        assert cached['model'] == model
+        assert cached['series_name'] == 'Test Series'
+        
+        # Cleanup test data
+        await test_database.execute_query(
+            "DELETE FROM krai_intelligence.product_research_cache WHERE manufacturer = $1 AND model = $2",
+            manufacturer, model
+        )

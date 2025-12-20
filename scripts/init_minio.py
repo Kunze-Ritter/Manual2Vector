@@ -42,12 +42,19 @@ class MinIOInitializer:
         self.use_ssl = os.getenv('OBJECT_STORAGE_USE_SSL', 'false').lower() == 'true'
         
         # Bucket configurations
-        self.buckets = {
+        self.all_buckets = {
             'documents': os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS', 'documents'),
             'images': os.getenv('OBJECT_STORAGE_BUCKET_IMAGES', 'images'),
             'videos': os.getenv('OBJECT_STORAGE_BUCKET_VIDEOS', 'videos'),
             'temp': os.getenv('OBJECT_STORAGE_BUCKET_TEMP', 'temp')
         }
+
+        legacy_enabled = os.getenv('INIT_MINIO_CREATE_LEGACY_BUCKETS', 'false').lower() == 'true'
+        enabled_bucket_types = ['images']
+        if legacy_enabled:
+            enabled_bucket_types.extend(['documents', 'videos', 'temp'])
+
+        self.buckets = {bucket_type: self.all_buckets[bucket_type] for bucket_type in enabled_bucket_types}
         
         self.client = None
         
@@ -170,12 +177,12 @@ class MinIOInitializer:
     
     async def initialize_bucket(self, bucket_type: str) -> bool:
         """Initialize a specific bucket"""
-        if bucket_type not in self.buckets:
+        if bucket_type not in self.all_buckets:
             print(f"❌ Invalid bucket type: {bucket_type}")
-            print(f"💡 Valid types: {', '.join(self.buckets.keys())}")
+            print(f"💡 Valid types: {', '.join(self.all_buckets.keys())}")
             return False
             
-        bucket_name = self.buckets[bucket_type]
+        bucket_name = self.all_buckets[bucket_type]
         
         print(f"\n🔧 Initializing bucket '{bucket_name}' ({bucket_type})...")
         

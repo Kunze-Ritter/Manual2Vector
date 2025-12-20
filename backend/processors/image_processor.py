@@ -23,9 +23,10 @@ from collections import deque
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Deque
 import asyncio
-from uuid import UUID
+from uuid import UUID, uuid4
 import io
 import shutil
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import base64
 
@@ -33,6 +34,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests import exceptions as requests_exceptions
 from urllib3.util.retry import Retry
+from urllib.parse import urlparse, urlunparse
 from PIL import Image, ImageOps
 import fitz  # PyMuPDF
 from datetime import datetime
@@ -53,7 +55,7 @@ class ImageProcessor(BaseProcessor):
     
     def __init__(
         self,
-        supabase_client=None,
+        database_service=None,
         storage_service=None,
         ai_service=None,
         min_image_size: int = 10000,  # Min 100x100px
@@ -65,7 +67,7 @@ class ImageProcessor(BaseProcessor):
         Initialize image processor
         
         Args:
-            supabase_client: Supabase client for stage tracking
+            database_service: Database adapter/service for stage tracking
             min_image_size: Minimum image size in pixels (width * height)
             max_images_per_doc: Maximum images to extract per document (default: unlimited)
             enable_ocr: Enable OCR with Tesseract
@@ -79,21 +81,12 @@ class ImageProcessor(BaseProcessor):
         self.enable_vision = enable_vision
         self.storage_service = storage_service
         self.ai_service = ai_service
-        self.database_service = None
-        supabase_client_obj = None
-
-        if supabase_client:
-            # Supabase client may be provided directly or as service wrapper
-            if hasattr(supabase_client, "client") and getattr(supabase_client, "client"):
-                self.database_service = supabase_client
-                supabase_client_obj = supabase_client.client
-            else:
-                supabase_client_obj = supabase_client
+        self.database_service = database_service
         self.cleanup_temp_images = os.getenv('IMAGE_PROCESSOR_CLEANUP', '1') != '0'
         
         # Stage tracker
-        if supabase_client_obj:
-            self.stage_tracker = StageTracker(supabase_client_obj)
+        if self.database_service:
+            self.stage_tracker = StageTracker(self.database_service)
         else:
             self.stage_tracker = None
         
@@ -311,6 +304,17 @@ class ImageProcessor(BaseProcessor):
             return self._vision_model_cache
 
         ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+
+        try:
+            parsed = urlparse(ollama_url)
+            running_in_docker = os.path.exists("/.dockerenv") or os.getenv("KRAI_IN_DOCKER") == "1"
+            if parsed.hostname in ("krai-ollama", "ollama") and not running_in_docker:
+                port_str = f":{parsed.port}" if parsed.port else ""
+                netloc = f"127.0.0.1{port_str}"
+                ollama_url = urlunparse(parsed._replace(netloc=netloc))
+        except Exception:
+            pass
+
         try:
             response = self.session.get(
                 f"{ollama_url}/api/tags",
@@ -381,7 +385,8 @@ class ImageProcessor(BaseProcessor):
                 result = await self.process_document(
                     document_id,
                     pdf_path,
-                    output_dir
+                    output_dir,
+                    context=context,
                 )
             except Exception as exc:
                 timer.stop(success=False, error_label=str(exc))
@@ -430,7 +435,7 @@ class ImageProcessor(BaseProcessor):
             
                 # Create output directory
                 if output_dir is None:
-                    output_dir = Path("temp_images") / str(document_id)
+                    output_dir = Path(tempfile.gettempdir()) / "krai_temp_images" / str(document_id)
 
                 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -459,7 +464,7 @@ class ImageProcessor(BaseProcessor):
                 if self.enable_context_extraction and context:
                     page_texts = await self._load_page_texts(context, pdf_path, adapter)
                     if page_texts:
-                        extracted_images = self._extract_image_contexts(
+                        extracted_images = await self._extract_image_contexts(
                             images=extracted_images,
                             page_texts=page_texts,
                             adapter=adapter,
@@ -489,12 +494,17 @@ class ImageProcessor(BaseProcessor):
                     adapter.info("Running Vision AI analysis...")
                     classified_images = self._run_vision_ai(classified_images)
 
-                # Queue storage uploads
-                storage_task_count = self._queue_storage_tasks(
-                    document_id=document_id,
-                    images=classified_images,
-                    adapter=adapter,
-                )
+                storage_task_count = 0
+                if context is not None:
+                    for image in classified_images:
+                        if not image.get('id'):
+                            image['id'] = str(uuid4())
+                        if image.get('path') and not image.get('temp_path'):
+                            image['temp_path'] = image.get('path')
+                        if image.get('type') and not image.get('image_type'):
+                            image['image_type'] = image.get('type')
+                    context.images = classified_images
+                    context.output_dir = output_dir
 
                 # Complete stage tracking
                 if self.stage_tracker:
@@ -517,6 +527,7 @@ class ImageProcessor(BaseProcessor):
                 result = {
                     'success': True,
                     'images': classified_images,
+                    'images_processed': len(classified_images),
                     'total_extracted': len(extracted_images),
                     'total_filtered': len(filtered_images),
                     'output_dir': str(output_dir) if output_dir else None,
@@ -647,39 +658,33 @@ class ImageProcessor(BaseProcessor):
             Bounding box as tuple (x0, y0, x1, y1) or None if not found
         """
         try:
-            # Get the display list to find image positions
-            display_list = page.get_displaylist()
-            
             # Get images on page to match xref
             image_list = page.get_images(full=True)
             if img_index >= len(image_list):
                 return None
-                
+
             target_xref = image_list[img_index][0]
-            
-            # Search for image in display list
-            for item in display_list:
-                if hasattr(item, 'get_image_bboxs'):
-                    # Try to get image bounding boxes
-                    try:
-                        bbox_list = item.get_image_bboxs()
-                        if bbox_list and len(bbox_list) > img_index:
-                            bbox = bbox_list[img_index]
-                            return (bbox.x0, bbox.y0, bbox.x1, bbox.y1)
-                    except Exception:
-                        pass
-                
-                # Alternative: use page.get_text('rawdict') to find image positions
-                try:
-                    text_dict = page.get_text('rawdict')
-                    for block in text_dict.get('blocks', []):
-                        if block.get('type') == 1 and 'xref' in block:  # Image block
-                            if block['xref'] == target_xref:
-                                bbox = block.get('bbox')
-                                if bbox and len(bbox) == 4:
-                                    return tuple(bbox)
-                except Exception:
-                    pass
+
+            # Preferred method (PyMuPDF): query rects for this image xref
+            try:
+                rects = page.get_image_rects(target_xref)
+                if rects:
+                    rect = rects[0]
+                    return (rect.x0, rect.y0, rect.x1, rect.y1)
+            except Exception:
+                pass
+
+            # Fallback: use page.get_text('rawdict') to find image positions
+            try:
+                text_dict = page.get_text('rawdict')
+                for block in text_dict.get('blocks', []):
+                    if block.get('type') == 1 and 'xref' in block:  # Image block
+                        if block['xref'] == target_xref:
+                            bbox = block.get('bbox')
+                            if bbox and len(bbox) == 4:
+                                return tuple(bbox)
+            except Exception:
+                pass
             
             # If no specific bbox found, return None
             return None
@@ -694,73 +699,7 @@ class ImageProcessor(BaseProcessor):
         images: List[Dict[str, Any]],
         adapter
     ) -> int:
-        if not images:
-            return 0
-
-        if not self.database_service or not getattr(self.database_service, "client", None):
-            adapter.debug("Database service unavailable - skipping storage queue")
-            return 0
-
-        stage_payloads = []
-        for image in images:
-            try:
-                image_path = Path(image.get('path', ''))
-                if not image_path.exists():
-                    continue
-
-                with open(image_path, 'rb') as img_file:
-                    content_bytes = img_file.read()
-
-                encoded_content = base64.b64encode(content_bytes).decode('utf-8')
-
-                payload = {
-                    "document_id": str(document_id),
-                    "filename": image.get('filename'),
-                    "page_number": image.get('page_number'),  # Use standardized key
-                    "image_type": image.get('type', 'unknown'),
-                    "content": encoded_content,
-                    "content_encoding": "base64",
-                    # Phase 5: Context extraction fields
-                    "context_caption": image.get('context_caption'),
-                    "page_header": image.get('page_header'),
-                    "figure_reference": image.get('figure_reference'),
-                    "related_error_codes": image.get('related_error_codes', []),
-                    "related_products": image.get('related_products', []),
-                    "surrounding_paragraphs": image.get('surrounding_paragraphs', []),
-                    "related_chunks": image.get('related_chunks', []),  # Add related chunks
-                    # AI analysis results (OCR and Vision AI)
-                    "ai_description": image.get('ai_description'),
-                    "ocr_text": image.get('ocr_text'),
-                    "ocr_confidence": image.get('ocr_confidence', 0.0),
-                    "ai_confidence": image.get('ai_confidence', 0.0),
-                    "metadata": {
-                        "width": image.get('width'),
-                        "height": image.get('height'),
-                        "format": image.get('format'),
-                        "extracted_at": image.get('extracted_at')
-                    }
-                }
-
-                stage_payloads.append({
-                    "document_id": str(document_id),
-                    "stage": "storage",
-                    "artifact_type": "image",
-                    "status": "pending",
-                    "payload": payload
-                })
-            except Exception as exc:
-                adapter.debug("Failed to queue image %s for storage: %s", image.get('filename'), exc)
-
-        if not stage_payloads or not self.database_service:
-            return 0
-
-        try:
-            self.database_service.client.table("vw_processing_queue").insert(stage_payloads).execute()
-            adapter.info("Queued %d image artifacts for storage", len(stage_payloads))
-            return len(stage_payloads)
-        except Exception as exc:
-            adapter.warning("Failed to queue image storage tasks: %s", exc)
-            return 0
+        return 0
 
     def _cleanup_output_dir(self, output_dir: Path, adapter) -> None:
         try:
@@ -971,6 +910,20 @@ class ImageProcessor(BaseProcessor):
                 return images
 
             ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+
+            # Ensure URL has a scheme so urlparse() can reliably detect hostname
+            if ollama_url and '://' not in ollama_url:
+                ollama_url = f"http://{ollama_url}"
+
+            try:
+                parsed = urlparse(ollama_url)
+                running_in_docker = os.path.exists("/.dockerenv") or os.getenv("KRAI_IN_DOCKER") == "1"
+                if parsed.hostname in ("krai-ollama", "ollama") and not running_in_docker:
+                    port_str = f":{parsed.port}" if parsed.port else ""
+                    netloc = f"127.0.0.1{port_str}"
+                    ollama_url = urlunparse(parsed._replace(netloc=netloc))
+            except Exception:
+                pass
 
             success_count = 0
             processed_count = 0
@@ -1243,27 +1196,28 @@ class ImageProcessor(BaseProcessor):
                 # Get document_id from context
                 document_id = getattr(context, 'document_id', None)
                 if document_id:
-                    # Query chunks grouped by page
-                    result = self.database_service.client.table('vw_chunks').select(
-                        'page_start, page_end, content'
-                    ).eq('document_id', str(document_id)).execute()
-                    
-                    if result.data:
-                        # Aggregate chunks by page
-                        page_texts = {}
-                        for chunk in result.data:
-                            page_start = chunk.get('page_start', 1)
-                            page_end = chunk.get('page_end', page_start)
-                            content = chunk.get('content', '')
-                            
-                            # Add content to all pages in the range
-                            for page_num in range(page_start, page_end + 1):
-                                if page_num not in page_texts:
-                                    page_texts[page_num] = ''
-                                page_texts[page_num] += content + '\n'
-                        
+                    rows = await self.database_service.execute_query(
+                        """
+                        SELECT page_start, page_end, text_chunk
+                        FROM krai_intelligence.chunks
+                        WHERE document_id = $1
+                        ORDER BY chunk_index
+                        """.strip(),
+                        [str(document_id)],
+                    )
+
+                    if rows:
+                        page_texts: Dict[int, str] = {}
+                        for chunk in rows:
+                            page_start = chunk.get('page_start') or 1
+                            page_end = chunk.get('page_end') or page_start
+                            content = chunk.get('text_chunk', '') or ''
+
+                            for page_num in range(int(page_start), int(page_end) + 1):
+                                page_texts[page_num] = (page_texts.get(page_num, '') + content + '\n')
+
                         if page_texts:
-                            adapter.debug("Rebuilt page_texts from %d chunks", len(result.data))
+                            adapter.debug("Rebuilt page_texts from %d chunks", len(rows))
                             return page_texts
                 else:
                     adapter.warning("No document_id available for chunk reconstruction")
@@ -1289,7 +1243,7 @@ class ImageProcessor(BaseProcessor):
         
         return None
 
-    def _extract_image_contexts(
+    async def _extract_image_contexts(
         self, 
         images: List[Dict], 
         page_texts: Dict[int, str], 
@@ -1310,7 +1264,8 @@ class ImageProcessor(BaseProcessor):
         Returns:
             List of images with context metadata added
         """
-        images_with_context = []
+        images_with_context: List[Dict] = []
+        related_chunks_cache: Dict[int, List[str]] = {}
         
         for image in images:
             page_number = image.get('page_number')
@@ -1339,8 +1294,12 @@ class ImageProcessor(BaseProcessor):
                     'related_error_codes': context_data['related_error_codes'],
                     'related_products': context_data['related_products'],
                     'surrounding_paragraphs': context_data['surrounding_paragraphs'],
-                    'related_chunks': self._get_related_chunks(page_number, document_id, adapter)  # Add related chunks
+                    'related_chunks': related_chunks_cache.get(page_number, []),
                 })
+
+                if page_number not in related_chunks_cache:
+                    related_chunks_cache[page_number] = await self._get_related_chunks(page_number, document_id, adapter)
+                    image['related_chunks'] = related_chunks_cache.get(page_number, [])
                 
                 images_with_context.append(image)
                 
@@ -1351,7 +1310,7 @@ class ImageProcessor(BaseProcessor):
         adapter.info("Extracted context for %d images", len(images_with_context))
         return images_with_context
     
-    def _get_related_chunks(self, page_number: int, document_id: UUID, adapter) -> List[str]:
+    async def _get_related_chunks(self, page_number: int, document_id: UUID, adapter) -> List[str]:
         """
         Extract related chunk IDs for a given page number.
         
@@ -1367,17 +1326,19 @@ class ImageProcessor(BaseProcessor):
             return []
         
         try:
-            # Query chunks that overlap with the given page
-            result = self.database_service.client.table("vw_chunks").select(
-                "id"
-            ).eq(
-                "document_id", str(document_id)
-            ).or_(
-                f"page_start.lte.{page_number},page_end.gte.{page_number}"
-            ).execute()
-            
-            if result.data:
-                chunk_ids = [chunk['id'] for chunk in result.data]
+            rows = await self.database_service.execute_query(
+                """
+                SELECT id
+                FROM krai_intelligence.chunks
+                WHERE document_id = $1
+                  AND COALESCE(page_start, 0) <= $2
+                  AND COALESCE(page_end, page_start) >= $2
+                """.strip(),
+                [str(document_id), int(page_number)],
+            )
+
+            if rows:
+                chunk_ids = [str(chunk['id']) for chunk in rows]
                 adapter.debug(f"Found {len(chunk_ids)} related chunks for page {page_number}")
                 return chunk_ids
             

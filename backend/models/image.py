@@ -135,6 +135,10 @@ class ImageFilterParams(BaseModel):
     image_type: Optional[ImageType] = None
     contains_text: Optional[bool] = None
     file_hash: Optional[str] = None
+    file_size_min: Optional[int] = Field(None, ge=0, description="Minimum file size in bytes.")
+    file_size_max: Optional[int] = Field(None, ge=0, description="Maximum file size in bytes.")
+    date_from: Optional[str] = Field(None, description="Filter by created_at >= date (YYYY-MM-DD).")
+    date_to: Optional[str] = Field(None, description="Filter by created_at <= date (YYYY-MM-DD).")
     search: Optional[str] = Field(
         None,
         description="Full-text search across filename, ai_description, manual_description, ocr_text.",

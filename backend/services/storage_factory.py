@@ -22,6 +22,7 @@ def create_storage_service(
     access_key: Optional[str] = None,
     secret_key: Optional[str] = None,
     public_url_documents: Optional[str] = None,
+    public_url_images: Optional[str] = None,
     public_url_error: Optional[str] = None,
     public_url_parts: Optional[str] = None,
     use_ssl: Optional[bool] = None,
@@ -74,12 +75,7 @@ def create_storage_service(
         OBJECT_STORAGE_BUCKET_ERROR: Error bucket name
         OBJECT_STORAGE_BUCKET_PARTS: Parts bucket name
         
-        # Deprecated variables (still supported with warnings)
-        R2_ENDPOINT_URL: Legacy endpoint URL
-        R2_ACCESS_KEY_ID: Legacy access key
-        R2_SECRET_ACCESS_KEY: Legacy secret key
-        R2_PUBLIC_URL_*: Legacy public URLs
-        R2_BUCKET_NAME_*: Legacy bucket names
+        # Note: R2 variables are no longer supported. Use OBJECT_STORAGE_* variables.
     """
     
     # Determine storage type from parameter or environment
@@ -90,18 +86,13 @@ def create_storage_service(
     
     logger.info(f"Creating object storage service: {storage_type}")
     
-    # Helper function to get env var with fallback and deprecation warning
-    def get_env_var(new_var: str, old_var: str, default: str = None) -> str:
-        value = (os.getenv(new_var) or 
-                os.getenv(old_var) or 
-                default)
-        if not os.getenv(new_var) and os.getenv(old_var):
-            _log_deprecation_warning(old_var, new_var)
-        return value
+    # Helper function to get env var with default
+    def get_env_var(var: str, default: str = None) -> str:
+        return os.getenv(var) or default
     
     # Load configuration from parameters or environment
     endpoint = (endpoint_url or 
-                get_env_var('OBJECT_STORAGE_ENDPOINT', 'R2_ENDPOINT_URL'))
+                get_env_var('OBJECT_STORAGE_ENDPOINT'))
 
     # Normalize endpoint when running outside Docker and talking to Docker-internal MinIO
     if endpoint:
@@ -123,34 +114,49 @@ def create_storage_service(
             pass
 
     access_key = (access_key or 
-                  get_env_var('OBJECT_STORAGE_ACCESS_KEY', 'R2_ACCESS_KEY_ID'))
+                  get_env_var('OBJECT_STORAGE_ACCESS_KEY'))
     
     secret_key = (secret_key or 
-                  get_env_var('OBJECT_STORAGE_SECRET_KEY', 'R2_SECRET_ACCESS_KEY'))
-    
-    public_url_documents = (public_url_documents or 
-                            get_env_var('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS', 'R2_PUBLIC_URL_DOCUMENTS', ''))
-    
-    public_url_error = (public_url_error or 
-                        get_env_var('OBJECT_STORAGE_PUBLIC_URL_ERROR', 'R2_PUBLIC_URL_ERROR', ''))
-    
-    public_url_parts = (public_url_parts or 
-                        get_env_var('OBJECT_STORAGE_PUBLIC_URL_PARTS', 'R2_PUBLIC_URL_PARTS', ''))
+                  get_env_var('OBJECT_STORAGE_SECRET_KEY'))
     
     use_ssl_val = (use_ssl if use_ssl is not None else 
-                   get_env_var('OBJECT_STORAGE_USE_SSL', 'R2_USE_SSL', 'true'))
+                   get_env_var('OBJECT_STORAGE_USE_SSL', 'true'))
     use_ssl = str(use_ssl_val).lower() == 'true'
     
     region = (region or 
-              get_env_var('OBJECT_STORAGE_REGION', 'R2_REGION', 'auto'))
+              get_env_var('OBJECT_STORAGE_REGION', 'auto'))
     
-    # Extract bucket names (with fallback to R2 variables)
+    # Extract bucket names
     bucket_documents = (bucket_documents or 
-                        get_env_var('OBJECT_STORAGE_BUCKET_DOCUMENTS', 'R2_BUCKET_NAME_DOCUMENTS', 'documents'))
+                        get_env_var('OBJECT_STORAGE_BUCKET_DOCUMENTS', 'documents'))
+    bucket_images = (bucket_images or
+                     get_env_var('OBJECT_STORAGE_BUCKET_IMAGES', 'images'))
     bucket_error = (bucket_error or 
-                    get_env_var('OBJECT_STORAGE_BUCKET_ERROR', 'R2_BUCKET_NAME_ERROR', 'error'))
+                    get_env_var('OBJECT_STORAGE_BUCKET_ERROR') or get_env_var('R2_BUCKET_NAME_ERROR'))
     bucket_parts = (bucket_parts or 
-                    get_env_var('OBJECT_STORAGE_BUCKET_PARTS', 'R2_BUCKET_NAME_PARTS', 'parts'))
+                    get_env_var('OBJECT_STORAGE_BUCKET_PARTS') or get_env_var('R2_BUCKET_NAME_PARTS'))
+
+    public_url_base = get_env_var('OBJECT_STORAGE_PUBLIC_URL', '').rstrip('/')
+
+    public_url_documents = (public_url_documents or 
+                            get_env_var('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS', ''))
+    if not public_url_documents and public_url_base:
+        public_url_documents = f"{public_url_base}/{bucket_documents}"
+
+    public_url_images = (public_url_images or
+                         get_env_var('OBJECT_STORAGE_PUBLIC_URL_IMAGES', ''))
+    if not public_url_images and public_url_base:
+        public_url_images = f"{public_url_base}/{bucket_images}"
+    
+    public_url_error = (public_url_error or 
+                        get_env_var('OBJECT_STORAGE_PUBLIC_URL_ERROR', ''))
+    if not public_url_error and public_url_base and bucket_error:
+        public_url_error = f"{public_url_base}/{bucket_error}"
+    
+    public_url_parts = (public_url_parts or 
+                        get_env_var('OBJECT_STORAGE_PUBLIC_URL_PARTS', ''))
+    if not public_url_parts and public_url_base and bucket_parts:
+        public_url_parts = f"{public_url_base}/{bucket_parts}"
     
     # Validate required configuration
     if not endpoint:
@@ -164,7 +170,7 @@ def create_storage_service(
     logger.info(f"Storage endpoint: {endpoint}")
     logger.info(f"SSL enabled: {use_ssl}")
     logger.info(f"Region: {region}")
-    logger.info(f"Buckets: documents, error, parts")
+    logger.info(f"Buckets: images")
     
     # Create service with bucket name parameters
     return ObjectStorageService(
@@ -172,21 +178,18 @@ def create_storage_service(
         secret_access_key=secret_key,
         endpoint_url=endpoint,
         public_url_documents=public_url_documents,
+        public_url_images=public_url_images,
         public_url_error=public_url_error,
         public_url_parts=public_url_parts,
         use_ssl=use_ssl,
         region=region,
         bucket_documents=bucket_documents,
+        bucket_images=bucket_images,
         bucket_error=bucket_error,
         bucket_parts=bucket_parts
     )  
 
     logger.info(f"Created {storage_type} object storage service at {endpoint}")
-
-
-def _log_deprecation_warning(old_var: str, new_var: str):
-    """Log deprecation warning for old environment variables."""
-    logger.warning(f"Environment variable {old_var} is deprecated. Use {new_var} instead.")
 
 
 class StorageFactory:

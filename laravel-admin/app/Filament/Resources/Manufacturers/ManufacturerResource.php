@@ -7,25 +7,34 @@ use App\Filament\Resources\Manufacturers\Pages\EditManufacturer;
 use App\Filament\Resources\Manufacturers\Pages\ListManufacturers;
 use App\Models\Manufacturer;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use BackedEnum;
+use Filament\Support\Icons\Heroicon;
+use UnitEnum;
 
 class ManufacturerResource extends Resource
 {
     protected static ?string $model = Manufacturer::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-building-office';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office';
 
-    protected static ?string $navigationGroup = 'Product Management';
+    protected static UnitEnum|string|null $navigationGroup = 'Data';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationLabel = 'Hersteller';
 
-    public static function form(Form $form): Form
+    protected static ?int $navigationSort = 2;
+
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
@@ -97,7 +106,7 @@ class ManufacturerResource extends Resource
                     ->searchable(),
                 
                 Tables\Columns\TextColumn::make('website')
-                    ->url()
+                    ->url(fn ($record) => $record->website ?: null)
                     ->limit(30),
                 
                 Tables\Columns\ImageColumn::make('logo_url')
@@ -144,12 +153,12 @@ class ManufacturerResource extends Resource
                     ->falseLabel('Not Competitor'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                EditAction::make(),
+                DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

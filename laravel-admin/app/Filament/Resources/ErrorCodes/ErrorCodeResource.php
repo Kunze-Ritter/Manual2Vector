@@ -19,9 +19,13 @@ class ErrorCodeResource extends Resource
 {
     protected static ?string $model = ErrorCode::class;
 
-    public static UnitEnum|string|null $navigationGroup = 'Service & Fehlercodes';
+    protected static UnitEnum|string|null $navigationGroup = 'Data';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static ?string $navigationLabel = 'Fehlercodes';
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-exclamation-triangle';
+
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $recordTitleAttribute = 'error_code';
 

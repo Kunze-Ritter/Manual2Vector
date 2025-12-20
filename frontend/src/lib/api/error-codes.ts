@@ -68,6 +68,10 @@ const mergeQueryParams = (params?: ErrorCodeQueryParams): Record<string, unknown
 
 const handleRequestError = (error: unknown): never => {
   if (isAxiosError<ApiError>(error)) {
+    if (error.code === 'ERR_CANCELED') {
+      throw error
+    }
+
     const status = error.response?.status ?? 500
     const data = error.response?.data
     const message = data?.detail || data?.error || error.message || 'Request failed'
@@ -86,12 +90,16 @@ const handleRequestError = (error: unknown): never => {
 }
 
 const errorCodesApi = {
-  async getErrorCodes(params?: ErrorCodeQueryParams): Promise<ApiResponse<ErrorCodeListResponse>> {
+  async getErrorCodes(
+    params?: ErrorCodeQueryParams,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<ErrorCodeListResponse>> {
     try {
       const queryObject = mergeQueryParams(params)
       const queryString = buildQueryString(queryObject)
       const response = await apiClient.get<ApiResponse<ErrorCodeListResponse>>(
-        `/api/v1/error_codes${queryString}`
+        `/api/v1/error_codes${queryString}`,
+        { signal },
       )
       return response.data
     } catch (error) {

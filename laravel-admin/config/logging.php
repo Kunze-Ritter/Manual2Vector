@@ -127,6 +127,20 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'firecrawl' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/firecrawl.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
+
+        'ai-agent' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/ai-agent.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
+
     ],
 
 ];

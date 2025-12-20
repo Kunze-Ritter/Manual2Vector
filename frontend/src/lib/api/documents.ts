@@ -10,8 +10,11 @@ import type {
   DocumentListResponse,
   DocumentStats,
   DocumentUpdateInput,
+  DocumentUploadInput,
+  DocumentUploadResponse,
   PaginationParams,
   SortOrder,
+  DocumentStageStatusResponse,
 } from '@/types/api'
 
 type DocumentQueryParams = PaginationParams & {
@@ -67,6 +70,10 @@ const mergeQueryParams = (params?: DocumentQueryParams): Record<string, unknown>
 
 const handleRequestError = (error: unknown): never => {
   if (isAxiosError<ApiError>(error)) {
+    if (error.code === 'ERR_CANCELED') {
+      throw error
+    }
+
     const status = error.response?.status ?? 500
     const data = error.response?.data
     const message = data?.detail || data?.error || error.message || 'Request failed'
@@ -85,12 +92,16 @@ const handleRequestError = (error: unknown): never => {
 }
 
 const documentsApi = {
-  async getDocuments(params?: DocumentQueryParams): Promise<ApiResponse<DocumentListResponse>> {
+  async getDocuments(
+    params?: DocumentQueryParams,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse<DocumentListResponse>> {
     try {
       const queryObject = mergeQueryParams(params)
       const queryString = buildQueryString(queryObject)
       const response = await apiClient.get<ApiResponse<DocumentListResponse>>(
-        `/api/v1/documents${queryString}`
+        `/api/v1/documents${queryString}`,
+        { signal },
       )
       return response.data
     } catch (error) {
@@ -153,6 +164,68 @@ const documentsApi = {
   async getDocumentStats(): Promise<ApiResponse<DocumentStats>> {
     try {
       const response = await apiClient.get<ApiResponse<DocumentStats>>('/api/v1/documents/stats')
+      return response.data
+    } catch (error) {
+      return handleRequestError(error)
+    }
+  },
+
+  async uploadDocument(
+    input: DocumentUploadInput,
+    onProgress?: (progress: number) => void
+  ): Promise<ApiResponse<DocumentUploadResponse>> {
+    try {
+      const formData = new FormData()
+      formData.append('file', input.file)
+      if (input.document_type) {
+        formData.append('document_type', input.document_type)
+      }
+      if (input.language) {
+        formData.append('language', input.language)
+      }
+
+      const response = await apiClient.post<ApiResponse<DocumentUploadResponse>>(
+        '/api/v1/documents/upload',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total && onProgress) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              )
+              onProgress(percentCompleted)
+            }
+          },
+        }
+      )
+      return response.data
+    } catch (error) {
+      return handleRequestError(error)
+    }
+  },
+
+  async getDocumentStages(documentId: string): Promise<ApiResponse<DocumentStageStatusResponse>> {
+    try {
+      const response = await apiClient.get<ApiResponse<DocumentStageStatusResponse>>(
+        `/api/v1/documents/${documentId}/stages`
+      )
+      return response.data
+    } catch (error) {
+      return handleRequestError(error)
+    }
+  },
+
+  async retryDocumentStage(
+    documentId: string,
+    stageName: string
+  ): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await apiClient.post<ApiResponse<{ message: string }>>(
+        `/api/v1/documents/${documentId}/stages/${stageName}/retry`
+      )
       return response.data
     } catch (error) {
       return handleRequestError(error)

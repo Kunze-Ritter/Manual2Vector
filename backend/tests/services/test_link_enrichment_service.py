@@ -703,3 +703,293 @@ class TestLinkEnrichmentService:
         scraped_metadata = update_data.get('scraped_metadata', {})
         
         assert scraped_metadata.get('retry_count') == 3
+
+
+# ============================================================================
+# EDGE CASE TESTS
+# ============================================================================
+
+class TestLinkEnrichmentServiceEdgeCases:
+    """Test LinkEnrichmentService edge cases and boundary conditions."""
+    
+    @pytest.fixture
+    def mock_scraper(self):
+        """Mock WebScrapingService."""
+        scraper = MagicMock()
+        scraper.scrape_url = AsyncMock(return_value={
+            'success': True,
+            'backend': 'firecrawl',
+            'content': 'Test content',
+            'metadata': {'status_code': 200}
+        })
+        return scraper
+    
+    @pytest.fixture
+    def mock_database_service(self, mock_db_client):
+        """Mock database service."""
+        service = MagicMock()
+        service.client = mock_db_client
+        service.service_client = mock_db_client
+        return service
+    
+    @pytest.fixture
+    def link_enrichment_service(self, mock_scraper, mock_database_service):
+        """Create LinkEnrichmentService instance for testing."""
+        return LinkEnrichmentService(
+            web_scraping_service=mock_scraper,
+            database_service=mock_database_service
+        )
+    
+    @pytest.mark.asyncio
+    async def test_enrich_link_unicode_content(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test enrichment with Unicode content (Chinese, Arabic, etc.)."""
+        # Setup Unicode content
+        unicode_content = "产品规格 مواصفات المنتج Spécifications 製品仕様"
+        mock_scraper.scrape_url.return_value = {
+            'success': True,
+            'backend': 'firecrawl',
+            'content': unicode_content,
+            'metadata': {'status_code': 200, 'content_type': 'text/html; charset=utf-8'}
+        }
+        
+        # Setup mock database response
+        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'test-link',
+                'url': 'http://example.com',
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        result = await link_enrichment_service.enrich_link('test-link', 'http://example.com')
+        
+        # Verify Unicode content handled correctly
+        assert result['success'] is True
+        
+        # Verify update was called with Unicode content
+        update_call = mock_db_client.table.return_value.update.return_value.eq.return_value.execute
+        update_call.assert_called_once()
+        
+        call_args = update_call.call_args
+        update_data = call_args[0][0] if call_args[0] else {}
+        assert unicode_content in update_data.get('scraped_content', '')
+    
+    @pytest.mark.asyncio
+    async def test_enrich_link_large_content(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test enrichment with large content (>50KB)."""
+        # Setup large content
+        large_content = "Product specifications. " * 5000  # ~125KB
+        mock_scraper.scrape_url.return_value = {
+            'success': True,
+            'backend': 'firecrawl',
+            'content': large_content,
+            'metadata': {'status_code': 200, 'content_length': len(large_content)}
+        }
+        
+        # Setup mock database response
+        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'test-link',
+                'url': 'http://example.com',
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        result = await link_enrichment_service.enrich_link('test-link', 'http://example.com')
+        
+        # Verify large content handled
+        assert result['success'] is True
+        
+        # Verify content was stored (may be truncated)
+        update_call = mock_db_client.table.return_value.update.return_value.eq.return_value.execute
+        update_call.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_enrich_link_malformed_html(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test enrichment with malformed HTML."""
+        # Setup malformed HTML
+        malformed_html = "<html><body><p>Unclosed paragraph<div>Nested incorrectly</p></div>"
+        mock_scraper.scrape_url.return_value = {
+            'success': True,
+            'backend': 'beautifulsoup',
+            'content': 'Unclosed paragraph Nested incorrectly',
+            'html': malformed_html,
+            'metadata': {'status_code': 200}
+        }
+        
+        # Setup mock database response
+        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'test-link',
+                'url': 'http://example.com',
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        result = await link_enrichment_service.enrich_link('test-link', 'http://example.com')
+        
+        # Verify malformed HTML handled without crash
+        assert result['success'] is True
+    
+    @pytest.mark.asyncio
+    async def test_enrich_link_redirect_handling(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test enrichment with URL redirects."""
+        # Setup redirect metadata
+        mock_scraper.scrape_url.return_value = {
+            'success': True,
+            'backend': 'firecrawl',
+            'content': 'Redirected content',
+            'metadata': {
+                'status_code': 200,
+                'final_url': 'http://example.com/redirected',
+                'redirect_count': 2
+            }
+        }
+        
+        # Setup mock database response
+        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'test-link',
+                'url': 'http://example.com/original',
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        result = await link_enrichment_service.enrich_link('test-link', 'http://example.com/original')
+        
+        # Verify redirect handled
+        assert result['success'] is True
+        
+        # Verify final URL stored in metadata
+        update_call = mock_db_client.table.return_value.update.return_value.eq.return_value.execute
+        call_args = update_call.call_args
+        update_data = call_args[0][0] if call_args[0] else {}
+        metadata = update_data.get('scraped_metadata', {})
+        assert metadata.get('final_url') == 'http://example.com/redirected'
+    
+    @pytest.mark.asyncio
+    async def test_enrich_link_ssl_error(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test enrichment with SSL certificate error."""
+        # Setup SSL error
+        mock_scraper.scrape_url.return_value = {
+            'success': False,
+            'error': 'SSL certificate verification failed',
+            'error_type': 'ssl_error'
+        }
+        
+        # Setup mock database response
+        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'test-link',
+                'url': 'https://invalid-ssl.example.com',
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        result = await link_enrichment_service.enrich_link('test-link', 'https://invalid-ssl.example.com')
+        
+        # Verify SSL error handled gracefully
+        assert result['success'] is False
+        assert 'ssl' in result['error'].lower() or 'certificate' in result['error'].lower()
+    
+    @pytest.mark.asyncio
+    async def test_batch_enrichment_empty_link_ids(self, link_enrichment_service):
+        """Test batch enrichment with empty link_ids list."""
+        result = await link_enrichment_service.enrich_links_batch([])
+        
+        # Verify empty batch handled
+        assert result['total'] == 0
+        assert result['enriched'] == 0
+        assert result['failed'] == 0
+        assert result['skipped'] == 0
+    
+    @pytest.mark.asyncio
+    async def test_batch_enrichment_duplicate_link_ids(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test batch enrichment with duplicate link IDs."""
+        # Setup mock database response
+        mock_db_client.table.return_value.select.return_value.in_.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'link-1',
+                'url': 'http://example.com',
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        # Pass duplicate IDs
+        result = await link_enrichment_service.enrich_links_batch(['link-1', 'link-1', 'link-1'])
+        
+        # Verify deduplication
+        assert result['total'] <= 1  # Should deduplicate
+    
+    @pytest.mark.asyncio
+    async def test_retry_failed_links_invalid_metadata(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test retry logic with invalid/malformed metadata."""
+        # Setup link with None metadata
+        mock_db_client.table.return_value.select.return_value.eq.return_value.lt.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'link-1',
+                'url': 'http://example.com',
+                'scrape_status': 'failed',
+                'scraped_metadata': None,  # Invalid metadata
+                'scraped_at': (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+            }]
+        )
+        
+        result = await link_enrichment_service.retry_failed_links()
+        
+        # Verify robust handling of invalid metadata
+        assert isinstance(result, dict)
+        assert 'total' in result
+    
+    @pytest.mark.asyncio
+    async def test_enrich_link_empty_url(self, link_enrichment_service, mock_db_client):
+        """Test enrichment with empty URL."""
+        # Setup mock database response with empty URL
+        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'test-link',
+                'url': '',
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        result = await link_enrichment_service.enrich_link('test-link', '')
+        
+        # Verify empty URL handled
+        assert result['success'] is False
+        assert 'url' in result['error'].lower() or 'invalid' in result['error'].lower()
+    
+    @pytest.mark.asyncio
+    async def test_enrich_link_special_characters_url(self, link_enrichment_service, mock_db_client, mock_scraper):
+        """Test enrichment with special characters in URL."""
+        # URL with special characters
+        special_url = "http://example.com/product?id=123&name=Test%20Product&category=A%2FB"
+        
+        mock_scraper.scrape_url.return_value = {
+            'success': True,
+            'backend': 'firecrawl',
+            'content': 'Product content',
+            'metadata': {'status_code': 200}
+        }
+        
+        # Setup mock database response
+        mock_db_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+            data=[{
+                'id': 'test-link',
+                'url': special_url,
+                'scrape_status': 'pending',
+                'scraped_metadata': {}
+            }]
+        )
+        
+        result = await link_enrichment_service.enrich_link('test-link', special_url)
+        
+        # Verify special characters handled
+        assert result['success'] is True

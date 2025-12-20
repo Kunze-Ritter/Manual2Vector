@@ -14,6 +14,7 @@ from uuid import UUID
 import hashlib
 
 from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.data_models import IntelligenceChunkModel
 from .text_extractor import TextExtractor
 from .chunker import SmartChunker
 from .models import TextChunk
@@ -100,7 +101,7 @@ class OptimizedTextProcessor(BaseProcessor):
                 adapter.info("Extracting text from %s", file_path.name)
                 # Ensure document_id is available as UUID for TextExtractor
                 doc_id = UUID(context.document_id) if isinstance(context.document_id, str) else context.document_id
-                page_texts, metadata = self.text_extractor.extract_text(file_path, doc_id)
+                page_texts, metadata, _structured_texts = self.text_extractor.extract_text(file_path, doc_id)
 
                 if not page_texts:
                     adapter.warning("No text extracted from PDF")
@@ -130,6 +131,22 @@ class OptimizedTextProcessor(BaseProcessor):
                         data={'pages_processed': len(page_texts)}
                     )
 
+                # Attach chunks to context for downstream processors (embedding stage)
+                context.chunks = [
+                    {
+                        'chunk_id': str(chunk.chunk_id),
+                        'text': chunk.text,
+                        'chunk_index': chunk.chunk_index,
+                        'page_start': chunk.page_start,
+                        'page_end': chunk.page_end,
+                        'chunk_type': chunk.chunk_type,
+                        'fingerprint': chunk.fingerprint,
+                        'metadata': chunk.metadata or {},
+                    }
+                    for chunk in chunks
+                ]
+                context.chunk_data = context.chunks
+
                 self.logger.success(f"✅ Created {len(chunks)} chunks")
 
                 if self.database_service:
@@ -147,7 +164,7 @@ class OptimizedTextProcessor(BaseProcessor):
                         'pages_processed': len(page_texts),
                         'chunks_created': len(chunks),
                         'chunks_saved': chunks_saved,
-                        'total_characters': sum(len(chunk.content) for chunk in chunks),
+                        'total_characters': sum(len(chunk.text) for chunk in chunks),
                         'page_texts_attached': True,  # Signal downstream processors
                         'metadata': metadata
                     }
@@ -177,39 +194,34 @@ class OptimizedTextProcessor(BaseProcessor):
         
         for chunk in chunks:
             try:
-                # Prepare chunk data for database
-                chunk_data = {
-                    'document_id': str(document_id),
-                    'chunk_index': chunk.chunk_index,
-                    'page_start': chunk.page_start,
-                    'page_end': chunk.page_end,
-                    'content': chunk.content,
-                    'content_hash': chunk.content_hash,
-                    'char_count': chunk.char_count,
-                    'metadata': chunk.metadata
-                }
-                
-                # Insert into database (krai_intelligence.chunks)
-                if hasattr(self.database_service, 'insert_chunk'):
-                    await self.database_service.insert_chunk(chunk_data)
-                    saved_count += 1
-                elif hasattr(self.database_service, 'client'):
-                    # Fallback to direct Supabase client
-                    result = self.database_service.client.table('chunks').insert(chunk_data).execute()
-                    if result.data:
-                        saved_count += 1
+                if not self.database_service:
+                    continue
+
+                chunk_model = IntelligenceChunkModel(
+                    id=str(chunk.chunk_id),
+                    document_id=str(document_id),
+                    text_chunk=chunk.text,
+                    chunk_index=chunk.chunk_index,
+                    page_start=chunk.page_start or 1,
+                    page_end=chunk.page_end or (chunk.page_start or 1),
+                    fingerprint=chunk.fingerprint or str(chunk.chunk_id),
+                    metadata=chunk.metadata or {},
+                )
+
+                await self.database_service.create_intelligence_chunk(chunk_model)
+                saved_count += 1
                         
             except Exception as e:
                 self.logger.warning(f"Failed to save chunk {chunk.chunk_index}: {e}")
         
         return saved_count
     
-    def _create_result(self, success: bool, message: str, data: Dict) -> Any:
-        """Create a processing result object"""
-        class Result:
-            def __init__(self, success, message, data):
-                self.success = success
-                self.message = message
-                self.data = data
+    def _create_result(self, success: bool, message: str, data: Dict) -> 'ProcessingResult':
+        """Create a processing result object using BaseProcessor helpers"""
+        from backend.core.base_processor import ProcessingResult, ProcessingStatus, ProcessingError
         
-        return Result(success, message, data)
+        if success:
+            return self.create_success_result(data=data, metadata={'message': message})
+        else:
+            error = ProcessingError(message, self.name, "TEXT_PROCESSING_ERROR")
+            return self.create_error_result(error=error, metadata={})

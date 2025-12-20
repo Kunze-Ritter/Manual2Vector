@@ -35,8 +35,8 @@ from .chunker import SmartChunker
 from .link_extractor import LinkExtractor
 from .exceptions import ManufacturerNotFoundError
 from .stage_tracker import StageTracker
-from utils.manufacturer_normalizer import normalize_manufacturer
-from config.oem_mappings import get_effective_manufacturer
+from backend.utils.manufacturer_normalizer import normalize_manufacturer
+from backend.config.oem_mappings import get_effective_manufacturer
 
 
 class DocumentProcessor:
@@ -202,7 +202,7 @@ class DocumentProcessor:
         validation_errors = []
         
         # Helper function to update processing status
-        from core.base_processor import Stage
+        from backend.core.base_processor import Stage
 
         async def update_stage_status(stage: str, status: str = "in_progress", metadata: Optional[Dict[str, Any]] = None):
             """Update stage status using StageTracker or direct Supabase fallback"""

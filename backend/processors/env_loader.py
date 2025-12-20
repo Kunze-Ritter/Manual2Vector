@@ -83,7 +83,6 @@ def get_env_summary() -> dict:
             'visual_embedding_model': os.getenv('AI_VISUAL_EMBEDDING_MODEL', 'Not set'),
             'visual_embeddings_enabled': os.getenv('ENABLE_VISUAL_EMBEDDINGS', 'false'),
             'table_extraction_enabled': os.getenv('ENABLE_TABLE_EXTRACTION', 'false'),
-            'embeddings_v2_enabled': os.getenv('ENABLE_EMBEDDINGS_V2', 'false'),
         },
         'context_extraction': {
             'enabled': os.getenv('ENABLE_CONTEXT_EXTRACTION', 'true'),

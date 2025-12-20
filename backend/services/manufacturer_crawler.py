@@ -55,10 +55,8 @@ class ManufacturerCrawler:
             self._logger.warning("Manufacturer crawling disabled; schedule not created")
             return None
 
-        client = self._get_db_client()
-        if client is None:
-            return None
-
+        import json
+        
         payload = {
             "manufacturer_id": manufacturer_id,
             "crawl_type": crawl_config.get("crawl_type", "full_site"),
@@ -74,78 +72,118 @@ class ManufacturerCrawler:
         }
 
         try:
-            response = (
-                client.table("manufacturer_crawl_schedules", schema="krai_system")
-                .insert(payload)
-                .execute()
-            )
-            schedule_id = response.data[0]["id"] if response.data else None
+            query = """
+                INSERT INTO krai_system.manufacturer_crawl_schedules
+                (manufacturer_id, crawl_type, start_url, url_patterns, exclude_patterns,
+                 max_depth, max_pages, schedule_cron, enabled, crawl_options, next_run_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id
+            """
+            # Convert ISO datetime string to datetime object for asyncpg
+            next_run_dt = None
+            if payload["next_run_at"]:
+                from datetime import datetime
+                next_run_dt = datetime.fromisoformat(payload["next_run_at"].replace('Z', '+00:00'))
+            
+            params = [
+                payload["manufacturer_id"],
+                payload["crawl_type"],
+                payload["start_url"],
+                payload["url_patterns"],
+                payload["exclude_patterns"],
+                payload["max_depth"],
+                payload["max_pages"],
+                payload["schedule_cron"],
+                payload["enabled"],
+                json.dumps(payload["crawl_options"]) if payload["crawl_options"] else None,
+                next_run_dt,
+            ]
+            rows = await self._database_service.execute_query(query, params)
+            schedule_id = rows[0]["id"] if rows else None
             self._logger.info("Created crawl schedule %s for manufacturer %s", schedule_id, manufacturer_id)
-            return schedule_id
+            return str(schedule_id) if schedule_id else None
         except Exception as exc:  # pragma: no cover - defensive logging
             self._logger.error("Failed to create crawl schedule: %s", exc)
             return None
 
     async def update_crawl_schedule(self, schedule_id: str, updates: Dict[str, Any]) -> bool:
-        client = self._get_db_client()
-        if client is None:
-            return False
-
+        import json
+        
         if "schedule_cron" in updates:
             updates["next_run_at"] = self._calculate_next_run(updates.get("schedule_cron"))
 
         try:
-            (
-                client.table("manufacturer_crawl_schedules", schema="krai_system")
-                .update(updates)
-                .eq("id", str(schedule_id))
-                .execute()
-            )
+            # Build dynamic UPDATE query
+            set_clauses = []
+            params = []
+            param_idx = 1
+            
+            for key, value in updates.items():
+                set_clauses.append(f"{key} = ${param_idx}")
+                # Serialize dicts to JSON
+                if isinstance(value, dict):
+                    params.append(json.dumps(value))
+                else:
+                    params.append(value)
+                param_idx += 1
+            
+            params.append(str(schedule_id))
+            query = f"""
+                UPDATE krai_system.manufacturer_crawl_schedules
+                SET {', '.join(set_clauses)}, updated_at = NOW()
+                WHERE id = ${param_idx}
+            """
+            
+            await self._database_service.execute_query(query, params)
             return True
         except Exception as exc:  # pragma: no cover - defensive logging
             self._logger.error("Failed to update crawl schedule %s: %s", schedule_id, exc)
             return False
 
     async def delete_crawl_schedule(self, schedule_id: str) -> bool:
-        client = self._get_db_client()
-        if client is None:
-            return False
-
         try:
-            (
-                client.table("manufacturer_crawl_schedules", schema="krai_system")
-                .delete()
-                .eq("id", str(schedule_id))
-                .execute()
-            )
+            query = """
+                DELETE FROM krai_system.manufacturer_crawl_schedules
+                WHERE id = $1
+            """
+            await self._database_service.execute_query(query, [str(schedule_id)])
             return True
         except Exception as exc:  # pragma: no cover
             self._logger.error("Failed to delete crawl schedule %s: %s", schedule_id, exc)
             return False
 
     async def list_crawl_schedules(self, manufacturer_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        client = self._get_db_client()
-        if client is None:
+        try:
+            if manufacturer_id:
+                query = """
+                    SELECT * FROM krai_system.manufacturer_crawl_schedules
+                    WHERE manufacturer_id = $1
+                    ORDER BY created_at
+                """
+                rows = await self._database_service.execute_query(query, [str(manufacturer_id)])
+            else:
+                query = """
+                    SELECT * FROM krai_system.manufacturer_crawl_schedules
+                    ORDER BY created_at
+                """
+                rows = await self._database_service.execute_query(query)
+            return rows or []
+        except Exception as exc:
+            self._logger.error("Failed to list crawl schedules: %s", exc)
             return []
 
-        query = client.table("manufacturer_crawl_schedules", schema="krai_system").select("*").order("created_at")
-        if manufacturer_id:
-            query = query.eq("manufacturer_id", str(manufacturer_id))
-        response = query.execute()
-        return response.data or []
-
     async def get_crawl_schedule(self, schedule_id: str) -> Optional[Dict[str, Any]]:
-        client = self._get_db_client()
-        if client is None:
+        try:
+            query = """
+                SELECT * FROM krai_system.manufacturer_crawl_schedules
+                WHERE id = $1
+                LIMIT 1
+            """
+            rows = await self._database_service.execute_query(query, [str(schedule_id)])
+            return rows[0] if rows else None
+        except Exception as exc:
+            self._logger.error("Failed to get crawl schedule %s: %s", schedule_id, exc)
             return None
-        response = (
-            client.table("manufacturer_crawl_schedules", schema="krai_system")
-            .select("*")
-            .eq("id", str(schedule_id))
-            .limit(1)
-            .execute()
-        )
-        return response.data[0] if response.data else None
 
     # ------------------------------------------------------------------
     # Job lifecycle
@@ -160,10 +198,8 @@ class ManufacturerCrawler:
             self._logger.error("Schedule %s not found", schedule_id)
             return None
 
-        client = self._get_db_client()
-        if client is None:
-            return None
-
+        import json
+        
         payload = {
             "schedule_id": schedule_id,
             "manufacturer_id": schedule["manufacturer_id"],
@@ -171,12 +207,17 @@ class ManufacturerCrawler:
             "crawl_metadata": {},
         }
         try:
-            response = (
-                client.table("manufacturer_crawl_jobs", schema="krai_system")
-                .insert(payload)
-                .execute()
+            query = """
+                INSERT INTO krai_system.manufacturer_crawl_jobs
+                (schedule_id, manufacturer_id, status, crawl_metadata)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id
+            """
+            rows = await self._database_service.execute_query(
+                query,
+                [schedule_id, payload["manufacturer_id"], payload["status"], json.dumps(payload["crawl_metadata"])]
             )
-            job_id = response.data[0]["id"] if response.data else None
+            job_id = str(rows[0]["id"]) if rows else None
             self._logger.info("Queued crawl job %s for schedule %s", job_id, schedule_id)
 
             # Dispatch job via BatchTaskService if available, otherwise inline
@@ -209,9 +250,6 @@ class ManufacturerCrawler:
             asyncio.create_task(self.execute_crawl_job(job_id))
 
     async def execute_crawl_job(self, job_id: str) -> Dict[str, Any]:
-        client = self._get_db_client()
-        if client is None:
-            return {"success": False, "error": "database client unavailable"}
 
         job = await self.get_crawl_job_status(job_id)
         if not job:
@@ -272,114 +310,140 @@ class ManufacturerCrawler:
         if not self._structured_extraction_service:
             return {"processed": 0, "extractions": 0}
 
-        client = self._get_db_client()
-        if client is None:
+        try:
+            query = """
+                SELECT id, page_type
+                FROM krai_system.crawled_pages
+                WHERE crawl_job_id = $1 AND status = $2
+            """
+            pages = await self._database_service.execute_query(query, [str(job_id), "scraped"])
+            
+            extraction_count = 0
+            processed_ids = []
+            failed_ids = []
+
+            for page in pages or []:
+                result = await self._structured_extraction_service.extract_from_crawled_page(page["id"])
+                if result.get("success"):
+                    extraction_count += 1
+                    processed_ids.append(page["id"])
+                else:
+                    failed_ids.append(page["id"])
+
+            # Update pages individually based on extraction outcome
+            if processed_ids:
+                update_query = """
+                    UPDATE krai_system.crawled_pages
+                    SET status = $1, processed_at = $2
+                    WHERE id = ANY($3)
+                """
+                await self._database_service.execute_query(
+                    update_query,
+                    ["processed", datetime.now(timezone.utc), processed_ids]
+                )
+            if failed_ids:
+                update_query = """
+                    UPDATE krai_system.crawled_pages
+                    SET status = $1, processed_at = $2
+                    WHERE id = ANY($3)
+                """
+                await self._database_service.execute_query(
+                    update_query,
+                    ["failed", datetime.now(timezone.utc), failed_ids]
+                )
+
+            return {"processed": len(processed_ids), "failed": len(failed_ids), "extractions": extraction_count}
+        except Exception as exc:  # pragma: no cover
+            self._logger.error("Failed to process crawled pages: %s", exc)
             return {"processed": 0, "extractions": 0}
 
-        response = (
-            client.table("crawled_pages", schema="krai_system")
-            .select("id, page_type")
-            .eq("crawl_job_id", str(job_id))
-            .eq("status", "scraped")
-            .execute()
-        )
-        pages = response.data or []
-        extraction_count = 0
-        processed_ids = []
-        failed_ids = []
-
-        for page in pages:
-            result = await self._structured_extraction_service.extract_from_crawled_page(page["id"])
-            if result.get("success"):
-                extraction_count += 1
-                processed_ids.append(page["id"])
-            else:
-                failed_ids.append(page["id"])
-
-        # Update pages individually based on extraction outcome
-        if processed_ids:
-            client.table("crawled_pages", schema="krai_system").update(
-                {"status": "processed", "processed_at": datetime.now(timezone.utc).isoformat()}
-            ).in_("id", processed_ids).execute()
-        if failed_ids:
-            client.table("crawled_pages", schema="krai_system").update(
-                {"status": "failed", "processed_at": datetime.now(timezone.utc).isoformat()}
-            ).in_("id", failed_ids).execute()
-
-        return {"processed": len(processed_ids), "failed": len(failed_ids), "extractions": extraction_count}
-
     async def detect_content_changes(self, manufacturer_id: str) -> List[Dict[str, Any]]:
-        client = self._get_db_client()
-        if client is None:
+        try:
+            query = """
+                SELECT url, content_hash, created_at
+                FROM krai_system.crawled_pages
+                WHERE manufacturer_id = $1
+                ORDER BY url, created_at
+            """
+            rows = await self._database_service.execute_query(query, [str(manufacturer_id)])
+
+            changes: Dict[str, Dict[str, Any]] = {}
+            for row in rows or []:
+                url = row.get("url")
+                url_hash = row.get("content_hash")
+                created_at = row.get("created_at")
+                if not url or not url_hash:
+                    continue
+                if url not in changes:
+                    changes[url] = {"last_hash": url_hash, "last_seen": created_at, "changed": False}
+                else:
+                    if changes[url]["last_hash"] != url_hash:
+                        changes[url]["changed"] = True
+                        changes[url]["previous_hash"] = changes[url]["last_hash"]
+                        changes[url]["last_hash"] = url_hash
+                        changes[url]["last_seen"] = created_at
+
+            return [
+                {
+                    "url": url,
+                    "changed": meta.get("changed", False),
+                    "last_hash": meta.get("last_hash"),
+                    "previous_hash": meta.get("previous_hash"),
+                    "last_seen": meta.get("last_seen"),
+                }
+                for url, meta in changes.items()
+                if meta.get("changed")
+            ]
+        except Exception as exc:  # pragma: no cover
+            self._logger.error("Failed to detect content changes: %s", exc)
             return []
-
-        response = (
-            client.table("crawled_pages", schema="krai_system")
-            .select("url, content_hash, created_at")
-            .eq("manufacturer_id", str(manufacturer_id))
-            .order("url")
-            .execute()
-        )
-
-        changes: Dict[str, Dict[str, Any]] = {}
-        for row in response.data or []:
-            url = row.get("url")
-            url_hash = row.get("content_hash")
-            created_at = row.get("created_at")
-            if not url or not url_hash:
-                continue
-            if url not in changes:
-                changes[url] = {"last_hash": url_hash, "last_seen": created_at, "changed": False}
-            else:
-                if changes[url]["last_hash"] != url_hash:
-                    changes[url]["changed"] = True
-                    changes[url]["previous_hash"] = changes[url]["last_hash"]
-                    changes[url]["last_hash"] = url_hash
-                    changes[url]["last_seen"] = created_at
-
-        return [
-            {
-                "url": url,
-                "changed": meta.get("changed", False),
-                "last_hash": meta.get("last_hash"),
-                "previous_hash": meta.get("previous_hash"),
-                "last_seen": meta.get("last_seen"),
-            }
-            for url, meta in changes.items()
-            if meta.get("changed")
-        ]
 
     async def get_crawl_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
-        client = self._get_db_client()
-        if client is None:
+        try:
+            query = """
+                SELECT *
+                FROM krai_system.manufacturer_crawl_jobs
+                WHERE id = $1
+                LIMIT 1
+            """
+            rows = await self._database_service.execute_query(query, [str(job_id)])
+            job = rows[0] if rows else None
+            if job and job.get("pages_discovered"):
+                discovered = job.get("pages_discovered", 0) or 0
+                scraped = job.get("pages_scraped", 0) or 0
+                job["progress_percent"] = 0 if discovered == 0 else round((scraped / discovered) * 100, 2)
+            return job
+        except Exception as exc:  # pragma: no cover
+            self._logger.error("Failed to get crawl job status %s: %s", job_id, exc)
             return None
 
-        response = (
-            client.table("manufacturer_crawl_jobs", schema="krai_system")
-            .select("*, crawl_metadata")
-            .eq("id", str(job_id))
-            .limit(1)
-            .execute()
-        )
-        job = response.data[0] if response.data else None
-        if job and job.get("pages_discovered"):
-            discovered = job.get("pages_discovered", 0) or 0
-            scraped = job.get("pages_scraped", 0) or 0
-            job["progress_percent"] = 0 if discovered == 0 else round((scraped / discovered) * 100, 2)
-        return job
-
     async def list_crawl_jobs(self, schedule_id: Optional[str] = None, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        client = self._get_db_client()
-        if client is None:
+        try:
+            conditions = []
+            params = []
+            param_idx = 1
+            
+            if schedule_id:
+                conditions.append(f"schedule_id = ${param_idx}")
+                params.append(str(schedule_id))
+                param_idx += 1
+            if status:
+                conditions.append(f"status = ${param_idx}")
+                params.append(status)
+                param_idx += 1
+            
+            where_clause = " AND ".join(conditions) if conditions else "1=1"
+            query = f"""
+                SELECT *
+                FROM krai_system.manufacturer_crawl_jobs
+                WHERE {where_clause}
+                ORDER BY created_at DESC
+            """
+            rows = await self._database_service.execute_query(query, params)
+            return rows or []
+        except Exception as exc:  # pragma: no cover
+            self._logger.error("Failed to list crawl jobs: %s", exc)
             return []
-
-        query = client.table("manufacturer_crawl_jobs", schema="krai_system").select("*").order("created_at", desc=True)
-        if schedule_id:
-            query = query.eq("schedule_id", str(schedule_id))
-        if status:
-            query = query.eq("status", status)
-        response = query.execute()
-        return response.data or []
 
     async def retry_failed_job(self, job_id: str) -> Optional[str]:
         job = await self.get_crawl_job_status(job_id)
@@ -397,127 +461,172 @@ class ManufacturerCrawler:
         manufacturer_id: Optional[str] = None,
         page_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        client = self._get_db_client()
-        if client is None:
+        try:
+            conditions = []
+            params = []
+            param_idx = 1
+            
+            if job_id:
+                conditions.append(f"crawl_job_id = ${param_idx}")
+                params.append(str(job_id))
+                param_idx += 1
+            if manufacturer_id:
+                conditions.append(f"manufacturer_id = ${param_idx}")
+                params.append(str(manufacturer_id))
+                param_idx += 1
+            if page_type:
+                conditions.append(f"page_type = ${param_idx}")
+                params.append(page_type)
+                param_idx += 1
+            
+            where_clause = " AND ".join(conditions) if conditions else "1=1"
+            query = f"""
+                SELECT *
+                FROM krai_system.crawled_pages
+                WHERE {where_clause}
+                ORDER BY created_at DESC
+            """
+            rows = await self._database_service.execute_query(query, params)
+            return rows or []
+        except Exception as exc:  # pragma: no cover
+            self._logger.error("Failed to get crawled pages: %s", exc)
             return []
-
-        query = client.table("crawled_pages", schema="krai_system").select("*").order("created_at", desc=True)
-        if job_id:
-            query = query.eq("crawl_job_id", str(job_id))
-        if manufacturer_id:
-            query = query.eq("manufacturer_id", str(manufacturer_id))
-        if page_type:
-            query = query.eq("page_type", page_type)
-
-        response = query.execute()
-        return response.data or []
 
     async def check_scheduled_crawls(self) -> List[str]:
         if not self._enabled:
             return []
 
-        client = self._get_db_client()
-        if client is None:
+        try:
+            now = datetime.now(timezone.utc)
+            query = """
+                SELECT id
+                FROM krai_system.manufacturer_crawl_schedules
+                WHERE enabled = $1 AND next_run_at <= $2
+            """
+            rows = await self._database_service.execute_query(query, [True, now])
+
+            job_ids: List[str] = []
+            for row in rows or []:
+                schedule_id = row["id"]
+                job_id = await self.start_crawl_job(schedule_id)
+                if job_id:
+                    job_ids.append(job_id)
+            return job_ids
+        except Exception as exc:  # pragma: no cover
+            self._logger.error("Failed to check scheduled crawls: %s", exc)
             return []
 
-        now_iso = datetime.now(timezone.utc).isoformat()
-        response = (
-            client.table("manufacturer_crawl_schedules", schema="krai_system")
-            .select("id")
-            .eq("enabled", True)
-            .lte("next_run_at", now_iso)
-            .execute()
-        )
-
-        job_ids: List[str] = []
-        for row in response.data or []:
-            schedule_id = row["id"]
-            job_id = await self.start_crawl_job(schedule_id)
-            if job_id:
-                job_ids.append(job_id)
-        return job_ids
-
     async def get_crawler_stats(self) -> Dict[str, Any]:
-        client = self._get_db_client()
-        if client is None:
+        try:
+            # Get schedule counts
+            schedules_query = "SELECT COUNT(*) as count FROM krai_system.manufacturer_crawl_schedules"
+            schedules_result = await self._database_service.execute_query(schedules_query)
+            total_schedules = schedules_result[0]["count"] if schedules_result else 0
+            
+            active_query = "SELECT COUNT(*) as count FROM krai_system.manufacturer_crawl_schedules WHERE enabled = $1"
+            active_result = await self._database_service.execute_query(active_query, [True])
+            active_schedules = active_result[0]["count"] if active_result else 0
+            
+            # Get job counts
+            jobs_query = "SELECT COUNT(*) as count FROM krai_system.manufacturer_crawl_jobs"
+            jobs_result = await self._database_service.execute_query(jobs_query)
+            total_jobs = jobs_result[0]["count"] if jobs_result else 0
+            
+            running_query = "SELECT COUNT(*) as count FROM krai_system.manufacturer_crawl_jobs WHERE status = $1"
+            running_result = await self._database_service.execute_query(running_query, ["running"])
+            running_jobs = running_result[0]["count"] if running_result else 0
+            
+            # Get page counts
+            pages_query = "SELECT COUNT(*) as count FROM krai_system.crawled_pages"
+            pages_result = await self._database_service.execute_query(pages_query)
+            total_pages = pages_result[0]["count"] if pages_result else 0
+            
+            # Get page type distribution
+            page_type_query = """
+                SELECT page_type, COUNT(*) as count
+                FROM krai_system.crawled_pages
+                WHERE page_type IS NOT NULL
+                GROUP BY page_type
+            """
+            page_type_rows = await self._database_service.execute_query(page_type_query)
+            page_type_dist = {row["page_type"]: row["count"] for row in (page_type_rows or [])}
+
+            return {
+                "total_schedules": total_schedules,
+                "active_schedules": active_schedules,
+                "total_jobs": total_jobs,
+                "running_jobs": running_jobs,
+                "total_pages": total_pages,
+                "page_types": page_type_dist,
+            }
+        except Exception as exc:  # pragma: no cover
+            self._logger.error("Failed to get crawler stats: %s", exc)
             return {}
-
-        schedules = client.table("manufacturer_crawl_schedules", schema="krai_system").select("id", count="exact").execute()
-        active = (
-            client.table("manufacturer_crawl_schedules", schema="krai_system")
-            .select("id", count="exact")
-            .eq("enabled", True)
-            .execute()
-        )
-        jobs = client.table("manufacturer_crawl_jobs", schema="krai_system").select("id", count="exact").execute()
-        running = (
-            client.table("manufacturer_crawl_jobs", schema="krai_system")
-            .select("id", count="exact")
-            .eq("status", "running")
-            .execute()
-        )
-        pages = client.table("crawled_pages", schema="krai_system").select("id", count="exact").execute()
-
-        page_type_dist: Dict[str, int] = {}
-        page_type_rows = (
-            client.table("crawled_pages", schema="krai_system")
-            .select("page_type")
-            .neq("page_type", None)
-            .execute()
-        )
-        for row in page_type_rows.data or []:
-            typ = row.get("page_type") or "unknown"
-            page_type_dist[typ] = page_type_dist.get(typ, 0) + 1
-
-        return {
-            "total_schedules": schedules.count or 0,
-            "active_schedules": active.count or 0,
-            "total_jobs": jobs.count or 0,
-            "running_jobs": running.count or 0,
-            "total_pages": pages.count or 0,
-            "page_types": page_type_dist,
-        }
 
     # ------------------------------------------------------------------
     # Internal utilities
     # ------------------------------------------------------------------
+
     def _get_db_client(self):
-        client = getattr(self._database_service, "service_client", None)
-        if client is None:
-            client = getattr(self._database_service, "client", None)
-        if client is None:
-            self._logger.error("Database client unavailable for manufacturer crawler")
-        return client
+        """
+        Get a compatible database client for Supabase-style operations.
+        
+        Returns the underlying client from DatabaseService if available.
+        Logs an error and returns None if unavailable.
+        """
+        if hasattr(self._database_service, 'service_client') and self._database_service.service_client:
+            return self._database_service.service_client
+        if hasattr(self._database_service, 'client') and self._database_service.client:
+            return self._database_service.client
+        self._logger.error("Database client unavailable for Supabase-style operations")
+        return None
 
     async def _update_job(self, job_id: str, updates: Dict[str, Any]) -> None:
-        client = self._get_db_client()
-        if client is None:
-            return
+        import json
         try:
-            client.table("manufacturer_crawl_jobs", schema="krai_system").update(updates).eq("id", str(job_id)).execute()
+            set_clauses = []
+            params = []
+            param_idx = 1
+            
+            for key, value in updates.items():
+                set_clauses.append(f"{key} = ${param_idx}")
+                if isinstance(value, dict):
+                    params.append(json.dumps(value))
+                else:
+                    params.append(value)
+                param_idx += 1
+            
+            params.append(str(job_id))
+            query = f"""
+                UPDATE krai_system.manufacturer_crawl_jobs
+                SET {', '.join(set_clauses)}
+                WHERE id = ${param_idx}
+            """
+            await self._database_service.execute_query(query, params)
         except Exception as exc:  # pragma: no cover - defensive logging
             self._logger.debug("Failed to update crawl job %s: %s", job_id, exc)
 
     async def _update_schedule_run(self, schedule_id: str) -> None:
-        client = self._get_db_client()
-        if client is None:
-            return
         next_run = self._calculate_next_run(None)
         try:
-            client.table("manufacturer_crawl_schedules", schema="krai_system").update(
-                {
-                    "last_run_at": datetime.now(timezone.utc).isoformat(),
-                    "next_run_at": next_run,
-                }
-            ).eq("id", str(schedule_id)).execute()
+            query = """
+                UPDATE krai_system.manufacturer_crawl_schedules
+                SET last_run_at = $1, next_run_at = $2
+                WHERE id = $3
+            """
+            await self._database_service.execute_query(
+                query,
+                [datetime.now(timezone.utc), next_run, str(schedule_id)]
+            )
         except Exception as exc:  # pragma: no cover - defensive logging
-            self._logger.debug("Failed to update schedule %s run metadata: %s", schedule_id, exc)
+            self._logger.debug("Failed to update schedule run %s: %s", schedule_id, exc)
 
     async def _persist_crawled_pages(self, job_id: str, manufacturer_id: str, pages: Sequence[Dict[str, Any]]) -> Dict[str, int]:
         client = self._get_db_client()
         if client is None:
+            self._logger.error("Cannot persist crawled pages: database client unavailable")
             return {"scraped": 0, "failed": len(pages)}
-
+        
         scraped = 0
         failed = 0
         for page in pages:

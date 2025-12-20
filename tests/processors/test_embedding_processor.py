@@ -1,17 +1,30 @@
-"""
-Test Embedding Processor
+"""Legacy/manual EmbeddingProcessor test harness.
 
-Tests Ollama integration, embedding generation, and vector storage.
+This module is intentionally excluded from normal pytest discovery and
+is meant to be run manually via:
+
+    python tests/processors/test_embedding_processor.py
+
+It exercises real Ollama integration, embedding generation, and vector
+storage for ad-hoc diagnostics and exploration.
 """
 
 import sys
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.processors.embedding_processor import EmbeddingProcessor
+
+
+pytestmark = pytest.mark.skip(
+    "Legacy/manual EmbeddingProcessor tests – use pytest-based suite in "
+    "tests/processors/test_embedding_processor_*.py instead."
+)
 
 
 def test_ollama_availability():

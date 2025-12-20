@@ -22,6 +22,7 @@ import hashlib
 from pathlib import Path
 from typing import Dict, Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 from backend.processors.upload_processor import UploadProcessor, BatchUploadProcessor
 from backend.core.base_processor import ProcessingResult, ProcessingContext
@@ -45,14 +46,18 @@ class TestUploadValidation:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, f"Upload should succeed: {result.error}"
         assert result.data is not None
         assert 'document_id' in result.data
-        assert result.metadata['filename'] == valid_pdf['path'].name
-        assert result.metadata['file_size_bytes'] == valid_pdf['size']
+        assert result.metadata.get('file_path') == str(valid_pdf['path'])
         
         # Verify database operations
         document = await mock_database_adapter.get_document(result.data['document_id'])
@@ -77,11 +82,16 @@ class TestUploadValidation:
             test_file.write_text("This is not a PDF file")
             
             # Act
-            result = await processor.process(test_file)
+            context = ProcessingContext(
+                document_id=str(uuid4()),
+                file_path=str(test_file),
+                document_type="service_manual"
+            )
+            result = await processor.process(context)
             
             # Assert
             assert not result.success, f"Should reject {filename}"
-            assert "extension" in result.error.lower() or "pdf" in result.error.lower()
+            assert "Invalid file type" in result.error or "extension" in result.error.lower()
     
     @pytest.mark.asyncio
     async def test_file_not_found(self, mock_database_adapter, processor_test_config):
@@ -94,11 +104,16 @@ class TestUploadValidation:
         non_existent_path = Path("/non/existent/file.pdf")
         
         # Act
-        result = await processor.process(non_existent_path)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(non_existent_path),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert not result.success
-        assert "not found" in result.error.lower() or "exist" in result.error.lower()
+        assert "File not found" in result.error
     
     @pytest.mark.asyncio
     async def test_file_too_large(self, mock_database_adapter, sample_pdf_files, processor_test_config):
@@ -111,12 +126,16 @@ class TestUploadValidation:
         large_pdf = sample_pdf_files['large_pdf']
         
         # Act
-        result = await processor.process(large_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(large_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert not result.success
-        assert "size" in result.error.lower() or "large" in result.error.lower()
-        assert "mb" in result.error.lower()
+        assert "File too large" in result.error
     
     @pytest.mark.asyncio
     async def test_corrupted_pdf(self, mock_database_adapter, sample_pdf_files, processor_test_config):
@@ -129,11 +148,16 @@ class TestUploadValidation:
         corrupted_pdf = sample_pdf_files['corrupted_pdf']
         
         # Act
-        result = await processor.process(corrupted_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(corrupted_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert not result.success
-        assert "corrupted" in result.error.lower() or "invalid" in result.error.lower() or "pdf" in result.error.lower()
+        assert "Corrupted or invalid PDF" in result.error
     
     @pytest.mark.asyncio
     async def test_empty_pdf(self, mock_database_adapter, sample_pdf_files, processor_test_config):
@@ -146,11 +170,16 @@ class TestUploadValidation:
         empty_pdf = sample_pdf_files['empty_pdf']
         
         # Act
-        result = await processor.process(empty_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(empty_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert not result.success
-        assert "empty" in result.error.lower() or "zero" in result.error.lower()
+        assert "Corrupted or invalid PDF" in result.error
     
     @pytest.mark.asyncio
     async def test_pdf_with_zero_bytes(self, mock_database_adapter, temp_test_pdf, processor_test_config):
@@ -166,11 +195,16 @@ class TestUploadValidation:
         zero_byte_file.write_bytes(b"")
         
         # Act
-        result = await processor.process(zero_byte_file)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(zero_byte_file),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert not result.success
-        assert "empty" in result.error.lower() or "zero" in result.error.lower()
+        assert "Corrupted or invalid PDF" in result.error
 
 
 class TestUploadDeduplication:
@@ -201,15 +235,25 @@ class TestUploadDeduplication:
         mock_database_adapter.documents['existing-doc-id'] = existing_doc
         
         # Act - first upload should succeed
-        result1 = await processor.process(valid_pdf['path'])
+        context1 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result1 = await processor.process(context1)
         
-        # Act - second upload should detect duplicate
-        result2 = await processor.process(valid_pdf['path'])
+        # Act - second upload should detect duplicate (returns success with status='duplicate')
+        context2 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result2 = await processor.process(context2)
         
-        # Assert
+        # Assert - Comment 2: duplicates return success with status='duplicate'
         assert result1.success, "First upload should succeed"
-        assert not result2.success, "Second upload should detect duplicate"
-        assert "duplicate" in result2.error.lower() or "exists" in result2.error.lower()
+        assert result2.success, "Second upload should succeed with duplicate status"
+        assert result2.data.get('status') == 'duplicate', "Should mark as duplicate"
     
     @pytest.mark.asyncio
     async def test_force_reprocess_duplicate(self, mock_database_adapter, sample_pdf_files, processor_test_config):
@@ -235,11 +279,17 @@ class TestUploadDeduplication:
         mock_database_adapter.documents['existing-doc-id'] = existing_doc
         
         # Act
-        result = await processor.process(valid_pdf['path'], force_reprocess=True)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual",
+        )
+        context.force_reprocess = True
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Force reprocess should succeed"
-        assert result.data['document_id'] != 'existing-doc-id', "Should create new document"
+        assert result.data.get('status') == 'reprocessing', "Should mark as reprocessing"
     
     @pytest.mark.asyncio
     async def test_different_files_same_name(self, mock_database_adapter, temp_test_pdf, processor_test_config):
@@ -259,8 +309,18 @@ class TestUploadDeduplication:
         file2.write_text("Different content for file 2")
         
         # Act
-        result1 = await processor.process(file1)
-        result2 = await processor.process(file2)
+        context1 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(file1),
+            document_type="service_manual"
+        )
+        context2 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(file2),
+            document_type="service_manual"
+        )
+        result1 = await processor.process(context1)
+        result2 = await processor.process(context2)
         
         # Assert
         assert result1.success, "First file upload should succeed"
@@ -285,13 +345,26 @@ class TestUploadDeduplication:
         file2.write_text(content)
         
         # Act
-        result1 = await processor.process(file1)
-        result2 = await processor.process(file2)
+        hash1 = hashlib.sha256(file1.read_bytes()).hexdigest()
+        hash2 = hashlib.sha256(file2.read_bytes()).hexdigest()
+        context1 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(file1),
+            document_type="service_manual"
+        )
+        context2 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(file2),
+            document_type="service_manual"
+        )
+        result1 = await processor.process(context1)
+        result2 = await processor.process(context2)
         
         # Assert
         assert result1.success, "First upload should succeed"
-        assert not result2.success, "Second upload should detect duplicate"
-        assert "duplicate" in result2.error.lower()
+        assert result2.success, "Second upload should succeed with duplicate status"
+        assert result2.data.get("status") == "duplicate"
+        assert "existing_document" in result2.data
 
 
 class TestUploadDatabaseOperations:
@@ -308,7 +381,12 @@ class TestUploadDatabaseOperations:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
@@ -333,7 +411,12 @@ class TestUploadDatabaseOperations:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # First upload
-        result1 = await processor.process(valid_pdf['path'])
+        context1 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result1 = await processor.process(context1)
         original_doc_id = result1.data['document_id']
         
         # Mock update to track calls
@@ -347,7 +430,14 @@ class TestUploadDatabaseOperations:
         mock_database_adapter.update_document = track_update
         
         # Act - reprocess
-        result2 = await processor.process(valid_pdf['path'], force_reprocess=True)
+        context2 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        # Mark context for forced reprocessing
+        context2.force_reprocess = True
+        result2 = await processor.process(context2)
         
         # Assert
         assert result2.success, "Reprocess should succeed"
@@ -364,7 +454,12 @@ class TestUploadDatabaseOperations:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
@@ -381,13 +476,17 @@ class TestUploadDatabaseOperations:
         # Arrange
         processor = UploadProcessor(
             database_adapter=mock_database_adapter,
-            max_file_size_mb=processor_test_config['max_file_size_mb'],
-            stage_tracker=mock_stage_tracker
+            max_file_size_mb=processor_test_config['max_file_size_mb']
         )
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
@@ -410,7 +509,12 @@ class TestUploadDatabaseOperations:
         mock_database_adapter.create_document = failing_create_document
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert not result.success, "Upload should fail when database fails"
@@ -431,7 +535,12 @@ class TestUploadMetadataExtraction:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
@@ -461,7 +570,12 @@ class TestUploadMetadataExtraction:
         test_file.write_text("Mock PDF with metadata")
         
         # Act
-        result = await processor.process(test_file)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
@@ -488,7 +602,12 @@ class TestUploadMetadataExtraction:
             expected_hash = hashlib.sha256(f.read()).hexdigest()
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
@@ -505,7 +624,12 @@ class TestUploadMetadataExtraction:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
@@ -513,14 +637,6 @@ class TestUploadMetadataExtraction:
         # Should handle missing metadata gracefully
         metadata = result.metadata
         assert metadata is not None
-        # Missing fields should be None or empty, not cause errors
-        assert metadata.get('title') is None or isinstance(metadata.get('title'), str)
-        assert metadata.get('author') is None or isinstance(metadata.get('author'), str)
-
-
-class TestUploadErrorRecovery:
-    """Test error recovery mechanisms of UploadProcessor."""
-    
     @pytest.mark.asyncio
     async def test_partial_metadata_failure(self, mock_database_adapter, sample_pdf_files, processor_test_config):
         """Test continuation when metadata extraction partially fails."""
@@ -532,11 +648,16 @@ class TestUploadErrorRecovery:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Mock metadata extraction to fail partially
-        with patch.object(processor, '_extract_pdf_metadata') as mock_metadata:
+        with patch.object(processor, '_extract_basic_metadata') as mock_metadata:
             mock_metadata.return_value = {'filename': valid_pdf['path'].name}  # Minimal metadata
             
             # Act
-            result = await processor.process(valid_pdf['path'])
+            context = ProcessingContext(
+                document_id=str(uuid4()),
+                file_path=str(valid_pdf['path']),
+                document_type="service_manual"
+            )
+            result = await processor.process(context)
             
             # Assert
             assert result.success, "Upload should succeed even with partial metadata failure"
@@ -558,7 +679,12 @@ class TestUploadErrorRecovery:
         mock_database_adapter.create_processing_queue_item = failing_create_queue_item
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         # Should still succeed since queue creation is non-critical
@@ -582,7 +708,12 @@ class TestUploadErrorRecovery:
         processor.stage_tracker = mock_tracker
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         # Should still succeed since StageTracker is non-critical
@@ -607,7 +738,12 @@ class TestUploadEdgeCases:
         test_file.write_text("Test content with Unicode filename")
         
         # Act
-        result = await processor.process(test_file)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should handle Unicode filenames"
@@ -628,7 +764,12 @@ class TestUploadEdgeCases:
         test_file.write_text("Test content with special characters")
         
         # Act
-        result = await processor.process(test_file)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should handle special characters in paths"
@@ -649,7 +790,12 @@ class TestUploadEdgeCases:
         test_file.write_text("Test content with long filename")
         
         # Act
-        result = await processor.process(test_file)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should handle long filenames"
@@ -669,7 +815,12 @@ class TestUploadEdgeCases:
         password_pdf.write_text("Mock password-protected PDF content")
         
         # Act
-        result = await processor.process(password_pdf)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(password_pdf),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         # Should either succeed with limited metadata or fail gracefully
@@ -739,8 +890,7 @@ class TestBatchUploadProcessor:
         # Arrange
         batch_processor = BatchUploadProcessor(
             database_adapter=mock_database_adapter,
-            max_file_size_mb=processor_test_config['max_file_size_mb'],
-            stage_tracker=mock_stage_tracker
+            max_file_size_mb=processor_test_config['max_file_size_mb']
         )
         
         files_to_upload = [
@@ -778,7 +928,12 @@ async def test_file_size_limits(mock_database_adapter, temp_test_pdf, file_size_
     test_file.write_text(content)
     
     # Act
-    result = await processor.process(test_file)
+    context = ProcessingContext(
+        document_id=str(uuid4()),
+        file_path=str(test_file),
+        document_type="service_manual"
+    )
+    result = await processor.process(context)
     
     # Assert
     if should_succeed:

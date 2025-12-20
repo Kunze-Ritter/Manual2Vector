@@ -7,6 +7,7 @@ Respects paragraph boundaries and error code sections.
 
 import re
 import hashlib
+import os
 from typing import Dict, List, Optional, Tuple, Any
 from uuid import UUID
 
@@ -303,9 +304,12 @@ class SmartChunker:
         """
         original_text = text
         text = text.strip()
+
+        allow_short_chunks = os.getenv('DEBUG_ALLOW_SHORT_CHUNKS', 'false').lower() == 'true'
+        effective_min_size = 0 if allow_short_chunks else self.min_chunk_size
         
         # Validate minimum size
-        if len(text) < self.min_chunk_size:
+        if len(text) < effective_min_size:
             return None
         
         # Clean headers and extract metadata
@@ -315,7 +319,7 @@ class SmartChunker:
         )
         
         # Validate minimum size AFTER cleaning (headers might have been removed)
-        if len(cleaned_text.strip()) < self.min_chunk_size:
+        if len(cleaned_text.strip()) < effective_min_size:
             self.logger.debug(f"⏭️  Skipped chunk (too short after header cleaning): {len(cleaned_text)} chars (min: {self.min_chunk_size})")
             return None
         

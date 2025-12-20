@@ -28,6 +28,10 @@ from models.document import (
     DocumentUpdateRequest,
     PaginationParams,
     DocumentFilterParams,
+    DocumentStageStatusResponse,
+    DocumentStageDetail,
+    StageStatus,
+    CANONICAL_STAGES,
 )
 from api.routes.response_models import ErrorResponse, SuccessResponse
 from pydantic import BaseModel
@@ -459,4 +463,237 @@ async def get_document_stats(
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
+        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
+
+
+def _parse_stage_status(stage_status_jsonb: Optional[Dict[str, Any]]) -> Dict[str, DocumentStageDetail]:
+    """Parse stage_status JSONB into structured DocumentStageDetail objects."""
+    stages = {}
+    
+    for stage_name in CANONICAL_STAGES:
+        if stage_status_jsonb and stage_name in stage_status_jsonb:
+            stage_data = stage_status_jsonb[stage_name]
+            
+            # Parse status
+            status_str = stage_data.get("status", "pending")
+            try:
+                stage_status = StageStatus(status_str)
+            except ValueError:
+                stage_status = StageStatus.PENDING
+            
+            # Calculate duration if both timestamps exist
+            duration_seconds = None
+            started_at = stage_data.get("started_at")
+            completed_at = stage_data.get("completed_at")
+            if started_at and completed_at:
+                try:
+                    start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                    end = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+                    duration_seconds = (end - start).total_seconds()
+                except (ValueError, AttributeError):
+                    pass
+            
+            stages[stage_name] = DocumentStageDetail(
+                status=stage_status,
+                started_at=started_at,
+                completed_at=completed_at,
+                duration_seconds=duration_seconds,
+                progress=stage_data.get("progress", 100 if stage_status == StageStatus.COMPLETED else 0),
+                error=stage_data.get("error"),
+                metadata=stage_data.get("metadata", {})
+            )
+        else:
+            # Default to pending for stages not in JSONB
+            stages[stage_name] = DocumentStageDetail(
+                status=StageStatus.PENDING,
+                progress=0
+            )
+    
+    return stages
+
+
+@router.get(
+    "/{document_id}/stages",
+    response_model=SuccessResponse[DocumentStageStatusResponse],
+)
+@limiter.limit(rate_limit_standard)
+async def get_document_stages(
+    document_id: str,
+    current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
+) -> SuccessResponse[DocumentStageStatusResponse]:
+    """Get stage-level processing status for a document."""
+    try:
+        # Query document with stage_status
+        query = """
+            SELECT id, filename, stage_status, updated_at,
+                   krai_core.get_document_progress(id) as overall_progress,
+                   krai_core.get_current_stage(id) as current_stage
+            FROM krai_core.documents
+            WHERE id = $1
+        """
+        result = await adapter.execute_query(query, [document_id])
+        
+        if not result:
+            _log_and_raise(
+                status.HTTP_404_NOT_FOUND,
+                f"Document {document_id} not found",
+                error="Document not found",
+                error_code="DOCUMENT_NOT_FOUND"
+            )
+        
+        doc = result[0]
+        stage_status_jsonb = doc.get("stage_status", {})
+        
+        # Parse stages
+        stages = _parse_stage_status(stage_status_jsonb)
+        
+        # Check if any failed stages can be retried
+        can_retry = any(
+            stage.status == StageStatus.FAILED
+            for stage in stages.values()
+        )
+        
+        # Get overall progress (default to 0 if function returns None)
+        overall_progress = doc.get("overall_progress") or 0.0
+        
+        # Get current stage (default to first stage if None)
+        current_stage = doc.get("current_stage") or CANONICAL_STAGES[0]
+        
+        LOGGER.info(
+            "Retrieved stage status for document=%s progress=%.1f%% current_stage=%s",
+            document_id,
+            overall_progress,
+            current_stage
+        )
+        
+        return SuccessResponse(
+            data=DocumentStageStatusResponse(
+                document_id=doc["id"],
+                filename=doc["filename"],
+                overall_progress=overall_progress,
+                current_stage=current_stage,
+                stages=stages,
+                can_retry=can_retry,
+                last_updated=doc["updated_at"].isoformat() if isinstance(doc["updated_at"], datetime) else doc["updated_at"]
+            )
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        LOGGER.exception("Failed to get document stages for document_id=%s", document_id)
+        _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
+
+
+@router.post(
+    "/{document_id}/stages/{stage_name}/retry",
+    response_model=SuccessResponse[MessagePayload],
+)
+@limiter.limit(rate_limit_standard)
+async def retry_document_stage(
+    document_id: str,
+    stage_name: str,
+    current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
+) -> SuccessResponse[MessagePayload]:
+    """Retry a failed stage for a document."""
+    try:
+        # Validate stage name
+        if stage_name not in CANONICAL_STAGES:
+            _log_and_raise(
+                status.HTTP_400_BAD_REQUEST,
+                f"Invalid stage name: {stage_name}",
+                error="Invalid stage name",
+                error_code="INVALID_STAGE_NAME"
+            )
+        
+        # Check if document exists and stage is failed
+        query = """
+            SELECT id, filename, stage_status
+            FROM krai_core.documents
+            WHERE id = $1
+        """
+        result = await adapter.execute_query(query, [document_id])
+        
+        if not result:
+            _log_and_raise(
+                status.HTTP_404_NOT_FOUND,
+                f"Document {document_id} not found",
+                error="Document not found",
+                error_code="DOCUMENT_NOT_FOUND"
+            )
+        
+        doc = result[0]
+        stage_status_jsonb = doc.get("stage_status", {})
+        
+        # Check if stage is failed
+        stage_data = stage_status_jsonb.get(stage_name, {})
+        if stage_data.get("status") != "failed":
+            _log_and_raise(
+                status.HTTP_400_BAD_REQUEST,
+                f"Stage {stage_name} is not in failed state",
+                error="Stage not failed",
+                error_code="STAGE_NOT_FAILED"
+            )
+        
+        # Reset stage to pending
+        update_query = """
+            UPDATE krai_core.documents
+            SET stage_status = jsonb_set(
+                COALESCE(stage_status, '{}'::jsonb),
+                $1,
+                $2
+            ),
+            updated_at = NOW()
+            WHERE id = $3
+        """
+        
+        reset_stage_data = {
+            "status": "pending",
+            "started_at": None,
+            "completed_at": None,
+            "progress": 0,
+            "error": None,
+            "metadata": {}
+        }
+        
+        await adapter.execute_query(
+            update_query,
+            [
+                [stage_name],  # JSONB path
+                reset_stage_data,  # New value
+                document_id
+            ]
+        )
+        
+        # Enqueue in processing queue
+        enqueue_query = """
+            INSERT INTO krai_system.processing_queue (document_id, task_type, priority, status)
+            VALUES ($1, $2, 5, 'pending')
+        """
+        await adapter.execute_query(enqueue_query, [document_id, stage_name])
+        
+        LOGGER.info(
+            "Stage retry triggered: document=%s stage=%s user=%s",
+            document_id,
+            stage_name,
+            current_user.get("id", "unknown")
+        )
+        
+        # TODO: Broadcast WebSocket event STAGE_RETRY_TRIGGERED
+        # This will be implemented in the WebSocket service integration
+        
+        return SuccessResponse(
+            data=MessagePayload(
+                message=f"Stage '{stage_name}' retry triggered for document {doc['filename']}"
+            )
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        LOGGER.exception(
+            "Failed to retry stage: document_id=%s stage=%s",
+            document_id,
+            stage_name
+        )
         _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))

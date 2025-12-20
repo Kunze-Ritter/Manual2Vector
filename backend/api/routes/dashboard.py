@@ -5,26 +5,27 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
+from api.middleware.auth_middleware import require_permission
 
 logger = logging.getLogger(__name__)
 
 
-def create_dashboard_router(database_service: DatabaseService) -> APIRouter:
+def create_dashboard_router(database_adapter: DatabaseAdapter) -> APIRouter:
     """Create dashboard router with aggregated stats endpoints."""
 
     router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
     async def _fetch_count(query: str) -> int:
-        row = await database_service.fetch_one(query)
+        row = await database_adapter.fetch_one(query)
         if not row:
             return 0
         return int(row["count"] or 0)
 
     async def _fetch_group_counts(query: str, key_field: str) -> Dict[str, int]:
-        rows = await database_service.fetch_all(query)
+        rows = await database_adapter.fetch_all(query)
         results: Dict[str, int] = {}
         for row in rows or []:
             key = row.get(key_field) or "unknown"
@@ -32,7 +33,7 @@ def create_dashboard_router(database_service: DatabaseService) -> APIRouter:
         return results
 
     async def _fetch_recent_documents(limit: int = 5) -> List[Dict[str, Any]]:
-        rows = await database_service.fetch_all(
+        rows = await database_adapter.fetch_all(
             """
             SELECT id, filename, processing_status, manufacturer, updated_at
             FROM krai_core.documents
@@ -58,12 +59,14 @@ def create_dashboard_router(database_service: DatabaseService) -> APIRouter:
         return recent
 
     @router.get("/overview")
-    async def get_dashboard_overview() -> Dict[str, Any]:
+    async def get_dashboard_overview(
+        current_user: dict = Depends(require_permission('monitoring:read'))
+    ) -> Dict[str, Any]:
         """Return aggregated dashboard stats for production data.
 
-        This endpoint is defensive by design: any failure to query optional
-        tables (or other runtime issues) is logged and a safe fallback
-        overview with zero/empty stats is returned instead of a 500 error.
+        This endpoint requires 'monitoring:read' permission to access.
+        Any failure to query optional tables (or other runtime issues) is logged
+        and a safe fallback overview with zero/empty stats is returned instead of a 500 error.
         """
 
         try:

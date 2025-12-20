@@ -149,6 +149,49 @@ async def broadcast_stage_event(
     await manager.broadcast(message, "monitoring:read")
 
 
+async def broadcast_processor_state_change(
+    processor_name: str,
+    stage_name: str,
+    status: str,
+    document_id: Optional[str] = None,
+) -> None:
+    """Broadcast processor state change event."""
+    message = WebSocketMessage(
+        type=WebSocketEvent.PROCESSOR_STATE_CHANGE.value,
+        data={
+            "processor_name": processor_name,
+            "stage_name": stage_name,
+            "status": status,
+            "document_id": document_id,
+        },
+    )
+    await manager.broadcast(message, "monitoring:read")
+
+
+async def broadcast_stage_update(
+    document_id: str,
+    stage_name: str,
+    status: str,
+    progress: int,
+    error: Optional[str] = None,
+) -> None:
+    """Broadcast stage status change to connected clients."""
+    event_type = "STAGE_COMPLETED" if status == "completed" else "STAGE_FAILED" if status == "failed" else "STAGE_PROCESSING"
+    
+    message = WebSocketMessage(
+        type=event_type,
+        data={
+            "document_id": document_id,
+            "stage_name": stage_name,
+            "status": status,
+            "progress": progress,
+            "error": error,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+    await manager.broadcast(message, "documents:read")
+
+
 @router.websocket("/ws/monitoring")
 async def websocket_endpoint(
     websocket: WebSocket,

@@ -156,8 +156,8 @@ class TextExtractor:
         if not pdf_path.exists():
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
         
-        logger.info(f"Extracting text from: {pdf_path.name}")
-        logger.info(f"Using engine: {self.prefer_engine}")
+        logger.debug(f"Extracting text from: {pdf_path.name}")
+        logger.debug(f"Using engine: {self.prefer_engine}")
         self._reset_metrics()
         
         if self.prefer_engine == "pymupdf" and PYMUPDF_AVAILABLE:

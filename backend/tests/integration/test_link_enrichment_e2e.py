@@ -756,3 +756,542 @@ class TestLinkEnrichmentE2E:
             # Should load environment values (if implemented)
             assert service_with_env._max_concurrent_enrichments >= 1
             assert service_with_env._enrichment_timeout > 0
+
+
+# ============================================================================
+# REAL E2E INTEGRATION TESTS - Single Link Workflows
+# ============================================================================
+
+@pytest.mark.integration
+@pytest.mark.database
+class TestLinkEnrichmentRealE2E:
+    """
+    Real end-to-end integration tests for LinkEnrichmentService.
+    
+    These tests use live Firecrawl/BeautifulSoup backends and real database operations.
+    Tests are skipped if Firecrawl is unavailable, falling back to BeautifulSoup.
+    """
+    
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not pytest.importorskip("firecrawl", reason="Firecrawl not available"),
+        reason="Firecrawl SDK not installed"
+    )
+    async def test_real_link_enrichment_firecrawl_success(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database,
+        firecrawl_available
+    ):
+        """Test real link enrichment with Firecrawl backend."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl not configured")
+        
+        # Create test link
+        test_url = "https://example.com"
+        link = await test_link_data(test_url)
+        link_id = link['id']
+        
+        # Enrich link (needs both link_id and url)
+        result = await real_link_enrichment_service.enrich_link(link_id, test_url)
+        
+        # Verify result
+        assert result['success'] is True
+        assert result['link_id'] == link_id
+        
+        # Verify database record (use link_scraping_jobs table)
+        query = "SELECT * FROM krai_system.link_scraping_jobs WHERE id = $1::uuid"
+        db_result = await test_database.execute_query(query, (link_id,))
+        
+        assert len(db_result) == 1
+        enriched_link = db_result[0]
+        
+        # Verify enrichment data
+        assert enriched_link['scrape_status'] == 'success'
+        assert enriched_link['scraped_content'] is not None
+        assert len(enriched_link['scraped_content']) > 100
+        assert enriched_link['content_hash'] is not None
+        assert enriched_link['scraped_metadata'] is not None
+        
+        # Verify metadata (parse JSON string to dict)
+        import json
+        metadata = enriched_link['scraped_metadata']
+        if isinstance(metadata, str):
+            metadata = json.loads(metadata)
+        
+        # Backend could be firecrawl or beautifulsoup (fallback)
+        assert metadata['backend'] in ['firecrawl', 'beautifulsoup']
+        assert 'retrieved_at' in metadata
+        assert enriched_link['scraped_at'] is not None
+    
+    @pytest.mark.asyncio
+    async def test_real_link_enrichment_beautifulsoup_fallback(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test real link enrichment with BeautifulSoup fallback."""
+        from conftest import simulate_firecrawl_failure
+        
+        # Create test link
+        test_url = "https://httpbin.org/html"
+        link = await test_link_data(test_url)
+        link_id = link['id']
+        
+        # BeautifulSoup will be used automatically if Firecrawl fails
+        result = await real_link_enrichment_service.enrich_link(link_id, test_url)
+        
+        # Verify result
+        assert result['success'] is True
+        
+        # Verify database record
+        query = "SELECT * FROM krai_system.link_scraping_jobs WHERE id = $1::uuid"
+        db_result = await test_database.execute_query(query, (link_id,))
+        
+        enriched_link = db_result[0]
+        
+        # Verify fallback was used
+        import json
+        assert enriched_link['scrape_status'] == 'success'
+        assert enriched_link['scraped_content'] is not None
+        metadata = enriched_link['scraped_metadata']
+        if isinstance(metadata, str):
+            metadata = json.loads(metadata)
+        assert metadata['backend'] in ['beautifulsoup', 'firecrawl']
+    
+    @pytest.mark.asyncio
+    async def test_real_link_enrichment_content_hash_consistency(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test content hash consistency across multiple scrapes."""
+        # Create test link
+        test_url = "https://example.com"
+        link = await test_link_data(test_url)
+        link_id = link['id']
+        
+        # First enrichment
+        result1 = await real_link_enrichment_service.enrich_link(link_id, test_url)
+        assert result1['success'] is True
+        
+        # Get first hash
+        query = "SELECT content_hash FROM krai_system.link_scraping_jobs WHERE id = $1::uuid"
+        result = await test_database.execute_query(query, (link_id,))
+        hash1 = result[0]['content_hash']
+        
+        # Second enrichment with force_refresh
+        result2 = await real_link_enrichment_service.enrich_link(link_id, test_url, force_refresh=True)
+        assert result2['success'] is True
+        
+        # Get second hash
+        result = await test_database.execute_query(query, (link_id,))
+        hash2 = result[0]['content_hash']
+        
+        # Hashes should be identical for same content
+        assert hash1 == hash2
+    
+    @pytest.mark.asyncio
+    async def test_real_link_enrichment_metadata_extraction(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test metadata extraction from scraped content."""
+        # Create test link
+        test_url = "https://httpbin.org/html"
+        link = await test_link_data(test_url)
+        link_id = link['id']
+        
+        # Enrich link
+        result = await real_link_enrichment_service.enrich_link(link_id, test_url)
+        assert result['success'] is True
+        
+        # Verify metadata
+        import json
+        query = "SELECT scraped_metadata FROM krai_system.link_scraping_jobs WHERE id = $1::uuid"
+        db_result = await test_database.execute_query(query, (link_id,))
+        metadata = db_result[0]['scraped_metadata']
+        if isinstance(metadata, str):
+            metadata = json.loads(metadata)
+        
+        # Required metadata fields
+        assert 'backend' in metadata
+        assert 'retrieved_at' in metadata
+        
+        # Verify values
+        assert metadata['backend'] in ('firecrawl', 'beautifulsoup')
+    
+    @pytest.mark.asyncio
+    async def test_real_link_enrichment_skip_already_enriched(
+        self,
+        real_link_enrichment_service,
+        test_database
+    ):
+        """Test that already enriched links are skipped without force_refresh."""
+        from conftest import create_test_link
+        
+        # Create link with success status
+        test_url = "https://example.com"
+        link_id = await create_test_link(
+            test_database,
+            test_url
+        )
+        
+        # Update with scraped content
+        update_query = """
+            UPDATE krai_system.link_scraping_jobs
+            SET scraped_content = 'Existing content',
+                content_hash = 'existing-hash',
+                scrape_status = 'success',
+                scraped_at = NOW()
+            WHERE id = $1::uuid
+        """
+        await test_database.execute_query(update_query, (link_id,))
+        
+        # Try to enrich without force_refresh
+        result = await real_link_enrichment_service.enrich_link(link_id, test_url, force_refresh=False)
+        
+        # Should be skipped
+        assert result['success'] is True
+        assert result.get('skipped') is True or result.get('already_enriched') is True
+        
+        # Verify content unchanged
+        query = "SELECT scraped_content FROM krai_system.link_scraping_jobs WHERE id = $1::uuid"
+        db_result = await test_database.execute_query(query, (link_id,))
+        assert db_result[0]['scraped_content'] == 'Existing content'
+    
+    @pytest.mark.asyncio
+    async def test_real_link_enrichment_force_refresh(
+        self,
+        real_link_enrichment_service,
+        test_database
+    ):
+        """Test force refresh of already enriched links."""
+        from conftest import create_test_link
+        
+        # Create link with success status
+        test_url = "https://example.com"
+        link_id = await create_test_link(
+            test_database,
+            test_url
+        )
+        
+        # Update with old content
+        update_query = """
+            UPDATE krai_system.link_scraping_jobs
+            SET scraped_content = 'Old content',
+                content_hash = 'old-hash',
+                scrape_status = 'success',
+                scraped_at = NOW() - INTERVAL '10 days'
+            WHERE id = $1::uuid
+        """
+        await test_database.execute_query(update_query, (link_id,))
+        
+        # Force refresh
+        result = await real_link_enrichment_service.enrich_link(link_id, test_url, force_refresh=True)
+        
+        # Should be re-enriched
+        assert result['success'] is True
+        
+        # Verify content updated
+        query = "SELECT scraped_content, content_hash FROM krai_system.link_scraping_jobs WHERE id = $1::uuid"
+        db_result = await test_database.execute_query(query, (link_id,))
+        assert db_result[0]['scraped_content'] != 'Old content'
+        assert db_result[0]['content_hash'] != 'old-hash'
+
+
+# ============================================================================
+# REAL E2E INTEGRATION TESTS - Batch Processing
+# ============================================================================
+
+@pytest.mark.integration
+@pytest.mark.database
+class TestLinkEnrichmentBatchProcessing:
+    """
+    Real batch processing tests for LinkEnrichmentService.
+    
+    Tests concurrent enrichment, batch operations, and performance under load.
+    """
+    
+    @pytest.mark.asyncio
+    async def test_real_batch_enrichment_concurrent_links(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test batch enrichment with concurrent processing."""
+        # Create 10 test links
+        link_ids = []
+        test_urls = [
+            "https://example.com",
+            "https://httpbin.org/html",
+            "https://www.iana.org/domains/example",
+            "https://httpbin.org/get",
+            "https://httpbin.org/status/200",
+            "https://example.org",
+            "https://example.net",
+            "https://httpbin.org/headers",
+            "https://httpbin.org/user-agent",
+            "https://httpbin.org/ip"
+        ]
+        
+        for url in test_urls:
+            link = await test_link_data(url)
+            link_ids.append(link['id'])
+        
+        # Batch enrich with concurrency limit
+        result = await real_link_enrichment_service.enrich_links_batch(
+            link_ids=link_ids,
+            max_concurrent=3
+        )
+        
+        # Verify batch result
+        assert result['total'] == 10
+        assert result['enriched'] + result['failed'] + result['skipped'] == 10
+        assert result['enriched'] >= 8  # Allow some failures
+        
+        # Verify all links were processed
+        placeholders = ", ".join([f"${i+1}::uuid" for i in range(len(link_ids))])
+        query = f"""
+            SELECT id, scrape_status 
+            FROM krai_system.link_scraping_jobs 
+            WHERE id IN ({placeholders})
+        """
+        db_results = await test_database.execute_query(query, tuple(link_ids))
+        
+        assert len(db_results) == 10
+        success_count = sum(1 for r in db_results if r['scrape_status'] == 'success')
+        assert success_count >= 8
+    
+    @pytest.mark.asyncio
+    async def test_real_batch_enrichment_mixed_status(
+        self,
+        real_link_enrichment_service,
+        test_database
+    ):
+        """Test batch enrichment with mixed link statuses."""
+        from conftest import create_test_link
+        
+        # Create links with different statuses
+        pending_link = await create_test_link(test_database, "https://example.com")
+        
+        success_link = await create_test_link(test_database, "https://example.org")
+        await test_database.execute_query(
+            "UPDATE krai_system.link_scraping_jobs SET scraped_content = 'Existing', scrape_status = 'success', scraped_at = NOW() WHERE id = $1::uuid",
+            (success_link,)
+        )
+        
+        failed_link = await create_test_link(test_database, "https://example.net")
+        await test_database.execute_query(
+            "UPDATE krai_system.link_scraping_jobs SET scrape_status = 'failed' WHERE id = $1::uuid",
+            (failed_link,)
+        )
+        
+        link_ids = [pending_link, success_link, failed_link]
+        
+        # Batch enrich
+        result = await real_link_enrichment_service.enrich_links_batch(
+            link_ids=link_ids,
+            max_concurrent=2
+        )
+        
+        # Verify counts
+        assert result['total'] == 3
+        assert result['enriched'] >= 1  # At least pending should be enriched
+        assert result['skipped'] >= 1  # Success should be skipped
+    
+    @pytest.mark.asyncio
+    async def test_real_batch_enrichment_partial_failures(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test batch enrichment with some URLs failing."""
+        # Create mix of valid and invalid URLs
+        urls = [
+            "https://example.com",  # Valid
+            "https://invalid-domain-that-does-not-exist-12345.com",  # Invalid domain
+            "https://httpbin.org/status/404",  # 404 error
+            "https://httpbin.org/html",  # Valid
+            "https://httpbin.org/status/500",  # Server error
+        ]
+        
+        link_ids = []
+        for url in urls:
+            link = await test_link_data(url)
+            link_ids.append(link['id'])
+        
+        # Batch enrich
+        result = await real_link_enrichment_service.enrich_links_batch(
+            link_ids=link_ids,
+            max_concurrent=2
+        )
+        
+        # Verify mixed results
+        assert result['total'] == 5
+        assert result['enriched'] >= 2  # At least 2 valid URLs
+        assert result['failed'] >= 1  # At least 1 failure
+        
+        # Verify failed links have error messages
+        placeholders = ", ".join([f"${i+1}::uuid" for i in range(len(link_ids))])
+        query = f"""
+            SELECT id, scrape_status, scrape_error 
+            FROM krai_system.link_scraping_jobs 
+            WHERE id IN ({placeholders}) AND scrape_status = 'failed'
+        """
+        failed_links = await test_database.execute_query(query, tuple(link_ids))
+        
+        for link in failed_links:
+            assert link['scrape_error'] is not None
+            assert len(link['scrape_error']) > 0
+    
+    @pytest.mark.asyncio
+    async def test_real_batch_enrichment_custom_concurrency(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test batch enrichment with custom concurrency limit."""
+        import time
+        
+        # Create 5 test links
+        link_ids = []
+        for i in range(5):
+            link = await test_link_data(f"https://httpbin.org/delay/{i}")
+            link_ids.append(link['id'])
+        
+        # Measure time with concurrency=5
+        start_time = time.time()
+        result = await real_link_enrichment_service.enrich_links_batch(
+            link_ids=link_ids,
+            max_concurrent=5
+        )
+        duration = time.time() - start_time
+        
+        # With concurrency=5, all should run in parallel
+        # Should complete faster than sequential (which would take ~10s)
+        assert duration < 15  # Allow some overhead
+        assert result['total'] == 5
+    
+    @pytest.mark.asyncio
+    async def test_real_batch_enrichment_force_refresh_batch(
+        self,
+        real_link_enrichment_service,
+        test_database
+    ):
+        """Test batch enrichment with force_refresh on already enriched links."""
+        from conftest import create_test_link
+        
+        # Create already enriched links
+        link_ids = []
+        for i in range(3):
+            link_id = await create_test_link(
+                test_database,
+                f"https://example.com/page{i}"
+            )
+            await test_database.execute_query(
+                "UPDATE krai_system.link_scraping_jobs SET scraped_content = 'Old', scrape_status = 'success', scraped_at = NOW() - INTERVAL '5 days' WHERE id = $1::uuid",
+                (link_id,)
+            )
+            link_ids.append(link_id)
+        
+        # Batch enrich with force_refresh
+        result = await real_link_enrichment_service.enrich_links_batch(
+            link_ids=link_ids,
+            max_concurrent=2,
+            force_refresh=True
+        )
+        
+        # All should be re-enriched
+        assert result['enriched'] == 3
+        assert result['skipped'] == 0
+        
+        # Verify content updated
+        placeholders = ", ".join([f"${i+1}::uuid" for i in range(len(link_ids))])
+        query = f"SELECT scraped_content FROM krai_system.link_scraping_jobs WHERE id IN ({placeholders})"
+        db_results = await test_database.execute_query(query, tuple(link_ids))
+        
+        for link in db_results:
+            assert link['scraped_content'] != 'Old'
+    
+    @pytest.mark.asyncio
+    @pytest.mark.benchmark
+    async def test_batch_enrichment_performance_baseline(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test batch enrichment performance baseline (5 links < 30s)."""
+        import time
+        
+        # Create 5 test links
+        link_ids = []
+        for i in range(5):
+            link = await test_link_data(f"https://httpbin.org/html?page={i}")
+            link_ids.append(link['id'])
+        
+        # Measure enrichment time
+        start_time = time.time()
+        result = await real_link_enrichment_service.enrich_links_batch(
+            link_ids=link_ids,
+            max_concurrent=3
+        )
+        duration = time.time() - start_time
+        
+        # Performance baseline
+        assert duration < 30  # Should complete within 30 seconds
+        assert result['enriched'] >= 4  # At least 80% success rate
+        
+        # Calculate throughput
+        throughput = result['enriched'] / duration
+        assert throughput > 0.1  # At least 0.1 links/second
+    
+    @pytest.mark.asyncio
+    @pytest.mark.benchmark
+    @pytest.mark.slow
+    async def test_batch_enrichment_performance_stress(
+        self,
+        real_link_enrichment_service,
+        test_link_data,
+        test_database
+    ):
+        """Test batch enrichment under stress (50 links < 120s)."""
+        import time
+        
+        # Create 50 test links
+        link_ids = []
+        base_urls = [
+            "https://example.com",
+            "https://httpbin.org/html",
+            "https://www.iana.org/domains/example",
+        ]
+        
+        for i in range(50):
+            url = f"{base_urls[i % len(base_urls)]}?id={i}"
+            link = await test_link_data(url)
+            link_ids.append(link['id'])
+        
+        # Measure enrichment time with higher concurrency
+        start_time = time.time()
+        result = await real_link_enrichment_service.enrich_links_batch(
+            link_ids=link_ids,
+            max_concurrent=10
+        )
+        duration = time.time() - start_time
+        
+        # Performance baseline
+        assert duration < 120  # Should complete within 2 minutes
+        assert result['enriched'] >= 40  # At least 80% success rate
+        
+        # Calculate throughput
+        throughput = result['enriched'] / duration
+        assert throughput > 0.5  # At least 0.5 links/second

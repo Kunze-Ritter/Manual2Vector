@@ -13,7 +13,8 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Sidebar />
       <div className="ml-64">
         <Header />
-        <main className="pt-16 pb-12 px-6 min-h-screen">{children}</main>
+        {/* Main content area - Using spacing tokens */}
+        <main className="pt-16 pb-3xl px-lg min-h-screen">{children}</main>
         <Footer />
       </div>
     </div>

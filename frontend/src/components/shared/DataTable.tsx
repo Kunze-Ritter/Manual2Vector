@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type {
   Cell,
   ColumnDef,
@@ -229,8 +229,24 @@ export function DataTable<TData, TValue>({
     onRowSelectionChange: (updater) => {
       const nextState =
         typeof updater === 'function' ? updater(selectionState) : (updater as RowSelectionState)
+      
+      // Update internal state if uncontrolled
       if (!rowSelection) {
         setInternalRowSelection(nextState)
+      }
+      
+      // Always propagate to external consumer if provided
+      if (onRowSelectionChange) {
+        const selectedRowModel = table.getSelectedRowModel()
+        const selectedRows = selectedRowModel.rows.map((row) => row.original as TData)
+        const selectedIds = selectedRowModel.rows.map((row) => row.id)
+        
+        onRowSelectionChange({
+          state: nextState,
+          selectedRows,
+          selectedIds,
+          selectedRowModel,
+        })
       }
     },
     getRowId: (originalRow, index, parent) => {
@@ -251,21 +267,6 @@ export function DataTable<TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  useEffect(() => {
-    if (!onRowSelectionChange) return
-    const selectedRowModel = table.getSelectedRowModel()
-    const selectedRows = selectedRowModel.rows.map((row) => row.original as TData)
-    const selectedIds = selectedRowModel.rows.map((row) => row.id)
-
-    const currentSelectionState = table.getState().rowSelection as RowSelectionState
-
-    onRowSelectionChange({
-      state: currentSelectionState,
-      selectedRows,
-      selectedIds,
-      selectedRowModel,
-    })
-  }, [onRowSelectionChange, selectionState, table])
 
   const currentPage = pagination?.page ?? 1
   const currentPageSize = pagination?.page_size ?? Number(PAGE_SIZE_OPTIONS[0])

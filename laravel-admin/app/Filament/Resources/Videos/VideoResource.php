@@ -19,11 +19,15 @@ class VideoResource extends Resource
 {
     protected static ?string $model = Video::class;
 
-    public static UnitEnum|string|null $navigationGroup = null;
+    protected static UnitEnum|string|null $navigationGroup = 'Content';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static ?string $navigationLabel = 'Videos';
 
-    protected static bool $shouldRegisterNavigation = false;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-film';
+
+    protected static ?int $navigationSort = 2;
+
+    protected static bool $shouldRegisterNavigation = true;
 
     protected static ?string $recordTitleAttribute = 'title';
 

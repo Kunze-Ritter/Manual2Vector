@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { lazy } from 'react'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 
 // Lazy load devtools for development only
 const ReactQueryDevtools = lazy(() =>
@@ -36,9 +37,10 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -175,6 +177,7 @@ function App() {
       </BrowserRouter>
 
       <Toaster richColors closeButton />
+      </ThemeProvider>
 
       {/* DevTools */}
       {import.meta.env.VITE_ENABLE_DEVTOOLS === 'true' && (

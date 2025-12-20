@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -33,236 +34,168 @@ class StorageProcessor(BaseProcessor):
             raise ValueError("Processing context must include 'document_id'")
 
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
-            pending_artifacts = await self._load_pending_artifacts(str(document_id), adapter)
-            if not pending_artifacts:
-                adapter.info("No pending artifacts to store")
-                return self._create_result(True, "No pending artifacts", {"saved_items": 0})
+            images = getattr(context, 'images', None) or []
+            if images:
+                stored = await self._store_images_from_context(context, adapter)
+                return self._create_result(
+                    success=True,
+                    message="Storage stage completed",
+                    data={"saved_items": stored, "errors": []},
+                )
 
-            saved_items = 0
-            errors: List[str] = []
+            adapter.info("No pending artifacts to store")
+            return self._create_result(True, "No pending artifacts", {"saved_items": 0})
 
-            for artifact in pending_artifacts:
-                try:
-                    artifact_type = artifact.get("artifact_type")
-                    adapter.debug("Processing artifact %s of type %s", artifact.get("id"), artifact_type)
+    async def _store_images_from_context(self, context, adapter) -> int:
+        if not self.storage_service:
+            adapter.debug("Storage service not configured - skipping image upload")
+            return 0
 
-                    if artifact_type == "link":
-                        await self._store_link_artifact(artifact, adapter)
-                    elif artifact_type == "video":
-                        await self._store_video_artifact(artifact, adapter)
-                    elif artifact_type == "chunk":
-                        await self._store_chunk_artifact(artifact, adapter)
-                    elif artifact_type == "embedding":
-                        await self._store_embedding_artifact(artifact, adapter)
-                    elif artifact_type == "image":
-                        await self._store_image_artifact(artifact, adapter)
-                    else:
-                        adapter.debug("Unsupported artifact type: %s", artifact_type)
-                        continue
+        images = getattr(context, 'images', None) or []
+        if not images:
+            return 0
 
-                    saved_items += 1
-                except Exception as exc:
-                    error_msg = f"Failed to store artifact {artifact.get('id')}: {exc}"
-                    errors.append(error_msg)
-                    adapter.warning(error_msg)
+        stored = 0
+        document_id = str(getattr(context, 'document_id'))
+        output_dir = getattr(context, 'output_dir', None)
 
-            adapter.info("Storage stage complete: %s items stored, %s errors", saved_items, len(errors))
+        for index, image in enumerate(images):
+            image_id = image.get('id')
+            if not image_id:
+                continue
 
-            return self._create_result(
-                success=len(errors) == 0,
-                message="Storage stage completed" if not errors else "Storage stage completed with errors",
-                data={
-                    "saved_items": saved_items,
-                    "errors": errors
-                }
+            temp_path = image.get('temp_path') or image.get('path')
+            if not temp_path:
+                continue
+
+            path_obj = Path(temp_path)
+            if not path_obj.exists():
+                continue
+
+            with open(path_obj, 'rb') as fp:
+                content_bytes = fp.read()
+
+            original_filename = image.get('filename') or path_obj.name
+            metadata = {
+                'document_id': document_id,
+                'image_id': str(image_id),
+                'page_number': image.get('page_number'),
+                'image_index': int(image.get('image_index') or index),
+                'width': image.get('width'),
+                'height': image.get('height'),
+                'format': image.get('format'),
+                'extracted_at': image.get('extracted_at'),
+            }
+
+            result = await self.storage_service.upload_image(
+                content=content_bytes,
+                filename=original_filename,
+                bucket_type='document_images',
+                metadata={k: v for k, v in metadata.items() if v is not None},
             )
 
-    async def _load_pending_artifacts(self, document_id: str, adapter) -> List[Dict]:
-        """Retrieve pending storage tasks for a document."""
-        if not self.database_service or not getattr(self.database_service, "client", None):
-            return []
+            if not result.get('success'):
+                continue
 
-        try:
-            result = self.database_service.client.table("vw_processing_queue").select("*").eq(
-                "document_id", document_id
-            ).eq("stage", "storage").eq("status", "pending").execute()
+            storage_url = result.get('url') or result.get('public_url') or result.get('storage_url')
+            storage_path = result.get('storage_path') or result.get('key')
+            file_hash = result.get('file_hash')
 
-            artifacts: List[Dict] = []
-            for row in result.data or []:
-                payload = row.get("payload")
-                if isinstance(payload, str):
-                    try:
-                        payload = json.loads(payload)
-                    except json.JSONDecodeError:
-                        payload = {}
+            db_filename = storage_path or original_filename
 
-                artifacts.append({
-                    "id": row.get("id"),
-                    "artifact_type": row.get("artifact_type"),
-                    "payload": payload or {},
-                    "created_at": row.get("created_at")
-                })
+            image['storage_url'] = storage_url
+            image['storage_path'] = storage_path
+            image['file_hash'] = file_hash
 
-            return artifacts
-        except Exception as exc:
-            adapter.warning("Failed to load pending artifacts: %s", exc)
-            return []
+            if self.database_service:
+                if not storage_url:
+                    adapter.warning(
+                        "Skipping DB insert for image %s because storage_url is missing (storage_path=%s)",
+                        image_id,
+                        storage_path,
+                    )
+                    continue
+                await self.database_service.execute_query(
+                    """
+                    INSERT INTO krai_content.images (
+                        id, document_id, filename, original_filename,
+                        storage_path, storage_url, file_size, image_format,
+                        width_px, height_px, page_number, image_index,
+                        image_type, ai_description, ai_confidence,
+                        contains_text,
+                        ocr_text, ocr_confidence,
+                        manual_description,
+                        tags,
+                        file_hash,
+                        figure_number, figure_context
+                    ) VALUES (
+                        $1::uuid, $2::uuid, $3, $4,
+                        $5, $6, $7, $8,
+                        $9, $10, $11, $12,
+                        $13, $14, $15,
+                        $16,
+                        $17, $18,
+                        $19,
+                        $20::text[],
+                        $21,
+                        $22, $23
+                    )
+                    ON CONFLICT (id) DO UPDATE SET
+                        storage_path = EXCLUDED.storage_path,
+                        storage_url = EXCLUDED.storage_url,
+                        file_hash = EXCLUDED.file_hash,
+                        ai_description = EXCLUDED.ai_description,
+                        ai_confidence = EXCLUDED.ai_confidence,
+                        contains_text = EXCLUDED.contains_text,
+                        ocr_text = EXCLUDED.ocr_text,
+                        ocr_confidence = EXCLUDED.ocr_confidence,
+                        manual_description = EXCLUDED.manual_description,
+                        tags = EXCLUDED.tags,
+                        figure_number = EXCLUDED.figure_number,
+                        figure_context = EXCLUDED.figure_context,
+                        updated_at = NOW()
+                    """.strip(),
+                    [
+                        str(image_id),
+                        document_id,
+                        db_filename,
+                        original_filename,
+                        storage_path,
+                        storage_url,
+                        image.get('size_bytes'),
+                        image.get('format'),
+                        image.get('width'),
+                        image.get('height'),
+                        image.get('page_number'),
+                        int(image.get('image_index') or index),
+                        image.get('image_type') or image.get('type') or 'diagram',
+                        image.get('ai_description'),
+                        image.get('ai_confidence'),
+                        bool(image.get('contains_text') or False),
+                        image.get('ocr_text'),
+                        image.get('ocr_confidence'),
+                        image.get('manual_description'),
+                        image.get('tags') or [],
+                        file_hash,
+                        image.get('figure_number'),
+                        image.get('figure_context'),
+                    ],
+                )
 
-    async def _store_link_artifact(self, artifact: Dict, adapter):
-        """Persist link artifact to database."""
-        if not self.database_service or not getattr(self.database_service, "client", None):
-            return
+            stored += 1
 
-        payload = artifact.get("payload", {})
-        link_data = {
-            "document_id": payload.get("document_id"),
-            "url": payload.get("url"),
-            "description": payload.get("description"),
-            "link_type": payload.get("link_type", "external"),
-            "link_category": payload.get("link_category", "external"),
-            "page_number": payload.get("page_number"),
-            "position_data": payload.get("position_data"),
-            "confidence_score": payload.get("confidence_score", 0.5),
-            "manufacturer_id": payload.get("manufacturer_id"),
-            "series_id": payload.get("series_id"),
-            "related_error_codes": payload.get("related_error_codes") or [],
-            # Phase 5: Context extraction fields
-            "context_description": payload.get("context_description"),
-            "page_header": payload.get("page_header"),
-            "related_products": payload.get("related_products", []),
-            "related_chunks": payload.get("related_chunks", [])  # Add related_chunks
-            # Note: context_embedding will be added by EmbeddingProcessor (Stage 9)
-        }
-
-        self.database_service.client.table("vw_links").insert(link_data).execute()
-        adapter.debug("Stored link artifact %s", artifact.get("id"))
-
-    async def _store_video_artifact(self, artifact: Dict, adapter):
-        """Persist video artifact to database."""
-        if not self.database_service or not getattr(self.database_service, "client", None):
-            return
-
-        payload = artifact.get("payload", {})
-        video_data = {
-            "link_id": payload.get("link_id"),
-            "document_id": payload.get("document_id"),
-            "youtube_id": payload.get("youtube_id"),
-            "title": payload.get("title"),
-            "description": payload.get("description"),
-            "thumbnail_url": payload.get("thumbnail_url"),
-            "duration": payload.get("duration"),
-            "platform": payload.get("platform", "youtube"),
-            "metadata": payload.get("metadata") or {},
-            "manufacturer_id": payload.get("manufacturer_id"),
-            "series_id": payload.get("series_id"),
-            # Phase 5: Context extraction fields
-            "context_description": payload.get("context_description"),
-            "page_number": payload.get("page_number"),
-            "page_header": payload.get("page_header"),  # Add page_header field
-            "related_error_codes": payload.get("related_error_codes", []),
-            "related_products": payload.get("related_products", []),
-            "related_chunks": payload.get("related_chunks", [])  # Add related_chunks
-            # Note: context_embedding will be added by EmbeddingProcessor (Stage 9)
-        }
-
-        self.database_service.client.table("vw_videos").insert(video_data).execute()
-        adapter.debug("Stored video artifact %s", artifact.get("id"))
-
-    async def _store_chunk_artifact(self, artifact: Dict, adapter):
-        """Persist chunk artifact to database."""
-        if not self.database_service or not getattr(self.database_service, "client", None):
-            return
-
-        payload = artifact.get("payload", {})
-        chunk_data = {
-            "document_id": payload.get("document_id"),
-            "chunk_index": payload.get("chunk_index"),
-            "page_start": payload.get("page_start"),
-            "page_end": payload.get("page_end"),
-            "content": payload.get("content"),
-            "content_hash": payload.get("content_hash"),
-            "char_count": payload.get("char_count"),
-            "metadata": payload.get("metadata") or {}
-        }
-
-        self.database_service.client.table("vw_chunks").insert(chunk_data).execute()
-        adapter.debug("Stored chunk artifact %s", artifact.get("id"))
-
-    async def _store_embedding_artifact(self, artifact: Dict, adapter):
-        """Persist embedding artifact to database."""
-        if not self.database_service or not getattr(self.database_service, "client", None):
-            return
-
-        payload = artifact.get("payload", {})
-        embedding_data = {
-            "document_id": payload.get("document_id"),
-            "chunk_id": payload.get("chunk_id"),
-            "embedding": payload.get("embedding"),
-            "model": payload.get("model"),
-            "embedding_type": payload.get("embedding_type", "document"),
-            "metadata": payload.get("metadata") or {}
-        }
-
-        self.database_service.client.table("vw_embeddings").insert(embedding_data).execute()
-        adapter.debug("Stored embedding artifact %s", artifact.get("id"))
-
-    async def _store_image_artifact(self, artifact: Dict, adapter):
-        """Upload image content to storage and persist metadata."""
-        if not self.storage_service or not getattr(self.storage_service, "client", None):
-            self.logger.debug("Storage service not configured - skipping image upload")
-            return
-
-        payload = artifact.get("payload", {})
-        content_bytes = payload.get("content")
-        filename = payload.get("filename") or "image.bin"
-        bucket_type = payload.get("bucket_type", "document_images")
-        metadata = payload.get("metadata") or {}
-
-        if not content_bytes:
-            adapter.debug("No content found for image artifact %s", artifact.get("id"))
-            return
-
-        encoding = payload.get("content_encoding")
-        if isinstance(content_bytes, str) and encoding == "base64":
+        if os.getenv('IMAGE_PROCESSOR_CLEANUP', '1') != '0' and output_dir:
             try:
-                content_bytes = base64.b64decode(content_bytes)
-            except Exception as exc:
-                adapter.warning("Failed to decode base64 image content for artifact %s: %s", artifact.get("id"), exc)
-                return
+                output_path = Path(output_dir)
+                if output_path.exists():
+                    for item in output_path.iterdir():
+                        if item.is_file():
+                            item.unlink()
+                    output_path.rmdir()
+            except Exception:
+                pass
 
-        result = await self.storage_service.upload_image(
-            content=content_bytes,
-            filename=filename,
-            bucket_type=bucket_type,
-            metadata=metadata
-        )
-
-        if result.get("success") and self.database_service and getattr(self.database_service, "client", None):
-            image_record = {
-                "document_id": payload.get("document_id"),
-                "page_number": payload.get("page_number"),
-                "image_type": payload.get("image_type", "diagram"),
-                "storage_url": result.get("url"),
-                "storage_path": result.get("storage_path"),
-                "file_hash": result.get("file_hash"),
-                # AI analysis results (OCR and Vision AI)
-                "ai_description": payload.get("ai_description"),
-                "ocr_text": payload.get("ocr_text"),
-                "ocr_confidence": payload.get("ocr_confidence", 0.0),
-                "ai_confidence": payload.get("ai_confidence", 0.0),
-                # Phase 5: Context extraction fields
-                "context_caption": payload.get("context_caption"),
-                "page_header": payload.get("page_header"),
-                "figure_reference": payload.get("figure_reference"),
-                "related_error_codes": payload.get("related_error_codes", []),
-                "related_products": payload.get("related_products", []),
-                "surrounding_paragraphs": payload.get("surrounding_paragraphs", []),
-                "related_chunks": payload.get("related_chunks", []),  # Add related chunks
-                "metadata": metadata
-                # Note: context_embedding will be added by EmbeddingProcessor (Stage 9)
-            }
-            self.database_service.client.table("vw_images").insert(image_record).execute()
-            adapter.debug("Stored image artifact %s", artifact.get("id"))
+        return stored
 
     def _create_result(self, success: bool, message: str, data: Dict) -> Any:
         class Result:

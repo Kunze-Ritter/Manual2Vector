@@ -7,11 +7,18 @@ error codes, service manuals, parts lists, and troubleshooting data.
 
 import pytest
 import asyncio
+import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 from pathlib import Path
 import json
 import tempfile
+
+try:
+    import jsonschema
+    JSONSCHEMA_AVAILABLE = True
+except ImportError:
+    JSONSCHEMA_AVAILABLE = False
 
 from services.structured_extraction_service import StructuredExtractionService
 
@@ -546,7 +553,7 @@ class TestStructuredExtractionService:
         result = await extraction_service.extract_from_link('error-link-id')
         
         assert result['success'] is True
-        assert result['extraction_type'] == 'error_codes'
+        assert result['extraction_type'] == 'error_code'
 
     @pytest.mark.asyncio
     async def test_extract_from_link_manual_page(self, extraction_service, mock_db_client, mock_scraper):
@@ -595,7 +602,7 @@ class TestStructuredExtractionService:
         result = await extraction_service.extract_from_link('nonexistent-link-id')
         
         assert result['success'] is False
-        assert result['error'] == 'link not found'
+        assert result['error'] == 'link not found', f"Expected exact error message 'link not found', got: {result.get('error')}"
 
     @pytest.mark.asyncio
     async def test_extract_from_link_no_matching_schema(self, extraction_service, mock_db_client, mock_scraper):
@@ -617,7 +624,7 @@ class TestStructuredExtractionService:
         result = await extraction_service.extract_from_link('generic-link-id')
         
         assert result['success'] is False
-        assert result['error'] == 'no matching extraction schema'
+        assert result['error'] == 'no matching extraction schema', f"Expected exact error message 'no matching extraction schema', got: {result.get('error')}"
 
     @pytest.mark.asyncio
     async def test_extract_from_link_updates_metadata(self, extraction_service, mock_db_client, mock_scraper, sample_link_record):
@@ -711,7 +718,7 @@ class TestStructuredExtractionService:
         result = await extraction_service.extract_from_crawled_page('nonexistent-page-id')
         
         assert result['success'] is False
-        assert result['error'] == 'crawled page not found'
+        assert result['error'] == 'crawled page not found', f"Expected exact error message 'crawled page not found', got: {result.get('error')}"
 
     @pytest.mark.asyncio
     async def test_extract_from_crawled_page_updates_status(self, extraction_service, mock_db_client, mock_scraper, sample_crawled_page):
@@ -858,7 +865,7 @@ class TestStructuredExtractionService:
         with pytest.raises(ValueError) as exc_info:
             extraction_service._get_schema('invalid_schema_key')
         
-        assert "Unknown extraction schema" in str(exc_info.value)
+        assert "Schema 'invalid_schema_key' not available" == str(exc_info.value), f"Expected exact error message, got: {exc_info.value}"
 
     @pytest.mark.asyncio
     async def test_validate_extraction_success(self, extraction_service, mock_db_client):
@@ -896,7 +903,56 @@ class TestStructuredExtractionService:
                 status='invalid_status'
             )
         
-        assert "Invalid validation status" in str(exc_info.value)
+        assert "Invalid validation status" == str(exc_info.value), f"Expected exact error message, got: {exc_info.value}"
+
+    @pytest.mark.asyncio
+    async def test_extract_from_link_database_unavailable(self, mock_scraper):
+        """Test extract_from_link when database client is unavailable."""
+        # Create service with database_service that has no client
+        mock_database_service = MagicMock()
+        mock_database_service.service_client = None
+        mock_database_service.client = None
+        
+        with patch('backend.services.structured_extraction_service.Path') as mock_path:
+            mock_path.return_value = Path(__file__)
+            service = StructuredExtractionService(
+                web_scraping_service=mock_scraper,
+                database_service=mock_database_service
+            )
+            service._schemas = {'product_specs': {'schema': {}, 'version': '1.0', 'description': 'test'}}
+            
+            result = await service.extract_from_link('test-link-id')
+            
+            assert result['success'] is False
+            assert result['error'] == 'database client unavailable', f"Expected exact error 'database client unavailable', got: {result.get('error')}"
+
+    @pytest.mark.asyncio
+    async def test_batch_extract_database_unavailable(self, mock_scraper):
+        """Test batch_extract when database client is unavailable."""
+        # Create service with database_service that has no client
+        mock_database_service = MagicMock()
+        mock_database_service.service_client = None
+        mock_database_service.client = None
+        
+        with patch('backend.services.structured_extraction_service.Path') as mock_path:
+            mock_path.return_value = Path(__file__)
+            service = StructuredExtractionService(
+                web_scraping_service=mock_scraper,
+                database_service=mock_database_service
+            )
+            service._schemas = {'product_specs': {'schema': {}, 'version': '1.0', 'description': 'test'}}
+            
+            result = await service.batch_extract(
+                source_type='link',
+                source_ids=['link-1', 'link-2']
+            )
+            
+            # All extractions should fail with database unavailable error
+            assert result['total'] == 2
+            assert result['failed'] == 2
+            for item_result in result['results']:
+                assert item_result['success'] is False
+                assert item_result['error'] == 'database client unavailable'
 
     @pytest.mark.asyncio
     async def test_persist_extraction_new_record(self, extraction_service, mock_db_client):
@@ -1016,7 +1072,7 @@ class TestStructuredExtractionService:
             'firecrawl_llm_provider': 'ollama',
             'firecrawl_model_name': 'llama3.2:latest',
             'extraction_confidence_threshold': 0.7,
-            'extraction_timeout': 60
+            'scrape_timeout': 60
         }
         
         service = StructuredExtractionService(
@@ -1026,7 +1082,7 @@ class TestStructuredExtractionService:
         )
         
         assert service._config['firecrawl_llm_provider'] == 'ollama'
-        assert service._config['extraction_confidence_threshold'] == 0.7
+        assert service._config['confidence_threshold'] == 0.7
         assert service._config['extraction_timeout'] == 60
 
     def test_load_config_defaults(self, mock_scraper, mock_database_service):
@@ -1038,14 +1094,14 @@ class TestStructuredExtractionService:
         )
         
         # Should have default values
-        assert service._config['extraction_confidence_threshold'] == 0.5
+        assert service._config['confidence_threshold'] == 0.5
         assert service._config['extraction_timeout'] == 60
 
     @pytest.mark.asyncio
     async def test_confidence_threshold_configurable(self, extraction_service, mock_db_client, mock_scraper):
         """Test configurable confidence threshold."""
         # Override confidence threshold
-        extraction_service._config['extraction_confidence_threshold'] = 0.7
+        extraction_service._config['confidence_threshold'] = 0.7
         
         # Setup scraper response with confidence below new threshold
         mock_scraper.extract_structured_data.return_value = {
@@ -1062,3 +1118,994 @@ class TestStructuredExtractionService:
         assert result['success'] is False
         assert result['skipped'] is True
         assert result['reason'] == 'confidence_below_threshold'
+
+
+# ============================================================================
+# Integration Tests for StructuredExtractionService
+# ============================================================================
+
+@pytest.mark.integration
+@pytest.mark.database
+class TestStructuredExtractionIntegration:
+    """Integration tests for StructuredExtractionService with real database and services.
+    
+    These tests use real database connections, real WebScrapingService (Firecrawl when available),
+    and verify end-to-end extraction workflows including database persistence, confidence filtering,
+    batch processing, and validation.
+    """
+    
+    # ========================================================================
+    # Product Specs Extraction Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_extract_product_specs_real_firecrawl(
+        self, real_extraction_service, integration_test_urls, test_database, firecrawl_available
+    ):
+        """Test real Firecrawl extraction with product_specs schema.
+        
+        Setup:
+        - Use real extraction service with Firecrawl backend
+        - Extract from test product URL
+        
+        Expected:
+        - Extraction succeeds with product_specs data
+        - Data contains model_number, series_name, product_type
+        - Record persisted in database with correct extraction_type
+        
+        Verification:
+        - Check extracted_data structure
+        - Verify database record exists
+        - Validate all required fields present
+        """
+        if not firecrawl_available:
+            pytest.skip("Firecrawl not available, using BeautifulSoup (no structured extraction)")
+        
+        url = integration_test_urls['product']
+        
+        # Perform extraction
+        result = await real_extraction_service.extract_product_specs(url=url)
+        
+        # Verify extraction succeeded
+        assert result['success'] is True
+        assert 'extracted_data' in result
+        assert 'record_id' in result
+        
+        # Verify extracted data structure
+        extracted_data = result['extracted_data']
+        assert isinstance(extracted_data, dict)
+        
+        # Verify database persistence
+
+        record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+        assert record is not None
+        assert record['extraction_type'] == 'product_specs'
+        assert record['confidence'] >= 0.0
+        assert record['confidence'] <= 1.0
+    @pytest.mark.asyncio
+    async def test_extract_product_specs_confidence_threshold(
+        self, real_extraction_service, integration_test_urls, test_database, test_helpers
+    ):
+        """Test confidence threshold filtering with different thresholds."""
+        url = integration_test_urls['product']
+        thresholds = [0.3, 0.5, 0.8]
+        
+        for threshold in thresholds:
+            real_extraction_service._config['confidence_threshold'] = threshold
+            result = await real_extraction_service.extract_product_specs(url=url)
+            
+            if result.get('skipped'):
+                assert result['reason'] == 'confidence_below_threshold'
+                assert result['confidence'] < threshold
+            elif result.get('success'):
+                # Verify record was persisted and confidence meets threshold
+                record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+                assert record is not None
+                assert record['confidence'] >= threshold
+    
+    @pytest.mark.asyncio
+    async def test_extract_product_specs_schema_validation(
+        self, real_extraction_service, integration_test_urls, extraction_schemas
+    ):
+        """Test schema validation for product_specs extraction."""
+        url = integration_test_urls['product']
+        schema_info = extraction_schemas['schemas']['product_specs']
+        assert schema_info is not None
+        
+        result = await real_extraction_service.extract_product_specs(url=url)
+        
+        if result['success']:
+            extracted_data = result['extracted_data']
+            schema = schema_info['schema']
+            
+            # Validate against JSON schema if jsonschema is available
+            if JSONSCHEMA_AVAILABLE:
+                try:
+                    jsonschema.validate(instance=extracted_data, schema=schema)
+                except jsonschema.ValidationError as e:
+                    pytest.fail(f"Schema validation failed: {e.message}")
+            else:
+                # Fallback: Check required fields manually
+                required_fields = schema.get('required', [])
+                for field in required_fields:
+                    assert field in extracted_data, f"Required field '{field}' missing from extracted_data"
+    
+    @pytest.mark.asyncio
+    async def test_extract_product_specs_with_manufacturer_product_ids(
+        self, real_extraction_service, integration_test_urls, test_database, test_helpers
+    ):
+        """Test extraction with manufacturer_id and product_id foreign keys."""
+
+        
+        url = integration_test_urls['product']
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        product_id = f"prod-{uuid.uuid4().hex[:8]}"
+        
+        result = await real_extraction_service.extract_product_specs(
+            url=url,
+            manufacturer_id=manufacturer_id,
+            product_id=product_id
+        )
+        
+        if result['success']:
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            if record:
+                assert record.get('manufacturer_id') == manufacturer_id
+                assert record.get('product_id') == product_id
+    
+    # ========================================================================
+    # Error Codes Extraction Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_extract_error_codes_real_firecrawl(
+        self, real_extraction_service, integration_test_urls, test_database, firecrawl_available, test_helpers, extraction_schemas
+    ):
+        """Test real Firecrawl extraction with error_codes schema."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl not available")
+
+        url = integration_test_urls['error_codes']
+        
+        result = await real_extraction_service.extract_error_codes(url=url)
+        
+        assert result['success'] is True
+        assert 'extracted_data' in result
+        
+        # Validate schema
+        extracted_data = result['extracted_data']
+        schema_info = extraction_schemas['schemas']['error_codes']
+        schema = schema_info['schema']
+        
+        if JSONSCHEMA_AVAILABLE:
+            try:
+                jsonschema.validate(instance=extracted_data, schema=schema)
+            except jsonschema.ValidationError as e:
+                pytest.fail(f"Schema validation failed: {e.message}")
+        else:
+            # Check required fields
+            assert 'error_codes' in extracted_data
+            if extracted_data['error_codes']:
+                for error_code in extracted_data['error_codes']:
+                    assert 'code' in error_code
+                    assert 'description' in error_code
+        
+        record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+        assert record is not None
+        assert record['extraction_type'] == 'error_code'
+    
+    @pytest.mark.asyncio
+    async def test_extract_error_codes_multiple_codes(
+        self, real_extraction_service, integration_test_urls
+    ):
+        """Test extraction of multiple error codes."""
+        url = integration_test_urls['error_codes']
+        result = await real_extraction_service.extract_error_codes(url=url)
+        
+        if result['success'] and 'extracted_data' in result:
+            data = result['extracted_data']
+            if 'error_codes' in data:
+                assert isinstance(data['error_codes'], list)
+    
+    @pytest.mark.asyncio
+    async def test_extract_error_codes_with_related_parts(
+        self, real_extraction_service, integration_test_urls
+    ):
+        """Test extraction with related_parts and affected_models."""
+        url = integration_test_urls['error_codes']
+        result = await real_extraction_service.extract_error_codes(url=url)
+        
+        if result['success']:
+            assert 'extracted_data' in result
+    
+    # ========================================================================
+    # Service Manual, Parts List, Troubleshooting Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_extract_service_manual_metadata_real_firecrawl(
+        self, real_extraction_service, integration_test_urls, test_database, firecrawl_available, test_helpers, extraction_schemas
+    ):
+        """Test service manual metadata extraction."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl not available")
+
+        url = integration_test_urls['manual']
+        
+        result = await real_extraction_service.extract_service_manual_metadata(url=url)
+        assert result['success'] is True
+        
+        # Validate schema
+        extracted_data = result['extracted_data']
+        schema_info = extraction_schemas['schemas']['service_manual']
+        schema = schema_info['schema']
+        
+        if JSONSCHEMA_AVAILABLE:
+            try:
+                jsonschema.validate(instance=extracted_data, schema=schema)
+            except jsonschema.ValidationError as e:
+                pytest.fail(f"Schema validation failed: {e.message}")
+        else:
+            # Check required fields
+            assert 'manual_type' in extracted_data
+            assert 'product_models' in extracted_data
+        
+        record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+        assert record['extraction_type'] == 'service_manual'
+    
+    @pytest.mark.asyncio
+    async def test_extract_parts_list_real_firecrawl(
+        self, real_extraction_service, integration_test_urls, test_database, firecrawl_available, test_helpers, extraction_schemas
+    ):
+        """Test parts list extraction."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl not available")
+
+        url = integration_test_urls['parts']
+        
+        result = await real_extraction_service.extract_parts_list(url=url)
+        assert result['success'] is True
+        
+        # Validate schema
+        extracted_data = result['extracted_data']
+        schema_info = extraction_schemas['schemas']['parts_list']
+        schema = schema_info['schema']
+        
+        if JSONSCHEMA_AVAILABLE:
+            try:
+                jsonschema.validate(instance=extracted_data, schema=schema)
+            except jsonschema.ValidationError as e:
+                pytest.fail(f"Schema validation failed: {e.message}")
+        else:
+            # Check required fields
+            assert 'parts' in extracted_data
+            if extracted_data['parts']:
+                for part in extracted_data['parts']:
+                    assert 'part_number' in part
+                    assert 'part_name' in part
+        
+        record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+        assert record['extraction_type'] == 'parts_list'
+    
+    @pytest.mark.asyncio
+    async def test_extract_troubleshooting_real_firecrawl(
+        self, real_extraction_service, integration_test_urls, test_database, firecrawl_available, test_helpers, extraction_schemas
+    ):
+        """Test troubleshooting extraction."""
+        if not firecrawl_available:
+            pytest.skip("Firecrawl not available")
+
+        url = integration_test_urls['troubleshooting']
+        
+        result = await real_extraction_service.extract_troubleshooting(url=url)
+        assert result['success'] is True
+        
+        # Validate schema
+        extracted_data = result['extracted_data']
+        schema_info = extraction_schemas['schemas']['troubleshooting']
+        schema = schema_info['schema']
+        
+        if JSONSCHEMA_AVAILABLE:
+            try:
+                jsonschema.validate(instance=extracted_data, schema=schema)
+            except jsonschema.ValidationError as e:
+                pytest.fail(f"Schema validation failed: {e.message}")
+        else:
+            # Check required fields
+            assert 'issues' in extracted_data
+            if extracted_data['issues']:
+                for issue in extracted_data['issues']:
+                    assert 'issue_title' in issue
+                    assert 'solutions' in issue
+        
+        record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+        assert record['extraction_type'] == 'troubleshooting'
+    
+    # ========================================================================
+    # Link Extraction Integration Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_extract_from_link_real_database(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test extract_from_link() with real link record from database."""
+
+        
+        # Create test link
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_id = await test_helpers.create_test_link(
+            test_database,
+            'http://example.com/test-product',
+            'external',
+            'product',
+            manufacturer_id
+        )
+        
+        # Perform extraction
+        result = await real_extraction_service.extract_from_link(link_id)
+        
+        if result['success']:
+            # Verify database persistence
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            assert record is not None
+            assert record['source_type'] == 'link'
+            assert record['source_id'] == link_id
+    
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("link_type,link_category,expected_type", [
+        ('external', 'product', 'product_specs'),
+        ('external', 'error', 'error_code'),
+        ('external', 'manual', 'service_manual'),
+        ('external', 'parts', 'parts_list'),
+        ('external', 'troubleshooting', 'troubleshooting'),
+    ])
+    async def test_extract_from_link_type_determination(
+        self, real_extraction_service, test_database, link_type, link_category, expected_type, test_helpers
+    ):
+        """Test automatic extraction_type determination from link_type and link_category."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_id = await test_helpers.create_test_link(
+            test_database,
+            f'http://example.com/test-{link_category}',
+            link_type,
+            link_category,
+            manufacturer_id
+        )
+        
+        result = await real_extraction_service.extract_from_link(link_id)
+        
+        if result['success']:
+            assert result['extraction_type'] == expected_type
+    
+    @pytest.mark.asyncio
+    async def test_extract_from_link_metadata_update(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test that link metadata is updated with structured_extractions array."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_id = await test_helpers.create_test_link(
+            test_database,
+            'http://example.com/test-product',
+            'external',
+            'product',
+            manufacturer_id
+        )
+        
+        result = await real_extraction_service.extract_from_link(link_id)
+        
+        if result['success']:
+            # Query link to verify metadata update
+            link_record = await test_database.execute_query(
+                "SELECT scraped_metadata FROM krai_content.links WHERE id = $1",
+                link_id
+            )
+            
+            if link_record:
+                metadata = link_record[0].get('scraped_metadata', {})
+                assert isinstance(metadata, dict)
+    
+    @pytest.mark.asyncio
+    async def test_extract_from_link_not_found(
+        self, real_extraction_service, test_helpers
+    ):
+        """Test error handling for non-existent link ID."""
+        result = await real_extraction_service.extract_from_link('non-existent-link-id')
+        
+        assert result['success'] is False
+        assert result['error'] == 'link not found', f"Expected exact error 'link not found', got: {result.get('error')}"
+    
+    @pytest.mark.asyncio
+    async def test_extract_from_link_no_matching_schema(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test error handling when no schema matches link type."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_id = await test_helpers.create_test_link(
+            test_database,
+            'http://example.com/unknown',
+            'external',
+            'unknown_category',
+            manufacturer_id
+        )
+        
+        result = await real_extraction_service.extract_from_link(link_id)
+        
+        assert result['success'] is False
+        assert result['error'] == 'no matching extraction schema', f"Expected exact error 'no matching extraction schema', got: {result.get('error')}"
+    
+    # ========================================================================
+    # Crawled Page Extraction Integration Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_extract_from_crawled_page_real_database(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test extract_from_crawled_page() with real crawled page record."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        crawl_job_id = f"job-{uuid.uuid4().hex[:8]}"
+        page_id = await test_helpers.create_test_crawled_page(
+            test_database,
+            'http://example.com/test-support',
+            'product_page',
+            manufacturer_id,
+            crawl_job_id
+        )
+        
+        result = await real_extraction_service.extract_from_crawled_page(page_id)
+        
+        if result['success']:
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            assert record is not None
+            assert record['source_type'] == 'crawled_page'
+            assert record['source_id'] == page_id
+    
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("page_type,expected_type", [
+        ('product_page', 'product_specs'),
+        ('error_code_page', 'error_code'),
+        ('manual_page', 'service_manual'),
+        ('parts_page', 'parts_list'),
+        ('troubleshooting_page', 'troubleshooting'),
+    ])
+    async def test_extract_from_crawled_page_type_determination(
+        self, real_extraction_service, test_database, page_type, expected_type, test_helpers
+    ):
+        """Test automatic extraction_type determination from page_type."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        crawl_job_id = f"job-{uuid.uuid4().hex[:8]}"
+        page_id = await test_helpers.create_test_crawled_page(
+            test_database,
+            f'http://example.com/test-{page_type}',
+            page_type,
+            manufacturer_id,
+            crawl_job_id
+        )
+        
+        result = await real_extraction_service.extract_from_crawled_page(page_id)
+        
+        if result['success']:
+            assert result['extraction_type'] == expected_type
+    
+    @pytest.mark.asyncio
+    async def test_extract_from_crawled_page_status_update(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test that crawled page status is updated to 'processed'."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        crawl_job_id = f"job-{uuid.uuid4().hex[:8]}"
+        page_id = await test_helpers.create_test_crawled_page(
+            test_database,
+            'http://example.com/test-page',
+            'product_page',
+            manufacturer_id,
+            crawl_job_id
+        )
+        
+        result = await real_extraction_service.extract_from_crawled_page(page_id)
+        
+        if result['success']:
+            # Verify status update
+            page_record = await test_database.execute_query(
+                "SELECT status, processed_at FROM krai_system.crawled_pages WHERE id = $1",
+                page_id
+            )
+            
+            if page_record:
+                assert page_record[0].get('status') in ['processed', 'scraped']
+    
+    @pytest.mark.asyncio
+    async def test_extract_from_crawled_page_not_found(
+        self, real_extraction_service, test_helpers
+    ):
+        """Test error handling for non-existent page ID."""
+        result = await real_extraction_service.extract_from_crawled_page('non-existent-page-id')
+        
+        assert result['success'] is False
+        assert result['error'] == 'crawled page not found', f"Expected exact error 'crawled page not found', got: {result.get('error')}"
+    
+    # ========================================================================
+    # Batch Extraction Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_batch_extract_links_real_database(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test batch_extract() with multiple link IDs."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_ids = []
+        
+        # Create 5 test links
+        for i in range(5):
+            link_id = await test_helpers.create_test_link(
+                test_database,
+                f'http://example.com/product-{i}',
+                'external',
+                'product',
+                manufacturer_id
+            )
+            link_ids.append(link_id)
+        
+        # Perform batch extraction
+        result = await real_extraction_service.batch_extract(
+            source_type='link',
+            source_ids=link_ids
+        )
+        
+        assert 'total' in result
+        assert 'completed' in result
+        assert 'failed' in result
+        assert result['total'] == 5
+    
+    @pytest.mark.asyncio
+    async def test_batch_extract_crawled_pages_real_database(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test batch_extract() with multiple crawled page IDs."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        crawl_job_id = f"job-{uuid.uuid4().hex[:8]}"
+        page_ids = []
+        
+        # Create 5 test pages
+        for i in range(5):
+            page_id = await test_helpers.create_test_crawled_page(
+                test_database,
+                f'http://example.com/page-{i}',
+                'product_page',
+                manufacturer_id,
+                crawl_job_id
+            )
+            page_ids.append(page_id)
+        
+        # Perform batch extraction
+        result = await real_extraction_service.batch_extract(
+            source_type='crawled_page',
+            source_ids=page_ids
+        )
+        
+        assert 'total' in result
+        assert result['total'] == 5
+    
+    @pytest.mark.asyncio
+    async def test_batch_extract_concurrency_control(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test concurrency limiting with max_concurrent parameter."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_ids = []
+        
+        # Create 10 test links
+        for i in range(10):
+            link_id = await test_helpers.create_test_link(
+                test_database,
+                f'http://example.com/product-{i}',
+                'external',
+                'product',
+                manufacturer_id
+            )
+            link_ids.append(link_id)
+        
+        # Track concurrent task counts
+        import asyncio
+        current_tasks = 0
+        max_observed_concurrency = 0
+        lock = asyncio.Lock()
+        
+        original_extract = real_extraction_service.extract_from_link
+        
+        async def tracked_extract(link_id):
+            nonlocal current_tasks, max_observed_concurrency
+            async with lock:
+                current_tasks += 1
+                max_observed_concurrency = max(max_observed_concurrency, current_tasks)
+            try:
+                return await original_extract(link_id)
+            finally:
+                async with lock:
+                    current_tasks -= 1
+        
+        # Temporarily replace extract_from_link with tracked version
+        real_extraction_service.extract_from_link = tracked_extract
+        
+        try:
+            # Perform batch extraction with concurrency limit
+            result = await real_extraction_service.batch_extract(
+                source_type='link',
+                source_ids=link_ids,
+                max_concurrent=2
+            )
+            
+            assert 'total' in result
+            assert result['total'] == 10
+            # Verify max concurrency did not exceed limit
+            assert max_observed_concurrency <= 2
+        finally:
+            # Restore original method
+            real_extraction_service.extract_from_link = original_extract
+    
+    @pytest.mark.asyncio
+    async def test_batch_extract_empty_list(
+        self, real_extraction_service, test_helpers
+    ):
+        """Test batch_extract() with empty source_ids list."""
+        result = await real_extraction_service.batch_extract(
+            source_type='link',
+            source_ids=[]
+        )
+        
+        assert result['total'] == 0
+        assert result['completed'] == 0
+        assert result['failed'] == 0
+        assert result['results'] == []
+    
+    @pytest.mark.asyncio
+    async def test_batch_extract_mixed_success_failure(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test batch extraction with both successful and failing extractions."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_ids = []
+        
+        # Create 3 valid links
+        for i in range(3):
+            link_id = await test_helpers.create_test_link(
+                test_database,
+                f'http://example.com/product-{i}',
+                'external',
+                'product',
+                manufacturer_id
+            )
+            link_ids.append(link_id)
+        
+        # Add 2 non-existent link IDs
+        link_ids.append('non-existent-link-1')
+        link_ids.append('non-existent-link-2')
+        
+        result = await real_extraction_service.batch_extract(
+            source_type='link',
+            source_ids=link_ids,
+            max_concurrent=2
+        )
+        
+        assert result['total'] == 5
+        assert result['completed'] + result['failed'] == 5
+        assert result['failed'] >= 2  # At least the 2 non-existent links
+        
+        # Verify all results are present
+        assert len(result['results']) == 5
+        
+        # Verify successful extractions were persisted
+        successful_results = [r for r in result['results'] if r.get('success')]
+        for success_result in successful_results:
+            record = await test_helpers.verify_extraction_in_db(test_database, success_result['record_id'])
+            assert record is not None
+    
+    # ========================================================================
+    # Validation Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_validate_extraction_pending_to_validated(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test validate_extraction() with status='validated'."""
+
+        
+        # Create and extract
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_id = await test_helpers.create_test_link(
+            test_database,
+            'http://example.com/test-product',
+            'external',
+            'product',
+            manufacturer_id
+        )
+        
+        result = await real_extraction_service.extract_from_link(link_id)
+        
+        if result['success']:
+            # Validate extraction
+            validation_result = await real_extraction_service.validate_extraction(
+                result['record_id'],
+                status='validated',
+                notes='Test validation'
+            )
+            
+            if validation_result:
+                # Verify database update
+                record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+                assert record['validation_status'] == 'validated'
+                assert record.get('validation_notes') == 'Test validation'
+    
+    @pytest.mark.asyncio
+    async def test_validate_extraction_pending_to_rejected(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test validate_extraction() with status='rejected'."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_id = await test_helpers.create_test_link(
+            test_database,
+            'http://example.com/test-product',
+            'external',
+            'product',
+            manufacturer_id
+        )
+        
+        result = await real_extraction_service.extract_from_link(link_id)
+        
+        if result['success']:
+            validation_result = await real_extraction_service.validate_extraction(
+                result['record_id'],
+                status='rejected',
+                notes='Test rejection'
+            )
+            
+            if validation_result:
+                record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+                assert record['validation_status'] == 'rejected'
+    
+    @pytest.mark.asyncio
+    async def test_validate_extraction_not_found(
+        self, real_extraction_service
+    ):
+        """Test validate_extraction() with non-existent extraction_id."""
+        result = await real_extraction_service.validate_extraction(
+            'non-existent-id',
+            status='validated'
+        )
+        
+        assert result is False or (isinstance(result, dict) and not result.get('success'))
+    
+    # ========================================================================
+    # Schema Management Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_schema_loading_from_file(
+        self, real_extraction_service, extraction_schemas
+    ):
+        """Test that schemas are correctly loaded from extraction_schemas.json."""
+        schemas = real_extraction_service.get_extraction_schemas()
+        
+        assert 'product_specs' in schemas
+        assert 'error_codes' in schemas
+        assert 'service_manual' in schemas
+        assert 'parts_list' in schemas
+        assert 'troubleshooting' in schemas
+    
+    @pytest.mark.asyncio
+    async def test_get_extraction_schemas(
+        self, real_extraction_service
+    ):
+        """Test get_extraction_schemas() returns all loaded schemas."""
+        schemas = real_extraction_service.get_extraction_schemas()
+        
+        assert isinstance(schemas, dict)
+        assert len(schemas) >= 5
+    
+    # ========================================================================
+    # Database Persistence Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_persist_extraction_confidence_constraint(
+        self, real_extraction_service, integration_test_urls, test_helpers
+    ):
+        """Test confidence constraint (0.0 <= confidence <= 1.0)."""
+        url = integration_test_urls['product']
+        
+        result = await real_extraction_service.extract_product_specs(url=url)
+        
+        if result['success']:
+            assert result['confidence'] >= 0.0
+            assert result['confidence'] <= 1.0
+    
+    @pytest.mark.asyncio
+    async def test_persist_extraction_validation_status_default(
+        self, real_extraction_service, test_database, integration_test_urls, test_helpers
+    ):
+        """Test that validation_status defaults to 'pending'."""
+
+        
+        url = integration_test_urls['product']
+        result = await real_extraction_service.extract_product_specs(url=url)
+        
+        if result['success']:
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            assert record['validation_status'] == 'pending'
+    
+    # ========================================================================
+    # Config Service Integration Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    async def test_config_llm_provider_persisted(
+        self, real_extraction_service, test_database, integration_test_urls, test_helpers
+    ):
+        """Test that llm_provider from config is persisted in database."""
+
+        
+        url = integration_test_urls['product']
+        result = await real_extraction_service.extract_product_specs(url=url)
+        
+        if result['success']:
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            assert record.get('llm_provider') is not None
+    
+    @pytest.mark.asyncio
+    async def test_config_llm_model_persisted(
+        self, real_extraction_service, test_database, integration_test_urls, test_helpers
+    ):
+        """Test that llm_model from config is persisted in database."""
+
+        
+        url = integration_test_urls['product']
+        result = await real_extraction_service.extract_product_specs(url=url)
+        
+        if result['success']:
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            assert record.get('llm_model') is not None
+    
+    # ========================================================================
+    # End-to-End Integration Tests
+    # ========================================================================
+    
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_e2e_link_extraction_full_flow(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test complete flow: Create link → Extract → Persist → Update metadata → Validate."""
+
+        
+        # Step 1: Create link
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_id = await test_helpers.create_test_link(
+            test_database,
+            'http://example.com/test-product',
+            'external',
+            'product',
+            manufacturer_id
+        )
+        
+        # Step 2: Extract
+        result = await real_extraction_service.extract_from_link(link_id)
+        
+        if result['success']:
+            # Step 3: Verify persistence
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            assert record is not None
+            
+            # Step 4: Verify link metadata update
+            link_record = await test_database.execute_query(
+                "SELECT scraped_metadata FROM krai_content.links WHERE id = $1",
+                link_id
+            )
+            assert link_record is not None
+            
+            # Step 5: Validate
+            validation_result = await real_extraction_service.validate_extraction(
+                result['record_id'],
+                status='validated',
+                notes='E2E test validation'
+            )
+            
+            if validation_result:
+                # Verify validation
+                validated_record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+                assert validated_record['validation_status'] == 'validated'
+    
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_e2e_crawled_page_extraction_full_flow(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test complete flow for crawled page: Create page → Extract → Persist → Status update."""
+
+        
+        # Step 1: Create crawled page
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        crawl_job_id = f"job-{uuid.uuid4().hex[:8]}"
+        page_id = await test_helpers.create_test_crawled_page(
+            test_database,
+            'http://example.com/test-support',
+            'product_page',
+            manufacturer_id,
+            crawl_job_id
+        )
+        
+        # Step 2: Extract
+        result = await real_extraction_service.extract_from_crawled_page(page_id)
+        
+        if result['success']:
+            # Step 3: Verify persistence
+            record = await test_helpers.verify_extraction_in_db(test_database, result['record_id'])
+            assert record is not None
+            
+            # Step 4: Verify status update
+            page_record = await test_database.execute_query(
+                "SELECT status FROM krai_system.crawled_pages WHERE id = $1",
+                page_id
+            )
+            assert page_record is not None
+    
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_e2e_batch_extraction_with_validation(
+        self, real_extraction_service, test_database, test_helpers
+    ):
+        """Test batch extraction followed by validation of multiple records."""
+
+        
+        manufacturer_id = f"mfr-{uuid.uuid4().hex[:8]}"
+        link_ids = []
+        
+        # Create 3 test links
+        for i in range(3):
+            link_id = await test_helpers.create_test_link(
+                test_database,
+                f'http://example.com/product-{i}',
+                'external',
+                'product',
+                manufacturer_id
+            )
+            link_ids.append(link_id)
+        
+        # Batch extract
+        batch_result = await real_extraction_service.batch_extract(
+            source_type='link',
+            source_ids=link_ids
+        )
+        
+        # Validate successful extractions
+        if batch_result.get('completed', 0) > 0:
+            for result in batch_result.get('results', []):
+                if result.get('success'):
+                    await real_extraction_service.validate_extraction(
+                        result['record_id'],
+                        status='validated'
+                    )

@@ -194,7 +194,7 @@ services:
       - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
       - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000}
       - USE_DB_AUTHENTICATION=false
-      - NUQ_DATABASE_URL=disabled
+      - NUQ_DATABASE_URL=postgresql://krai_user:Krai_Secure_Pass123!@krai-postgres:5432/krai
       - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
@@ -202,7 +202,8 @@ services:
       - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
       - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
       - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
-      - NUM_WORKERS=${FIRECRAWL_NUM_WORKERS:-4}
+      - NUM_WORKERS=0
+    command: ["node", "--import", "./dist/src/otel.js", "dist/src/index.js"]
     networks:
       - krai-network
     depends_on:

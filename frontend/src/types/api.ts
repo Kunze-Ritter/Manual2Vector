@@ -101,6 +101,9 @@ export interface DocumentFilters {
   processing_status?: ProcessingStatus;
   manual_review_required?: boolean;
   search?: string;
+  has_failed_stages?: boolean;
+  has_incomplete_stages?: boolean;
+  stage_name?: string;
 }
 
 export interface DocumentListResponse {
@@ -395,6 +398,7 @@ export interface ManufacturerCreateInput {
   annual_revenue_usd?: number | null;
   employee_count?: number | null;
   primary_business_segment?: string | null;
+  notes?: string | null;
 }
 
 export interface ManufacturerUpdateInput {
@@ -413,6 +417,7 @@ export interface ManufacturerUpdateInput {
   annual_revenue_usd?: number | null;
   employee_count?: number | null;
   primary_business_segment?: string | null;
+  notes?: string | null;
 }
 
 export interface ManufacturerFilters {
@@ -714,7 +719,8 @@ export enum WebSocketEvent {
   HARDWARE_UPDATE = "hardware_update",
   ALERT_TRIGGERED = "alert_triggered",
   STAGE_COMPLETED = "stage_completed",
-  STAGE_FAILED = "stage_failed"
+  STAGE_FAILED = "stage_failed",
+  PROCESSOR_STATE_CHANGE = "processor_state_change"
 }
 
 export interface ThroughputPoint {
@@ -744,7 +750,9 @@ export interface StageMetrics {
   avg_duration_seconds: number;
   success_rate: number;
   is_active: boolean;
-  last_activity?: string;
+  last_activity?: string | null;
+  current_document_id?: string | null;
+  error_count_last_hour: number;
 }
 
 export interface HardwareStatus {
@@ -796,6 +804,55 @@ export interface PipelineStatusResponse {
   pipeline_metrics: PipelineMetrics;
   stage_metrics: StageMetrics[];
   hardware_status: HardwareStatus;
+  timestamp: string;
+}
+
+export interface ProcessorHealthStatus {
+  processor_name: string;
+  stage_name: string;
+  status: 'running' | 'idle' | 'failed' | 'degraded';
+  is_active: boolean;
+  documents_processing: number;
+  documents_in_queue: number;
+  last_activity: string | null;
+  current_document_id: string | null;
+  error_rate_percent: number;
+  avg_processing_time_seconds: number;
+  health_score: number;
+}
+
+export interface ProcessorHealthResponse {
+  processors: ProcessorHealthStatus[];
+  timestamp: string;
+}
+
+export interface StageQueueResponse {
+  stage_name: string;
+  queue_items: QueueItem[];
+  pending_count: number;
+  processing_count: number;
+  avg_wait_time_seconds: number;
+  oldest_item_age_seconds: number;
+  timestamp: string;
+}
+
+export interface StageErrorLog {
+  id: string;
+  document_id: string;
+  stage_name: string;
+  error_message: string;
+  error_code: string | null;
+  stack_trace: string | null;
+  occurred_at: string;
+  retry_count: number;
+  can_retry: boolean;
+}
+
+export interface StageErrorLogsResponse {
+  stage_name: string;
+  errors: StageErrorLog[];
+  total_errors: number;
+  error_rate_percent: number;
   timestamp: string;
 }
 
@@ -933,3 +990,70 @@ export interface ApiError {
   detail?: string | null;
   error_code?: string | null;
 }
+
+// Upload-spezifische Typen
+export interface DocumentUploadInput {
+  file: File
+  document_type?: DocumentType
+  language?: string
+}
+
+export interface DocumentUploadResponse {
+  document_id: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  message: string
+  processing_time?: number
+}
+
+export interface UploadProgress {
+  file: File
+  progress: number // 0-100
+  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'failed'
+  document_id?: string
+  error?: string
+  uploaded_at?: string
+}
+
+export interface UploadQueueItem extends UploadProgress {
+  id: string
+  retry_count: number
+  can_retry: boolean
+}
+
+// Document Stage Status Types
+export enum StageStatus {
+  PENDING = "pending",
+  PROCESSING = "processing",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  SKIPPED = "skipped"
+}
+
+export interface DocumentStageDetail {
+  status: StageStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_seconds: number | null;
+  progress: number; // 0-100
+  error: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface DocumentStageStatusResponse {
+  document_id: string;
+  filename: string;
+  overall_progress: number; // 0-100
+  current_stage: string;
+  stages: Record<string, DocumentStageDetail>;
+  can_retry: boolean;
+  last_updated: string;
+}
+
+export const CANONICAL_STAGES = [
+  "upload", "text_extraction", "table_extraction", "svg_processing",
+  "image_processing", "visual_embedding", "link_extraction",
+  "chunk_prep", "classification", "metadata_extraction",
+  "parts_extraction", "series_detection", "storage", "embedding", "search_indexing"
+] as const;
+
+export type StageName = typeof CANONICAL_STAGES[number];

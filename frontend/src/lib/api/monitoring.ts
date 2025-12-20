@@ -10,6 +10,9 @@ import type {
   PipelineMetrics,
   QueueMetrics,
   HardwareStatus,
+  ProcessorHealthResponse,
+  StageQueueResponse,
+  StageErrorLogsResponse,
 } from '@/types/api';
 
 const monitoringApi = {
@@ -174,6 +177,57 @@ const monitoringApi = {
         timestamp: string;
       }>('/api/v1/monitoring/metrics');
       
+      return response.data;
+    } catch (error) {
+      return handleRequestError(error);
+    }
+  },
+
+  // Processor Health
+  async getProcessorHealth(): Promise<ProcessorHealthResponse> {
+    try {
+      const response = await apiClient.get<ProcessorHealthResponse>(
+        '/api/v1/monitoring/processors'
+      );
+      return response.data;
+    } catch (error) {
+      return handleRequestError(error);
+    }
+  },
+
+  // Stage Queue
+  async getStageQueue(stageName: string, limit: number = 50): Promise<StageQueueResponse> {
+    try {
+      const response = await apiClient.get<StageQueueResponse>(
+        `/api/v1/monitoring/stages/${stageName}/queue`,
+        { params: { limit } }
+      );
+      return response.data;
+    } catch (error) {
+      return handleRequestError(error);
+    }
+  },
+
+  // Stage Errors
+  async getStageErrors(stageName: string, limit: number = 100): Promise<StageErrorLogsResponse> {
+    try {
+      const response = await apiClient.get<StageErrorLogsResponse>(
+        `/api/v1/monitoring/stages/${stageName}/errors`,
+        { params: { limit } }
+      );
+      return response.data;
+    } catch (error) {
+      return handleRequestError(error);
+    }
+  },
+
+  // Retry Stage
+  async retryStage(stageName: string, documentId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await apiClient.post<{ success: boolean; message: string }>(
+        `/api/v1/monitoring/stages/${stageName}/retry`,
+        { document_id: documentId }
+      );
       return response.data;
     } catch (error) {
       return handleRequestError(error);

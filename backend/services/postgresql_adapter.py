@@ -209,6 +209,13 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.error(f"Failed to connect to PostgreSQL: {e}")
             raise RuntimeError(f"Cannot connect to PostgreSQL database: {e}")
     
+    async def disconnect(self) -> None:
+        """Close PostgreSQL connection pool"""
+        if self.pg_pool is not None:
+            await self.pg_pool.close()
+            self.pg_pool = None
+            self.logger.info("PostgreSQL connection pool closed")
+    
     async def test_connection(self) -> bool:
         """Test database connection"""
         try:
@@ -230,17 +237,17 @@ class PostgreSQLAdapter(DatabaseAdapter):
             document_id = await conn.fetchval(
                 f"""
                 INSERT INTO {self.schema_prefix}_core.documents 
-                (filename, original_filename, file_size, file_hash, document_type, language, processing_status)
+                (filename, file_size, file_hash, document_type, language, processing_status, storage_path)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id
                 """,
                 document.filename,
-                document.original_filename,
                 document.file_size,
                 document.file_hash,
                 document.document_type,
                 document.language,
-                document.processing_status
+                document.processing_status,
+                getattr(document, 'storage_path', None)
             )
             self.logger.info(f"Created document {document_id}")
             return str(document_id)
@@ -305,6 +312,38 @@ class PostgreSQLAdapter(DatabaseAdapter):
                 document_id
             )
             return [dict(row) for row in rows]
+
+    async def insert_chunk(self, chunk_data: Dict[str, Any]) -> str:
+        """Insert a text chunk into krai_intelligence.chunks.
+
+        Expected keys in chunk_data:
+        - document_id (UUID or str)
+        - text_chunk (str)
+        - chunk_index (int)
+        - page_start (int | None)
+        - page_end (int | None)
+        - fingerprint (str)
+        - metadata (dict)
+        """
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            chunk_id = await conn.fetchval(
+                f"""
+                INSERT INTO {self._intelligence_schema}.chunks
+                    (document_id, text_chunk, chunk_index, page_start, page_end, fingerprint, metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                RETURNING id
+                """,
+                chunk_data["document_id"],
+                chunk_data["text_chunk"],
+                chunk_data["chunk_index"],
+                chunk_data.get("page_start"),
+                chunk_data.get("page_end"),
+                chunk_data["fingerprint"],
+                json.dumps(chunk_data.get("metadata") or {}, ensure_ascii=False),
+            )
+            self.logger.info(f"Created intelligence chunk {chunk_id}")
+            return str(chunk_id)
 
     async def get_images_by_document(self, document_id: str) -> List[Dict[str, Any]]:
         """Get all images for a document"""
@@ -740,8 +779,18 @@ class PostgreSQLAdapter(DatabaseAdapter):
     async def create_intelligence_chunk(self, chunk: IntelligenceChunkModel) -> str:
         pool = self._ensure_pool()
         chunk_data = chunk.model_dump(mode='python', exclude_none=True)
+        if isinstance(chunk_data.get('metadata'), dict):
+            chunk_data['metadata'] = json.dumps(chunk_data.get('metadata') or {}, ensure_ascii=False)
         async with pool.acquire() as conn:
-            columns, placeholders, values = self._prepare_insert(chunk_data)
+            columns = list(chunk_data.keys())
+            placeholders = []
+            values = []
+            for idx, column in enumerate(columns):
+                placeholder = f"${idx + 1}"
+                if column == 'metadata':
+                    placeholder = f"{placeholder}::jsonb"
+                placeholders.append(placeholder)
+                values.append(chunk_data[column])
             sql = (
                 f"INSERT INTO {self._intelligence_schema}.chunks "
                 f"({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING id"
@@ -768,69 +817,39 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.info(f"Created embedding {embedding_id}")
             return str(embedding_id)
 
-    async def create_embedding_v2(
+    async def create_unified_embedding(
         self,
         source_id: str,
         source_type: str,
         embedding: List[float],
         model_name: str,
         embedding_context: str = None,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
     ) -> str:
-        """Create embedding in embeddings_v2 table"""
         pool = self._ensure_pool()
-        
-        # Prepare data
-        embedding_data = {
-            'source_id': source_id,
-            'source_type': source_type,
-            'model_name': model_name,
-            'embedding_context': embedding_context,
-            'metadata': json.dumps(metadata or {})
-        }
-        
-        # Prepare vector literal
-        vector_literal = self._vector_literal(embedding)
-        
-        # Build SQL
-        columns, placeholders, values = self._prepare_insert(embedding_data)
-        columns.append('embedding')
-        placeholders.append(f'${len(values) + 1}::vector')
-        values.append(vector_literal)
-        
-        sql = (
-            f"INSERT INTO {self._intelligence_schema}.embeddings_v2 "
-            f"({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING id"
-        )
-        
-        async with pool.acquire() as conn:
-            embedding_id = await conn.fetchval(sql, *values)
-            self.logger.info(f"Created embedding_v2 {embedding_id} (type={source_type})")
-            return str(embedding_id)
 
-    async def create_embeddings_v2_batch(
-        self,
-        embeddings: List[Dict[str, Any]]
-    ) -> List[str]:
-        """Create multiple embeddings in embeddings_v2 table (batch)"""
-        pool = self._ensure_pool()
-        embedding_ids = []
-        
+        vector_literal = self._vector_literal([float(v) for v in embedding])
+        metadata_json = json.dumps(metadata or {}, ensure_ascii=False)
+
+        sql = (
+            f"INSERT INTO {self._intelligence_schema}.unified_embeddings "
+            "(source_id, source_type, embedding, model_name, embedding_context, metadata) "
+            "VALUES ($1::uuid, $2, $3::vector, $4, $5, $6::jsonb) "
+            "RETURNING id"
+        )
+
         async with pool.acquire() as conn:
-            async with conn.transaction():
-                for emb_data in embeddings:
-                    embedding_id = await self.create_embedding_v2(
-                        source_id=emb_data['source_id'],
-                        source_type=emb_data['source_type'],
-                        embedding=emb_data['embedding'],
-                        model_name=emb_data['model_name'],
-                        embedding_context=emb_data.get('embedding_context'),
-                        metadata=emb_data.get('metadata')
-                    )
-                    embedding_ids.append(embedding_id)
-        
-        self.logger.info(f"Created {len(embedding_ids)} embeddings_v2 in batch")
-        return embedding_ids
+            embedding_id = await conn.fetchval(
+                sql,
+                source_id,
+                source_type,
+                vector_literal,
+                model_name,
+                embedding_context,
+                metadata_json,
+            )
+            self.logger.info(f"Created unified embedding {embedding_id} (type={source_type})")
+            return str(embedding_id)
 
     async def create_structured_table(
         self,
@@ -992,27 +1011,26 @@ class PostgreSQLAdapter(DatabaseAdapter):
         source_id: str,
         source_type: str = None
     ) -> List[Dict[str, Any]]:
-        """Get embeddings from embeddings_v2 by source_id and optional source_type"""
+        """Get embeddings from unified_embeddings by source_id and optional source_type"""
         pool = self._ensure_pool()
-        
-        if source_type:
-            sql = f"""
-                SELECT * FROM {self._intelligence_schema}.embeddings_v2
-                WHERE source_id = $1 AND source_type = $2
-                ORDER BY created_at DESC
-            """
-            async with pool.acquire() as conn:
+
+        table_name = f"{self._intelligence_schema}.unified_embeddings"
+        async with pool.acquire() as conn:
+            if source_type:
+                sql = f"""
+                    SELECT * FROM {table_name}
+                    WHERE source_id = $1 AND source_type = $2
+                    ORDER BY created_at DESC
+                """
                 rows = await conn.fetch(sql, source_id, source_type)
-        else:
-            sql = f"""
-                SELECT * FROM {self._intelligence_schema}.embeddings_v2
-                WHERE source_id = $1
-                ORDER BY created_at DESC
-            """
-            async with pool.acquire() as conn:
+            else:
+                sql = f"""
+                    SELECT * FROM {table_name}
+                    WHERE source_id = $1
+                    ORDER BY created_at DESC
+                """
                 rows = await conn.fetch(sql, source_id)
-        
-        return [dict(row) for row in rows]
+            return [dict(row) for row in rows]
 
     async def get_system_status(self) -> Dict[str, Any]:
         pool = self._ensure_pool()
@@ -1036,7 +1054,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
         pool = self._ensure_pool()
         async with pool.acquire() as conn:
             count = await conn.fetchval(
-                f"SELECT COUNT(*) FROM {self._content_schema}.chunks WHERE document_id = $1",
+                f"SELECT COUNT(*) FROM {self._intelligence_schema}.chunks WHERE document_id = $1",
                 document_id
             )
             return count or 0
@@ -1156,6 +1174,88 @@ class PostgreSQLAdapter(DatabaseAdapter):
         except Exception as e:
             self.logger.error(f"Failed to execute RPC function {function_name}: {e}")
             return []
+    
+    async def execute_rpc(self, function_name: str, params: Dict[str, Any] = None) -> None:
+        """Execute a PostgreSQL function for side effects (VOID-returning).
+
+        Supports both fully-qualified names (e.g. "krai_core.start_stage") and
+        unqualified names (defaulting to the core schema).
+        """
+        pool = self._ensure_pool()
+        params = params or {}
+
+        if "." in function_name:
+            schema, func_name = function_name.split(".", 1)
+        else:
+            schema, func_name = self._core_schema, function_name
+
+        stage_rpc_arg_types = {
+            "start_stage": {
+                "p_document_id": "uuid",
+                "p_stage_name": "text",
+            },
+            "update_stage_progress": {
+                "p_document_id": "uuid",
+                "p_stage_name": "text",
+                "p_progress": "numeric",
+                "p_metadata": "jsonb",
+            },
+            "complete_stage": {
+                "p_document_id": "uuid",
+                "p_stage_name": "text",
+                "p_metadata": "jsonb",
+            },
+            "fail_stage": {
+                "p_document_id": "uuid",
+                "p_stage_name": "text",
+                "p_error": "text",
+                "p_metadata": "jsonb",
+            },
+            "skip_stage": {
+                "p_document_id": "uuid",
+                "p_stage_name": "text",
+                "p_reason": "text",
+            },
+            "get_document_progress": {
+                "p_document_id": "uuid",
+            },
+            "get_current_stage": {
+                "p_document_id": "uuid",
+            },
+            "can_start_stage": {
+                "p_document_id": "uuid",
+                "p_stage_name": "text",
+            },
+        }
+
+        param_names = list(params.keys())
+        arg_type_map = stage_rpc_arg_types.get(func_name) if schema.endswith("_core") else None
+
+        param_values = []
+        for param_name in param_names:
+            value = params[param_name]
+            cast = arg_type_map.get(param_name) if arg_type_map else None
+            if cast in ("json", "jsonb") and isinstance(value, (dict, list, tuple)):
+                value = json.dumps(value, ensure_ascii=False)
+            param_values.append(value)
+
+        placeholders = []
+        for idx, param_name in enumerate(param_names):
+            cast = None
+            if arg_type_map:
+                cast = arg_type_map.get(param_name)
+            if cast:
+                placeholders.append(f"${idx + 1}::{cast}")
+            else:
+                placeholders.append(f"${idx + 1}")
+
+        if param_values:
+            sql = f"SELECT {schema}.{func_name}({', '.join(placeholders)})"
+        else:
+            sql = f"SELECT {schema}.{func_name}()"
+
+        async with pool.acquire() as conn:
+            await conn.execute(sql, *param_values)
     
     async def match_multimodal(
         self,

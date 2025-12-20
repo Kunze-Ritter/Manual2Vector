@@ -14,7 +14,7 @@ import logging
 
 from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult
 from backend.services.database_service import DatabaseService
-from backend.services.storage_service import StorageService
+from backend.services.object_storage_service import ObjectStorageService
 
 
 class ThumbnailProcessor(BaseProcessor):
@@ -28,7 +28,7 @@ class ThumbnailProcessor(BaseProcessor):
     def __init__(
         self,
         database_service: DatabaseService,
-        storage_service: StorageService,
+        storage_service: ObjectStorageService,
         default_size: tuple = (300, 400),
         default_page: int = 0
     ):

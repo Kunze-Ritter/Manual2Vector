@@ -116,6 +116,7 @@ const buildSubmitPayload = ({ mode, values }: BuildPayloadParams): ManufacturerC
     annual_revenue_usd: toOptionalNumber(values.annual_revenue_usd),
     employee_count: toOptionalNumber(values.employee_count),
     primary_business_segment: toOptionalString(values.primary_business_segment),
+    notes: toOptionalString(values.notes),
   }
 
   if (mode === 'create') {

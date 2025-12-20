@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { PipelineStatusResponse, StageMetrics } from '@/types/api';
+import { StageDetailsModal } from './StageDetailsModal';
 
 interface PipelineStatusProps {
   data?: PipelineStatusResponse;
@@ -25,6 +27,9 @@ function getStageStatus(stage: StageMetrics): { label: string; variant: 'default
 }
 
 export default function PipelineStatus({ data }: PipelineStatusProps) {
+  const [selectedStage, setSelectedStage] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   if (!data) {
     return <div>No pipeline data available</div>;
   }
@@ -35,6 +40,13 @@ export default function PipelineStatus({ data }: PipelineStatusProps) {
   const completedTasks = metrics.documents_completed;
   const inProgressTasks = metrics.documents_processing;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const handleStageClick = (stageName: string) => {
+    if (stageName) {
+      setSelectedStage(stageName);
+      setIsModalOpen(true);
+    }
+  };
 
   return (
     <Card data-testid="pipeline-status">
@@ -66,6 +78,7 @@ export default function PipelineStatus({ data }: PipelineStatusProps) {
                 <TableHead className="text-right">Processing</TableHead>
                 <TableHead className="text-right">Completed</TableHead>
                 <TableHead className="text-right">Failed</TableHead>
+                <TableHead className="text-right">Avg Duration</TableHead>
                 <TableHead className="text-right">Success Rate</TableHead>
               </TableRow>
             </TableHeader>
@@ -73,7 +86,12 @@ export default function PipelineStatus({ data }: PipelineStatusProps) {
               {stages.map((stage) => {
                 const status = getStageStatus(stage);
                 return (
-                  <TableRow key={stage.stage_name} data-testid="stage-row">
+                  <TableRow 
+                    key={stage.stage_name} 
+                    data-testid="stage-row"
+                    onClick={() => handleStageClick(stage.stage_name)}
+                    className="cursor-pointer hover:bg-muted/50"
+                  >
                     <TableCell className="font-medium">{stage.stage_name}</TableCell>
                     <TableCell>
                       <Badge variant={status.variant}>{status.label}</Badge>
@@ -83,7 +101,10 @@ export default function PipelineStatus({ data }: PipelineStatusProps) {
                     <TableCell className="text-right">{stage.completed_count}</TableCell>
                     <TableCell className="text-right">{stage.failed_count}</TableCell>
                     <TableCell className="text-right">
-                      {stage.success_rate !== undefined ? `${Math.round(stage.success_rate * 100)}%` : 'N/A'}
+                      {stage.avg_duration_seconds !== undefined ? `${stage.avg_duration_seconds.toFixed(1)}s` : 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {stage.success_rate !== undefined ? `${Math.round(stage.success_rate)}%` : 'N/A'}
                     </TableCell>
                   </TableRow>
                 );
@@ -95,7 +116,7 @@ export default function PipelineStatus({ data }: PipelineStatusProps) {
         <div className="grid gap-4 md:grid-cols-3">
           <div className="p-4 bg-muted/40 rounded-lg" data-testid="metric-success-rate">
             <p className="text-sm text-muted-foreground">Success Rate</p>
-            <p className="text-2xl font-semibold mt-1">{Math.round(metrics.success_rate * 100)}%</p>
+            <p className="text-2xl font-semibold mt-1">{Math.round(metrics.success_rate)}%</p>
             <p className="text-xs text-muted-foreground mt-2">
               Average processing time: {Math.round(metrics.avg_processing_time_seconds)}s
             </p>
@@ -116,6 +137,12 @@ export default function PipelineStatus({ data }: PipelineStatusProps) {
           </div>
         </div>
       </CardContent>
+      
+      <StageDetailsModal
+        stageName={selectedStage}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </Card>
   );
 }

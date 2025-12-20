@@ -31,8 +31,8 @@ type SearchVariables = ErrorCodeSearchRequest
 export const useErrorCodes = (params: UseErrorCodesParams = {}) =>
   useQuery<ErrorCodeListResponse, Error>({
     queryKey: ['error_codes', params],
-    queryFn: async () => {
-      const response = await errorCodesApi.getErrorCodes(params)
+    queryFn: async ({ signal }) => {
+      const response = await errorCodesApi.getErrorCodes(params, signal)
       return response.data
     },
     placeholderData: keepPreviousData,

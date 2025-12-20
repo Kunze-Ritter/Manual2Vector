@@ -49,6 +49,10 @@ class StageMetrics(BaseModel):
     skipped_count: int = Field(..., description="Documents skipped in this stage")
     avg_duration_seconds: float = Field(..., description="Average duration in seconds")
     success_rate: float = Field(..., description="Success rate percentage (0-100)")
+    is_active: bool = Field(False, description="True if processing_count > 0 or last activity < 60s")
+    last_activity: Optional[datetime] = Field(None, description="Timestamp of last stage activity")
+    current_document_id: Optional[str] = Field(None, description="ID of currently processing document")
+    error_count_last_hour: int = Field(0, description="Number of errors in last hour")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -62,9 +66,114 @@ class StageMetrics(BaseModel):
                 "skipped_count": 3,
                 "avg_duration_seconds": 12.5,
                 "success_rate": 98.96,
+                "is_active": True,
+                "last_activity": "2025-12-07T14:30:00Z",
+                "current_document_id": "doc-123",
+                "error_count_last_hour": 2,
             }
         },
     )
+
+
+class ProcessorHealthStatus(BaseModel):
+    """Processor-level health status."""
+
+    processor_name: str = Field(..., description="Processor name (e.g., 'UploadProcessor', 'TextProcessor')")
+    stage_name: str = Field(..., description="Stage name (e.g., 'upload', 'text_extraction')")
+    status: str = Field(..., description="Status: 'running', 'idle', 'failed', 'degraded'")
+    is_active: bool = Field(..., description="True if processor is actively processing")
+    documents_processing: int = Field(..., description="Number of documents currently processing")
+    documents_in_queue: int = Field(..., description="Number of documents in queue")
+    last_activity: Optional[datetime] = Field(None, description="Timestamp of last activity")
+    current_document_id: Optional[str] = Field(None, description="ID of currently processing document")
+    error_rate_percent: float = Field(..., description="Error rate in last hour (0-100)")
+    avg_processing_time_seconds: float = Field(..., description="Average processing time in seconds")
+    health_score: float = Field(..., description="Health score (0-100)")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "processor_name": "TextProcessor",
+                "stage_name": "text_extraction",
+                "status": "running",
+                "is_active": True,
+                "documents_processing": 3,
+                "documents_in_queue": 15,
+                "last_activity": "2025-12-07T14:30:00Z",
+                "current_document_id": "doc-456",
+                "error_rate_percent": 2.5,
+                "avg_processing_time_seconds": 12.3,
+                "health_score": 95.0,
+            }
+        },
+    )
+
+
+class ProcessorHealthResponse(BaseModel):
+    """Processor health response."""
+
+    processors: List[ProcessorHealthStatus]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StageQueueResponse(BaseModel):
+    """Stage queue response."""
+
+    stage_name: str = Field(..., description="Stage name")
+    queue_items: List[QueueItem] = Field(..., description="Queue items")
+    pending_count: int = Field(..., description="Number of pending items")
+    processing_count: int = Field(..., description="Number of processing items")
+    avg_wait_time_seconds: float = Field(..., description="Average wait time in seconds")
+    oldest_item_age_seconds: float = Field(..., description="Age of oldest item in seconds")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StageErrorLog(BaseModel):
+    """Stage error log entry."""
+
+    id: str = Field(..., description="Error log ID")
+    document_id: str = Field(..., description="Document ID")
+    stage_name: str = Field(..., description="Stage name")
+    error_message: str = Field(..., description="Error message")
+    error_code: Optional[str] = Field(None, description="Error code")
+    stack_trace: Optional[str] = Field(None, description="Stack trace")
+    occurred_at: datetime = Field(..., description="When error occurred")
+    retry_count: int = Field(..., description="Number of retries")
+    can_retry: bool = Field(..., description="Whether retry is possible")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "error-001",
+                "document_id": "doc-789",
+                "stage_name": "text_extraction",
+                "error_message": "OCR failed: Invalid PDF structure",
+                "error_code": "OCR_FAILED",
+                "stack_trace": "Traceback...",
+                "occurred_at": "2025-12-07T14:25:00Z",
+                "retry_count": 1,
+                "can_retry": True,
+            }
+        },
+    )
+
+
+class StageErrorLogsResponse(BaseModel):
+    """Stage error logs response."""
+
+    stage_name: str = Field(..., description="Stage name")
+    errors: List[StageErrorLog] = Field(..., description="Error logs")
+    total_errors: int = Field(..., description="Total number of errors")
+    error_rate_percent: float = Field(..., description="Error rate percentage (0-100)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class HardwareStatus(BaseModel):
@@ -382,6 +491,7 @@ class WebSocketEvent(str, Enum):
     ALERT_TRIGGERED = "alert_triggered"
     STAGE_COMPLETED = "stage_completed"
     STAGE_FAILED = "stage_failed"
+    PROCESSOR_STATE_CHANGE = "processor_state_change"
 
 
 class WebSocketMessage(BaseModel):

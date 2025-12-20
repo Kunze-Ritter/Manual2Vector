@@ -82,18 +82,35 @@ class AIService:
         self.logger.setLevel(logging.INFO)
     
     async def connect(self):
-        """Connect to Ollama service"""
+        """Connect to Ollama service with retry logic"""
+        import asyncio
+        
         try:
             self.client = httpx.AsyncClient(timeout=300.0)  # 5 minute timeout for large models
             
-            # Test connection
-            await self.test_connection()
+            # Test connection with retries (Ollama might not be ready immediately)
+            max_retries = 10
+            retry_delay = 3  # seconds
             
-            self.logger.info("Connected to Ollama service")
+            for attempt in range(max_retries):
+                try:
+                    await self.test_connection()
+                    self.logger.info("Connected to Ollama service")
+                    return
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        self.logger.warning(f"Ollama connection attempt {attempt + 1}/{max_retries} failed: {e}. Retrying in {retry_delay}s...")
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        # Log error but don't crash - allow app to start without Ollama
+                        self.logger.error(f"Failed to connect to Ollama after {max_retries} attempts: {e}")
+                        self.logger.warning("Application will start without Ollama connection. AI features may not work until Ollama is available.")
+                        return  # Don't raise, allow startup to continue
             
         except Exception as e:
-            self.logger.error(f"Failed to connect to Ollama: {e}")
-            raise
+            self.logger.error(f"Failed to initialize Ollama client: {e}")
+            self.logger.warning("Application will start without Ollama. AI features may not work.")
+            # Don't raise - allow app to start
     
     async def test_connection(self):
         """Test Ollama connection"""

@@ -11,17 +11,21 @@ use App\Models\Document;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class DocumentResource extends Resource
 {
     protected static ?string $model = Document::class;
 
-    public static UnitEnum|string|null $navigationGroup = 'Dokumente';
+    protected static UnitEnum|string|null $navigationGroup = 'Content';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static ?string $navigationLabel = 'Dokumente';
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'filename';
 
@@ -33,6 +37,14 @@ class DocumentResource extends Resource
     public static function table(Table $table): Table
     {
         return DocumentsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with([
+                'manufacturer',
+            ]);
     }
 
     public static function getRelations(): array

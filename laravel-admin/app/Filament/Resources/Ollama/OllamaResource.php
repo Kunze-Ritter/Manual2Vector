@@ -10,6 +10,14 @@ class OllamaResource extends Resource
 {
     protected static ?string $model = null;
 
+    protected static \UnitEnum|string|null $navigationGroup = 'Services';
+
+    protected static ?string $navigationLabel = 'Ollama Modelle';
+
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-cpu-chip';
+
+    protected static ?int $navigationSort = 1;
+
     public static function canViewAny(): bool
     {
         return auth()->user()->isAdmin();
@@ -17,7 +25,7 @@ class OllamaResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return 'Ollama Settings';
+        return static::$navigationLabel ?? 'Ollama Modelle';
     }
 
     public static function getModelLabel(): string
@@ -25,7 +33,6 @@ class OllamaResource extends Resource
         return 'Ollama';
     }
 
-    
     public static function getOllamaModels(): array
     {
         try {

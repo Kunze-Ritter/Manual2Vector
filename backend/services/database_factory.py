@@ -113,6 +113,16 @@ def _create_postgresql_adapter(
     user = postgres_user or os.getenv("POSTGRES_USER", "postgres")
     password = postgres_password or os.getenv("POSTGRES_PASSWORD")
     prefix = schema_prefix or os.getenv("DATABASE_SCHEMA_PREFIX", "krai")
+
+    if isinstance(prefix, str):
+        original_prefix = prefix
+        prefix = prefix.strip().lower()
+        if prefix == "kraai":
+            logger.warning(
+                "DATABASE_SCHEMA_PREFIX=%r looks like a typo; normalizing to 'krai' to match database schemas.",
+                original_prefix,
+            )
+            prefix = "krai"
     
     # If a full URL is provided, optionally normalize host when running outside Docker
     if pg_url:
@@ -195,13 +205,6 @@ def _check_deprecated_database_type(database_type: str) -> str:
         logger.warning(
             "Database type 'docker_postgresql' is deprecated. "
             "Using 'postgresql' instead. Update your configuration to use 'postgresql'."
-        )
-        return 'postgresql'
-    
-    if database_type == 'supabase':
-        logger.warning(
-            "Database type 'supabase' is deprecated. "
-            "Using 'postgresql' instead. Supabase support has been removed."
         )
         return 'postgresql'
     

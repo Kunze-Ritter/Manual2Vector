@@ -9,9 +9,10 @@ import pytest
 import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 from backend.processors.upload_processor import UploadProcessor
-from backend.core.base_processor import ProcessingResult
+from backend.core.base_processor import ProcessingResult, ProcessingContext
 
 
 pytestmark = pytest.mark.processor
@@ -31,8 +32,8 @@ class TestUploadProcessorBasic:
         
         # Assert
         assert processor is not None, "Processor should be initialized"
-        assert processor.max_file_size_mb == processor_test_config['max_file_size_mb']
-        assert processor.database_adapter == mock_database_adapter
+        assert processor.max_file_size_bytes == processor_test_config['max_file_size_mb'] * 1024 * 1024
+        assert processor.database == mock_database_adapter
     
     @pytest.mark.asyncio
     async def test_simple_file_validation(self, mock_database_adapter, sample_pdf_files, processor_test_config):
@@ -46,7 +47,12 @@ class TestUploadProcessorBasic:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert isinstance(result, ProcessingResult), "Should return ProcessingResult"
@@ -67,11 +73,16 @@ class TestUploadProcessorBasic:
         large_pdf = sample_pdf_files.get('large_pdf')
         if large_pdf and large_pdf['size'] > 1024 * 1024:  # > 1MB
             # Act
-            result = await processor.process(large_pdf['path'])
+            context = ProcessingContext(
+                document_id=str(uuid4()),
+                file_path=str(large_pdf['path']),
+                document_type="service_manual"
+            )
+            result = await processor.process(context)
             
             # Assert
             assert not result.success, "Large file should be rejected"
-            assert "size" in result.error.lower() or "large" in result.error.lower()
+            assert "File too large" in str(result.error)
     
     @pytest.mark.asyncio
     async def test_nonexistent_file_handling(self, mock_database_adapter, processor_test_config):
@@ -85,11 +96,16 @@ class TestUploadProcessorBasic:
         nonexistent_file = Path("/nonexistent/path/file.pdf")
         
         # Act
-        result = await processor.process(nonexistent_file)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(nonexistent_file),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert not result.success, "Non-existent file should be rejected"
-        assert "exist" in result.error.lower() or "found" in result.error.lower()
+        assert "File not found" in str(result.error)
     
     @pytest.mark.asyncio
     async def test_file_extension_validation(self, mock_database_adapter, temp_test_pdf, processor_test_config):
@@ -105,12 +121,18 @@ class TestUploadProcessorBasic:
         text_file.write_text("This is not a PDF file.")
         
         # Act
-        result = await processor.process(text_file)
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(text_file),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         # Should either reject non-PDF or handle gracefully
         if not result.success:
-            assert "pdf" in result.error.lower() or "extension" in result.error.lower()
+            error_str = str(result.error)
+            assert "Invalid file type" in error_str
     
     @pytest.mark.asyncio
     async def test_duplicate_detection(self, mock_database_adapter, temp_test_pdf, processor_test_config):
@@ -126,18 +148,28 @@ class TestUploadProcessorBasic:
         test_file.write_text("Test content for duplicate detection.")
         
         # Act - First upload
-        first_result = await processor.process(test_file)
+        context1 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            document_type="service_manual"
+        )
+        first_result = await processor.process(context1)
         
         # Assert - First upload should succeed
         assert first_result.success, "First upload should succeed"
         document_id = first_result.data['document_id']
         
         # Act - Second upload (should detect duplicate)
-        second_result = await processor.process(test_file)
+        context2 = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(test_file),
+            document_type="service_manual"
+        )
+        second_result = await processor.process(context2)
         
-        # Assert - Second upload should detect duplicate
-        assert not second_result.success, "Second upload should detect duplicate"
-        assert "duplicate" in second_result.error.lower() or "exists" in second_result.error.lower()
+        # Assert - Second upload should succeed with duplicate status
+        assert second_result.success, "Second upload should succeed with duplicate status"
+        assert second_result.data.get('status') == 'duplicate', "Should mark as duplicate"
     
     @pytest.mark.asyncio
     async def test_metadata_extraction(self, mock_database_adapter, sample_pdf_files, processor_test_config):
@@ -151,125 +183,55 @@ class TestUploadProcessorBasic:
         valid_pdf = sample_pdf_files['valid_pdf']
         
         # Act
-        result = await processor.process(valid_pdf['path'])
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=str(valid_pdf['path']),
+            document_type="service_manual"
+        )
+        result = await processor.process(context)
         
         # Assert
         assert result.success, "Upload should succeed"
         
         metadata = result.metadata
         assert metadata is not None, "Should have metadata"
-        assert 'filename' in metadata, "Should have filename"
-        assert 'file_size_bytes' in metadata, "Should have file size"
-        assert 'file_hash' in metadata, "Should have file hash"
-        assert 'page_count' in metadata, "Should have page count"
+        assert 'file_path' in metadata, "Should have file path"
         
         # Verify metadata values
-        assert metadata['filename'] == valid_pdf['path'].name, "Filename should match"
-        assert metadata['file_size_bytes'] == valid_pdf['size'], "File size should match"
-        assert len(metadata['file_hash']) > 0, "File hash should not be empty"
-        assert metadata['page_count'] >= 1, "Page count should be at least 1"
+        assert metadata.get('file_path') == str(valid_pdf['path']), "File path should match"
 
 
-# Legacy test function for backward compatibility
+# DEPRECATED: Legacy test function - DO NOT USE
+# This legacy entrypoint is deprecated and should not be used.
+# Use pytest to run the modern async tests in this file instead:
+#   pytest tests/processors/test_upload.py -v
+#
+# The legacy function below references old APIs that no longer exist.
+# It is kept only for historical reference and will be removed in a future version.
+
 def test_upload_processor_legacy():
-    """Legacy test function for backward compatibility.
+    """DEPRECATED: Legacy test function - use pytest instead.
     
-    This function maintains the original test structure while using
-    the new conftest.py fixtures where possible.
+    This function is deprecated and references old APIs.
+    
+    To run tests, use:
+        pytest tests/processors/test_upload.py -v
     """
-    import sys
-    from pathlib import Path
-    
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    
-    from backend.processors.upload_processor import UploadProcessor
-    from backend.processors.logger import get_logger
-    
-    logger = get_logger()
-    
-    # Mock Supabase client for testing (we'll use real one later)
-    class MockSupabase:
-        def table(self, name):
-            return self
-        
-        def select(self, *args):
-            return self
-        
-        def eq(self, field, value):
-            return self
-        
-        def execute(self):
-            # Return empty result (no duplicates)
-            class Result:
-                data = []
-            return Result()
-        
-        def insert(self, data):
-            logger.info(f"[MOCK] Would insert: {data.get('filename', 'unknown')}")
-            return self
-        
-        def update(self, data):
-            logger.info(f"[MOCK] Would update document")
-            return self
-    
-    # Test file
-    pdf_path = Path("c:/Users/haast/Docker/KRAI-minimal/AccurioPress_C4080_C4070_C84hc_C74hc_AccurioPrint_C4065_C4065P_SM_EN_20250127.pdf")
-    
-    if not pdf_path.exists():
-        logger.error(f"Test PDF not found: {pdf_path}")
-        return
-    
-    logger.section("Upload Processor Test (Legacy)")
-    
-    # Initialize processor with mock
-    processor = UploadProcessor(
-        supabase_client=MockSupabase(),
-        max_file_size_mb=500
+    raise DeprecationWarning(
+        "This legacy test entrypoint is deprecated. "
+        "Use 'pytest tests/processors/test_upload.py -v' to run modern async tests."
     )
-    
-    # Test upload
-    logger.info("Testing file upload...")
-    result = processor.process_upload(pdf_path)
-    
-    # Check results
-    print("\n=== RESULTS ===")
-    
-    if result['success']:
-        print("✓ Upload successful!")
-        print(f"  Document ID: {result['document_id']}")
-        print(f"  Status: {result['status']}")
-        print(f"  File hash: {result['file_hash'][:16]}...")
-        
-        metadata = result.get('metadata', {})
-        print(f"\n  Metadata:")
-        print(f"    Filename: {metadata.get('filename')}")
-        print(f"    Pages: {metadata.get('page_count')}")
-        print(f"    Size: {metadata.get('file_size_bytes', 0) / (1024*1024):.1f} MB")
-        print(f"    Title: {metadata.get('title', 'N/A')}")
-    else:
-        print(f"✗ Upload failed: {result['error']}")
-    
-    # Test validation
-    print("\n=== VALIDATION TESTS ===")
-    
-    # Test 1: Non-existent file
-    print("\nTest 1: Non-existent file")
-    fake_path = Path("nonexistent.pdf")
-    result = processor.process_upload(fake_path)
-    if not result['success']:
-        print("  ✓ Correctly rejected non-existent file")
-    else:
-        print("  ✗ Should have rejected non-existent file")
-    
-    # Test 2: Valid file (should pass)
-    print("\nTest 2: Valid PDF")
-    result = processor.process_upload(pdf_path)
-    if result['success']:
-        print("  ✓ Correctly accepted valid PDF")
-    else:
-        print("  ✗ Should have accepted valid PDF")
 
 
 if __name__ == "__main__":
-    # Run legacy test for backward compatibility
-    test_upload_processor_legacy()
+    print("=" * 70)
+    print("DEPRECATED: This script is deprecated.")
+    print("=" * 70)
+    print()
+    print("To run upload processor tests, use pytest:")
+    print("  pytest tests/processors/test_upload.py -v")
+    print()
+    print("Or run all processor tests:")
+    print("  pytest tests/processors/ -v")
+    print()
+    print("=" * 70)

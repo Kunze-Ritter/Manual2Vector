@@ -44,6 +44,8 @@ class StageTracker:
         self.adapter = database_adapter
         self.logger = logging.getLogger("krai.stage_tracker")
         self.websocket_callback = websocket_callback
+        self._rpc_enabled = True
+        self._rpc_disabled_reason: Optional[str] = None
 
     @staticmethod
     def _make_json_safe(value: Any) -> Any:
@@ -63,6 +65,27 @@ class StageTracker:
             return stage_name.value
         return str(stage_name)
 
+    def _maybe_disable_rpc(self, exc: Exception, function_name: str) -> bool:
+        """Disable DB RPC stage tracking if functions are missing.
+
+        Returns True if RPC has been disabled due to this exception.
+        """
+        if not self._rpc_enabled:
+            return False
+
+        msg = str(exc)
+        if "does not exist" in msg and function_name.startswith("krai_core."):
+            self._rpc_enabled = False
+            self._rpc_disabled_reason = msg
+            self.logger.warning(
+                "StageTracker RPC disabled (missing DB function). Tracking will continue without DB updates. "
+                "Apply migration: database/migrations/10_stage_status_tracking.sql. Reason: %s",
+                msg,
+            )
+            return True
+
+        return False
+
     async def start_stage(self, document_id: str, stage_name: Union[str, Stage]) -> bool:
         """
         Mark stage as started
@@ -76,13 +99,53 @@ class StageTracker:
         """
         stage = self._normalize_stage(stage_name)
 
+        if not self._rpc_enabled:
+            return True
+
         try:
             await self.adapter.execute_rpc('krai_core.start_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage
             })
+            
+            # Broadcast processor state change via WebSocket
+            if self.websocket_callback:
+                try:
+                    from api.websocket import broadcast_processor_state_change
+                    # Map stage_name to processor_name
+                    stage_to_processor = {
+                        "upload": "UploadProcessor",
+                        "text_extraction": "TextProcessor",
+                        "table_extraction": "TableProcessor",
+                        "svg_processing": "SVGProcessor",
+                        "image_processing": "ImageProcessor",
+                        "visual_embedding": "VisualEmbeddingProcessor",
+                        "link_extraction": "LinkProcessor",
+                        "chunk_prep": "ChunkPrepProcessor",
+                        "classification": "ClassificationProcessor",
+                        "metadata_extraction": "MetadataProcessor",
+                        "parts_extraction": "PartsProcessor",
+                        "series_detection": "SeriesDetectionProcessor",
+                        "storage": "StorageProcessor",
+                        "embedding": "EmbeddingProcessor",
+                        "search_indexing": "SearchIndexingProcessor",
+                    }
+                    processor_name = stage_to_processor.get(stage, f"{stage}Processor")
+                    asyncio.create_task(
+                        broadcast_processor_state_change(
+                            processor_name=processor_name,
+                            stage_name=stage,
+                            status="processing",
+                            document_id=document_id
+                        )
+                    )
+                except Exception as ws_error:
+                    self.logger.warning(f"Failed to broadcast processor state change: {ws_error}")
+            
             return True
         except Exception as e:
+            if self._maybe_disable_rpc(e, "krai_core.start_stage"):
+                return True
             self.logger.error(
                 "Error starting stage %s for document %s: %s",
                 stage,
@@ -113,6 +176,9 @@ class StageTracker:
             True if successful
         """
         stage = self._normalize_stage(stage_name)
+
+        if not self._rpc_enabled:
+            return True
 
         try:
             metadata = metadata or {}
@@ -148,6 +214,8 @@ class StageTracker:
             })
             return True
         except Exception as e:
+            if self._maybe_disable_rpc(e, "krai_core.update_stage_progress"):
+                return True
             self.logger.error(
                 "Error updating progress for stage '%s' on document '%s': %s",
                 stage_name,
@@ -186,17 +254,25 @@ class StageTracker:
         """
         stage = self._normalize_stage(stage_name)
 
+        if not self._rpc_enabled:
+            return True
+
         try:
+            metadata = metadata or {}
+            metadata = self._make_json_safe(metadata)
             await self.adapter.execute_rpc('krai_core.complete_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage,
-                'p_metadata': metadata or {}
+                'p_metadata': metadata
             })
             
-            # Broadcast WebSocket event
+            # Broadcast WebSocket events
             if self.websocket_callback:
                 try:
                     from models.monitoring import WebSocketEvent
+                    from api.websocket import broadcast_processor_state_change
+                    
+                    # Broadcast stage completion event
                     asyncio.create_task(
                         self.websocket_callback(
                             WebSocketEvent.STAGE_COMPLETED,
@@ -205,11 +281,41 @@ class StageTracker:
                             "completed"
                         )
                     )
+                    
+                    # Broadcast processor state change
+                    stage_to_processor = {
+                        "upload": "UploadProcessor",
+                        "text_extraction": "TextProcessor",
+                        "table_extraction": "TableProcessor",
+                        "svg_processing": "SVGProcessor",
+                        "image_processing": "ImageProcessor",
+                        "visual_embedding": "VisualEmbeddingProcessor",
+                        "link_extraction": "LinkProcessor",
+                        "chunk_prep": "ChunkPrepProcessor",
+                        "classification": "ClassificationProcessor",
+                        "metadata_extraction": "MetadataProcessor",
+                        "parts_extraction": "PartsProcessor",
+                        "series_detection": "SeriesDetectionProcessor",
+                        "storage": "StorageProcessor",
+                        "embedding": "EmbeddingProcessor",
+                        "search_indexing": "SearchIndexingProcessor",
+                    }
+                    processor_name = stage_to_processor.get(stage, f"{stage}Processor")
+                    asyncio.create_task(
+                        broadcast_processor_state_change(
+                            processor_name=processor_name,
+                            stage_name=stage,
+                            status="idle",
+                            document_id=None
+                        )
+                    )
                 except Exception as e:
                     self.logger.warning(f"Failed to broadcast stage completion: {e}")
             
             return True
         except Exception as e:
+            if self._maybe_disable_rpc(e, "krai_core.complete_stage"):
+                return True
             self.logger.error(
                 "Error completing stage %s for document %s: %s",
                 stage,
@@ -240,18 +346,26 @@ class StageTracker:
         """
         stage = self._normalize_stage(stage_name)
 
+        if not self._rpc_enabled:
+            return True
+
         try:
+            metadata = metadata or {}
+            metadata = self._make_json_safe(metadata)
             await self.adapter.execute_rpc('krai_core.fail_stage', {
                 'p_document_id': document_id,
                 'p_stage_name': stage,
                 'p_error': error,
-                'p_metadata': metadata or {}
+                'p_metadata': metadata
             })
             
-            # Broadcast WebSocket event
+            # Broadcast WebSocket events
             if self.websocket_callback:
                 try:
                     from models.monitoring import WebSocketEvent
+                    from api.websocket import broadcast_processor_state_change
+                    
+                    # Broadcast stage failure event
                     asyncio.create_task(
                         self.websocket_callback(
                             WebSocketEvent.STAGE_FAILED,
@@ -260,11 +374,41 @@ class StageTracker:
                             "failed"
                         )
                     )
+                    
+                    # Broadcast processor state change
+                    stage_to_processor = {
+                        "upload": "UploadProcessor",
+                        "text_extraction": "TextProcessor",
+                        "table_extraction": "TableProcessor",
+                        "svg_processing": "SVGProcessor",
+                        "image_processing": "ImageProcessor",
+                        "visual_embedding": "VisualEmbeddingProcessor",
+                        "link_extraction": "LinkProcessor",
+                        "chunk_prep": "ChunkPrepProcessor",
+                        "classification": "ClassificationProcessor",
+                        "metadata_extraction": "MetadataProcessor",
+                        "parts_extraction": "PartsProcessor",
+                        "series_detection": "SeriesDetectionProcessor",
+                        "storage": "StorageProcessor",
+                        "embedding": "EmbeddingProcessor",
+                        "search_indexing": "SearchIndexingProcessor",
+                    }
+                    processor_name = stage_to_processor.get(stage, f"{stage}Processor")
+                    asyncio.create_task(
+                        broadcast_processor_state_change(
+                            processor_name=processor_name,
+                            stage_name=stage,
+                            status="failed",
+                            document_id=document_id
+                        )
+                    )
                 except Exception as e:
                     self.logger.warning(f"Failed to broadcast stage failure: {e}")
             
             return True
         except Exception as e:
+            if self._maybe_disable_rpc(e, "krai_core.fail_stage"):
+                return True
             self.logger.error(
                 "Error marking stage %s as failed for document %s: %s",
                 stage,
@@ -293,6 +437,9 @@ class StageTracker:
         """
         stage = self._normalize_stage(stage_name)
 
+        if not self._rpc_enabled:
+            return True
+
         try:
             await self.adapter.execute_rpc('krai_core.skip_stage', {
                 'p_document_id': document_id,
@@ -301,6 +448,8 @@ class StageTracker:
             })
             return True
         except Exception as e:
+            if self._maybe_disable_rpc(e, "krai_core.skip_stage"):
+                return True
             self.logger.error(
                 "Error skipping stage %s for document %s: %s",
                 stage,
@@ -321,6 +470,8 @@ class StageTracker:
             Progress percentage
         """
         try:
+            if not self._rpc_enabled:
+                return 0.0
             result = await self.adapter.execute_rpc('krai_core.get_document_progress', {
                 'p_document_id': document_id
             })
@@ -329,6 +480,7 @@ class StageTracker:
                 return float(result)
             return 0.0
         except Exception as e:
+            self._maybe_disable_rpc(e, "krai_core.get_document_progress")
             self.logger.error(
                 "Error getting progress for document %s: %s",
                 document_id,
@@ -348,6 +500,8 @@ class StageTracker:
             Stage name or 'completed'
         """
         try:
+            if not self._rpc_enabled:
+                return 'unknown'
             result = await self.adapter.execute_rpc('krai_core.get_current_stage', {
                 'p_document_id': document_id
             })
@@ -356,6 +510,7 @@ class StageTracker:
                 return result
             return 'upload'
         except Exception as e:
+            self._maybe_disable_rpc(e, "krai_core.get_current_stage")
             self.logger.error(
                 "Error getting current stage for document %s: %s",
                 document_id,
@@ -377,6 +532,9 @@ class StageTracker:
         """
         stage = self._normalize_stage(stage_name)
 
+        if not self._rpc_enabled:
+            return True
+
         try:
             result = await self.adapter.execute_rpc('krai_core.can_start_stage', {
                 'p_document_id': document_id,
@@ -385,6 +543,8 @@ class StageTracker:
             
             return bool(result) if result is not None else False
         except Exception as e:
+            if self._maybe_disable_rpc(e, "krai_core.can_start_stage"):
+                return True
             self.logger.error(
                 "Error checking if stage %s can start for document %s: %s",
                 stage,
@@ -406,7 +566,7 @@ class StageTracker:
         """
         try:
             result = await self.adapter.execute_query(
-                "SELECT stage_status FROM public.vw_documents WHERE id = $1", 
+                "SELECT stage_status FROM krai_core.documents WHERE id = $1",
                 [document_id]
             )
             

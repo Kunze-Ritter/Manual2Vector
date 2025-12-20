@@ -13,15 +13,20 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class ProductResource extends Resource
 {
     protected static ?string $model = Product::class;
 
-    public static UnitEnum|string|null $navigationGroup = 'Produkte';
+    protected static UnitEnum|string|null $navigationGroup = 'Data';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static ?string $navigationLabel = 'Produkte';
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cube';
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'model_number';
 
@@ -33,6 +38,15 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return ProductsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with([
+                'manufacturer',
+                'series',
+            ]);
     }
 
     public static function getRelations(): array

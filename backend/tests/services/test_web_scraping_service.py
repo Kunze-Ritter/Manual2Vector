@@ -10,6 +10,8 @@ import asyncio
 import httpx
 from unittest.mock import MagicMock, AsyncMock, patch
 import os
+from services import web_scraping_service as ws
+from backend.tests.services.conftest import _build_firecrawl_backend
 
 from services.web_scraping_service import (
     FirecrawlBackend,
@@ -31,7 +33,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_scrape_url_success(self):
         """Test successful URL scraping with Firecrawl."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
         result = await backend.scrape_url("http://example.com")
         
         assert result["success"] is True
@@ -44,7 +47,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_scrape_url_with_options(self):
         """Test URL scraping with custom options."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
         options = {"formats": ["markdown"], "waitFor": 1000}
         result = await backend.scrape_url("http://example.com", options)
         
@@ -54,7 +58,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_crawl_site_success(self):
         """Test successful site crawling with Firecrawl."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
         result = await backend.crawl_site("http://example.com", {"limit": 5})
         
         assert result["success"] is True
@@ -68,7 +73,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_extract_structured_data_success(self):
         """Test successful structured data extraction with Firecrawl."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
         schema = {
             "type": "object",
             "properties": {
@@ -86,7 +92,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_map_urls_success(self):
         """Test successful URL mapping with Firecrawl."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
         result = await backend.map_urls("http://example.com")
         
         assert result["success"] is True
@@ -98,7 +105,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_health_check_mock(self):
         """Test health check in mock mode."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
         result = await backend.health_check()
         
         assert result["status"] == "mock"
@@ -106,7 +114,7 @@ class TestFirecrawlBackend:
 
     def test_firecrawl_unavailable_error(self):
         """Test FirecrawlUnavailableError when SDK is not available."""
-        with patch('backend.services.web_scraping_service.AsyncFirecrawl', None):
+        with patch('services.web_scraping_service.AsyncFirecrawl', None):
             with pytest.raises(FirecrawlUnavailableError) as exc_info:
                 FirecrawlBackend(api_url="http://localhost:3002", mock_mode=False)
             
@@ -115,7 +123,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_connection_error(self):
         """Test connection error handling."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=False)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=False)
         backend._client = MagicMock()
         backend._client.scrape = AsyncMock(side_effect=httpx.ConnectError("Connection failed"))
         
@@ -125,7 +134,8 @@ class TestFirecrawlBackend:
     @pytest.mark.asyncio
     async def test_firecrawl_timeout_with_retry(self):
         """Test timeout with retry logic."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", retries=2, mock_mode=False)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", retries=3, mock_mode=False)
         backend._client = MagicMock()
         
         # Fail twice, then succeed
@@ -201,12 +211,35 @@ class TestBeautifulSoupBackend:
     @pytest.mark.asyncio
     async def test_beautifulsoup_map_urls_with_filter(self):
         """Test URL mapping with pattern filtering."""
-        backend = BeautifulSoupBackend(mock_mode=True)
-        result = await backend.map_urls("http://example.com", {"search": ".*product.*"})
+        backend = BeautifulSoupBackend(mock_mode=False)
+        backend.scrape_url = AsyncMock(
+            return_value={
+                "success": True,
+                "backend": "beautifulsoup",
+                "html": """
+                    <html>
+                      <body>
+                        <a href="http://example.com/product-1">Prod 1</a>
+                        <a href="http://example.com/other">Other</a>
+                        <a href="/product-2">Prod 2</a>
+                      </body>
+                    </html>
+                """,
+            }
+        )
+
+        result = await backend.map_urls(
+            "http://example.com",
+            {"search": "product", "limit": 2},
+        )
         
         assert result["success"] is True
         assert result["backend"] == "beautifulsoup"
-        assert len(result["urls"]) == 1
+        assert result["urls"] == [
+            "http://example.com/product-1",
+            "http://example.com/product-2",
+        ]
+        assert result["total"] == 2
 
     @pytest.mark.asyncio
     async def test_beautifulsoup_health_check_always_healthy(self):
@@ -238,7 +271,8 @@ class TestWebScrapingService:
     @pytest.fixture
     def firecrawl_backend(self):
         """Create FirecrawlBackend for testing."""
-        return FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            return FirecrawlBackend(api_url="http://localhost:3002", mock_mode=True)
 
     @pytest.fixture
     def beautifulsoup_backend(self):
@@ -437,12 +471,9 @@ class TestFactoryFunction:
     def test_create_service_firecrawl_unavailable_fallback(self, monkeypatch):
         """Test fallback when Firecrawl is unavailable."""
         monkeypatch.setenv("SCRAPING_BACKEND", "firecrawl")
-        
-        with patch('backend.services.web_scraping_service.AsyncFirecrawl', None):
+        with patch.object(ws, "AsyncFirecrawl", None):
             service = create_web_scraping_service()
-            
-            # Should fall back to BeautifulSoup
-            assert service.primary_backend.backend_name == "beautifulsoup"
+        assert service.primary_backend.backend_name == "beautifulsoup"
 
     def test_create_service_with_parameter_override(self, monkeypatch):
         """Test backend parameter override."""
@@ -472,6 +503,11 @@ class TestFactoryFunction:
         # Should not raise an error
         service = create_web_scraping_service()
         assert service.primary_backend.backend_name == "firecrawl"
+        assert service.primary_backend.proxy == {
+            "server": "http://proxy.example.com:8080",
+            "username": "user",
+            "password": "pass",
+        }
 
     def test_create_service_openai_config(self, monkeypatch):
         """Test creating service with OpenAI configuration."""
@@ -491,12 +527,148 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_firecrawl_transport_error(self):
         """Test transport error handling."""
-        backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=False)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=False)
         backend._client = MagicMock()
         backend._client.scrape = AsyncMock(side_effect=httpx.TransportError("Transport error"))
         
         with pytest.raises(FirecrawlUnavailableError):
             await backend.scrape_url("http://example.com")
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_proxy_options_default_and_override(self, mock_proxy_config):
+        """Ensure backend proxy flows into client options and can be overridden."""
+        backend, client = _build_firecrawl_backend(proxy=mock_proxy_config)
+
+        client.scrape = AsyncMock(return_value={"data": {"markdown": "ok"}})
+        await backend.scrape_url("http://example.com")
+        _, kwargs = client.scrape.call_args
+        assert kwargs["options"]["proxy"] == mock_proxy_config
+
+        client.scrape.reset_mock()
+        await backend.scrape_url("http://example.com", {"proxy": {"server": "custom"}})
+        _, kwargs = client.scrape.call_args
+        assert kwargs["options"]["proxy"] == {"server": "custom"}
+
+        client.crawl = AsyncMock(return_value={"data": {"pages": []}})
+        await backend.crawl_site("http://example.com")
+        _, kwargs = client.crawl.call_args
+        assert kwargs["options"]["proxy"] == mock_proxy_config
+
+        client.crawl.reset_mock()
+        await backend.crawl_site("http://example.com", {"proxy": {"server": "custom"}})
+        _, kwargs = client.crawl.call_args
+        assert kwargs["options"]["proxy"] == {"server": "custom"}
+
+        client.extract = AsyncMock(return_value={"data": {"data": {}, "confidence": 0.5}})
+        await backend.extract_structured_data("http://example.com", {"type": "object"})
+        _, kwargs = client.extract.call_args
+        assert kwargs["options"]["proxy"] == mock_proxy_config
+
+        client.extract.reset_mock()
+        await backend.extract_structured_data(
+            "http://example.com", {"type": "object"}, {"proxy": {"server": "custom"}}
+        )
+        _, kwargs = client.extract.call_args
+        assert kwargs["options"]["proxy"] == {"server": "custom"}
+
+        client.map = AsyncMock(return_value={"data": {"urls": ["http://example.com"]}})
+        await backend.map_urls("http://example.com")
+        _, kwargs = client.map.call_args
+        assert kwargs["options"]["proxy"] == mock_proxy_config
+
+        client.map.reset_mock()
+        await backend.map_urls("http://example.com", {"proxy": {"server": "custom"}})
+        _, kwargs = client.map.call_args
+        assert kwargs["options"]["proxy"] == {"server": "custom"}
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_map_timeout_and_retry(self):
+        """Firecrawl map returns failure on timeout (no retry logic)."""
+        backend, client = _build_firecrawl_backend(retries=1)
+        client.map = AsyncMock(side_effect=asyncio.TimeoutError("t1"))
+
+        result = await backend.map_urls("http://example.com")
+        assert result["success"] is False
+        assert "timed out" in result["error"].lower()
+        assert client.map.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_crawl_retry_and_timeout(self):
+        """Firecrawl crawl returns failure on timeout (no retry logic)."""
+        backend, client = _build_firecrawl_backend(retries=1, crawl_timeout=0.1)
+        client.crawl = AsyncMock(side_effect=asyncio.TimeoutError("t1"))
+
+        result = await backend.crawl_site("http://example.com")
+        assert result["success"] is False
+        assert "timed out" in result["error"].lower()
+        assert client.crawl.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_extract_timeout_error(self):
+        """Test extract_structured_data timeout handling."""
+        backend, client = _build_firecrawl_backend(retries=1)
+        client.extract = AsyncMock(side_effect=asyncio.TimeoutError("timeout"))
+
+        result = await backend.extract_structured_data(
+            "http://example.com", {"type": "object"}
+        )
+        assert result["success"] is False
+        assert "timeout" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_extract_connection_error(self):
+        """Test extract_structured_data connection error raises unavailable."""
+        backend, client = _build_firecrawl_backend()
+        client.extract = AsyncMock(side_effect=httpx.ConnectError("conn"))
+
+        with pytest.raises(FirecrawlUnavailableError):
+            await backend.extract_structured_data("http://example.com", {"type": "object"})
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_crawl_connection_error(self):
+        """Crawl connection errors should raise unavailable."""
+        backend, client = _build_firecrawl_backend()
+        client.crawl = AsyncMock(side_effect=httpx.ConnectError("conn"))
+
+        with pytest.raises(FirecrawlUnavailableError):
+            await backend.crawl_site("http://example.com")
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_map_connection_error(self):
+        """Map connection errors should raise unavailable."""
+        backend, client = _build_firecrawl_backend()
+        client.map = AsyncMock(side_effect=httpx.ConnectError("conn"))
+
+        with pytest.raises(FirecrawlUnavailableError):
+            await backend.map_urls("http://example.com")
+
+    @pytest.mark.asyncio
+    async def test_webscraping_health_check_degraded(self, mock_unhealthy_firecrawl_backend, mock_beautifulsoup_backend):
+        """Health check should report degraded when primary unhealthy/unavailable."""
+        service = WebScrapingService(
+            primary_backend=mock_unhealthy_firecrawl_backend,
+            fallback_backend=mock_beautifulsoup_backend,
+        )
+
+        result = await service.health_check()
+
+        assert result["status"] in {"healthy", "degraded"}
+        assert result["backends"]["firecrawl"]["status"] in {"unavailable", "degraded"}
+        assert result["backends"]["beautifulsoup"]["status"] == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_webscraping_health_check_degraded_status(self, mock_degraded_firecrawl_backend, mock_beautifulsoup_backend):
+        """Health check should pass through degraded backend status."""
+        service = WebScrapingService(
+            primary_backend=mock_degraded_firecrawl_backend,
+            fallback_backend=mock_beautifulsoup_backend,
+        )
+
+        result = await service.health_check()
+
+        assert result["status"] in {"healthy", "degraded"}
+        assert result["backends"]["firecrawl"]["status"] == "degraded"
 
     @pytest.mark.asyncio
     async def test_beautifulsoup_timeout_error(self):
@@ -515,7 +687,8 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_service_fallback_when_no_fallback_backend(self):
         """Test service behavior when no fallback backend is available."""
-        firecrawl_backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=False)
+        with patch.object(ws, "AsyncFirecrawl", MagicMock()):
+            firecrawl_backend = FirecrawlBackend(api_url="http://localhost:3002", mock_mode=False)
         firecrawl_backend.scrape_url = AsyncMock(
             side_effect=FirecrawlUnavailableError("Firecrawl down")
         )

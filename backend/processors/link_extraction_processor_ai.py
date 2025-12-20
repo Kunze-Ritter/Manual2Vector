@@ -10,6 +10,7 @@ import re
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
 
 from backend.core.base_processor import BaseProcessor, Stage
 from .link_extractor import LinkExtractor
@@ -128,7 +129,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
             if self.enable_context_extraction and context:
                 page_texts = await self._load_page_texts(context, file_path, adapter)
                 if page_texts:
-                    enriched_links = self._extract_link_contexts(
+                    enriched_links = await self._extract_link_contexts(
                         links=enriched_links,
                         page_texts=page_texts,
                         adapter=adapter,
@@ -137,7 +138,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
 
             # Phase 5: Extract context for videos (NEW!)
             if self.enable_context_extraction and page_texts:
-                enriched_videos = self._extract_video_contexts(
+                enriched_videos = await self._extract_video_contexts(
                     videos=enriched_videos,
                     page_texts=page_texts,
                     adapter=adapter,
@@ -156,7 +157,9 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 "Link extraction completed",
                 {
                     "links_found": len(enriched_links),
-                    "videos_found": len(enriched_videos)
+                    "videos_found": len(enriched_videos),
+                    "links_extracted": len(enriched_links),
+                    "video_links_created": len(enriched_videos),
                 }
             )
     async def _enrich_document_links(
@@ -237,16 +240,22 @@ class LinkExtractionProcessorAI(BaseProcessor):
             return context.page_texts
 
         # Attempt to rebuild from chunks stored in the database
-        if self.database_service and getattr(self.database_service, "client", None):
+        if self.database_service:
             try:
-                result = self.database_service.client.table("chunks").select("page_start, content").eq(
-                    "document_id", context.document_id
-                ).order("chunk_index").execute()
+                rows = await self.database_service.execute_query(
+                    """
+                    SELECT page_start, text_chunk
+                    FROM krai_intelligence.chunks
+                    WHERE document_id = $1
+                    ORDER BY chunk_index
+                    """.strip(),
+                    [str(context.document_id)],
+                )
 
                 page_texts: Dict[int, List[str]] = {}
-                for row in result.data or []:
+                for row in rows or []:
                     page = row.get("page_start")
-                    content = row.get("content") or ""
+                    content = row.get("text_chunk") or ""
                     if page is not None and content:
                         page_texts.setdefault(page, []).append(content)
 
@@ -265,22 +274,24 @@ class LinkExtractionProcessorAI(BaseProcessor):
 
     async def _get_document_manufacturer_series(self, document_id: str, adapter) -> Tuple[Optional[str], Optional[str]]:
         """Retrieve manufacturer_id and series_id for the document."""
-        if not self.database_service or not getattr(self.database_service, "client", None):
+        if not self.database_service:
             return None, None
 
         try:
-            result = self.database_service.client.table("document_products").select("product_id").eq(
-                "document_id", document_id
-            ).limit(1).execute()
+            result = await self.database_service.execute_query(
+                "SELECT product_id FROM krai_core.document_products WHERE document_id = $1 LIMIT 1",
+                [document_id],
+            )
 
-            if result.data:
-                product_id = result.data[0].get("product_id")
+            if result:
+                product_id = result[0].get("product_id")
                 if product_id:
-                    product = self.database_service.client.table("products").select(
-                        "manufacturer_id, series_id"
-                    ).eq("id", product_id).limit(1).execute()
-                    if product.data:
-                        product_row = product.data[0]
+                    product = await self.database_service.execute_query(
+                        "SELECT manufacturer_id, series_id FROM krai_core.products WHERE id = $1 LIMIT 1",
+                        [str(product_id)],
+                    )
+                    if product:
+                        product_row = product[0]
                         return product_row.get("manufacturer_id"), product_row.get("series_id")
         except Exception as exc:
             adapter.debug("Failed to fetch manufacturer/series: %s", exc)
@@ -353,19 +364,16 @@ class LinkExtractionProcessorAI(BaseProcessor):
 
     async def _save_links_to_db(self, links: List[Dict], document_id: str, adapter) -> Dict[str, str]:
         """Persist links to the database. Returns a URL → link_id map."""
-        if not links or not self.database_service or not getattr(self.database_service, "client", None):
+        if not links or not self.database_service:
             return {}
 
         link_id_map: Dict[str, str] = {}
-        supabase = self.database_service.client
 
         for link in links:
             try:
                 url = link.get("url")
                 if not url:
                     continue
-
-                existing = supabase.table("vw_links").select("id").eq("document_id", document_id).eq("url", url).limit(1).execute()
 
                 link_payload = {
                     "document_id": document_id,
@@ -374,48 +382,101 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     "link_type": link.get("link_type", "external"),
                     "link_category": link.get("link_category", "external"),
                     "page_number": link.get("page_number"),
-                    "position_data": link.get("position_data"),
+                    "position_data": json.dumps(link.get("position_data") or {}),
                     "confidence_score": link.get("confidence_score", 0.5),
                     "manufacturer_id": link.get("manufacturer_id"),
                     "series_id": link.get("series_id"),
                     "related_error_codes": link.get("related_error_codes") or [],
                     # Phase 5: Context extraction fields
                     "context_description": link.get("context_description"),
-                    "page_header": link.get("page_header"),
-                    "related_products": link.get("related_products", []),
-                    "related_chunks": link.get("related_chunks", []),  # Add related chunks
-                    "scrape_status": link.get("scrape_status", "pending"),
-                    "scraped_at": link.get("scraped_at"),
-                    "scraped_content": link.get("scraped_content"),
-                    "scraped_metadata": link.get("scraped_metadata", {}),
+                    "related_chunks": link.get("related_chunks", []),
+                    "metadata": json.dumps(
+                        {
+                            **(link.get("scraped_metadata") or {}),
+                            "scrape_status": link.get("scrape_status", "pending"),
+                            "scraped_at": link.get("scraped_at"),
+                        }
+                    ),
                 }
 
-                if existing.data:
-                    link_id = existing.data[0]["id"]
-                    supabase.table("vw_links").update(link_payload).eq("id", link_id).execute()
+                existing_rows = await self.database_service.execute_query(
+                    "SELECT id FROM krai_content.links WHERE document_id = $1 AND url = $2 LIMIT 1",
+                    [document_id, url],
+                )
+                existing_id = existing_rows[0].get("id") if existing_rows else None
+
+                if existing_id:
+                    update_rows = await self.database_service.execute_query(
+                        """
+                        UPDATE krai_content.links
+                        SET
+                            description = $2,
+                            link_type = $3,
+                            link_category = $4,
+                            page_number = $5,
+                            position_data = $6::jsonb,
+                            confidence_score = $7,
+                            manufacturer_id = $8,
+                            series_id = $9,
+                            related_error_codes = $10::text[],
+                            context_description = $11,
+                            related_chunks = $12::uuid[],
+                            metadata = $13::jsonb,
+                            updated_at = NOW()
+                        WHERE id = $1
+                        RETURNING id
+                        """.strip(),
+                        [
+                            str(existing_id),
+                            link_payload["description"],
+                            link_payload["link_type"],
+                            link_payload["link_category"],
+                            link_payload["page_number"],
+                            link_payload["position_data"],
+                            link_payload["confidence_score"],
+                            link_payload["manufacturer_id"],
+                            link_payload["series_id"],
+                            link_payload["related_error_codes"],
+                            link_payload["context_description"],
+                            link_payload["related_chunks"],
+                            link_payload["metadata"],
+                        ],
+                    )
+                    link_id = update_rows[0].get("id") if update_rows else str(existing_id)
                 else:
-                    insert_result = supabase.table("vw_links").insert(link_payload).execute()
-                    link_id = insert_result.data[0]["id"] if insert_result.data else None
+                    insert_rows = await self.database_service.execute_query(
+                        """
+                        INSERT INTO krai_content.links
+                            (document_id, url, description, link_type, link_category, page_number,
+                             position_data, confidence_score, manufacturer_id, series_id,
+                             related_error_codes, context_description, related_chunks, metadata)
+                        VALUES
+                            ($1::uuid, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10,
+                             $11::text[], $12, $13::uuid[], $14::jsonb)
+                        RETURNING id
+                        """.strip(),
+                        [
+                            document_id,
+                            url,
+                            link_payload["description"],
+                            link_payload["link_type"],
+                            link_payload["link_category"],
+                            link_payload["page_number"],
+                            link_payload["position_data"],
+                            link_payload["confidence_score"],
+                            link_payload["manufacturer_id"],
+                            link_payload["series_id"],
+                            link_payload["related_error_codes"],
+                            link_payload["context_description"],
+                            link_payload["related_chunks"],
+                            link_payload["metadata"],
+                        ],
+                    )
+                    link_id = insert_rows[0].get("id") if insert_rows else None
 
-                    if link_id:
-                        try:
-                            supabase.rpc(
-                                "auto_link_resource_to_document",
-                                {
-                                    "p_resource_table": "krai_content.links",
-                                    "p_resource_id": link_id,
-                                    "p_document_id": document_id
-                                }
-                            ).execute()
-                        except Exception as rpc_error:
-                            self.logger.debug(f"Auto-link RPC failed: {rpc_error}")
-
-                if existing.data:
-                    link_id_map[url] = existing.data[0]["id"]
-                    link["id"] = existing.data[0]["id"]
-                elif link_id:
-                    link_id_map[url] = link_id
-                    link["id"] = link_id
+                if link_id:
+                    link_id_map[url] = str(link_id)
+                    link["id"] = str(link_id)
 
             except Exception as exc:
                 adapter.warning("Failed to persist link %s: %s", link.get("url"), exc)
@@ -424,15 +485,16 @@ class LinkExtractionProcessorAI(BaseProcessor):
 
     async def _save_videos_to_db(self, videos: List[Dict], link_id_map: Dict[str, str], adapter):
         """Persist associated videos to the database."""
-        if not videos or not self.database_service or not getattr(self.database_service, "client", None):
+        if not videos or not self.database_service:
             return
-
-        supabase = self.database_service.client
 
         for video in videos:
             try:
                 url = video.get("source_url") or video.get("url")
                 link_id = link_id_map.get(url) if url else video.get("link_id")
+
+                if not link_id:
+                    continue
 
                 video_payload = {
                     "link_id": link_id,
@@ -443,30 +505,96 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     "thumbnail_url": video.get("thumbnail_url"),
                     "duration": video.get("duration"),
                     "platform": video.get("link_category") or video.get("platform") or "youtube",
-                    "metadata": video.get("metadata") or {},
+                    "metadata": json.dumps(video.get("metadata") or {}),
                     "manufacturer_id": video.get("manufacturer_id"),
                     "series_id": video.get("series_id"),
                     # Phase 5: Context extraction fields
                     "context_description": video.get("context_description"),
                     "page_number": video.get("page_number"),
-                    "page_header": video.get('page_header'),  # Add page_header field
-                    "related_error_codes": video.get("related_error_codes", []),
                     "related_products": video.get("related_products", []),
-                    "related_chunks": video.get("related_chunks", [])  # Add related chunks
+                    "related_chunks": video.get("related_chunks", []),
                 }
 
                 if video.get("youtube_id"):
-                    existing = supabase.table("vw_videos").select("id").eq("youtube_id", video["youtube_id"]).limit(1).execute()
-                    if existing.data:
-                        supabase.table("vw_videos").update(video_payload).eq("id", existing.data[0]["id"]).execute()
+                    existing = await self.database_service.execute_query(
+                        "SELECT id FROM krai_content.videos WHERE youtube_id = $1 LIMIT 1",
+                        [video["youtube_id"]],
+                    )
+                    if existing:
+                        await self.database_service.execute_query(
+                            """
+                            UPDATE krai_content.videos
+                            SET
+                                link_id = $2,
+                                document_id = $3,
+                                platform = $4,
+                                title = $5,
+                                description = $6,
+                                thumbnail_url = $7,
+                                duration = $8,
+                                manufacturer_id = $9,
+                                series_id = $10,
+                                metadata = $11::jsonb,
+                                context_description = $12,
+                                related_products = $13::text[],
+                                related_chunks = $14::uuid[],
+                                page_number = $15,
+                                updated_at = NOW()
+                            WHERE id = $1
+                            """.strip(),
+                            [
+                                str(existing[0]["id"]),
+                                link_id,
+                                video_payload["document_id"],
+                                video_payload["platform"],
+                                video_payload["title"],
+                                video_payload["description"],
+                                video_payload["thumbnail_url"],
+                                video_payload["duration"],
+                                video_payload["manufacturer_id"],
+                                video_payload["series_id"],
+                                video_payload["metadata"],
+                                video_payload["context_description"],
+                                video_payload["related_products"],
+                                video_payload["related_chunks"],
+                                video_payload["page_number"],
+                            ],
+                        )
                         continue
 
-                supabase.table("vw_videos").insert(video_payload).execute()
+                await self.database_service.execute_query(
+                    """
+                    INSERT INTO krai_content.videos
+                        (link_id, document_id, youtube_id, platform, title, description, thumbnail_url,
+                         duration, manufacturer_id, series_id, metadata, context_description,
+                         related_products, related_chunks, page_number)
+                    VALUES
+                        ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12,
+                         $13::text[], $14::uuid[], $15)
+                    """.strip(),
+                    [
+                        link_id,
+                        video_payload["document_id"],
+                        video_payload["youtube_id"],
+                        video_payload["platform"],
+                        video_payload["title"],
+                        video_payload["description"],
+                        video_payload["thumbnail_url"],
+                        video_payload["duration"],
+                        video_payload["manufacturer_id"],
+                        video_payload["series_id"],
+                        video_payload["metadata"],
+                        video_payload["context_description"],
+                        video_payload["related_products"],
+                        video_payload["related_chunks"],
+                        video_payload["page_number"],
+                    ],
+                )
 
             except Exception as exc:
                 adapter.warning("Failed to persist video %s: %s", video.get("title"), exc)
 
-    def _extract_link_contexts(
+    async def _extract_link_contexts(
         self, 
         links: List[Dict], 
         page_texts: Dict[int, str], 
@@ -485,7 +613,8 @@ class LinkExtractionProcessorAI(BaseProcessor):
         Returns:
             List of links with context metadata added
         """
-        links_with_context = []
+        links_with_context: List[Dict] = []
+        related_chunks_cache: Dict[int, List[str]] = {}
         
         for link in links:
             page_number = link.get('page_number')
@@ -507,9 +636,10 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 
                 # Add context data to link dict
                 link['context_description'] = context_data['context_description']
-                link['page_header'] = context_data['page_header']
                 link['related_products'] = context_data.get('related_products', [])
-                link['related_chunks'] = self._get_related_chunks(page_number, document_id, adapter)  # Add related chunks
+                if page_number not in related_chunks_cache:
+                    related_chunks_cache[page_number] = await self._get_related_chunks(page_number, document_id, adapter)
+                link['related_chunks'] = related_chunks_cache.get(page_number, [])
                 # related_error_codes already exists in link enrichment
                 
                 links_with_context.append(link)
@@ -521,7 +651,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
         adapter.info("Extracted context for %d links", len(links_with_context))
         return links_with_context
     
-    def _get_related_chunks(self, page_number: int, document_id: UUID, adapter) -> List[str]:
+    async def _get_related_chunks(self, page_number: int, document_id: UUID, adapter) -> List[str]:
         """
         Extract related chunk IDs for a given page number.
         
@@ -537,17 +667,19 @@ class LinkExtractionProcessorAI(BaseProcessor):
             return []
         
         try:
-            # Query chunks that overlap with the given page
-            result = self.database_service.client.table("vw_chunks").select(
-                "id"
-            ).eq(
-                "document_id", str(document_id)
-            ).or_(
-                f"page_start.lte.{page_number},page_end.gte.{page_number}"
-            ).execute()
-            
-            if result.data:
-                chunk_ids = [chunk['id'] for chunk in result.data]
+            rows = await self.database_service.execute_query(
+                """
+                SELECT id
+                FROM krai_intelligence.chunks
+                WHERE document_id = $1
+                  AND COALESCE(page_start, 0) <= $2
+                  AND COALESCE(page_end, page_start) >= $2
+                """.strip(),
+                [str(document_id), int(page_number)],
+            )
+
+            if rows:
+                chunk_ids = [str(chunk['id']) for chunk in rows]
                 adapter.debug(f"Found {len(chunk_ids)} related chunks for page {page_number}")
                 return chunk_ids
             
@@ -557,7 +689,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
             adapter.warning(f"Failed to get related chunks for page {page_number}: {e}")
             return []
 
-    def _extract_video_contexts(
+    async def _extract_video_contexts(
         self, 
         videos: List[Dict], 
         page_texts: Dict[int, str], 
@@ -576,7 +708,8 @@ class LinkExtractionProcessorAI(BaseProcessor):
         Returns:
             List of videos with context metadata added
         """
-        videos_with_context = []
+        videos_with_context: List[Dict] = []
+        related_chunks_cache: Dict[int, List[str]] = {}
         
         for video in videos:
             page_number = video.get('page_number')
@@ -601,7 +734,9 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 video['page_header'] = context_data['page_header']
                 video['related_error_codes'] = context_data.get('related_error_codes', [])
                 video['related_products'] = context_data.get('related_products', [])
-                video['related_chunks'] = self._get_related_chunks(page_number, document_id, adapter)  # Add related chunks
+                if page_number not in related_chunks_cache:
+                    related_chunks_cache[page_number] = await self._get_related_chunks(page_number, document_id, adapter)
+                video['related_chunks'] = related_chunks_cache.get(page_number, [])
                 
                 videos_with_context.append(video)
                 

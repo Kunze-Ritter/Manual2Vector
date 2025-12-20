@@ -1,21 +1,30 @@
 # KRAI Database Schema Documentation
 ================================================================================
 
-**Zuletzt aktualisiert:** 17.11.2025 um 14:20 Uhr
+**Zuletzt aktualisiert:** 20.12.2025 um 17:00 Uhr
 
-**Quelle:** Direkt aus Supabase (ECHTE Struktur)
+**Quelle:** PostgreSQL Database (ECHTE Struktur)
+
+**Setup:** Siehe `database/README.md` für PostgreSQL Installation
 
 ## ⚠️ WICHTIGE INFORMATIONEN
+
+### PostgreSQL Setup
+- **Database:** PostgreSQL 15+ mit pgvector Extension
+- **Migrationen:** `database/migrations_postgresql/` (3 konsolidierte Dateien)
+- **Alte Migrationen:** Archiviert in `database/migrations/archive/`
 
 ### Embeddings Storage
 - **Embeddings sind in `krai_intelligence.chunks` als Spalte `embedding` gespeichert!**
 - Es gibt KEIN separates `krai_embeddings` Schema
 - Spalte: `embedding` (Typ: `vector(768)`)
+- View: `public.vw_embeddings` ist ein ALIAS für `public.vw_chunks`
 
 ### View Naming Convention
 - Alle Views nutzen `vw_` Prefix
 - Views sind im `public` Schema
 - Tabellen sind in `krai_*` Schemas
+- Views werden automatisch via Migration `002_views.sql` erstellt
 
 ### Wichtige Tabellen für Processing
 - `krai_core.documents` - Haupttabelle für Dokumente

@@ -1,8 +1,0 @@
-feat: Add fallback support for old Ollama API
-
-LLM extractor now supports both old and new Ollama API:
-- Tries new API (/api/chat) first
-- Falls back to old API (/api/generate) on 405 error
-- Works on both old and new Ollama versions
-
-This ensures compatibility across different PCs and Ollama versions.

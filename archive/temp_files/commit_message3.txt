@@ -1,7 +1,0 @@
-fix: Update LLM extractor to new Ollama API
-
-Changed from /api/generate to /api/chat endpoint.
-New API uses messages format instead of prompt.
-Response is in message.content instead of response field.
-
-This fixes the 405 Method Not Allowed error.

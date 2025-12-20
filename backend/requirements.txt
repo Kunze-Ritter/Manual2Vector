@@ -14,9 +14,8 @@ python-multipart>=0.0.6
 aiofiles>=23.2.0
 
 # ================================
-# DATABASE # DATABASE & SUPABASE OBJECT STORAGE
+# DATABASE
 # ================================
-supabase>=2.0.0
 psycopg2-binary>=2.9.0
 sqlalchemy>=2.0.0
 asyncpg>=0.29.0
@@ -30,6 +29,7 @@ pytesseract>=0.3.0
 Pillow>=10.0.0
 pdfplumber>=0.9.0
 pandas>=2.0.0
+tabulate>=0.9.0
 python-magic>=0.4.0
 easyocr>=1.7.0
 openpyxl>=3.1.0

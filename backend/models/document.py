@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from math import ceil
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, validator
 
@@ -47,6 +47,75 @@ class SortOrder(str, Enum):
 
 
 ALLOWED_DOCUMENT_SORT_FIELDS = {"created_at", "updated_at", "filename", "document_type"}
+
+
+# Canonical stage names for document processing pipeline
+CANONICAL_STAGES = [
+    "upload", "text_extraction", "table_extraction", "svg_processing",
+    "image_processing", "visual_embedding", "link_extraction",
+    "chunk_prep", "classification", "metadata_extraction",
+    "parts_extraction", "series_detection", "storage", "embedding", "search_indexing"
+]
+
+
+class StageStatus(str, Enum):
+    """Stage processing status."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class DocumentStageDetail(BaseModel):
+    """Detailed status for a single processing stage."""
+    status: StageStatus
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    progress: int = Field(0, ge=0, le=100, description="Progress percentage (0-100)")
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "completed",
+                "started_at": "2025-12-07T14:20:00Z",
+                "completed_at": "2025-12-07T14:20:15Z",
+                "duration_seconds": 15.3,
+                "progress": 100,
+                "error": None,
+                "metadata": {"chunks_created": 42}
+            }
+        }
+
+
+class DocumentStageStatusResponse(BaseModel):
+    """Complete stage-level processing status for a document."""
+    document_id: str
+    filename: str
+    overall_progress: float = Field(..., ge=0, le=100, description="Overall progress percentage (0-100)")
+    current_stage: str
+    stages: Dict[str, DocumentStageDetail] = Field(..., description="Stage name -> stage detail mapping")
+    can_retry: bool = Field(..., description="Whether any failed stages can be retried")
+    last_updated: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "document_id": "c7f1b804-1a7a-44f9-9c27-9c3f7253b5c1",
+                "filename": "manual_123.pdf",
+                "overall_progress": 73.3,
+                "current_stage": "embedding",
+                "stages": {
+                    "upload": DocumentStageDetail.Config.json_schema_extra["example"],
+                    "text_extraction": DocumentStageDetail.Config.json_schema_extra["example"],
+                },
+                "can_retry": False,
+                "last_updated": "2025-12-07T14:20:15Z"
+            }
+        }
 
 
 class DocumentCreateRequest(BaseModel):
@@ -158,6 +227,9 @@ class DocumentFilterParams(BaseModel):
         None, description="Filter by manual review requirement flag"
     )
     search: Optional[str] = Field(None, description="Full-text search query")
+    has_failed_stages: Optional[bool] = Field(None, description="Filter by documents with failed stages")
+    has_incomplete_stages: Optional[bool] = Field(None, description="Filter by documents with incomplete stages")
+    stage_name: Optional[str] = Field(None, description="Filter by specific stage name")
 
     class Config:
         json_schema_extra = {
@@ -167,6 +239,8 @@ class DocumentFilterParams(BaseModel):
                 "language": "en",
                 "processing_status": "completed",
                 "search": "CS920 calibration",
+                "has_failed_stages": True,
+                "stage_name": "embedding"
             }
         }
 
@@ -205,6 +279,14 @@ class DocumentFilterParams(BaseModel):
         except ValueError as exc:
             allowed = ", ".join(sorted(item.value for item in ProcessingStatus))
             raise ValueError(f"processing_status must be one of: {allowed}") from exc
+        return value
+
+    @validator("stage_name")
+    def validate_stage_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if value not in CANONICAL_STAGES:
+            raise ValueError(f"stage_name must be one of: {', '.join(CANONICAL_STAGES)}")
         return value
 
 

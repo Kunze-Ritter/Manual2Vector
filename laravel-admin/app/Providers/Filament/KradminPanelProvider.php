@@ -9,11 +9,17 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\Navigation\NavigationGroup;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use App\Filament\Widgets\DashboardStatsWidget;
 use App\Filament\Widgets\APIStatusWidget;
+use App\Filament\Widgets\DashboardOverviewWidget;
+use App\Filament\Widgets\PipelineStatusWidget;
+use App\Filament\Widgets\QueueStatusWidget;
+use App\Filament\Widgets\DataQualityWidget;
+use App\Filament\Widgets\SystemMetricsWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -42,8 +48,34 @@ class KradminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
-                FilamentInfoWidget::class,
+                DashboardOverviewWidget::class,
                 APIStatusWidget::class,
+                SystemMetricsWidget::class,
+                PipelineStatusWidget::class,
+                QueueStatusWidget::class,
+                DataQualityWidget::class,
+                FilamentInfoWidget::class,
+            ])
+            ->navigationGroups([
+                NavigationGroup::make('Content')
+                    ->label('Inhalte')
+                    ->icon('heroicon-o-folder')
+                    ->collapsible(),
+                NavigationGroup::make('Data')
+                    ->label('Daten')
+                    ->icon('heroicon-o-table-cells')
+                    ->collapsible(),
+                NavigationGroup::make('Monitoring')
+                    ->label('Überwachung')
+                    ->icon('heroicon-o-chart-bar')
+                    ->collapsible(),
+                NavigationGroup::make('Services')
+                    ->label('Dienste')
+                    ->icon('heroicon-o-server')
+                    ->collapsible(),
+                NavigationGroup::make('System')
+                    ->label('System')
+                    ->collapsible(),
             ])
             ->middleware([
                 EncryptCookies::class,

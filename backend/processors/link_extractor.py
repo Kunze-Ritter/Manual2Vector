@@ -17,6 +17,7 @@ import requests
 from urllib.parse import urlparse, parse_qs
 
 from .logger import get_logger
+from backend.utils.link_cleaner import clean_url, merge_multiline_url
 
 logger = get_logger(name="krai.link_extractor")
 
@@ -161,7 +162,6 @@ class LinkExtractor:
                                     url = annot.get('uri') or annot.get('URI')
                                     
                                     # Clean URL
-                                    from utils.link_cleaner import clean_url
                                     url = clean_url(url) if url else None
                                     
                                     if url:
@@ -218,7 +218,6 @@ class LinkExtractor:
                 continue
             
             # Clean URL (remove trailing punctuation, etc.)
-            from utils.link_cleaner import clean_url
             cleaned_url = clean_url(url)
             
             if not cleaned_url:
@@ -256,8 +255,6 @@ class LinkExtractor:
         
         # Try to merge incomplete URLs with next line content
         if potential_incomplete_urls:
-            from utils.link_cleaner import merge_multiline_url
-            
             # Split text into lines
             lines = text.split('\n')
             
@@ -779,11 +776,16 @@ Any visible text or product names?"""
         if '0.0.0.0' in url or '127.0.0.1' in url:
             return True
         
-        # Check for example.com or similar placeholders
-        placeholder_domains = ['example.com', 'example.org', 'test.com', 'localhost']
-        for domain in placeholder_domains:
-            if domain in url.lower():
-                return True
+        # Check for well-known placeholder hostnames based on parsed netloc.
+        # This intentionally treats subdomains like support.example.com as REAL
+        # links while filtering only bare example.com/example.org/test.com/localhost.
+        try:
+            host = (urlparse(url).hostname or '').lower()
+        except Exception:
+            host = ''
+        placeholder_hosts = {'example.com', 'example.org', 'test.com', 'localhost'}
+        if host in placeholder_hosts:
+            return True
         
         return False
     

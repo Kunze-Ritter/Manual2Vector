@@ -6,6 +6,7 @@ Track search queries, performance metrics, and usage analytics.
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 from uuid import UUID
+import asyncio
 
 from .logger import get_logger
 
@@ -30,6 +31,25 @@ class SearchAnalytics:
         """
         self.database_adapter = database_adapter
         self.logger = get_logger()
+
+    def _run_async_write(self, coro) -> bool:
+        if not self.database_adapter:
+            return False
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        try:
+            if loop and loop.is_running():
+                loop.create_task(coro)
+                return True
+            asyncio.run(coro)
+            return True
+        except Exception as exc:
+            self.logger.debug(f"Failed to schedule analytics write: {exc}")
+            return False
     
     def track_search_query(
         self,
@@ -72,9 +92,8 @@ class SearchAnalytics:
             # Store in krai_intelligence.search_analytics
             query = "INSERT INTO search_analytics (query, results_count, response_time_ms, user_id, filters, document_id, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7)"
             params = [record['query'], record['results_count'], record['response_time_ms'], record['user_id'], record['filters'], record['document_id'], record['timestamp']]
-            
-            import asyncio
-            asyncio.run(self.database_adapter.execute_query(query, params))
+
+            self._run_async_write(self.database_adapter.execute_query(query, params))
             
             self.logger.debug(f"Tracked search query: {query[:50]}...")
             return True
@@ -192,9 +211,8 @@ class SearchAnalytics:
             
             query = "INSERT INTO search_analytics (event_type, document_id, metadata, timestamp) VALUES ($1, $2, $3, $4)"
             params = [record['event_type'], record['document_id'], record['metadata'], record['timestamp']]
-            
-            import asyncio
-            asyncio.run(self.database_adapter.execute_query(query, params))
+
+            self._run_async_write(self.database_adapter.execute_query(query, params))
             
             self.logger.info(f"✅ Document {document_id} indexed for search")
             self.logger.info(f"   Chunks: {chunks_count}, Embeddings: {embeddings_count}")

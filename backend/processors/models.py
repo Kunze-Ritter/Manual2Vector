@@ -6,6 +6,7 @@ Pydantic models for type safety and validation.
 
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
+import os
 from datetime import datetime
 from uuid import UUID, uuid4
 from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
@@ -169,6 +170,9 @@ class TextChunk(BaseModel):
     @validator('text')
     def validate_text(cls, v):
         """Ensure text is meaningful (reduced from 50 to 30 to preserve short but valuable content)"""
+        if os.getenv('DEBUG_ALLOW_SHORT_CHUNKS', 'false').lower() == 'true':
+            return v.strip()
+
         if len(v.strip()) < 30:
             raise ValueError("Chunk text too short after stripping (min 30 chars)")
         return v.strip()

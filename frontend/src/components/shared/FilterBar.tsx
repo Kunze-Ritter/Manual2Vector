@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { CalendarIcon, Filter, Search, X } from 'lucide-react'
 
@@ -110,6 +110,36 @@ export function FilterBar({
   className,
   showSearch = true,
 }: FilterBarProps) {
+  const [internalSearch, setInternalSearch] = useState(searchValue ?? '')
+  const searchDebounceRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    setInternalSearch(searchValue ?? '')
+  }, [searchValue])
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current !== null) {
+        window.clearTimeout(searchDebounceRef.current)
+      }
+    }
+  }, [])
+
+  const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = event.target.value
+    setInternalSearch(nextValue)
+
+    if (!onSearchChange) return
+
+    if (searchDebounceRef.current !== null) {
+      window.clearTimeout(searchDebounceRef.current)
+    }
+
+    searchDebounceRef.current = window.setTimeout(() => {
+      onSearchChange(nextValue)
+    }, 300)
+  }
+
   const activeFilters = useMemo(() => {
     return filters.reduce<Record<string, FilterValue>>((acc, filter) => {
       const value = filterValues[filter.key]
@@ -130,8 +160,8 @@ export function FilterBar({
             <div className="flex w-full items-center gap-2 md:w-64">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
-                value={searchValue ?? ''}
-                onChange={(event) => onSearchChange?.(event.target.value)}
+                value={internalSearch}
+                onChange={handleSearchInputChange}
                 placeholder={searchPlaceholder}
                 disabled={isLoading || !onSearchChange}
                 data-testid="search-input"

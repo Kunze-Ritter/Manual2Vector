@@ -57,7 +57,6 @@ class ProcessingContext:
     """
     document_id: str
     file_path: str
-    file_hash: str
     document_type: str
     manufacturer: Optional[str] = None
     model: Optional[str] = None
@@ -65,6 +64,8 @@ class ProcessingContext:
     version: Optional[str] = None
     language: str = "en"
     processing_config: Dict[str, Any] = None
+    file_hash: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
     file_size: Optional[int] = None
     # Phase 5: Context extraction fields
     page_texts: Optional[Dict[int, str]] = None  # Page text from TextProcessor
@@ -260,13 +261,18 @@ class BaseProcessor(ABC):
             processing_time=0.0  # Will be set by caller
         )
     
-    def create_error_result(self, error: ProcessingError, metadata: Dict[str, Any] = None) -> ProcessingResult:
+    def create_error_result(
+        self,
+        error: ProcessingError,
+        metadata: Dict[str, Any] = None,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> ProcessingResult:
         """Create a failed processing result"""
         return ProcessingResult(
             success=False,
             processor=self.name,
             status=ProcessingStatus.FAILED,
-            data={},
+            data=data or {},
             metadata=metadata or {},
             error=error,
             processing_time=0.0  # Will be set by caller

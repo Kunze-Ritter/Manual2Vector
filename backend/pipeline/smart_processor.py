@@ -15,23 +15,21 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 
 # Import services
-from services.database_service import DatabaseService
-from services.object_storage_service import ObjectStorageService
-from services.storage_factory import create_storage_service
-from services.ai_service import AIService
-from services.config_service import ConfigService
-from services.features_service import FeaturesService
+from backend.services.database_service import DatabaseService
+from backend.services.storage_factory import create_storage_service
+from backend.services.ai_service import AIService
+from backend.services.config_service import ConfigService
+from backend.services.features_service import FeaturesService
 
-from processors.upload_processor import UploadProcessor
-from processors.text_processor_optimized import OptimizedTextProcessor
-from processors.image_processor import ImageProcessor
-from processors.classification_processor import ClassificationProcessor
-from processors.metadata_processor_ai import MetadataProcessorAI
-from processors.storage_processor import StorageProcessor
-from processors.embedding_processor import EmbeddingProcessor
-from processors.search_processor import SearchProcessor
+from backend.processors.text_processor_optimized import OptimizedTextProcessor
+from backend.processors.image_processor import ImageProcessor
+from backend.processors.classification_processor import ClassificationProcessor
+from backend.processors.metadata_processor_ai import MetadataProcessorAI
+from backend.processors.storage_processor import StorageProcessor
+from backend.processors.embedding_processor import EmbeddingProcessor
+from backend.processors.search_processor import SearchProcessor
 
-from core.base_processor import ProcessingContext
+from backend.core.base_processor import ProcessingContext
 
 class KRSmartProcessor:
     """Smart Processor der das Upload-Problem umgeht"""
@@ -69,21 +67,17 @@ class KRSmartProcessor:
         if not env_loaded:
             raise RuntimeError("No .env files found")
         
-        # Initialize services (prefer PostgreSQL adapter, Supabase optional)
+        # Initialize services (PostgreSQL adapter)
         db_type = os.getenv('DATABASE_TYPE', 'postgresql').lower()
         postgres_url = (
             os.getenv('DATABASE_CONNECTION_URL')
             or os.getenv('POSTGRES_URL')
             or os.getenv('DATABASE_URL')
         )
-        supabase_url = os.getenv('SUPABASE_URL') if db_type == 'supabase' else None
-        supabase_key = os.getenv('SUPABASE_ANON_KEY') if db_type == 'supabase' else None
 
         self.database_service = DatabaseService(
-            supabase_url=supabase_url,
-            supabase_key=supabase_key,
             postgres_url=postgres_url,
-            database_type=db_type
+            database_type='postgresql'
         )
         await self.database_service.connect()
         

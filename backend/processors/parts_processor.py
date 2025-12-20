@@ -9,7 +9,7 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import sys
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
 from .imports import get_database_adapter, extract_parts_with_context
 
@@ -156,7 +156,16 @@ class PartsProcessor(BaseProcessor):
         Returns:
             List of part data dicts
         """
-        text = chunk.get('text', '')
+        # Normalize chunk text across different sources:
+        # - content chunks use 'content'
+        # - intelligence chunks use 'text_chunk'
+        # - some in-memory flows may still provide 'text'
+        text = (
+            chunk.get('text')
+            or chunk.get('content')
+            or chunk.get('text_chunk')
+            or ''
+        )
         if not text:
             return []
         
@@ -319,10 +328,11 @@ class PartsProcessor(BaseProcessor):
                 
                 # Extract parts from solution text
                 if solution_text:
-                    parts_in_solution = self._extract_and_link_parts_from_text(
+                    parts_in_solution = await self._extract_and_link_parts_from_text(
                         text=solution_text,
                         error_code_id=ec_id,
-                        source='solution_text'
+                        source='solution_text',
+                        adapter=adapter,
                     )
                     linked_count += parts_in_solution
                 
@@ -330,12 +340,17 @@ class PartsProcessor(BaseProcessor):
                 if chunk_id:
                     chunk = await self.adapter.get_chunk(chunk_id)
                     if chunk:
-                        chunk_text = chunk.get('text', '')
-                        parts_in_chunk = self._extract_and_link_parts_from_text(
+                        chunk_text = (
+                            chunk.get('text')
+                            or chunk.get('content')
+                            or chunk.get('text_chunk')
+                            or ''
+                        )
+                        parts_in_chunk = await self._extract_and_link_parts_from_text(
                             text=chunk_text,
                             error_code_id=ec_id,
                             source='chunk',
-                            adapter=adapter
+                            adapter=adapter,
                         )
                         linked_count += parts_in_chunk
             

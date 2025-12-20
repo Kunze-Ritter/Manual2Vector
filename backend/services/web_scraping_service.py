@@ -126,7 +126,7 @@ class FirecrawlBackend(WebScraperBackend):
         if AsyncFirecrawl is not None:
             client_kwargs = {"api_key": self.api_key}
             if self.api_url:
-                client_kwargs["base_url"] = self.api_url
+                client_kwargs["api_url"] = self.api_url
             self._client = AsyncFirecrawl(**client_kwargs)
 
     async def scrape_url(

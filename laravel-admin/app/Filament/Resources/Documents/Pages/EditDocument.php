@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Documents\Pages;
 
 use App\Filament\Resources\Documents\DocumentResource;
+use App\Models\Manufacturer;
 use App\Services\KraiEngineService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -239,11 +240,21 @@ class EditDocument extends EditRecord
                         ->placeholder('https://www.youtube.com/watch?v=...')
                         ->helperText('YouTube, Vimeo oder Brightcove URL'),
                     
-                    Select::make('manufacturer_id')
+                    Select::make('manufacturer_select')
                         ->label('Hersteller (optional)')
-                        ->relationship('manufacturer', 'name')
+                        ->options(fn () => Manufacturer::query()
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray()
+                        )
                         ->searchable()
                         ->preload()
+                        ->getSearchResultsUsing(fn (string $search) => Manufacturer::query()
+                            ->where('name', 'like', "%{$search}%")
+                            ->orderBy('name')
+                            ->limit(50)
+                            ->pluck('name', 'id')
+                            ->toArray())
                 ])
                 ->action(function (array $data): void {
                     $record = $this->getRecord();
@@ -252,7 +263,7 @@ class EditDocument extends EditRecord
                     $result = $service->processVideo(
                         $record->id, 
                         $data['video_url'], 
-                        $data['manufacturer_id'] ?? null
+                        $data['manufacturer_select'] ?? null
                     );
                     
                     if ($result['success']) {

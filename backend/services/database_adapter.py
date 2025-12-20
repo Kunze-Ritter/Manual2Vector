@@ -23,7 +23,7 @@ class DatabaseAdapter(ABC):
     Abstract base class for all database adapters.
     
     Defines the interface that all database adapters must implement.
-    Supports multiple database backends (Supabase, PostgreSQL, Docker PostgreSQL).
+    Supports PostgreSQL database backend.
     """
     
     def __init__(self):

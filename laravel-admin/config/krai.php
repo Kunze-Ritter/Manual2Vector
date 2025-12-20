@@ -12,7 +12,7 @@ return [
     */
 
     'engine_url' => env('KRAI_ENGINE_URL', 'http://krai-engine:8000'),
-    'service_jwt' => env('KRAI_ENGINE_SERVICE_JWT', ''),
+    'service_jwt' => env('KRAI_SERVICE_JWT', env('KRAI_ENGINE_SERVICE_JWT', '')),
     'default_timeout' => 120, // Default HTTP timeout in seconds
     'query_timeout' => 60, // Timeout for read-only queries
 
@@ -177,6 +177,91 @@ return [
         'storage',
         'embedding',
         'search_indexing'
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Monitoring Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the monitoring widgets and dashboard.
+    | Includes cache TTL and polling intervals for real-time updates.
+    |
+    */
+
+    'monitoring' => [
+        'base_url' => env('MONITORING_BASE_URL', 'http://krai-engine:8000'),
+        'cache_ttl' => [
+            'metrics' => env('MONITORING_CACHE_TTL_METRICS', 30),
+            'queue' => env('MONITORING_CACHE_TTL_QUEUE', 15),
+            'dashboard' => env('MONITORING_CACHE_TTL_DASHBOARD', 180),
+            'data_quality' => env('MONITORING_CACHE_TTL_DATA_QUALITY', 300),
+            'navigation_badges' => env('MONITORING_CACHE_TTL_NAV_BADGES', 20),
+            'pipeline' => env('MONITORING_CACHE_TTL_PIPELINE', 15),
+        ],
+        'polling_intervals' => [
+            'dashboard' => env('MONITORING_DASHBOARD_POLLING_INTERVAL', 60),
+            'queue' => env('MONITORING_QUEUE_POLLING_INTERVAL', 30),
+            'processor' => env('MONITORING_PROCESSOR_POLLING_INTERVAL', 30),
+            'metrics' => env('MONITORING_METRICS_POLLING_INTERVAL', 60),
+        ],
+    ],
+
+    'ai_agent' => [
+        'base_url' => env('AI_AGENT_URL', 'http://krai-engine:8000/agent'),
+        'timeout' => [
+            'chat' => env('AI_AGENT_TIMEOUT_CHAT', 60),
+            'stream' => env('AI_AGENT_TIMEOUT_STREAM', 120),
+            'health' => env('AI_AGENT_TIMEOUT_HEALTH', 5),
+        ],
+        'cache_ttl' => [
+            'session_history' => env('AI_AGENT_CACHE_SESSION_TTL', 3600),
+        ],
+        'session' => [
+            'max_history_length' => env('AI_AGENT_MAX_HISTORY', 50),
+            'default_session_prefix' => 'krai_chat_',
+        ],
+    ],
+
+    'images' => [
+        'cache_ttl' => 60,
+        'default_page_size' => 24,
+        'max_page_size' => 96,
+        'thumbnail_size' => [
+            'width' => 300,
+            'height' => 300,
+        ],
+        'bulk_download_limit' => 100,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Firecrawl Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for Firecrawl web scraping service integration.
+    | Includes API URL, timeouts, caching, and feature flags.
+    |
+    */
+
+    'firecrawl' => [
+        'api_url' => env('FIRECRAWL_API_URL', 'http://krai-firecrawl-api-prod:3002'),
+        'llm_provider' => env('FIRECRAWL_LLM_PROVIDER', 'ollama'),
+        'model_name' => env('FIRECRAWL_MODEL_NAME', 'qwen2.5:3b'),
+        'embedding_model' => env('FIRECRAWL_EMBEDDING_MODEL', 'nomic-embed-text:latest'),
+        'max_concurrency' => (int) env('FIRECRAWL_MAX_CONCURRENCY', 3),
+        'block_media' => env('FIRECRAWL_BLOCK_MEDIA', 'true') === 'true',
+        'cache_ttl' => 60,
+        'timeout' => [
+            'health' => 10,
+            'scrape' => 30,
+            'crawl' => 300,
+            'extract' => 60,
+        ],
+        'test_urls' => [
+            'example' => 'https://example.com',
+            'manufacturer' => 'https://kmbs.konicaminolta.us',
+        ],
     ],
 ];
 

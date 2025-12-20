@@ -4,16 +4,16 @@ Embedding Processor - Generate vector embeddings for semantic search
 Stage 7 of the processing pipeline.
 
 Uses embeddinggemma via Ollama for local, fast embeddings.
-Stores vectors in Supabase with pgvector for similarity search.
+Stores vectors in PostgreSQL (krai_intelligence.chunks.embedding) for similarity search.
 
 Features:
 - Batch embedding generation
 - Ollama integration (embeddinggemma 768-dim)
-- pgvector storage in Supabase
-- Multi-modal embeddings support (text, image, table) via embeddings_v2 table
+- pgvector storage in PostgreSQL
+- Multi-modal embeddings support (text, image, table) via unified_embeddings table
 - Similarity search
 - Progress tracking
-- Backward compatibility with vw_chunks table
+- Compatibility with vw_chunks view
 """
 
 import os
@@ -64,7 +64,7 @@ class EmbeddingProcessor(BaseProcessor):
 
     def __init__(
         self,
-        supabase_client=None,
+        database_adapter=None,
         ollama_url: Optional[str] = None,
         model_name: str = None,
         batch_size: int = 100,
@@ -72,34 +72,29 @@ class EmbeddingProcessor(BaseProcessor):
         min_batch_size: int = 25,
         max_batch_size: int = 200,
         batch_adjust_step: int = 10,
-        enable_embeddings_v2: bool = None
+        **_legacy_kwargs,
     ):
         """
         Initialize embedding processor
         
         Args:
-            supabase_client: Supabase client for storage
+            database_adapter: Database adapter/service for storage
             ollama_url: Ollama API URL (default: from env)
             model_name: Embedding model name (default: from OLLAMA_MODEL_EMBEDDING env)
             batch_size: Number of chunks to embed per batch
             embedding_dimension: Dimension of embedding vectors (768 for embeddinggemma, nomic-embed-text)
-            enable_embeddings_v2: Enable embeddings_v2 table storage (default: from env)
         """
         super().__init__(name="embedding_processor")
         self.stage = Stage.EMBEDDING
-        self.supabase = supabase_client
+        self.database_adapter = database_adapter
         self.node_id = platform.node() or os.getenv("COMPUTERNAME", "unknown-host")
         self.min_batch_size = max(1, min_batch_size)
         self.max_batch_size = max(self.min_batch_size, max_batch_size)
         self.batch_adjust_step = max(1, batch_adjust_step)
         self.batch_size = max(self.min_batch_size, min(self.max_batch_size, batch_size))
         self.embedding_dimension = embedding_dimension
-        
-        # Multi-modal embeddings support
-        self.enable_embeddings_v2 = (
-            enable_embeddings_v2 if enable_embeddings_v2 is not None 
-            else os.getenv('ENABLE_EMBEDDINGS_V2', 'false').lower() == 'true'
-        )
+
+        # Unified multi-modal embeddings support
         
         # Phase 5: Context embedding configuration
         self.enable_context_embeddings = os.getenv('ENABLE_CONTEXT_EMBEDDINGS', 'true').lower() == 'true'
@@ -115,6 +110,8 @@ class EmbeddingProcessor(BaseProcessor):
         self.max_retries = int(os.getenv('EMBEDDING_REQUEST_MAX_RETRIES', '4'))
         self.retry_base_delay = float(os.getenv('EMBEDDING_RETRY_BASE_DELAY', '1.0'))
         self.retry_jitter = float(os.getenv('EMBEDDING_RETRY_JITTER', '0.5'))
+        self.max_prompt_chars = int(os.getenv('EMBEDDING_MAX_PROMPT_CHARS', '0'))
+        self.default_prompt_chars = int(os.getenv('EMBEDDING_DEFAULT_PROMPT_CHARS', '0'))
         self.session = self._create_session()
 
         # Adaptive batching configuration
@@ -127,9 +124,19 @@ class EmbeddingProcessor(BaseProcessor):
         self._batch_latency_window: deque = deque(maxlen=50)
         self._load_persisted_batch_size()
 
+        prompt_state_path_env = os.getenv('EMBEDDING_PROMPT_LIMIT_STATE_PATH')
+        self.prompt_limit_state_path = (
+            Path(prompt_state_path_env)
+            if prompt_state_path_env
+            else default_state_dir / 'embedding_prompt_limit_state.json'
+        )
+        self.prompt_limit_floor = int(os.getenv('EMBEDDING_PROMPT_LIMIT_FLOOR', '512'))
+        self._prompt_limit_by_model: Dict[str, int] = {}
+        self._load_persisted_prompt_limits()
+
         # Stage tracker
-        if supabase_client:
-            self.stage_tracker = StageTracker(supabase_client)
+        if self.database_adapter:
+            self.stage_tracker = StageTracker(self.database_adapter)
         else:
             self.stage_tracker = None
         
@@ -145,8 +152,9 @@ class EmbeddingProcessor(BaseProcessor):
             read=adapter_retries,
             connect=adapter_retries,
             backoff_factor=self.retry_base_delay,
-            status_forcelist=[500, 502, 503, 504],
+            status_forcelist=[],
             allowed_methods=["GET", "POST"],
+            raise_on_status=False,
         )
         adapter = HTTPAdapter(
             max_retries=retry,
@@ -192,6 +200,65 @@ class EmbeddingProcessor(BaseProcessor):
                 json.dump(state, f, indent=2)
         except Exception as exc:
             self.logger.warning("Failed to persist batch size: %s", exc)
+
+    def _load_persisted_prompt_limits(self) -> None:
+        try:
+            if self.prompt_limit_state_path.exists():
+                with self.prompt_limit_state_path.open("r", encoding="utf-8") as f:
+                    state = json.load(f)
+                models = state.get("models") if isinstance(state, dict) else None
+                if isinstance(models, dict):
+                    self._prompt_limit_by_model = {
+                        str(k): int(v)
+                        for k, v in models.items()
+                        if v is not None and str(v).isdigit() and int(v) > 0
+                    }
+                elif isinstance(state, dict):
+                    self._prompt_limit_by_model = {
+                        str(k): int(v)
+                        for k, v in state.items()
+                        if v is not None and str(v).isdigit() and int(v) > 0
+                    }
+        except Exception as exc:
+            self.logger.warning("Failed to load persisted prompt limits: %s", exc)
+
+    def _persist_prompt_limits(self) -> None:
+        try:
+            payload = {
+                "models": self._prompt_limit_by_model,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            with self.prompt_limit_state_path.open("w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+        except Exception as exc:
+            self.logger.warning("Failed to persist prompt limits: %s", exc)
+
+    def _update_model_prompt_limit(self, model_name: str, new_limit: int) -> None:
+        try:
+            new_limit_int = int(new_limit)
+        except (TypeError, ValueError):
+            return
+
+        if new_limit_int <= 0:
+            return
+
+        current = self._prompt_limit_by_model.get(model_name)
+        if current is None or new_limit_int < current:
+            self._prompt_limit_by_model[model_name] = new_limit_int
+            self._persist_prompt_limits()
+            if current is None:
+                self.logger.info(
+                    "Learned embedding prompt limit for model=%s limit=%d",
+                    model_name,
+                    new_limit_int,
+                )
+            else:
+                self.logger.info(
+                    "Reduced embedding prompt limit for model=%s from %d to %d",
+                    model_name,
+                    current,
+                    new_limit_int,
+                )
 
     def _record_batch_latency(self, latency: float) -> None:
         """Track recent batch latencies for adaptive scaling."""
@@ -265,7 +332,7 @@ class EmbeddingProcessor(BaseProcessor):
     
     def is_configured(self) -> bool:
         """Check if embedding processor is properly configured"""
-        return self.ollama_available and self.supabase is not None
+        return self.ollama_available and self.database_adapter is not None
     
     def get_configuration_status(self) -> Dict[str, Any]:
         """Get detailed configuration status for debugging"""
@@ -274,11 +341,14 @@ class EmbeddingProcessor(BaseProcessor):
             'ollama_available': self.ollama_available,
             'ollama_url': self.ollama_url,
             'model_name': self.model_name,
-            'supabase_configured': self.supabase is not None,
+            'database_configured': self.database_adapter is not None,
             'embedding_dimension': self.embedding_dimension,
             'batch_size': self.batch_size,
-            'embeddings_v2_enabled': self.enable_embeddings_v2
         }
+
+    @staticmethod
+    def _vector_literal(values: List[float]) -> str:
+        return "[" + ",".join(f"{v:.8f}" for v in values) + "]"
     
     async def process(self, context) -> Dict[str, Any]:
         """Async pipeline entrypoint wrapping `process_document`."""
@@ -323,16 +393,21 @@ class EmbeddingProcessor(BaseProcessor):
                 )
 
         # After processing text chunks, handle image and table embeddings if available
-        if self.enable_embeddings_v2:
-            # Store image embeddings
-            if hasattr(context, 'image_embeddings') and context.image_embeddings:
-                image_result = await self.store_embeddings_batch(context.image_embeddings)
-                self.logger.info(f"Stored {image_result['success_count']} image embeddings")
-            
-            # Store table embeddings
-            if hasattr(context, 'table_embeddings') and context.table_embeddings:
-                table_result = await self.store_embeddings_batch(context.table_embeddings)
-                self.logger.info(f"Stored {table_result['success_count']} table embeddings")
+        if hasattr(context, 'image_embeddings') and context.image_embeddings:
+            image_result = await self.store_embeddings_batch(
+                context.image_embeddings,
+                context=context,
+                document_id=context.document_id,
+            )
+            self.logger.info(f"Stored {image_result['success_count']} image embeddings")
+
+        if hasattr(context, 'table_embeddings') and context.table_embeddings:
+            table_result = await self.store_embeddings_batch(
+                context.table_embeddings,
+                context=context,
+                document_id=context.document_id,
+            )
+            self.logger.info(f"Stored {table_result['success_count']} table embeddings")
 
         return result
 
@@ -397,7 +472,7 @@ class EmbeddingProcessor(BaseProcessor):
                     )
 
                     batch_start = time.perf_counter()
-                    batch_result = self._embed_batch(batch, document_id)
+                    batch_result = await self._embed_batch(batch, document_id)
                     batch_latency = time.perf_counter() - batch_start
 
                     batch_stats = [text_stats(chunk.get('text', '')) for chunk in batch]
@@ -447,13 +522,13 @@ class EmbeddingProcessor(BaseProcessor):
 
                 # Phase 5: Generate context embeddings for media items (NEW!)
                 context_embeddings_created = 0
-                if self.enable_context_embeddings and self.enable_embeddings_v2:
+                if self.enable_context_embeddings:
                     try:
                         adapter.info("Generating context embeddings for media items...")
                         context_start = time.time()
-                        context_embeddings_created = self._generate_context_embeddings(
+                        context_embeddings_created = await self._generate_context_embeddings(
                             document_id=document_id,
-                            adapter=adapter
+                            adapter=adapter,
                         )
                         context_time = time.time() - context_start
                         adapter.info("Generated %d context embeddings in %.1fs", context_embeddings_created, context_time)
@@ -532,7 +607,7 @@ class EmbeddingProcessor(BaseProcessor):
                     'embeddings_created': 0
                 }
     
-    def _embed_batch(
+    async def _embed_batch(
         self,
         chunks: List[Dict[str, Any]],
         document_id: UUID
@@ -563,7 +638,7 @@ class EmbeddingProcessor(BaseProcessor):
                     continue
                 
                 # Store in database
-                stored = self._store_embedding(
+                stored = await self._store_embedding(
                     chunk_id=chunk['chunk_id'],
                     document_id=document_id,
                     embedding=embedding,
@@ -602,13 +677,23 @@ class EmbeddingProcessor(BaseProcessor):
         """
         max_attempts = max(1, self.max_retries)
         last_error = None
+        text_len = len(text or "")
+        prompt_limit = self.max_prompt_chars if self.max_prompt_chars > 0 else text_len
+        if self.default_prompt_chars > 0:
+            prompt_limit = min(prompt_limit, self.default_prompt_chars)
+        learned_limit = self._prompt_limit_by_model.get(self.model_name)
+        if learned_limit:
+            prompt_limit = min(prompt_limit, learned_limit)
         for attempt in range(1, max_attempts + 1):
             try:
+                prompt = text
+                if prompt and prompt_limit > 0 and len(prompt) > prompt_limit:
+                    prompt = prompt[:prompt_limit]
                 response = self.session.post(
                     f"{self.ollama_url}/api/embeddings",
                     json={
                         "model": self.model_name,
-                        "prompt": text
+                        "prompt": prompt
                     },
                     timeout=self.request_timeout
                 )
@@ -644,17 +729,56 @@ class EmbeddingProcessor(BaseProcessor):
                     last_error = "malformed_embedding"
                     return None
 
+                body_text = response.text or ""
+                body_preview = body_text[:500]
+                lower_body = body_text.lower()
+
+                if "exceeds the context length" in lower_body:
+                    floor = max(1, int(self.prompt_limit_floor))
+                    if prompt_limit <= floor:
+                        self.logger.error(
+                            "Embedding API rejected prompt due to context length even after truncation (prompt_len=%d model=%s body=%s)",
+                            len(prompt or ""),
+                            self.model_name,
+                            body_preview,
+                        )
+                        last_error = "context_length_exceeded"
+                        return None
+
+                    previous_limit = prompt_limit
+                    shrink_factor = 0.25 if previous_limit >= 4096 else 0.5
+                    new_limit = max(floor, int(previous_limit * shrink_factor) - 64)
+                    if new_limit == prompt_limit:
+                        new_limit = max(floor, prompt_limit - 1)
+                    prompt_limit = new_limit
+                    self._update_model_prompt_limit(self.model_name, prompt_limit)
+
+                    self.logger.debug(
+                        "Embedding API prompt too long for model context (attempt %d/%d model=%s new_prompt_limit=%d body=%s) - retrying with truncation",
+                        attempt,
+                        max_attempts,
+                        self.model_name,
+                        prompt_limit,
+                        body_preview,
+                    )
+                    last_error = "context_length_exceeded"
+                    continue
+
                 # Determine if transient
                 if response.status_code >= 500:
+                    text_length = len(text or "")
                     retry_delay = self.retry_base_delay * (2 ** (attempt - 1))
                     jitter = random.uniform(0, self.retry_jitter)
                     sleep_time = retry_delay + jitter
                     if attempt < max_attempts:
                         self.logger.warning(
-                            "Embedding API transient error %s on attempt %d/%d - retrying in %.2fs",
+                            "Embedding API transient error %s on attempt %d/%d (text_len=%d model=%s body=%s) - retrying in %.2fs",
                             response.status_code,
                             attempt,
                             max_attempts,
+                            text_length,
+                            self.model_name,
+                            body_preview,
                             sleep_time
                         )
                         time.sleep(sleep_time)
@@ -671,7 +795,7 @@ class EmbeddingProcessor(BaseProcessor):
                     last_error = f"status_{response.status_code}"
                     return None
 
-            except (requests_exceptions.ConnectionError, requests_exceptions.Timeout) as exc:
+            except (requests_exceptions.ConnectionError, requests_exceptions.Timeout, requests_exceptions.RetryError) as exc:
                 retry_delay = self.retry_base_delay * (2 ** (attempt - 1))
                 jitter = random.uniform(0, self.retry_jitter)
                 sleep_time = retry_delay + jitter
@@ -713,7 +837,7 @@ class EmbeddingProcessor(BaseProcessor):
         )
         return None
     
-    def _store_embedding(
+    async def _store_embedding(
         self,
         chunk_id: str,
         document_id: UUID,
@@ -721,7 +845,7 @@ class EmbeddingProcessor(BaseProcessor):
         chunk_data: Dict[str, Any]
     ) -> bool:
         """
-        Store embedding in Supabase with pgvector
+        Store embedding in krai_intelligence.chunks (embedding column)
         
         Args:
             chunk_id: Chunk ID
@@ -732,13 +856,12 @@ class EmbeddingProcessor(BaseProcessor):
         Returns:
             True if successful
         """
-        if not self.supabase:
+        if not self.database_adapter:
             return False
         
         try:
             # Prepare record for krai_intelligence.chunks table
-            # Note: Supabase client uses public schema by default, 
-            # but RLS policies route to correct schema
+            # Note: This uses direct PostgreSQL writes (krai_intelligence.chunks)
             
             # Preserve existing metadata from chunk (includes header metadata, etc.)
             existing_metadata = chunk_data.get('metadata', {})
@@ -756,85 +879,51 @@ class EmbeddingProcessor(BaseProcessor):
                 if key not in metadata:  # Don't overwrite the standard fields
                     metadata[key] = value
             
-            record = {
-                'id': str(chunk_id),
-                'document_id': str(document_id),
-                'text_chunk': chunk_data.get('text', ''),  # Column name is text_chunk
-                'chunk_index': chunk_data.get('chunk_index', 0),
-                'page_start': chunk_data.get('page_start', chunk_data.get('page_numbers', [None])[0]),
-                'page_end': chunk_data.get('page_end', chunk_data.get('page_numbers', [None])[-1] if chunk_data.get('page_numbers') else None),
-                'fingerprint': str(chunk_data.get('fingerprint', chunk_id)),  # Use chunk_id as fallback
-                'embedding': embedding,  # pgvector will handle this
-                'metadata': metadata  # Now includes all metadata from chunker!
-            }
+            embedding_literal = self._vector_literal(embedding)
+            metadata_update = self._make_json_safe(metadata)
 
-            record = self._make_json_safe(record)
-            
-            table = self.supabase.table('vw_chunks')
+            await self.database_adapter.execute_query(
+                """
+                UPDATE krai_intelligence.chunks
+                SET
+                    embedding = $2::vector,
+                    metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+                    updated_at = NOW()
+                WHERE id = $1
+                """.strip(),
+                [str(chunk_id), embedding_literal, json.dumps(metadata_update)],
+            )
 
-            if hasattr(table, 'upsert'):
-                try:
-                    table.upsert(record).execute()
-                    
-                    # Also store in embeddings_v2 for unified search (if enabled)
-                    if self.enable_embeddings_v2:
-                        self._store_embedding_v2(
-                            source_id=chunk_id,
-                            source_type='text',
-                            document_id=document_id,
-                            embedding=embedding,
-                            embedding_context=chunk_data.get('text', '')[:500],
-                            metadata={
-                                'chunk_type': chunk_data.get('chunk_type', 'text'),
-                                'page_start': chunk_data.get('page_start'),
-                                'page_end': chunk_data.get('page_end'),
-                                'chunk_index': chunk_data.get('chunk_index', 0)
-                            }
-                        )
-                    
-                    return True
-                except Exception as e:
-                    self.logger.error(f"Embedding upsert failed (chunk={chunk_id}): {e}")
+            await self._store_unified_embedding(
+                source_id=str(chunk_id),
+                source_type='text',
+                embedding=embedding,
+                embedding_context=(chunk_data.get('text', '') or '')[:500],
+                metadata={
+                    'chunk_type': chunk_data.get('chunk_type', 'text'),
+                    'page_start': chunk_data.get('page_start'),
+                    'page_end': chunk_data.get('page_end'),
+                    'chunk_index': chunk_data.get('chunk_index', 0),
+                    'document_id': str(document_id),
+                },
+            )
 
-            try:
-                table.insert(record).execute()
-                
-                # Also store in embeddings_v2 for unified search (if enabled)
-                if self.enable_embeddings_v2:
-                    self._store_embedding_v2(
-                        source_id=chunk_id,
-                        source_type='text',
-                        document_id=document_id,
-                        embedding=embedding,
-                        embedding_context=chunk_data.get('text', '')[:500],
-                        metadata={
-                            'chunk_type': chunk_data.get('chunk_type', 'text'),
-                            'page_start': chunk_data.get('page_start'),
-                            'page_end': chunk_data.get('page_end'),
-                            'chunk_index': chunk_data.get('chunk_index', 0)
-                        }
-                    )
-                
-                return True
-            except Exception as insert_error:
-                self.logger.error(f"Embedding insert failed (chunk={chunk_id}): {insert_error}")
-                return False
+            return True
             
         except Exception as e:
             self.logger.error(f"Failed to store embedding (chunk={chunk_id}): {e}")
             return False
     
-    def _store_embedding_v2(
+    async def _store_unified_embedding(
         self,
         source_id: str,
         source_type: str,  # 'text', 'image', 'table'
-        document_id: UUID,
         embedding: List[float],
         embedding_context: str,
         metadata: Dict[str, Any] = None
     ) -> bool:
         """
-        Store embedding in embeddings_v2 table for unified multi-modal search
+        Store embedding in unified_embeddings table for unified multi-modal search
         
         Args:
             source_id: Source ID (chunk_id, image_id, table_id)
@@ -847,11 +936,11 @@ class EmbeddingProcessor(BaseProcessor):
         Returns:
             True if successful
         """
-        if not self.supabase or not self.enable_embeddings_v2:
+        if not self.database_adapter:
             return False
         
         try:
-            # Prepare record for embeddings_v2 table
+            # Prepare record for unified_embeddings table
             embedding_data = {
                 'source_id': source_id,
                 'source_type': source_type,
@@ -863,34 +952,38 @@ class EmbeddingProcessor(BaseProcessor):
 
             embedding_data = self._make_json_safe(embedding_data)
             
-            table = self.supabase.table('embeddings_v2')
-
-            if hasattr(table, 'upsert'):
-                try:
-                    table.upsert(embedding_data).execute()
-                    self.logger.debug(f"Stored embedding_v2 for {source_type} {source_id}")
-                    return True
-                except Exception as e:
-                    self.logger.error(f"Embedding_v2 upsert failed ({source_type}={source_id}): {e}")
-
-            try:
-                table.insert(embedding_data).execute()
-                self.logger.debug(f"Stored embedding_v2 for {source_type} {source_id}")
-                return True
-            except Exception as insert_error:
-                self.logger.error(f"Embedding_v2 insert failed ({source_type}={source_id}): {insert_error}")
-                return False
+            embedding_literal = self._vector_literal(embedding)
+            await self.database_adapter.execute_query(
+                """
+                INSERT INTO krai_intelligence.unified_embeddings
+                    (source_id, source_type, embedding, model_name, embedding_context, metadata)
+                VALUES
+                    ($1::uuid, $2, $3::vector, $4, $5, $6::jsonb)
+                """.strip(),
+                [
+                    str(source_id),
+                    source_type,
+                    embedding_literal,
+                    self.model_name,
+                    embedding_context[:500] if embedding_context else None,
+                    json.dumps(embedding_data.get('metadata') or {}),
+                ],
+            )
+            return True
             
         except Exception as e:
-            self.logger.error(f"Failed to store embedding_v2 ({source_type}={source_id}): {e}")
+            self.logger.error(f"Failed to store unified embedding ({source_type}={source_id}): {e}")
             return False
     
     async def store_embeddings_batch(
         self,
-        embeddings: List[Dict[str, Any]]
+        embeddings: List[Dict[str, Any]],
+        *,
+        context: Optional[Any] = None,
+        document_id: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
-        Store batch of embeddings (text, image, table) in embeddings_v2
+        Store batch of embeddings (text, image, table) in unified_embeddings
         
         Args:
             embeddings: List of embedding dictionaries with keys:
@@ -903,7 +996,7 @@ class EmbeddingProcessor(BaseProcessor):
         Returns:
             Dict with success_count, failed_count
         """
-        if not self.supabase or not self.enable_embeddings_v2:
+        if not self.database_adapter:
             return {'success_count': 0, 'failed_count': len(embeddings)}
         
         success_count = 0
@@ -916,19 +1009,18 @@ class EmbeddingProcessor(BaseProcessor):
                 try:
                     # Validate source_type
                     source_type = emb_data.get('source_type')
-                    if source_type not in ['text', 'image', 'table']:
+                    if source_type not in ['text', 'image', 'table', 'context']:
                         self.logger.warning(f"Invalid source_type: {source_type}")
                         failed_count += 1
                         continue
                     
                     # Store embedding
-                    success = self._store_embedding_v2(
-                        source_id=emb_data['source_id'],
+                    success = await self._store_unified_embedding(
+                        source_id=str(emb_data['source_id']),
                         source_type=emb_data['source_type'],
-                        document_id=document_id,
                         embedding=emb_data['embedding'],
                         embedding_context=emb_data.get('embedding_context'),
-                        metadata=emb_data.get('metadata')
+                        metadata=emb_data.get('metadata'),
                     )
                     
                     if success:
@@ -943,8 +1035,12 @@ class EmbeddingProcessor(BaseProcessor):
             # Process image embeddings if available (from VisualEmbeddingProcessor)
             # Note: This is currently disabled as VisualEmbeddingProcessor stores embeddings directly
             # If you want EmbeddingProcessor to handle image embeddings, set ENABLE_IMAGE_EMBEDDINGS_HANDLING=true
-            if (os.getenv('ENABLE_IMAGE_EMBEDDINGS_HANDLING', 'false').lower() == 'true' and
-                hasattr(context, 'image_embeddings') and context.image_embeddings):
+            if (
+                os.getenv('ENABLE_IMAGE_EMBEDDINGS_HANDLING', 'false').lower() == 'true'
+                and hasattr(context, 'image_embeddings')
+                and context.image_embeddings
+                and document_id is not None
+            ):
                 self.logger.info(f"Processing {len(context.image_embeddings)} image embeddings")
                 for img_emb in context.image_embeddings:
                     try:
@@ -962,8 +1058,12 @@ class EmbeddingProcessor(BaseProcessor):
             # Process table embeddings if available (from TableProcessor)
             # Note: This is currently disabled as TableProcessor stores embeddings directly
             # If you want EmbeddingProcessor to handle table embeddings, set ENABLE_TABLE_EMBEDDINGS_HANDLING=true
-            if (os.getenv('ENABLE_TABLE_EMBEDDINGS_HANDLING', 'false').lower() == 'true' and
-                hasattr(context, 'table_embeddings') and context.table_embeddings):
+            if (
+                os.getenv('ENABLE_TABLE_EMBEDDINGS_HANDLING', 'false').lower() == 'true'
+                and hasattr(context, 'table_embeddings')
+                and context.table_embeddings
+                and document_id is not None
+            ):
                 self.logger.info(f"Processing {len(context.table_embeddings)} table embeddings")
                 for table_emb in context.table_embeddings:
                     try:
@@ -1016,28 +1116,14 @@ class EmbeddingProcessor(BaseProcessor):
                 self.logger.error("Failed to generate query embedding")
                 return []
             
-            # Search using pgvector similarity
-            # This uses cosine similarity via pgvector extension
-            # RPC function needs to be created in Supabase
-            
-            params = {
-                'query_embedding': query_embedding,
-                'match_threshold': similarity_threshold,
-                'match_count': limit
-            }
-            
-            if document_id:
-                params['filter_document_id'] = str(document_id)
-            
-            result = self.supabase.rpc('match_chunks', params).execute()
-            
-            return result.data if result.data else []
+            self.logger.warning("Similarity search is not available in sync mode")
+            return []
             
         except Exception as e:
             self.logger.error(f"Similarity search failed: {e}")
             return []
 
-    def _generate_context_embeddings(self, document_id: UUID, adapter) -> int:
+    async def _generate_context_embeddings(self, document_id: UUID, adapter) -> int:
         """
         Generate embeddings for context fields of media items (images, videos, links).
         
@@ -1048,24 +1134,27 @@ class EmbeddingProcessor(BaseProcessor):
         Returns:
             Number of context embeddings created
         """
-        if not self.supabase or not self.enable_embeddings_v2:
-            adapter.debug("Context embeddings disabled - skipping")
+        if not self.database_adapter:
+            adapter.debug("Context embeddings unavailable - skipping")
             return 0
         
         total_context_embeddings = 0
         
         try:
-            # Process images with context (using view for RLS consistency)
-            images_result = self.supabase.table('vw_images').select(
-                'id, context_caption, page_header, figure_reference, '
-                'related_error_codes, related_products, surrounding_paragraphs'
-            ).eq('document_id', str(document_id)).not_.is_('context_caption', 'null').execute()
-            
-            if images_result.data:
-                adapter.info(f"Processing {len(images_result.data)} images with context")
+            images_result = await self.database_adapter.execute_query(
+                """
+                SELECT id, context_caption, page_header, related_error_codes, related_products, surrounding_paragraphs
+                FROM krai_content.images
+                WHERE document_id = $1 AND context_caption IS NOT NULL
+                """.strip(),
+                [str(document_id)],
+            )
+
+            if images_result:
+                adapter.info(f"Processing {len(images_result)} images with context")
                 image_embeddings = []
-                
-                for image in images_result.data:
+
+                for image in images_result:
                     # Combine context fields for embedding
                     context_parts = []
                     
@@ -1104,20 +1193,27 @@ class EmbeddingProcessor(BaseProcessor):
                 
                 # Store image context embeddings
                 if image_embeddings:
-                    result = self._store_embeddings_v2(image_embeddings, adapter)
-                    total_context_embeddings += result['success_count']
-                    adapter.info(f"Stored {result['success_count']} image context embeddings")
-            
-            # Process videos with context (using view for RLS consistency)
-            videos_result = self.supabase.table('vw_videos').select(
-                'id, context_description, page_header, related_error_codes, related_products'
-            ).eq('document_id', str(document_id)).not_.is_('context_description', 'null').execute()
-            
-            if videos_result.data:
-                adapter.info(f"Processing {len(videos_result.data)} videos with context")
+                    result = await self.store_embeddings_batch(
+                        image_embeddings,
+                        document_id=document_id,
+                    )
+                    total_context_embeddings += result.get('success_count', 0)
+                    adapter.info(f"Stored {result.get('success_count', 0)} image context embeddings")
+
+            videos_result = await self.database_adapter.execute_query(
+                """
+                SELECT id, context_description, related_products
+                FROM krai_content.videos
+                WHERE document_id = $1 AND context_description IS NOT NULL
+                """.strip(),
+                [str(document_id)],
+            )
+
+            if videos_result:
+                adapter.info(f"Processing {len(videos_result)} videos with context")
                 video_embeddings = []
-                
-                for video in videos_result.data:
+
+                for video in videos_result:
                     context_parts = []
                     
                     if video.get('context_description'):
@@ -1148,20 +1244,27 @@ class EmbeddingProcessor(BaseProcessor):
                             })
                 
                 if video_embeddings:
-                    result = self._store_embeddings_v2(video_embeddings, adapter)
-                    total_context_embeddings += result['success_count']
-                    adapter.info(f"Stored {result['success_count']} video context embeddings")
-            
-            # Process links with context (using view for RLS consistency)
-            links_result = self.supabase.table('vw_links').select(
-                'id, context_description, page_header, related_error_codes, related_products'
-            ).eq('document_id', str(document_id)).not_.is_('context_description', 'null').execute()
-            
-            if links_result.data:
-                adapter.info(f"Processing {len(links_result.data)} links with context")
+                    result = await self.store_embeddings_batch(
+                        video_embeddings,
+                        document_id=document_id,
+                    )
+                    total_context_embeddings += result.get('success_count', 0)
+                    adapter.info(f"Stored {result.get('success_count', 0)} video context embeddings")
+
+            links_result = await self.database_adapter.execute_query(
+                """
+                SELECT id, context_description, related_error_codes
+                FROM krai_content.links
+                WHERE document_id = $1 AND context_description IS NOT NULL
+                """.strip(),
+                [str(document_id)],
+            )
+
+            if links_result:
+                adapter.info(f"Processing {len(links_result)} links with context")
                 link_embeddings = []
-                
-                for link in links_result.data:
+
+                for link in links_result:
                     context_parts = []
                     
                     if link.get('context_description'):
@@ -1192,20 +1295,27 @@ class EmbeddingProcessor(BaseProcessor):
                             })
                 
                 if link_embeddings:
-                    result = self._store_embeddings_v2(link_embeddings, adapter)
-                    total_context_embeddings += result['success_count']
-                    adapter.info(f"Stored {result['success_count']} link context embeddings")
-            
-            # Process tables with context
-            tables_result = self.supabase.table('structured_tables').select(
-                'id, context_text, page_header, caption, document_id'
-            ).eq('document_id', str(document_id)).not_.is_('context_text', 'null').execute()
-            
-            if tables_result.data:
-                adapter.info(f"Processing {len(tables_result.data)} tables with context")
+                    result = await self.store_embeddings_batch(
+                        link_embeddings,
+                        document_id=document_id,
+                    )
+                    total_context_embeddings += result.get('success_count', 0)
+                    adapter.info(f"Stored {result.get('success_count', 0)} link context embeddings")
+
+            tables_result = await self.database_adapter.execute_query(
+                """
+                SELECT id, context_text, caption
+                FROM krai_intelligence.structured_tables
+                WHERE document_id = $1 AND context_text IS NOT NULL
+                """.strip(),
+                [str(document_id)],
+            )
+
+            if tables_result:
+                adapter.info(f"Processing {len(tables_result)} tables with context")
                 table_embeddings = []
-                
-                for table in tables_result.data:
+
+                for table in tables_result:
                     # Combine context fields for embedding
                     context_parts = []
                     
@@ -1236,9 +1346,12 @@ class EmbeddingProcessor(BaseProcessor):
                 
                 # Store table context embeddings
                 if table_embeddings:
-                    result = self._store_embeddings_v2(table_embeddings, adapter)
-                    total_context_embeddings += result['success_count']
-                    adapter.info(f"Stored {result['success_count']} table context embeddings")
+                    result = await self.store_embeddings_batch(
+                        table_embeddings,
+                        document_id=document_id,
+                    )
+                    total_context_embeddings += result.get('success_count', 0)
+                    adapter.info(f"Stored {result.get('success_count', 0)} table context embeddings")
             
             return total_context_embeddings
             
@@ -1274,4 +1387,4 @@ if __name__ == "__main__":
         print("\nRequirements:")
         print("  1. Ollama running: ollama serve")
         print("  2. Model installed: ollama pull embeddinggemma")
-        print("  3. Supabase client configured")
+        print("  3. Database adapter configured")
