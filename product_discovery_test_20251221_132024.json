@@ -1,0 +1,63 @@
+{
+  "test_file": "C:\\Users\\haast\\OneDrive - Kunze & Ritter\\Desktop\\ServiceManuals\\HP\\HP_E877_CPMD.pdf",
+  "test_date": "2025-12-21T13:20:24.729570",
+  "extraction": {
+    "page_count": 1116,
+    "total_characters": 1022138,
+    "extraction_time": 0.997999
+  },
+  "classification": {
+    "document_type": "service_manual",
+    "manufacturer": "HP Inc.",
+    "models_found": 2,
+    "models": [
+      "E877",
+      "E7770"
+    ],
+    "confidence": 0.9,
+    "classification_time": 0.004145
+  },
+  "product_discovery": {
+    "models_tested": 2,
+    "products_discovered": 2,
+    "discoveries": [
+      {
+        "manufacturer": "HP Inc.",
+        "model": "E877",
+        "discovery": {
+          "url": "http://hp.com",
+          "source": "perplexity",
+          "confidence": 0.7999999999999999,
+          "verified": true,
+          "answer": "**Die offizielle HP Inc. Produktseite für das Modell HP Color LaserJet Managed MFP E877 (Produktnummer 5QK20A) ist nicht direkt in den Suchergebnissen als .de- oder de-de-Link verfügbar.**\n\n- Die relevantesten Spezifikationen finden sich in einem offiziellen HP-Broschüre-PDF: https://www.paramountsydney.com.au/hpbrochures/HP_CLJ_Managed_MFP_E877_Family_Specs.pdf[2].\n- Dieses Dokument listet detaillierte Specs wie Druckersprachen (HP PCL 5c, HP PCL 6, Postscript level 3, PDF v1.7), kompatible OS (Windows 11/10/7, macOS, Android/iOS), Toner (z. B. W9160MC schwarz) und Software (HP Web Jetadmin unter hp.com/go/webjetadmin)[2].\n- Für **Treiber und Support** wird in HP-Dokumenten auf http://hp.com und http://123.hp.com verwiesen; suche dort nach \"E877\" oder \"5QK20A\" für die deutsche Support-Seite (z. B. support.hp.com/de-de).[2]\n\nFalls keine deutsche Seite verfügbar ist, empfehle ich die globale HP-Suche unter hp.com/support mit der Modellnummer für englische Inhalte.",
+          "citations": [
+            "https://discussions.apple.com/thread/255187156",
+            "https://www.paramountsydney.com.au/hpbrochures/HP_CLJ_Managed_MFP_E877_Family_Specs.pdf"
+          ],
+          "score": 10
+        },
+        "discovery_time": 213.149735
+      },
+      {
+        "manufacturer": "HP Inc.",
+        "model": "E7770",
+        "discovery": {
+          "url": "https://www.hp.com/de-de/gaming-pc/laptops/2024-omen-17-amd.html",
+          "source": "perplexity",
+          "confidence": 0.8999999999999999,
+          "verified": true,
+          "answer": "Wahrscheinlich meinst du das HP EliteBook oder ProBook Modell E7770 (z. B. EliteBook E7770). Die offizielle HP-Supportseite für ein Modell findet man auf den HP.de-Supportseiten; die direkte URL zu Spezifikationen oder Treibern variiert nach exakt genauem Modellname/Produktnummer (z. B. \"HP EliteBook 8770w\" vs. \"E7770\"). Ich habe in den bereitgestellten Suchergebnissen keine direkte HP .de-Seite für \"E7770\" gefunden[1]. \n\nBitte bestätige genaues Modell (z. B. \"HP EliteBook 8770w\", \"HP ProBook 6470b\", oder exakte Produktnummer von der Geräteunterseite), dann liefere ich den direkten deutschen HP-Supportlink zu Treibern oder Spezifikationen.",
+          "citations": [
+            "https://www.hp.com/de-de/gaming-pc/laptops/2024-omen-17-amd.html",
+            "https://laptopmedia.com/de/laptop-specs/hp-omen-17-2017/",
+            "https://itniederrhein.de/Datenbl%C3%A4tter/HP/Designjets/Datenblatt-HP-DesignJet-T770.pdf",
+            "https://gzhls.at/blob/ldb/a/8/7/0/ec27ef8e16aaaf9d0ea679d186c106186a6c.pdf",
+            "https://de.scribd.com/document/656689945/Fischer-a-Be"
+          ],
+          "score": 20
+        },
+        "discovery_time": 212.934341
+      }
+    ]
+  }
+}

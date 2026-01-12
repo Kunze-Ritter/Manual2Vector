@@ -854,6 +854,9 @@ def create_web_scraping_service(
                 "FIRECRAWL_EMBEDDING_MODEL", "nomic-embed-text:latest"
             ),
             "max_concurrency": int(os.getenv("FIRECRAWL_MAX_CONCURRENCY", "4")),
+            "scrape_timeout": float(os.getenv("FIRECRAWL_SCRAPE_TIMEOUT", "300")),
+            "crawl_timeout": float(os.getenv("FIRECRAWL_CRAWL_TIMEOUT", "900")),
+            "retries": int(os.getenv("FIRECRAWL_RETRIES", "3")),
             "block_media": _env_bool(os.getenv("FIRECRAWL_BLOCK_MEDIA"), True),
             "allow_local_webhooks": _env_bool(
                 os.getenv("FIRECRAWL_ALLOW_LOCAL_WEBHOOKS"), True

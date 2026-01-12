@@ -95,6 +95,7 @@ Bei größeren Features: Wichtigste TODOs in TODO.md zusammenfassen mit Referenz
 ### 6. Last Updated Timestamp
 
 IMMER am Ende von TODO.md aktualisieren:
+
 ```markdown
 **Last Updated:** YYYY-MM-DD (HH:MM)
 **Current Focus:** Was gerade gemacht wird
@@ -107,18 +108,20 @@ IMMER am Ende von TODO.md aktualisieren:
 
 **IMMER DATABASE_SCHEMA.md als Referenz nutzen!**
 
-Die Datei `DATABASE_SCHEMA.md` im /docs/database Verzeichnis enthält die ECHTE, aktuelle Datenbankstruktur direkt aus Supabase.
+Die Datei `DATABASE_SCHEMA.md` im Root-Verzeichnis (`c:\Users\haast\Docker\KRAI-minimal\DATABASE_SCHEMA.md`) enthält die ECHTE, aktuelle Datenbankstruktur direkt aus PostgreSQL.
 
-### Regeln:
+### Regeln
 
 1. **IMMER** `DATABASE_SCHEMA.md` lesen bevor du Annahmen über Tabellen/Spalten machst
 2. **NIEMALS** raten welche Spalten existieren - IMMER in der Doku nachsehen
 3. **NIEMALS** annehmen dass Tabellen in bestimmten Schemas sind - IMMER prüfen
 
-### Bei DB-Änderungen:
+### Bei DB-Änderungen
 
-1. Änderungen in Supabase durchführen
+1. Änderungen in PostgreSQL durchführen (via pgAdmin, DBeaver, oder SQL-Script)
+
 2. Neue CSV exportieren:
+
    ```sql
    SELECT table_schema, table_name, column_name, data_type, 
           character_maximum_length, is_nullable, column_default, udt_name
@@ -126,20 +129,145 @@ Die Datei `DATABASE_SCHEMA.md` im /docs/database Verzeichnis enthält die ECHTE,
    WHERE table_schema LIKE 'krai_%'
    ORDER BY table_schema, table_name, ordinal_position;
    ```
-3. CSV als "Supabase...Columns.csv" im Root speichern
+
+3. CSV als "PostgreSQL_Columns.csv" im Root speichern
+
 4. Script ausführen: `cd scripts && python generate_db_doc_from_csv.py`
+
 5. Neue DATABASE_SCHEMA.md committen
 
-### Wichtige Fakten:
+### Wichtige Fakten
 
-- Embeddings sind IN `krai_intelligence.chunks` (Spalte: `embedding`)
-- Es gibt KEIN `krai_embeddings` Schema
-- Es gibt KEIN `krai_content.chunks` - nur `krai_intelligence.chunks`
-- `parts_catalog` ist in `krai_parts` Schema (nicht `krai_content`)
+**Embeddings:**
+
+- Embeddings sind IN `krai_intelligence.chunks` (Spalte: `embedding`, Typ: `vector(768)`)
+- Es gibt KEIN separates `krai_embeddings` Schema
+- View: `public.vw_embeddings` ist ein ALIAS für `public.vw_chunks`
+
+**Schemas:**
+
+- `krai_content` - Images, Links, Videos, Print Defects, Tables (5 Tabellen)
+- `krai_core` - Documents, Products, Manufacturers, Series (11 Tabellen)
+- `krai_intelligence` - Chunks, Error Codes, Solutions (13 Tabellen)
+- `krai_parts` - Parts Catalog, Accessories (2 Tabellen)
+- `krai_system` - System-Tabellen (5 Tabellen)
+- `krai_users` - User-Tabellen (2 Tabellen)
+
+**Views:**
+
 - Alle Views nutzen `vw_` Prefix und sind im `public` Schema
+- Views werden automatisch via Migration `002_views.sql` erstellt
+
+**Wichtige Tabellen:**
+
+- `krai_core.products` - Hat Spalten: `specifications`, `urls`, `metadata` (alle JSONB)
+- `krai_core.manufacturers` - Hersteller (z.B. "Hewlett Packard", "Brother", "Canon")
+- `krai_core.product_accessories` - Zubehör-Beziehungen
+- `krai_core.oem_relationships` - OEM-Beziehungen zwischen Herstellern
+- `krai_intelligence.chunks` - Text-Chunks mit `embedding` Spalte
+- `krai_parts.parts_catalog` - Ersatzteile
 
 **Datei-Pfad:** `c:\Users\haast\Docker\KRAI-minimal\DATABASE_SCHEMA.md`
 **Update-Script:** `scripts/generate_db_doc_from_csv.py`
+
+---
+
+## 🏭 Manufacturer Name Mapping (CRITICAL!)
+
+**Problem:** Verschiedene Namen für denselben Hersteller!
+
+### Mapping Rules
+
+**IMMER** diese Mappings verwenden:
+
+- `HP Inc.` → `Hewlett Packard` (DB-Name)
+- `HP` → `Hewlett Packard`
+- `Hewlett-Packard` → `Hewlett Packard`
+- `Brother Industries` → `Brother`
+- `Konica Minolta Business Solutions` → `Konica Minolta`
+
+### Implementation
+
+1. **In `ManufacturerVerificationService`:**
+   - `manufacturer_name_mapping` Dictionary nutzen
+   - Mapping in `discover_product_page()` anwenden
+
+2. **In `ClassificationProcessor`:**
+   - Erkannten Manufacturer-Namen mappen bevor DB-Lookup
+
+3. **Bei neuen Herstellern:**
+   - Zuerst in `krai_core.manufacturers` checken welcher Name in DB ist
+   - Mapping hinzufügen falls nötig
+
+**Beispiel:**
+```python
+manufacturer_name_mapping = {
+    'HP Inc.': 'Hewlett Packard',
+    'HP': 'Hewlett Packard',
+}
+
+# Apply mapping
+if manufacturer in manufacturer_name_mapping:
+    manufacturer = manufacturer_name_mapping[manufacturer]
+```
+
+---
+
+## 🔍 Product Discovery Integration
+
+**Automatische Product Page Discovery nach Classification**
+
+### Wann wird Product Discovery ausgeführt
+
+1. **Automatisch nach Classification:**
+   - Wenn `manufacturer_verification_service` vorhanden
+   - Wenn Manufacturer erkannt wurde
+   - Wenn Models extrahiert werden konnten
+
+2. **Model-Extraktion:**
+   - Aus Context (wenn vorhanden)
+   - Aus Filename via Regex-Patterns
+   - Patterns: `E877`, `M454dn`, `HL-L8360CDW`, etc.
+
+### save_to_db Parameter
+
+**IMMER `save_to_db=True` in Production:**
+
+- In `ClassificationProcessor.process()`
+- In Pipeline-Integration
+
+**`save_to_db=False` nur für:**
+
+- Unit Tests
+- Debugging
+- Lokale Entwicklung mit Schema-Mismatch
+
+### Discovery Strategies (in Reihenfolge)
+
+1. **URL Patterns** - Schnell, zuverlässig
+2. **Perplexity AI** - KI-basiert mit Citations (95% Confidence)
+3. **Google Custom Search API** - Falls konfiguriert
+4. **Web Scraping** - Fallback
+
+### Logging
+
+```python
+self.logger.info(f"🔍 Starting product discovery for {len(models)} model(s)")
+self.logger.info(f"   Discovering: {manufacturer} {model}")
+self.logger.success(f"   ✅ Found: {result['url']}")
+self.logger.warning(f"   ⚠️  No product page found for {model}")
+```
+
+### Return Format
+
+```python
+{
+    'model': 'E877',
+    'url': 'https://support.hp.com/...',
+    'confidence': 0.95,
+    'product_id': 'uuid'  # Wenn saved to DB
+}
+```
 
 ---
 
@@ -240,6 +368,128 @@ Die Datei `DATABASE_SCHEMA.md` im /docs/database Verzeichnis enthält die ECHTE,
 5. ✅ Tests hinzufügen für neue Features
 6. ✅ Logging für Debugging
 7. ✅ Session Statistics aktualisieren
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+### 1. Test-Typen
+
+**Unit Tests:**
+- Einzelne Funktionen/Methoden testen
+- Mocks für externe Dependencies
+- Schnell und isoliert
+
+**Integration Tests:**
+- Mehrere Komponenten zusammen testen
+- Echte DB-Verbindung (Test-DB)
+- Pipeline-Stages testen
+
+**End-to-End Tests:**
+- Komplette Pipeline mit echten Dokumenten
+- Alle Services integriert
+- Längere Laufzeit
+
+### 2. Test-Dateien Naming
+
+- `test_*.py` - Unit/Integration Tests
+- `test_*_integration.py` - Explizite Integration Tests
+- `test_*_e2e.py` - End-to-End Tests
+- `check_*.py` - Verification Scripts (keine echten Tests)
+
+### 3. Test-Daten
+
+**Kleine Test-Dokumente:**
+
+- `Brother_HL-L8360CDW_UM_ENG.pdf` (~50 Seiten)
+- Schnelle Tests
+
+**Große Test-Dokumente:**
+
+- `HP_E877_CPMD.pdf` (1116 Seiten)
+- Performance Tests
+- Vollständige Pipeline-Tests
+
+### 4. Assertions
+
+```python
+# Good
+assert result.success, f"Expected success but got: {result.message}"
+assert len(products) > 0, "No products found"
+
+# Bad
+assert result.success  # Keine Info bei Fehler
+```
+
+### 5. Test-Isolation
+
+- Jeder Test muss unabhängig laufen
+- Setup/Teardown für DB-Änderungen
+- Keine Abhängigkeiten zwischen Tests
+
+---
+
+## 🚀 Deployment & Production
+
+### 1. Environment Variables
+
+**IMMER** `.env` Datei nutzen:
+```bash
+POSTGRES_URL=postgresql://...
+PERPLEXITY_API_KEY=...
+GOOGLE_API_KEY=...
+OLLAMA_HOST=http://localhost:11434
+```
+
+### 2. Database Migrations
+
+**Reihenfolge:**
+
+1. `001_schema.sql` - Schemas und Tabellen
+2. `002_views.sql` - Views erstellen
+3. `003_indexes.sql` - Indexes und Performance
+
+**Location:** `database/migrations_postgresql/`
+
+### 3. Production Checklist
+
+- [ ] Alle Environment Variables gesetzt
+- [ ] PostgreSQL 15+ mit pgvector Extension
+- [ ] Migrations ausgeführt
+- [ ] Manufacturers in DB vorhanden
+- [ ] Ollama läuft und Models geladen
+- [ ] Perplexity API Key gültig
+- [ ] Logging konfiguriert
+- [ ] Error Handling getestet
+
+### 4. Performance
+
+**Embeddings:**
+- Batch-Processing (25 Chunks pro Batch)
+- GPU-Acceleration wenn verfügbar
+- Progress Logging
+
+**Database:**
+
+- Connection Pooling
+- Prepared Statements
+- Indexes auf häufig genutzte Spalten
+
+### 5. Monitoring
+
+**Log-Levels:**
+
+- `DEBUG` - Nur in Development
+- `INFO` - Standard in Production
+- `WARNING` - Potentielle Probleme
+- `ERROR` - Fehler die gefixt werden müssen
+
+**Wichtige Metriken:**
+
+- Processing Time pro Dokument
+- Embedding Generation Speed (chunks/s)
+- DB Query Performance
+- API Response Times (Perplexity, Ollama)
 
 ---
 

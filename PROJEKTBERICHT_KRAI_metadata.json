@@ -1,0 +1,31 @@
+{
+  "file_name": "PROJEKTBERICHT_KRAI.pdf",
+  "file_path": "PROJEKTBERICHT_KRAI.pdf",
+  "processing_time": "0.71s",
+  "text_extraction": {
+    "page_count": 10,
+    "total_characters": 12687
+  },
+  "classification": {
+    "document_type": "service_manual",
+    "manufacturer": "Unknown",
+    "models": [],
+    "confidence": 0.0
+  },
+  "version": {
+    "version_string": null,
+    "confidence": 0.0,
+    "pattern": null
+  },
+  "parts_and_accessories": {
+    "total_parts": 0,
+    "parts_by_type": {},
+    "parts_list": []
+  },
+  "compatibility": {
+    "has_compatibility_info": false,
+    "keywords_found": [],
+    "compatibility_mentions": [],
+    "models_referenced": []
+  }
+}

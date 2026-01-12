@@ -1,0 +1,25 @@
+{
+  "model_number": "M454dn",
+  "manufacturer_input": "HP Inc.",
+  "timestamp": "2025-12-21T11:54:00.441254",
+  "manufacturer_detection": {
+    "manufacturer": "HP Inc.",
+    "provided": true
+  },
+  "model_verification": {
+    "exists": false,
+    "specifications": {},
+    "confidence": 0.0,
+    "cached": false
+  },
+  "parts_discovery": {
+    "parts": [],
+    "confidence": 0.0,
+    "cached": false
+  },
+  "hardware_specs": {
+    "specifications": {},
+    "confidence": 0.0,
+    "cached": false
+  }
+}

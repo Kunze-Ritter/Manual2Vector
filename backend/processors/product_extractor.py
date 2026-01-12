@@ -303,7 +303,8 @@ class ProductExtractor:
     def extract_from_text(
         self,
         text: str,
-        page_number: int = 1
+        page_number: int = 1,
+        filename: Optional[str] = None
     ) -> List[ExtractedProduct]:
         """
         Extract product models from text
@@ -311,6 +312,7 @@ class ProductExtractor:
         Args:
             text: Text to extract from
             page_number: Page number (for metadata)
+            filename: Optional filename for fallback extraction when content yields no results
             
         Returns:
             List of validated ExtractedProduct
@@ -397,6 +399,15 @@ class ProductExtractor:
         # Deduplicate
         unique_models = self._deduplicate(found_models)
         
+        # FALLBACK: If no products found from content and filename provided, try filename extraction
+        if not unique_models and filename:
+            if self.debug:
+                self.logger.debug(f"No products from content, attempting filename fallback: {filename}")
+            filename_products = self.extract_from_filename(filename)
+            if filename_products:
+                self.logger.info(f"Extracted {len(filename_products)} products from filename fallback")
+                unique_models = filename_products
+        
         if unique_models:
             if page_number in {0, -1}:
                 # Keep prominent logs for filename/title extraction
@@ -432,6 +443,142 @@ class ProductExtractor:
         # Return highest confidence product
         products.sort(key=lambda p: p.confidence, reverse=True)
         return products[0]
+    
+    def _parse_filename_segments(self, filename: str) -> Dict[str, any]:
+        """
+        Parse filename into segments for model extraction
+        
+        Parses structured filenames like:
+        - HP_E475_SM.pdf -> {manufacturer_prefix: 'HP', model_candidates: ['E475'], doc_type: 'SM'}
+        - KM_C759_C659_FW4.1_SM.pdf -> {manufacturer_prefix: 'KM', model_candidates: ['C759', 'C659'], doc_type: 'SM'}
+        - CANON_iR_ADV_C5550i_Manual.pdf -> {manufacturer_prefix: 'CANON', model_candidates: ['iR', 'ADV', 'C5550i'], doc_type: 'Manual'}
+        
+        Args:
+            filename: Filename to parse
+            
+        Returns:
+            Dictionary with manufacturer_prefix, model_candidates, doc_type
+        """
+        # Remove file extension
+        stem = Path(filename).stem
+        
+        # Split by underscore and hyphen
+        segments = re.split(r'[_-]', stem)
+        
+        # Clean segments: remove empty, normalize case
+        segments = [seg.strip() for seg in segments if seg.strip()]
+        
+        # Known manufacturer prefixes
+        manufacturer_prefixes = [
+            'HP', 'KM', 'CANON', 'RICOH', 'XEROX',
+            'BROTHER', 'LEXMARK', 'SHARP', 'EPSON',
+            'KYOCERA', 'FUJIFILM', 'FUJI', 'RISO',
+            'TOSHIBA', 'OKI', 'UTAX'
+        ]
+        
+        # Known document type suffixes
+        doc_type_suffixes = [
+            'SM', 'CPMD', 'MANUAL', 'GUIDE', 'FW',
+            'FIRMWARE', 'DRIVER', 'PARTS', 'SERVICE',
+            'USER', 'INSTALL', 'SETUP'
+        ]
+        
+        manufacturer_prefix = None
+        doc_type = None
+        model_candidates = []
+        
+        # Identify manufacturer prefix (first segment if matches)
+        if segments and segments[0].upper() in manufacturer_prefixes:
+            manufacturer_prefix = segments[0].upper()
+            segments = segments[1:]  # Remove manufacturer from candidates
+        
+        # Identify document type suffix (last segment if matches)
+        if segments and segments[-1].upper() in doc_type_suffixes:
+            doc_type = segments[-1].upper()
+            segments = segments[:-1]  # Remove doc type from candidates
+        
+        # Remaining segments are model candidates
+        # Filter out version patterns like FW4.1, V1.0, etc.
+        for seg in segments:
+            seg_upper = seg.upper()
+            # Skip if looks like version (starts with FW, V, VER followed by number)
+            if re.match(r'^(FW|V|VER|VERSION)\d', seg_upper):
+                continue
+            # Skip if pure version number like 4.1, 1.0
+            if re.match(r'^\d+\.\d+$', seg):
+                continue
+            # Skip if too short (likely not a model)
+            if len(seg) < 2:
+                continue
+            model_candidates.append(seg)
+        
+        return {
+            'manufacturer_prefix': manufacturer_prefix,
+            'model_candidates': model_candidates,
+            'doc_type': doc_type
+        }
+    
+    def extract_from_filename(self, filename: str) -> List[ExtractedProduct]:
+        """
+        Extract product models from structured filename patterns
+        
+        This is a FALLBACK mechanism with lower confidence than content-based extraction.
+        Only use when content extraction fails.
+        
+        Examples:
+        - HP_E475_SM.pdf -> Extract: E475
+        - KM_C759_C659_FW4.1_SM.pdf -> Extract: C759, C659
+        - CANON_iR_ADV_C5550i_Manual.pdf -> Extract: C5550i
+        
+        Args:
+            filename: Filename to parse
+            
+        Returns:
+            List of ExtractedProduct objects with confidence 0.3-0.5
+        """
+        self.logger.debug("Attempting filename parsing for models")
+        
+        # Parse filename into segments
+        parsed = self._parse_filename_segments(filename)
+        
+        if not parsed['model_candidates']:
+            self.logger.debug("Filename parsing yielded no valid models")
+            return []
+        
+        extracted_products = []
+        
+        for model_candidate in parsed['model_candidates']:
+            # Validate model using existing validation
+            if not self._validate_model(model_candidate):
+                self.logger.warning(f"Rejected invalid model from filename: {model_candidate}")
+                continue
+            
+            # Determine product type and series
+            product_type = self._determine_product_type(model_candidate, 'filename_parsing')
+            product_series = self._determine_product_series(model_candidate, 'filename_parsing')
+            
+            # Create ExtractedProduct with lower confidence
+            try:
+                product = ExtractedProduct(
+                    model_number=model_candidate,
+                    manufacturer_name=self.manufacturer_name,
+                    confidence=0.4,  # Lower than content-based extraction
+                    source_page=-1,  # Indicates filename source
+                    extraction_method="filename_parsing",
+                    product_type=product_type,
+                    product_series=product_series
+                )
+                extracted_products.append(product)
+            except Exception as e:
+                self.logger.warning(f"Failed to create product from filename model {model_candidate}: {e}")
+                continue
+        
+        if extracted_products:
+            self.logger.info(f"Extracted {len(extracted_products)} models from filename: {[p.model_number for p in extracted_products]}")
+        else:
+            self.logger.debug("Filename parsing yielded no valid models")
+        
+        return extracted_products
     
     def _validate_model(self, model: str) -> bool:
         """

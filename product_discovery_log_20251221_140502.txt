@@ -1,0 +1,98 @@
+[14:05:02] [INFO] ================================================================================
+[14:05:02] [INFO] 🧪 Product Discovery & Database Storage Test
+[14:05:02] [INFO] ================================================================================
+[14:05:02] [INFO] Test started at: 2025-12-21T14:05:02.105645
+[14:05:02] [INFO] ================================================================================
+[14:05:02] [INFO] 🔧 Initializing Services
+[14:05:02] [INFO] ================================================================================
+[14:05:02] [INFO] ✅ Web scraping service initialized
+[14:05:02] [INFO] ✅ Database service initialized
+[14:05:02] [INFO] ✅ Manufacturer verification service initialized
+[14:05:02] [INFO] ================================================================================
+[14:05:02] [INFO] 📋 Test Case 1/3: HP E877z - Full product name with Managed MFP
+[14:05:02] [INFO] ================================================================================
+[14:05:02] [INFO] Manufacturer: HP Inc.
+[14:05:02] [INFO] Model: Color LaserJet Managed MFP E877z
+[14:05:02] [INFO] 
+🔍 Step 1: Discovering product page...
+[14:08:33] [INFO] ✅ Product page found in 210.89s
+[14:08:33] [INFO]    URL: https://support.hp.com/us-en/product/hp-color-laserjet-managed-mfp-e877z/20143956/model/20143957
+[14:08:33] [INFO]    Source: perplexity
+[14:08:33] [INFO]    Confidence: 0.95
+[14:08:33] [INFO]    Score: 31
+[14:08:33] [INFO] 
+   💬 AI Answer: https://support.hp.com/us-en/product/hp-color-laserjet-managed-mfp-e877z/20143956/model/20143957...
+[14:08:33] [INFO] 
+📊 Step 2: Extracting specifications...
+[14:10:17] [INFO] ⚠️  No specifications extracted
+[14:10:17] [INFO]    Error: Could not scrape product page
+[14:10:17] [INFO] 
+💾 Step 3: Verifying database entry...
+[14:10:17] [ERROR] ❌ Error querying database: PostgreSQL connection pool is not initialized. Call connect() first.
+[14:10:17] [INFO] ================================================================================
+[14:10:17] [INFO] 📋 Test Case 2/3: HP M454dn - Simple model number
+[14:10:17] [INFO] ================================================================================
+[14:10:17] [INFO] Manufacturer: HP Inc.
+[14:10:17] [INFO] Model: M454dn
+[14:10:17] [INFO] 
+🔍 Step 1: Discovering product page...
+[14:13:48] [INFO] ✅ Product page found in 211.20s
+[14:13:48] [INFO]    URL: https://support.hp.com/us-en/product/hp-color-laser-jet-pro-m454-dn/2012040706/manuals
+[14:13:48] [INFO]    Source: perplexity
+[14:13:48] [INFO]    Confidence: 0.95
+[14:13:48] [INFO]    Score: 31
+[14:13:48] [INFO] 
+   💬 AI Answer: https://support.hp.com/us-en/product/hp-color-laser-jet-pro-m454-dn/2012040706/manuals...
+[14:13:48] [INFO] 
+📊 Step 2: Extracting specifications...
+[14:15:32] [INFO] ⚠️  No specifications extracted
+[14:15:32] [INFO]    Error: Could not scrape product page
+[14:15:32] [INFO] 
+💾 Step 3: Verifying database entry...
+[14:15:32] [ERROR] ❌ Error querying database: PostgreSQL connection pool is not initialized. Call connect() first.
+[14:15:32] [INFO] ================================================================================
+[14:15:32] [INFO] 📋 Test Case 3/3: Brother HL-L8360CDW - Color laser printer
+[14:15:32] [INFO] ================================================================================
+[14:15:32] [INFO] Manufacturer: Brother
+[14:15:32] [INFO] Model: HL-L8360CDW
+[14:15:32] [INFO] 
+🔍 Step 1: Discovering product page...
+[14:19:03] [INFO] ✅ Product page found in 210.29s
+[14:19:03] [INFO]    URL: https://support.brother.com/g/b/producttop.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as
+[14:19:03] [INFO]    Source: perplexity
+[14:19:03] [INFO]    Confidence: 0.90
+[14:19:03] [INFO]    Score: 20
+[14:19:03] [INFO] 
+   📚 Alternative URLs found:
+[14:19:03] [INFO]       - https://support.brother.com/g/b/downloadtop.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as (score: 20)
+[14:19:03] [INFO]       - https://support.brother.com/g/b/downloadlist.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as&os=120 (score: 20)
+[14:19:03] [INFO]       - https://support.brother.com/g/b/downloadlist.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as&os=135&type2=1 (score: 20)
+[14:19:03] [INFO] 
+   💬 AI Answer: https://www.brother.de/support/hl-l8360cdw/downloads[2]...
+[14:19:03] [INFO] 
+📊 Step 2: Extracting specifications...
+[14:20:47] [INFO] ⚠️  No specifications extracted
+[14:20:47] [INFO]    Error: Could not scrape product page
+[14:20:47] [INFO] 
+💾 Step 3: Verifying database entry...
+[14:20:47] [ERROR] ❌ Error querying database: PostgreSQL connection pool is not initialized. Call connect() first.
+[14:20:47] [INFO] ================================================================================
+[14:20:47] [INFO] 📊 Test Summary
+[14:20:47] [INFO] ================================================================================
+[14:20:47] [INFO] Total test cases: 3
+[14:20:47] [INFO] Successful: 3
+[14:20:47] [INFO] Failed: 0
+[14:20:47] [INFO] Success rate: 100.0%
+[14:20:47] [INFO] 
+✅ Successful discoveries:
+[14:20:47] [INFO]    - HP Inc. Color LaserJet Managed MFP E877z
+[14:20:47] [INFO]      URL: https://support.hp.com/us-en/product/hp-color-laserjet-managed-mfp-e877z/20143956/model/20143957
+[14:20:47] [INFO]      Source: perplexity
+[14:20:47] [INFO]    - HP Inc. M454dn
+[14:20:47] [INFO]      URL: https://support.hp.com/us-en/product/hp-color-laser-jet-pro-m454-dn/2012040706/manuals
+[14:20:47] [INFO]      Source: perplexity
+[14:20:47] [INFO]    - Brother HL-L8360CDW
+[14:20:47] [INFO]      URL: https://support.brother.com/g/b/producttop.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as
+[14:20:47] [INFO]      Source: perplexity
+[14:20:47] [INFO] 
+💾 Results saved to: product_discovery_results_20251221_142047.json

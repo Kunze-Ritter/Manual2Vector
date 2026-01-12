@@ -18,6 +18,7 @@ from .web_scraping_service import (
 from .link_enrichment_service import LinkEnrichmentService
 from .structured_extraction_service import StructuredExtractionService
 from .manufacturer_crawler import ManufacturerCrawler
+from .manufacturer_verification_service import ManufacturerVerificationService
 
 __all__ = [
     "AIService",
@@ -35,4 +36,5 @@ __all__ = [
     "LinkEnrichmentService",
     "StructuredExtractionService",
     "ManufacturerCrawler",
+    "ManufacturerVerificationService",
 ]

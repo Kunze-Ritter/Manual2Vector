@@ -1,28 +1,6 @@
 version: '3.8'
 
 services:
-  # KRAI Frontend Dashboard
-  krai-frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-    image: krai-frontend:latest
-    container_name: krai-frontend-prod
-    restart: always
-    ports:
-      - "80:80"
-    networks:
-      - krai-network
-    depends_on:
-      krai-engine:
-        condition: service_started
-    # Frontend nginx healthcheck disabled - service runs but healthcheck fails
-    # healthcheck:
-    #   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
-
   # KRAI Engine API - with Firecrawl integration
   krai-engine:
     build:
@@ -152,27 +130,25 @@ services:
 
   # Playwright (browserless/chrome) - alternative image
   krai-playwright:
-    image: browserless/chrome:latest
+    image: ghcr.io/firecrawl/playwright-service:latest
     container_name: krai-playwright-prod
     env_file:
       - .env
     restart: always
     environment:
       - PORT=3000
-      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - PROXY_SERVER=${FIRECRAWL_PROXY_SERVER}
+      - PROXY_USERNAME=${FIRECRAWL_PROXY_USERNAME}
+      - PROXY_PASSWORD=${FIRECRAWL_PROXY_PASSWORD}
       - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
-      - WORKSPACE_DELETE_EXPIRED=${PLAYWRIGHT_WORKSPACE_DELETE_EXPIRED:-true}
-      - WORKSPACE_EXPIRY_DAYS=${PLAYWRIGHT_WORKSPACE_EXPIRY_DAYS:-1}
-      - HEALTH=${PLAYWRIGHT_HEALTH_ENABLED:-true}
-      - MAX_CONCURRENT_SESSIONS=${PLAYWRIGHT_MAX_CONCURRENT_SESSIONS:-10}
-      - CONNECTION_TIMEOUT=${PLAYWRIGHT_CONNECTION_TIMEOUT:-60000}
+      - MAX_CONCURRENT_PAGES=${FIRECRAWL_MAX_CONCURRENCY:-10}
     expose:
       - "3000"
     shm_size: "2g"
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/pressure || exit 1"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',res=>process.exit(res.statusCode && res.statusCode < 500 ? 0 : 1)).on('error',()=>process.exit(1));"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -192,7 +168,7 @@ services:
       - HOST=0.0.0.0
       - REDIS_URL=redis://krai-redis:6379
       - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
-      - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000}
+      - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000/scrape}
       - USE_DB_AUTHENTICATION=false
       - NUQ_DATABASE_URL=postgresql://krai_user:Krai_Secure_Pass123!@krai-postgres:5432/krai
       - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
@@ -202,7 +178,9 @@ services:
       - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
       - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
       - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
-      - NUM_WORKERS=0
+      - NUM_WORKERS=2
+      - SCRAPE_TIMEOUT=60000
+      - PAGE_TIMEOUT=30000
     command: ["node", "--import", "./dist/src/otel.js", "dist/src/index.js"]
     networks:
       - krai-network
@@ -222,51 +200,42 @@ services:
       retries: 5
       start_period: 60s
 
-  # Firecrawl Worker - DISABLED due to package.json issues
-  # krai-firecrawl-worker:
-  #   image: ghcr.io/firecrawl/firecrawl:latest
-  #   container_name: krai-firecrawl-worker-prod
-  #   env_file:
-  #     - .env
-  #   restart: always
-  #   # command: ["pnpm", "workers"]  # Removed - let container use default command
-  #   environment:
-  #     - NODE_ENV=production
-  #     - PORT=3002
-  #     - HOST=0.0.0.0
-  #     - REDIS_URL=redis://krai-redis:6379
-  #     - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
-  #     - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000}
-  #     - USE_DB_AUTHENTICATION=false
-  #     - NUQ_DATABASE_URL=disabled
-  #     - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
-  #     - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
-  #     - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
-  #     - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
-  #     - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
-  #     - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
-  #     - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
-  #   networks:
-  #     - krai-network
-  #   depends_on:
-  #     krai-redis:
-  #       condition: service_healthy
-  #     krai-playwright:
-  #       condition: service_healthy
-  #     krai-firecrawl-api:
-  #       condition: service_started
-  #     krai-postgres:
-  #       condition: service_healthy
-  #     krai-minio:
-  #       condition: service_healthy
-  #     # krai-ollama:
-  #     #   condition: service_healthy  # Removed - Ollama has no healthcheck
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pgrep -f 'pnpm.*workers' || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
+  krai-firecrawl-nuq-worker:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: krai-firecrawl-nuq-worker-prod
+    env_file:
+      - .env
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://krai-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000/scrape}
+      - USE_DB_AUTHENTICATION=false
+      - NUQ_DATABASE_URL=postgresql://krai_user:Krai_Secure_Pass123!@krai-postgres:5432/krai
+      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - NUQ_WORKER_PORT=3003
+    command: ["node", "--import", "./dist/src/otel.js", "dist/src/services/worker/nuq-worker.js"]
+    networks:
+      - krai-network
+    depends_on:
+      krai-postgres:
+        condition: service_healthy
+      krai-redis:
+        condition: service_healthy
+      krai-playwright:
+        condition: service_healthy
+
+  # Firecrawl Worker - DISABLED (NUM_WORKERS in API container handles worker processes)
+  # Note: Firecrawl latest version uses internal worker threads via NUM_WORKERS env var
+  # Separate worker container is not needed for current Firecrawl architecture
 
 networks:
   krai-network:

@@ -36,6 +36,8 @@ from backend.services.config_service import ConfigService
 from backend.services.features_service import FeaturesService
 from backend.services.quality_check_service import QualityCheckService
 from backend.services.file_locator_service import FileLocatorService
+from backend.services.manufacturer_verification_service import ManufacturerVerificationService
+from backend.services.web_scraping_service import create_web_scraping_service
 from backend.utils.colored_logging import apply_colored_logging_globally
 
 from backend.processors.upload_processor import UploadProcessor
@@ -239,6 +241,15 @@ class KRMasterPipeline:
         # Initialize file locator service
         self.file_locator = FileLocatorService()
         
+        # Initialize web scraping service for product discovery
+        web_scraping_service = create_web_scraping_service()
+        
+        # Initialize manufacturer verification service for product discovery
+        self.manufacturer_verification_service = ManufacturerVerificationService(
+            database_service=self.database_service,
+            web_scraping_service=web_scraping_service
+        )
+        
         # Initialize all processors - use sequential variables to avoid initialization ordering issues
         embedding_processor = EmbeddingProcessor(self.database_service, self.ai_service.ollama_url)
         table_processor = TableProcessor(self.database_service, embedding_processor)
@@ -251,7 +262,12 @@ class KRMasterPipeline:
             'table': table_processor,
             'image': ImageProcessor(self.database_service, self.storage_service, self.ai_service),
             'visual_embedding': VisualEmbeddingProcessor(self.database_service),
-            'classification': ClassificationProcessor(self.database_service, self.ai_service, self.features_service),
+            'classification': ClassificationProcessor(
+                self.database_service, 
+                self.ai_service, 
+                self.features_service,
+                manufacturer_verification_service=self.manufacturer_verification_service
+            ),
             'chunk_prep': ChunkPreprocessor(self.database_service),
             'links': LinkExtractionProcessorAI(self.database_service, self.ai_service),
             'metadata': MetadataProcessorAI(self.database_service, self.ai_service, self.config_service),

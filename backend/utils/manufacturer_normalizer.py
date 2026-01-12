@@ -159,6 +159,50 @@ def normalize_manufacturer(name: str, strict: bool = False) -> Optional[str]:
     return None
 
 
+def normalize_manufacturer_prefix(prefix: str) -> Optional[str]:
+    """
+    Normalize manufacturer prefix from filename to canonical form
+    
+    Args:
+        prefix: Manufacturer prefix from filename (e.g., "HP_", "KM", "CANON_")
+        
+    Returns:
+        Canonical manufacturer name or None if not found
+        
+    Examples:
+        normalize_manufacturer_prefix("HP_") -> "HP Inc."
+        normalize_manufacturer_prefix("KM") -> "Konica Minolta"
+        normalize_manufacturer_prefix("CANON") -> "Canon"
+    """
+    if not prefix:
+        return None
+    
+    # Clean input: strip underscores and whitespace, convert to uppercase
+    prefix_clean = prefix.strip().strip('_').upper()
+    
+    # Prefix-to-canonical mapping
+    PREFIX_MAP = {
+        'HP': 'HP Inc.',
+        'KM': 'Konica Minolta',
+        'CANON': 'Canon',
+        'RICOH': 'Ricoh',
+        'XEROX': 'Xerox',
+        'BROTHER': 'Brother',
+        'LEXMARK': 'Lexmark',
+        'SHARP': 'Sharp',
+        'EPSON': 'Epson',
+        'KYOCERA': 'Kyocera',
+        'FUJIFILM': 'Fujifilm',
+        'FUJI': 'Fujifilm',
+        'RISO': 'Riso',
+        'TOSHIBA': 'Toshiba',
+        'OKI': 'OKI',
+        'UTAX': 'UTAX'
+    }
+    
+    return PREFIX_MAP.get(prefix_clean)
+
+
 def get_manufacturer_aliases(canonical_name: str) -> list:
     """
     Get all aliases for a canonical manufacturer name

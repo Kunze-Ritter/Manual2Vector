@@ -1,0 +1,82 @@
+[
+  {
+    "test_case": {
+      "manufacturer": "HP Inc.",
+      "model": "Color LaserJet Managed MFP E877z",
+      "expected_url": "https://support.hp.com/us-en/drivers/hp-color-laserjet-managed-mfp-e877z-printer-series/2101127729"
+    },
+    "discovery": {
+      "url": "https://support.hp.com/us-en/drivers/selfservice/hp-color-laserjet-managed-mfp-e877z/27138609",
+      "source": "perplexity",
+      "confidence": 0.95,
+      "verified": true,
+      "answer": "https://support.hp.com/us-en/drivers/selfservice/hp-color-laserjet-managed-mfp-e877z/27138609",
+      "citations": [],
+      "score": 31,
+      "alternatives": []
+    },
+    "duration": 211.119219,
+    "success": true
+  },
+  {
+    "test_case": {
+      "manufacturer": "HP Inc.",
+      "model": "M454dn",
+      "expected_url": null
+    },
+    "discovery": {
+      "url": "https://support.hp.com/de-de/drivers/selfservice/hp-color-laserjet-pro-m454-dn/20197242/model/20197242",
+      "source": "perplexity",
+      "confidence": 0.95,
+      "verified": true,
+      "answer": "https://support.hp.com/de-de/drivers/selfservice/hp-color-laserjet-pro-m454-dn/20197242/model/20197242",
+      "citations": [],
+      "score": 31,
+      "alternatives": []
+    },
+    "duration": 210.969187,
+    "success": true
+  },
+  {
+    "test_case": {
+      "manufacturer": "Brother",
+      "model": "HL-L8360CDW",
+      "expected_url": null
+    },
+    "discovery": {
+      "url": "https://support.brother.com/g/b/producttop.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as",
+      "source": "perplexity",
+      "confidence": 0.8999999999999999,
+      "verified": true,
+      "answer": "https://www.brother.de/support/hl-l8360cdw/downloads[2]",
+      "citations": [
+        "https://www.brother.de/support/hl-l8360cdw/faqs/setup-settings",
+        "https://www.brother.de/support/hl-l8360cdw/downloads",
+        "https://www.brother.de/support/hll8360cdw",
+        "https://support.brother.com/g/b/producttop.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as",
+        "https://support.brother.com/g/b/downloadtop.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as",
+        "https://www.brother.de/support/hll8360cdw/faqs/how-to-trouble-shooting",
+        "https://support.brother.com/g/b/downloadlist.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as&os=120",
+        "https://www.brother.de/support/hl-l8360cdw/faqs/supplies",
+        "https://support.brother.com/g/b/downloadlist.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as&os=10060&type2=1"
+      ],
+      "score": 20,
+      "alternatives": [
+        {
+          "url": "https://support.brother.com/g/b/downloadtop.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as",
+          "score": 20
+        },
+        {
+          "url": "https://support.brother.com/g/b/downloadlist.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as&os=120",
+          "score": 20
+        },
+        {
+          "url": "https://support.brother.com/g/b/downloadlist.aspx?c=de&lang=de&prod=hll8360cdw_us_eu_as&os=10060&type2=1",
+          "score": 20
+        }
+      ]
+    },
+    "duration": 210.476532,
+    "success": true
+  }
+]
