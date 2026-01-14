@@ -821,6 +821,7 @@ async def get_system_metrics(
 # Include API routes
 from api.routes import auth as auth_routes
 from api.routes import scraping
+from api.routes import pipeline_errors
 # Initialize auth routes
 auth_router = auth_routes.initialize_auth_routes(get_database_adapter())
 app.include_router(auth_router, prefix="/api/v1")
@@ -833,6 +834,7 @@ app.include_router(images_router, prefix="/api/v1")
 app.include_router(batch_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")
 app.include_router(scraping.router, prefix="/api/v1")
+app.include_router(pipeline_errors.router, prefix="/api/v1")
 
 # Mount Monitoring API
 from api import monitoring_api
