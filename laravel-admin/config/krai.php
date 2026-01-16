@@ -236,6 +236,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Error Monitoring Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for error monitoring widgets on the dashboard.
+    | Includes polling intervals and display limits for error tracking.
+    |
+    */
+
+    'error_monitoring' => [
+        'summary_polling_interval' => env('KRAI_ERROR_SUMMARY_POLLING', '15s'),
+        'recent_failures_polling_interval' => env('KRAI_RECENT_FAILURES_POLLING', '30s'),
+        'recent_failures_limit' => env('KRAI_RECENT_FAILURES_LIMIT', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Firecrawl Configuration
     |--------------------------------------------------------------------------
     |

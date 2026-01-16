@@ -1,5 +1,10 @@
 # PostgreSQL-Only Architecture (Migration Complete)
 
+> **✅ Migration Complete - November 2024 (KRAI-002)**  
+> This guide is for **reference and legacy deployments only**.  
+> All new deployments should use PostgreSQL-only configuration.  
+> See [SUPABASE_DEPRECATION_NOTICE.md](SUPABASE_DEPRECATION_NOTICE.md) for current status.
+
 ## 📋 Introduction
 
 This guide documents the completed architectural shift from cloud-based Supabase and Cloudflare R2 to local-first PostgreSQL and MinIO. The KRAI project successfully completed this migration in November 2024 (KRAI-002) to provide better data sovereignty, reduced costs, and improved performance for local deployments.
@@ -7,11 +12,13 @@ This guide documents the completed architectural shift from cloud-based Supabase
 ### Migration Status
 
 - **Code Changes:** ✅ Complete (KRAI-002)
-- **Database Adapter:** ✅ Complete (all services use `database_factory.py`)
+- **Database Architecture:** ✅ Complete (asyncpg connection pool, adapter pattern removed)
 - **API Endpoints:** ✅ Complete (no Supabase dependencies)
 - **Scripts:** ✅ Complete (101 scripts archived, active scripts migrated)
-- **Documentation:** ✅ In Progress (KRAI-009 - removing remaining references)
+- **Documentation:** ✅ Complete (KRAI-009 - all Supabase references updated)
 - **Testing:** ✅ Complete (validation scripts updated)
+
+> **Note:** The `database_factory.py` adapter pattern referenced in this guide is historical. Current architecture uses direct asyncpg connection pools. See `backend/services/database/` for current implementation.
 
 ### Why the Migration?
 
@@ -254,11 +261,15 @@ const imageUrl = `${OBJECT_STORAGE_PUBLIC_URL}/documents/${imagePath}`;
 
 ## 💻 Code Changes
 
-### Database Adapter Pattern
+### Database Architecture (Historical Reference)
 
-The codebase uses a factory pattern to abstract database operations:
+> **⚠️ HISTORICAL NOTE:** The adapter pattern described below was used during the migration but has since been replaced with direct asyncpg connection pools. This section is preserved for reference only.
 
-**File:** `backend/services/database_factory.py`
+**Legacy Adapter Pattern (Removed):**
+
+The codebase previously used a factory pattern to abstract database operations:
+
+**File:** `backend/services/database_factory.py` (deprecated)
 
 ```python
 from backend.services.database_factory import create_database_adapter
@@ -270,30 +281,53 @@ db = create_database_adapter()
 documents = await db.get_documents()
 ```
 
+**Current Architecture:**
+
+The codebase now uses direct asyncpg connection pools:
+
+```python
+from backend.services.database.connection import get_db_pool
+
+# Get asyncpg connection pool
+pool = await get_db_pool()
+
+# Execute queries directly
+async with pool.acquire() as conn:
+    documents = await conn.fetch('SELECT * FROM krai_core.documents')
+```
+
 ### Script Migration
 
-Most scripts have been updated to use the adapter pattern:
+> **⚠️ HISTORICAL NOTE:** Scripts were initially migrated to use an adapter pattern, but now use direct asyncpg connections.
 
 **Reference:** `scripts/README_MIGRATION.md`
 
-**Example Migration:**
+**Example Migration (Historical):**
 ```python
 # Old Supabase-specific code
 from supabase import create_client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 data = supabase.table('documents').select('*').execute()
 
-# New adapter-based code
+# Intermediate adapter-based code (deprecated)
 from backend.services.database_factory import create_database_adapter
 db = create_database_adapter()
 data = await db.query('SELECT * FROM krai_core.documents')
+
+# Current asyncpg-based code
+from backend.services.database.connection import get_db_pool
+pool = await get_db_pool()
+async with pool.acquire() as conn:
+    data = await conn.fetch('SELECT * FROM krai_core.documents')
 ```
 
 ### API Endpoints
 
-All API endpoints use the factory pattern:
+> **⚠️ HISTORICAL NOTE:** API endpoints previously used an adapter pattern but now use direct asyncpg connection pools.
 
-**File:** `backend/api/dependencies/database.py`
+**Legacy Approach (Deprecated):**
+
+**File:** `backend/api/dependencies/database.py` (historical)
 
 ```python
 from backend.services.database_factory import create_database_adapter
@@ -306,6 +340,10 @@ async def get_database():
     finally:
         await db.close()
 ```
+
+**Current Approach:**
+
+API endpoints now use asyncpg connection pools directly via dependency injection. See `backend/api/dependencies/` for current implementation.
 
 ---
 

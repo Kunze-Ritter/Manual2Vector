@@ -107,7 +107,7 @@ class VideoEnrichmentService:
                 return metadata
             
             # Save to database with deduplication
-            supabase = enricher._get_supabase()
+            db_client = enricher._get_database_adapter()
             
             # Check for existing video (deduplication)
             platform = metadata.get('platform')
@@ -120,12 +120,12 @@ class VideoEnrichmentService:
                 # Deduplicate by youtube_id
                 youtube_id = metadata.get('video_id')
                 if youtube_id:
-                    result = supabase.table('vw_videos').select('*').eq('youtube_id', youtube_id).limit(1).execute()
+                    result = db_client.table('vw_videos').select('*').eq('youtube_id', youtube_id).limit(1).execute()
                     if result.data:
                         existing = result.data[0]
             else:
                 # Deduplicate by video_url
-                result = supabase.table('vw_videos').select('*').eq('video_url', url).limit(1).execute()
+                result = db_client.table('vw_videos').select('*').eq('video_url', url).limit(1).execute()
                 if result.data:
                     existing = result.data[0]
             
@@ -160,7 +160,7 @@ class VideoEnrichmentService:
                     if metadata.get('models'):
                         video_data['metadata']['models'] = metadata.get('models')
                 
-                insert_result = supabase.table('vw_videos').insert(video_data).execute()
+                insert_result = db_client.table('vw_videos').insert(video_data).execute()
                 
                 if not insert_result.data:
                     logger.error("Failed to insert video into database")
@@ -175,11 +175,10 @@ class VideoEnrichmentService:
                 try:
                     from utils.manufacturer_utils import link_video_to_products
                     
-                    linked_products = link_video_to_products(
+                    linked_products = await link_video_to_products(
                         video_id=video_db_id,
                         model_names=metadata.get('models'),
-                        manufacturer_id=final_manufacturer_id,
-                        supabase=supabase
+                        manufacturer_id=final_manufacturer_id
                     )
                     
                     if linked_products:

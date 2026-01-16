@@ -21,10 +21,13 @@ backend/tests/                    # Test directory (moved from tests/)
 ├── api/                         # API endpoint tests
 ├── auth/                        # Authentication tests
 ├── performance/                 # Performance and load tests
+├── POSTGRESQL_MIGRATION.md      # PostgreSQL migration verification report
 └── README.md                    # This file
 ```
 
 > **Note**: Tests have been moved from `tests/` to `backend/tests/` to improve project organization and import paths.
+
+> **Database Migration**: The test suite has been fully migrated to PostgreSQL-native testing. See [`POSTGRESQL_MIGRATION.md`](./POSTGRESQL_MIGRATION.md) for details on the migration, verification steps, and test infrastructure changes.
 
 ## 🧪 Test Categories
 

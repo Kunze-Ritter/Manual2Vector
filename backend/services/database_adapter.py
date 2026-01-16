@@ -271,13 +271,47 @@ class DatabaseAdapter(ABC):
         """
         pass
     
-    # RPC Method (Optional - Supabase-specific)
+    @abstractmethod
+    async def fetch_one(
+        self,
+        query: str,
+        params: Optional[List[Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch a single row from the database.
+        
+        Args:
+            query: SQL query string with $1, $2, etc. placeholders (PostgreSQL style)
+            params: List of parameters for the query
+            
+        Returns:
+            Dictionary representing the row, or None if no row found
+        """
+        pass
+    
+    @abstractmethod
+    async def fetch_all(
+        self,
+        query: str,
+        params: Optional[List[Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch multiple rows from the database.
+        
+        Args:
+            query: SQL query string with $1, $2, etc. placeholders (PostgreSQL style)
+            params: List of parameters for the query
+            
+        Returns:
+            List of dictionaries representing the rows
+        """
+        pass
+    
+    # RPC Method (Optional - PostgreSQL functions)
     async def rpc(
         self,
         function_name: str,
         params: Optional[Dict[str, Any]] = None
     ) -> Any:
-        """Execute a database RPC function (Supabase-specific).
+        """Execute a database RPC function (PostgreSQL stored procedures).
         
         Optional method - only implemented by adapters that support RPC.
         PostgreSQL adapter can implement this for stored procedures.

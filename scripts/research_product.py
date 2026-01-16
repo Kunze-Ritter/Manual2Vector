@@ -27,10 +27,11 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent / 'backend'
 sys.path.insert(0, str(backend_path))
 
-from supabase import create_client
+import asyncio
 from backend.processors.env_loader import load_all_env_files
 from research.product_researcher import ProductResearcher
 from research.research_integration import ResearchIntegration
+from services.db_pool import get_pool
 
 # Load environment variables
 project_root = Path(__file__).parent.parent
@@ -39,27 +40,18 @@ loaded_env_files = load_all_env_files(project_root)
 for env_file in loaded_env_files:
     print(f"  ✓ Loaded: {env_file}")
 
-# Initialize Supabase client
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("\n❌ Error: SUPABASE credentials not found")
-    sys.exit(1)
-
-print(f"✓ Connected to Supabase: {SUPABASE_URL}\n")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Database connection will be initialized via get_pool()
+print("✓ Database connection ready\n")
 
 
-def research_single_product(manufacturer: str, model: str, force: bool = False):
+async def research_single_product(manufacturer: str, model: str, force: bool = False):
     """Research a single product"""
     print("=" * 80)
     print(f"Researching: {manufacturer} {model}")
     print("=" * 80)
     
-    researcher = ProductResearcher(supabase=supabase)
-    result = researcher.research_product(manufacturer, model, force_refresh=force)
+    researcher = ProductResearcher()
+    result = await researcher.research_product(manufacturer, model, force_refresh=force)
     
     if result:
         print(f"\n✅ Research successful!")
@@ -85,14 +77,14 @@ def research_single_product(manufacturer: str, model: str, force: bool = False):
         print(f"   Check logs for details")
 
 
-def batch_research(limit: int = 50):
+async def batch_research(limit: int = 50):
     """Batch research products without specs"""
     print("=" * 80)
     print(f"Batch Research (limit: {limit})")
     print("=" * 80)
     
-    integration = ResearchIntegration(supabase=supabase, enabled=True)
-    stats = integration.batch_enrich_products(limit=limit)
+    integration = ResearchIntegration(enabled=True)
+    stats = await integration.batch_enrich_products(limit=limit)
     
     print(f"\n✅ Batch research complete:")
     print(f"   Enriched: {stats['enriched']}")
@@ -100,29 +92,36 @@ def batch_research(limit: int = 50):
     print(f"   Failed: {stats['failed']}")
 
 
-def verify_research():
+async def verify_research():
     """Show unverified research results for manual verification"""
     print("=" * 80)
     print("Unverified Research Results")
     print("=" * 80)
     
     try:
-        results = supabase.table('product_research_cache').select(
-            'manufacturer,model_number,series_name,product_type,confidence,source_urls'
-        ).eq('verified', False).order('confidence', desc=True).limit(20).execute()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            results = await conn.fetch("""
+                SELECT manufacturer, model_number, series_name, product_type, 
+                       confidence, source_urls
+                FROM krai_intelligence.product_research_cache
+                WHERE verified = false
+                ORDER BY confidence DESC
+                LIMIT 20
+            """)
         
-        if not results.data:
+        if not results:
             print("\n✅ No unverified results")
             return
         
-        print(f"\nFound {len(results.data)} unverified results:\n")
+        print(f"\nFound {len(results)} unverified results:\n")
         
-        for i, result in enumerate(results.data, 1):
+        for i, result in enumerate(results, 1):
             print(f"{i}. {result['manufacturer']} {result['model_number']}")
-            print(f"   Series: {result.get('series_name', 'N/A')}")
-            print(f"   Type: {result.get('product_type', 'N/A')}")
-            print(f"   Confidence: {result.get('confidence', 0):.2f}")
-            print(f"   Sources: {len(result.get('source_urls', []))} URLs")
+            print(f"   Series: {result.get('series_name') or 'N/A'}")
+            print(f"   Type: {result.get('product_type') or 'N/A'}")
+            print(f"   Confidence: {result.get('confidence') or 0:.2f}")
+            print(f"   Sources: {len(result.get('source_urls') or [])} URLs")
             print()
         
         print("\nTo verify a result:")
@@ -147,11 +146,11 @@ def main():
     args = parser.parse_args()
     
     if args.verify:
-        verify_research()
+        asyncio.run(verify_research())
     elif args.batch:
-        batch_research(limit=args.limit)
+        asyncio.run(batch_research(limit=args.limit))
     elif args.manufacturer and args.model:
-        research_single_product(args.manufacturer, args.model, force=args.force)
+        asyncio.run(research_single_product(args.manufacturer, args.model, force=args.force))
     else:
         parser.print_help()
         print("\nExamples:")

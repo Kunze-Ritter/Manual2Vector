@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from api.app import get_database_adapter
+from api.app import get_database_pool
 from api.middleware.auth_middleware import require_permission
 from api.middleware.rate_limit_middleware import (
     limiter,
@@ -20,7 +20,7 @@ from models.api_key import (
     APIKeyWithSecretResponse,
 )
 from services.api_key_service import APIKeyService
-from services.database_adapter import DatabaseAdapter
+import asyncpg
 
 router = APIRouter(prefix="/api-keys", tags=["api_keys"])
 
@@ -28,8 +28,8 @@ router = APIRouter(prefix="/api-keys", tags=["api_keys"])
 require_api_keys_permission = require_permission("api_keys:manage")
 
 
-def _get_service(adapter: DatabaseAdapter) -> APIKeyService:
-    return APIKeyService(adapter)
+def _get_service(pool: asyncpg.Pool) -> APIKeyService:
+    return APIKeyService(pool)
 
 
 def _resolve_target_user(
@@ -50,13 +50,13 @@ def _resolve_target_user(
 @limiter.limit(rate_limit_search)
 async def list_api_keys(
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
     user_id: Optional[str] = Query(None, description="Filter keys for a specific user (admin only)"),
 ) -> SuccessResponse[APIKeyListResponse]:
     """List API keys for the current user or a specified user (admin only)."""
 
     target_user_id = _resolve_target_user(user_id, current_user)
-    service = _get_service(adapter)
+    service = _get_service(pool)
     rows = await service.list_user_api_keys(target_user_id)
     payload = APIKeyListResponse(keys=[APIKeyResponse(**row) for row in rows])
     return SuccessResponse(data=payload)
@@ -71,12 +71,12 @@ async def list_api_keys(
 async def create_api_key(
     payload: APIKeyCreateRequest,
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[APIKeyWithSecretResponse]:
     """Create a new API key for the current user or (admin) another user."""
 
     target_user_id = _resolve_target_user(payload.user_id, current_user)
-    service = _get_service(adapter)
+    service = _get_service(pool)
     record = await service.create_api_key(
         user_id=target_user_id,
         name=payload.name,
@@ -95,13 +95,13 @@ async def create_api_key(
 async def rotate_api_key(
     key_id: str,
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
     user_id: Optional[str] = Query(None, description="User that owns the key (admin only)"),
 ) -> SuccessResponse[APIKeyWithSecretResponse]:
     """Rotate an API key and return the new secret."""
 
     target_user_id = _resolve_target_user(user_id, current_user)
-    service = _get_service(adapter)
+    service = _get_service(pool)
     record = await service.rotate_api_key(key_id, target_user_id)
     response_payload = APIKeyWithSecretResponse(**record)
     return SuccessResponse(data=response_payload, message="API key rotated")
@@ -115,13 +115,13 @@ async def rotate_api_key(
 async def revoke_api_key(
     key_id: str,
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
     user_id: Optional[str] = Query(None, description="User that owns the key (admin only)"),
 ) -> SuccessResponse[Dict[str, Any]]:
     """Revoke an API key."""
 
     target_user_id = _resolve_target_user(user_id, current_user)
-    service = _get_service(adapter)
+    service = _get_service(pool)
     await service.revoke_api_key(key_id, target_user_id)
     return SuccessResponse(
         data={"id": key_id, "revoked": True, "user_id": target_user_id},

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRAI Alert Notification</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 20px 0;">
+                <table role="presentation" style="width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 30px; background-color: {{ header_color }}; border-radius: 8px 8px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px;">⚠️ KRAI Alert Notification</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Alert Summary -->
+                    <tr>
+                        <td style="padding: 30px;">
+                            <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding-bottom: 20px;">
+                                        <h2 style="margin: 0 0 10px 0; color: #333333; font-size: 20px;">{{ rule_name }}</h2>
+                                        <p style="margin: 0; color: #666666; font-size: 14px;">{{ description }}</p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Alert Details -->
+                                <tr>
+                                    <td style="padding: 20px; background-color: #f9f9f9; border-radius: 4px;">
+                                        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #666666; font-size: 14px; width: 40%;">Severity:</td>
+                                                <td style="padding: 8px 0; color: #333333; font-size: 14px; font-weight: bold;">{{ severity }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Alert Type:</td>
+                                                <td style="padding: 8px 0; color: #333333; font-size: 14px;">{{ alert_type }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Occurrences:</td>
+                                                <td style="padding: 8px 0; color: #333333; font-size: 14px; font-weight: bold;">{{ aggregation_count }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">First Occurrence:</td>
+                                                <td style="padding: 8px 0; color: #333333; font-size: 14px;">{{ first_occurrence }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Last Occurrence:</td>
+                                                <td style="padding: 8px 0; color: #333333; font-size: 14px;">{{ last_occurrence }}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Message -->
+                                <tr>
+                                    <td style="padding-top: 20px;">
+                                        <h3 style="margin: 0 0 10px 0; color: #333333; font-size: 16px;">Message:</h3>
+                                        <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">{{ message }}</p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Error Details (if available) -->
+                                {% if error_details %}
+                                <tr>
+                                    <td style="padding-top: 20px;">
+                                        <h3 style="margin: 0 0 10px 0; color: #333333; font-size: 16px;">Error Details:</h3>
+                                        <div style="padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                                            <p style="margin: 0; color: #856404; font-size: 13px; font-family: monospace; white-space: pre-wrap;">{{ error_details }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 20px 30px; background-color: #f9f9f9; border-radius: 0 0 8px 8px; text-align: center;">
+                            <p style="margin: 0; color: #999999; font-size: 12px;">
+                                This is an automated alert from KRAI Pipeline Monitoring System<br>
+                                Generated at {{ timestamp }}
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

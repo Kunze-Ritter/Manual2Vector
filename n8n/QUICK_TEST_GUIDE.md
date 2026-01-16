@@ -1,4 +1,40 @@
-# 🧪 N8N Agent V2.1 - Quick Test Guide
+# ⚠️ DEPRECATED - Test Guide für n8n Workflows
+
+**Diese Tests funktionieren nicht mehr** mit der aktuellen Architektur.
+
+## Aktuelle Test-Optionen
+
+### Laravel Dashboard testen
+```bash
+cd laravel-admin
+php artisan serve
+# Browser: http://localhost:8000/admin
+```
+
+### FastAPI Endpoints testen
+```bash
+# Backend starten
+cd backend
+uvicorn api.app:app --reload
+
+# Tests ausführen
+pytest tests/api/
+```
+
+### Pipeline testen
+```bash
+python scripts/pipeline_processor.py --file test.pdf --smart
+```
+
+Siehe: `docs/processor/QUICK_START.md`
+
+---
+
+## Historische n8n Test-Dokumentation (Read-Only)
+
+---
+
+# 🧪 N8N Agent V2.1 - Quick Test Guide (Legacy)
 
 **Date:** 2025-10-06  
 **Version:** V2.1  
@@ -259,10 +295,12 @@ Invoke-RestMethod -Uri "http://localhost:8000/content/links/check/sync" `
 
 ### **Problem 4: Database connection error**
 ```
-✅ Check Supabase credentials in N8N
-✅ Check .env file has SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+✅ Check database credentials (PostgreSQL)
+✅ Check .env file has DATABASE_* variables (not SUPABASE_*)
 ✅ Restart backend
 ```
+
+> **Note:** This guide is for legacy n8n workflows only. Supabase credentials are no longer used.
 
 ---
 

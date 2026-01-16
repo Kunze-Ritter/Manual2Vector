@@ -27,7 +27,7 @@ link extraction, chunk preprocessing, and document classification.
   - Extraction of HTTP(S), YouTube, and direct video links from PDFs
   - Handling of multi‑page documents
   - Error paths (missing document ID, missing file, missing page texts)
-  - Persistence helpers for links and videos using a lightweight Supabase‑style client
+  - Persistence helpers for links and videos using a lightweight PostgreSQL-style client
 
 - **`test_chunk_preprocessor_unit.py`**  
   Unit tests for `ChunkPreprocessor` internals:

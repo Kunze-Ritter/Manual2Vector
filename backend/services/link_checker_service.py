@@ -13,7 +13,8 @@ from typing import Optional, Dict, Any
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from check_and_fix_links import LinkChecker
+# DISABLED: check_and_fix_links uses old database client which has been removed
+# from check_and_fix_links import LinkChecker
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,9 @@ class LinkCheckerService:
         """
         Check links for validity and optionally fix broken ones
         
+        DISABLED: This service used old database client which has been removed.
+        Now using PostgreSQL via DatabaseAdapter.
+        
         Args:
             limit: Maximum number of links to check
             check_only: Only check without fixing (default: True)
@@ -43,33 +47,15 @@ class LinkCheckerService:
         Returns:
             Dictionary with check results
         """
-        try:
-            logger.info(f"🔗 Starting link check (limit={limit}, check_only={check_only})")
-            
-            # Create checker instance
-            checker = LinkChecker(check_only=check_only)
-            
-            # Process links
-            await checker.process_links(limit=limit, check_inactive=check_inactive)
-            
-            # Get results
-            result = {
-                "checked": checker.checked_count,
-                "working": checker.valid_count,
-                "broken": checker.broken_count,
-                "fixed": checker.fixed_count,
-                "errors": checker.error_count
-            }
-            
-            # Close checker
-            await checker.close()
-            
-            logger.info(f"✅ Link check complete: {result}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Error in link check: {e}")
-            raise
+        logger.warning("Link checker service is disabled (old database client dependency removed)")
+        return {
+            "checked": 0,
+            "working": 0,
+            "broken": 0,
+            "fixed": 0,
+            "errors": 0,
+            "message": "Link checker service disabled - requires migration to PostgreSQL"
+        }
     
     async def health_check(self) -> Dict[str, Any]:
         """Health check for link checker service"""

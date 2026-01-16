@@ -4,8 +4,10 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
+import asyncpg
 
 from models.batch import (
     BatchOperationResult,
@@ -19,8 +21,8 @@ from models.batch import (
 class BatchTaskService:
     """Handles creation, tracking, and execution state of batch tasks."""
 
-    def __init__(self, database_adapter: "DatabaseAdapter") -> None:
-        self._adapter = database_adapter
+    def __init__(self, pool: asyncpg.Pool) -> None:
+        self._pool = pool
         self._logger = logging.getLogger("krai.services.batch_task_service")
         self._tasks: Dict[str, Dict[str, Any]] = {}
 
@@ -48,24 +50,24 @@ class BatchTaskService:
             "failed_items": 0,
         }
 
-        # Build INSERT query using DatabaseAdapter
+        # Build INSERT query using asyncpg
         query = """
             INSERT INTO krai_system.processing_queue (
                 id, task_type, status, priority, metadata, user_id, scheduled_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         """
         
-        values = [
-            task_id,
-            f"batch_{task_request.operation_type}",
-            BatchTaskStatus.QUEUED.value,
-            task_request.priority,
-            metadata,
-            task_request.user_id,
-            self._now().isoformat(),
-        ]
-        
-        await self._adapter.execute_query(query, values)
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                query,
+                task_id,
+                f"batch_{task_request.operation_type}",
+                BatchTaskStatus.QUEUED.value,
+                task_request.priority,
+                json.dumps(metadata),
+                task_request.user_id,
+                self._now().isoformat(),
+            )
 
         self._tasks[task_id] = {
             "status": BatchTaskStatus.QUEUED,
@@ -104,8 +106,9 @@ class BatchTaskService:
             LIMIT 1
         """
         
-        result = await self._adapter.execute_query(query, [task_id])
-        data = result[0] if result else None
+        async with self._pool.acquire() as conn:
+            result = await conn.fetchrow(query, task_id)
+        data = dict(result) if result else None
         
         if data:
             status = BatchTaskStatus(data.get("status", status.value))
@@ -173,7 +176,16 @@ class BatchTaskService:
             WHERE id = $1
         """
         
-        await self._adapter.execute_query(query, [task_id] + list(update_payload.values()))
+        # Convert metadata to JSON string for PostgreSQL
+        values = [task_id]
+        for key, value in update_payload.items():
+            if key == 'metadata':
+                values.append(json.dumps(value))
+            else:
+                values.append(value)
+        
+        async with self._pool.acquire() as conn:
+            await conn.execute(query, *values)
         self._tasks[task_id] = {
             **self._tasks.get(task_id, {}),
             "status": status,

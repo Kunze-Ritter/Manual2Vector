@@ -1,7 +1,7 @@
 """
 Delete Document Data Script
 ============================
-Deletes ALL data associated with one or more document IDs from Supabase.
+Deletes ALL data associated with one or more document IDs from PostgreSQL.
 
 This includes:
 - Products
@@ -26,6 +26,7 @@ Examples:
 """
 
 import sys
+import asyncio
 from pathlib import Path
 from typing import List, Optional
 from uuid import UUID
@@ -35,12 +36,7 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from scripts.migration_helpers import (
-    create_connected_adapter,
-    pg_execute,
-    pg_fetch_all,
-    run_async,
-)
+from backend.services.database_factory import create_database_adapter
 
 
 def validate_uuid(uuid_string: str) -> bool:
@@ -79,15 +75,16 @@ async def count_related_data(adapter, document_id: str) -> dict:
 
     # Only use documented tables/columns from DATABASE_SCHEMA.md
     queries = {
-        "chunks": "SELECT COUNT(*) AS count FROM krai_intelligence.chunks WHERE document_id = :document_id",
-        "images": "SELECT COUNT(*) AS count FROM krai_content.images WHERE document_id = :document_id",
-        "links": "SELECT COUNT(*) AS count FROM krai_content.links WHERE document_id = :document_id",
+        "chunks": "SELECT COUNT(*) AS count FROM krai_intelligence.chunks WHERE document_id = $1",
+        "images": "SELECT COUNT(*) AS count FROM krai_content.images WHERE document_id = $1",
+        "links": "SELECT COUNT(*) AS count FROM krai_content.links WHERE document_id = $1",
     }
 
     for key, query in queries.items():
         try:
-            rows = await pg_fetch_all(adapter, query, {"document_id": document_id})
-            counts[key] = rows[0]["count"] if rows else 0
+            async with adapter.pool.acquire() as conn:
+                row = await conn.fetchrow(query, document_id)
+                counts[key] = row["count"] if row else 0
         except Exception as e:
             counts[key] = 0
             print(f"⚠️  Warning: Could not count {key}: {e}")
@@ -144,16 +141,16 @@ async def delete_document_data(adapter, document_id: str, dry_run: bool = False)
     print("\n🗑️  Deleting data...")
 
     try:
-        result = await pg_execute(
-            adapter,
-            "DELETE FROM krai_core.documents WHERE id = :document_id",
-            {"document_id": document_id},
-        )
-        deleted_count = getattr(result, "rowcount", 0)
-        if deleted_count == 0:
-            print(f"   ⚠️  No document row deleted for id: {document_id}")
-        else:
-            print(f"   ✓ Deleted document row (and cascading related data) for {document_id}")
+        async with adapter.pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM krai_core.documents WHERE id = $1",
+                document_id,
+            )
+            deleted_count = int(result.split()[-1]) if result else 0
+            if deleted_count == 0:
+                print(f"   ⚠️  No document row deleted for id: {document_id}")
+            else:
+                print(f"   ✓ Deleted document row (and cascading related data) for {document_id}")
     except Exception as e:
         print(f"   ⚠️  Error deleting document {document_id}: {e}")
         return False
@@ -202,7 +199,8 @@ async def interactive_mode(adapter):
 async def main():
     """Main entry point"""
     try:
-        adapter = await create_connected_adapter(database_type="postgresql")
+        adapter = create_database_adapter(database_type="postgresql")
+        await adapter.initialize()
     except Exception as e:
         print(f"❌ Failed to create database adapter: {e}")
         sys.exit(1)
@@ -247,4 +245,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    run_async(main())
+    asyncio.run(main())

@@ -29,6 +29,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from services.config_service import ConfigService
+from services.db_pool import get_pool
 from services.web_scraping_service import (
     WebScrapingService,
     create_web_scraping_service,
@@ -45,7 +46,6 @@ class ProductResearcher:
     
     def __init__(
         self,
-        supabase=None,
         ollama_url: str = "http://localhost:11434",
         model: str = "qwen2.5:7b",
         cache_days: int = 90,
@@ -57,12 +57,10 @@ class ProductResearcher:
         Initialize researcher
         
         Args:
-            supabase: Supabase client
             ollama_url: Ollama API URL
             model: LLM model to use
             cache_days: Days to cache research results
         """
-        self.supabase = supabase
         self.ollama_url = ollama_url
         self.model = model
         self.cache_days = cache_days
@@ -98,7 +96,7 @@ class ProductResearcher:
             self.scraping_backend,
         )
     
-    def research_product(
+    async def research_product(
         self,
         manufacturer: str,
         model_number: str,
@@ -118,8 +116,8 @@ class ProductResearcher:
         logger.info(f"Researching: {manufacturer} {model_number}")
         
         # Check cache first
-        if not force_refresh and self.supabase:
-            cached = self._get_cached_research(manufacturer, model_number)
+        if not force_refresh:
+            cached = await self._get_cached_research(manufacturer, model_number)
             if cached:
                 logger.info(f"✓ Using cached research (confidence: {cached.get('confidence', 0):.2f})")
                 return cached
@@ -149,23 +147,21 @@ class ProductResearcher:
             return None
         
         # Step 4: Save to cache
-        if self.supabase:
-            self._save_to_cache(manufacturer, model_number, analysis)
+        await self._save_to_cache(manufacturer, model_number, analysis)
         
         logger.info(f"✓ Research complete (confidence: {analysis.get('confidence', 0):.2f})")
         return analysis
     
-    def _get_cached_research(self, manufacturer: str, model_number: str) -> Optional[Dict]:
+    async def _get_cached_research(self, manufacturer: str, model_number: str) -> Optional[Dict]:
         """Get cached research results"""
         try:
-            result = self.supabase.rpc(
-                'get_cached_research',
-                {'p_manufacturer': manufacturer, 'p_model_number': model_number}
-            ).execute()
-            
-            if result.data:
-                return result.data
-            return None
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                result = await conn.fetchrow(
+                    "SELECT * FROM krai_core.product_research_cache WHERE manufacturer = $1 AND model_number = $2 AND cache_valid_until > NOW()",
+                    manufacturer, model_number
+                )
+                return dict(result) if result else None
         except Exception as e:
             logger.debug(f"Cache lookup failed: {e}")
             return None
@@ -544,31 +540,44 @@ Return ONLY the JSON, no other text.
 
         return info
     
-    def _save_to_cache(self, manufacturer: str, model_number: str, analysis: Dict):
+    async def _save_to_cache(self, manufacturer: str, model_number: str, analysis: Dict):
         """Save research results to cache"""
         try:
-            data = {
-                'manufacturer': manufacturer,
-                'model_number': model_number,
-                'series_name': analysis.get('series_name'),
-                'series_description': analysis.get('series_description'),
-                'specifications': analysis.get('specifications', {}),
-                'physical_specs': analysis.get('physical_specs', {}),
-                'oem_manufacturer': analysis.get('oem_manufacturer'),
-                'oem_notes': analysis.get('oem_notes'),
-                'product_type': analysis.get('product_type'),
-                'launch_date': f"{analysis.get('launch_year')}-01-01" if analysis.get('launch_year') else None,
-                'confidence': analysis.get('confidence', 0.0),
-                'source_urls': analysis.get('source_urls', []),
-                'cache_valid_until': (datetime.now() + timedelta(days=self.cache_days)).isoformat(),
-                'verified': False
-            }
+            cache_valid_until = (datetime.now() + timedelta(days=self.cache_days)).isoformat()
+            launch_date = f"{analysis.get('launch_year')}-01-01" if analysis.get('launch_year') else None
             
-            # Upsert (insert or update)
-            self.supabase.table('product_research_cache').upsert(
-                data,
-                on_conflict='manufacturer,model_number'
-            ).execute()
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """INSERT INTO krai_core.product_research_cache 
+                       (manufacturer, model_number, series_name, series_description, specifications, 
+                        physical_specs, oem_manufacturer, oem_notes, product_type, launch_date, 
+                        confidence, source_urls, cache_valid_until, verified)
+                       VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9, $10, $11, $12::jsonb, $13, $14)
+                       ON CONFLICT (manufacturer, model_number) 
+                       DO UPDATE SET 
+                           series_name = EXCLUDED.series_name,
+                           series_description = EXCLUDED.series_description,
+                           specifications = EXCLUDED.specifications,
+                           physical_specs = EXCLUDED.physical_specs,
+                           oem_manufacturer = EXCLUDED.oem_manufacturer,
+                           oem_notes = EXCLUDED.oem_notes,
+                           product_type = EXCLUDED.product_type,
+                           launch_date = EXCLUDED.launch_date,
+                           confidence = EXCLUDED.confidence,
+                           source_urls = EXCLUDED.source_urls,
+                           cache_valid_until = EXCLUDED.cache_valid_until
+                    """,
+                    manufacturer, model_number,
+                    analysis.get('series_name'), analysis.get('series_description'),
+                    json.dumps(analysis.get('specifications', {})),
+                    json.dumps(analysis.get('physical_specs', {})),
+                    analysis.get('oem_manufacturer'), analysis.get('oem_notes'),
+                    analysis.get('product_type'), launch_date,
+                    analysis.get('confidence', 0.0),
+                    json.dumps(analysis.get('source_urls', [])),
+                    cache_valid_until, False
+                )
             
             logger.info(f"✓ Saved research to cache")
             
@@ -579,44 +588,43 @@ Return ONLY the JSON, no other text.
 if __name__ == '__main__':
     # Test mode
     import sys
-    from supabase import create_client
+    from services.database_factory import create_database_adapter
     from dotenv import load_dotenv
     
     load_dotenv()
     
-    # Initialize
-    supabase_url = os.getenv('SUPABASE_URL')
-    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    supabase = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
-    
-    researcher = ProductResearcher(supabase=supabase)
-    
-    # Test cases
-    test_products = [
-        ("Konica Minolta", "C750i"),
-        ("HP", "LaserJet Pro M454dw"),
-        ("Canon", "imageRUNNER ADVANCE C5550i"),
-    ]
-    
-    if len(sys.argv) > 2:
-        # Command line: python product_researcher.py "Konica Minolta" "C750i"
-        manufacturer = sys.argv[1]
-        model = sys.argv[2]
-        test_products = [(manufacturer, model)]
-    
-    for manufacturer, model in test_products:
-        print(f"\n{'='*80}")
-        print(f"Researching: {manufacturer} {model}")
-        print('='*80)
+    async def main():
+        # Initialize
+        researcher = ProductResearcher()
         
-        result = researcher.research_product(manufacturer, model)
+        # Test cases
+        test_products = [
+            ("Konica Minolta", "C750i"),
+            ("HP", "LaserJet Pro M454dw"),
+            ("Canon", "imageRUNNER ADVANCE C5550i"),
+        ]
         
-        if result:
-            print(f"\n✅ Research successful!")
-            print(f"Confidence: {result.get('confidence', 0):.2f}")
-            print(f"\nSeries: {result.get('series_name')}")
-            print(f"Type: {result.get('product_type')}")
-            print(f"\nSpecifications:")
-            print(json.dumps(result.get('specifications', {}), indent=2))
-        else:
-            print(f"\n❌ Research failed")
+        if len(sys.argv) > 2:
+            # Command line: python product_researcher.py "Konica Minolta" "C750i"
+            manufacturer = sys.argv[1]
+            model = sys.argv[2]
+            test_products = [(manufacturer, model)]
+        
+        for manufacturer, model in test_products:
+            print(f"\n{'='*80}")
+            print(f"Researching: {manufacturer} {model}")
+            print('='*80)
+            
+            result = await researcher.research_product(manufacturer, model)
+            
+            if result:
+                print(f"\n✅ Research successful!")
+                print(f"Confidence: {result.get('confidence', 0):.2f}")
+                print(f"\nSeries: {result.get('series_name')}")
+                print(f"Type: {result.get('product_type')}")
+                print(f"\nSpecifications:")
+                print(json.dumps(result.get('specifications', {}), indent=2))
+            else:
+                print(f"\n❌ Research failed")
+    
+    asyncio.run(main())

@@ -13,7 +13,7 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path))
 
-from services.database_service_production import DatabaseService
+from services.database_adapter import create_database_adapter
 from processors.classification_processor import ClassificationProcessor
 from processors.image_processor import ImageProcessor
 from processors.metadata_processor import MetadataProcessor
@@ -28,7 +28,7 @@ from core.data_models import ProcessingContext
 
 class PipelineRecovery:
     def __init__(self):
-        self.database_service = None
+        self.database_adapter = None
         self.ai_service = None
         self.storage_service = None
         self.config_service = None
@@ -41,12 +41,8 @@ class PipelineRecovery:
         from dotenv import load_dotenv
         load_dotenv()
         
-        # Initialize database service
-        self.database_service = DatabaseService(
-            supabase_url=os.getenv('SUPABASE_URL'),
-            supabase_key=os.getenv('SUPABASE_ANON_KEY')
-        )
-        await self.database_service.connect()
+        # Initialize database adapter
+        self.database_adapter = create_database_adapter()
         
         # Initialize AI service
         self.ai_service = AIService(ollama_url=os.getenv('OLLAMA_URL', 'http://localhost:11434'))
@@ -66,7 +62,7 @@ class PipelineRecovery:
         print("🔍 Finding stuck documents...")
         
         # Find documents with chunks but no classification
-        stuck_docs = await self.database_service.execute_query("""
+        stuck_docs = await self.database_adapter.execute_query("""
             SELECT 
                 d.id,
                 d.filename,
@@ -105,7 +101,7 @@ class PipelineRecovery:
             # Stage 4: Classification Processor
             print(f"  📋 Stage 4: Classification")
             classification_processor = ClassificationProcessor(
-                self.database_service, self.ai_service, self.config_service
+                self.database_adapter, self.ai_service, self.config_service
             )
             classification_result = await classification_processor.process(context)
             
@@ -115,7 +111,7 @@ class PipelineRecovery:
                 # Stage 5: Metadata Processor
                 print(f"  📊 Stage 5: Metadata")
                 metadata_processor = MetadataProcessor(
-                    self.database_service, self.ai_service, self.config_service
+                    self.database_adapter, self.ai_service, self.config_service
                 )
                 metadata_result = await metadata_processor.process(context)
                 
@@ -125,7 +121,7 @@ class PipelineRecovery:
                     # Stage 6: Storage Processor
                     print(f"  💾 Stage 6: Storage")
                     storage_processor = StorageProcessor(
-                        self.database_service, self.storage_service
+                        self.database_adapter, self.storage_service
                     )
                     storage_result = await storage_processor.process(context)
                     
@@ -135,7 +131,7 @@ class PipelineRecovery:
                         # Stage 7: Embedding Processor
                         print(f"  🧠 Stage 7: Embeddings")
                         embedding_processor = EmbeddingProcessor(
-                            self.database_service, self.ai_service
+                            self.database_adapter, self.ai_service
                         )
                         embedding_result = await embedding_processor.process(context)
                         
@@ -145,7 +141,7 @@ class PipelineRecovery:
                             # Stage 8: Search Processor
                             print(f"  🔍 Stage 8: Search")
                             search_processor = SearchProcessor(
-                                self.database_service, self.ai_service
+                                self.database_adapter, self.ai_service
                             )
                             search_result = await search_processor.process(context)
                             

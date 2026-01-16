@@ -551,6 +551,40 @@ async def mock_database_adapter() -> AsyncGenerator[DatabaseAdapter, None]:
             }
             return image_id
         
+        async def create_image_queue_entry(self, queue_data: Dict[str, Any]) -> str:
+            """Mock create image queue entry for storage tasks."""
+            queue_id = str(uuid4())
+            self.image_queue = getattr(self, 'image_queue', {})
+            self.image_queue[queue_id] = dict(queue_data)
+            self.image_queue[queue_id]['id'] = queue_id
+            return queue_id
+        
+        async def get_image_queue_entries(self, document_id: str) -> List[Dict[str, Any]]:
+            """Mock get image queue entries by document."""
+            self.image_queue = getattr(self, 'image_queue', {})
+            return [
+                entry
+                for entry in self.image_queue.values()
+                if entry.get('document_id') == document_id
+            ]
+        
+        async def create_svg_queue_entry(self, queue_data: Dict[str, Any]) -> str:
+            """Mock create SVG queue entry for storage tasks."""
+            queue_id = str(uuid4())
+            self.svg_queue = getattr(self, 'svg_queue', {})
+            self.svg_queue[queue_id] = dict(queue_data)
+            self.svg_queue[queue_id]['id'] = queue_id
+            return queue_id
+        
+        async def get_svg_queue_entries(self, document_id: str) -> List[Dict[str, Any]]:
+            """Mock get SVG queue entries by document."""
+            self.svg_queue = getattr(self, 'svg_queue', {})
+            return [
+                entry
+                for entry in self.svg_queue.values()
+                if entry.get('document_id') == document_id
+            ]
+        
         async def create_chunk(self, chunk) -> str:
             chunk_id = str(uuid4())
             self.chunks[chunk_id] = {

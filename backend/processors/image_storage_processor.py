@@ -6,7 +6,7 @@ Handles EXTRACTED IMAGE storage on S3-compatible storage with:
 - Flat storage structure: {hash}.{extension}
 - Database tracking in krai_content.images
 - Automatic metadata extraction
-- Integration with Supabase
+- Integration with database adapter
 - Supports MinIO, AWS S3, Cloudflare R2, Wasabi, Backblaze B2
 
 Storage Structure:
@@ -57,15 +57,15 @@ class ImageStorageProcessor:
     - Flat structure (no folders)
     """
     
-    def __init__(self, supabase_client=None):
+    def __init__(self, database_adapter=None):
         """
         Initialize image storage processor
         
         Args:
-            supabase_client: Supabase client for DB tracking
+            database_adapter: Database adapter for DB tracking
         """
         self.logger = get_logger()
-        self.supabase = supabase_client
+        self.db_client = database_adapter
         
         # Object Storage Configuration
         self.access_key = (os.getenv('OBJECT_STORAGE_ACCESS_KEY') or 
@@ -106,8 +106,8 @@ class ImageStorageProcessor:
             self.logger.warning("Object storage credentials incomplete - storage disabled")
     
     def is_configured(self) -> bool:
-        """Check if object storage and Supabase are configured"""
-        return self.storage_client is not None and self.supabase is not None
+        """Check if object storage and database are configured"""
+        return self.storage_client is not None and self.db_client is not None
     
     def calculate_image_hash(self, image_path: Path) -> str:
         """
@@ -127,7 +127,7 @@ class ImageStorageProcessor:
         
         return md5_hash.hexdigest()
     
-    def check_image_exists(self, file_hash: str) -> Optional[Dict[str, Any]]:
+    async def check_image_exists(self, file_hash: str) -> Optional[Dict[str, Any]]:
         """
         Check if image with this hash already exists in DB
         
@@ -137,26 +137,19 @@ class ImageStorageProcessor:
         Returns:
             Existing image record or None
         """
-        if not self.supabase:
+        if not self.db_client:
             return None
         
         try:
-            result = self.supabase.table('vw_images') \
-                .select('*') \
-                .eq('file_hash', file_hash) \
-                .limit(1) \
-                .execute()
-            
-            if result.data and len(result.data) > 0:
-                return result.data[0]
-            
-            return None
+            # Use DatabaseAdapter interface method
+            result = await self.db_client.get_image_by_hash(file_hash)
+            return result
             
         except Exception as e:
             self.logger.debug(f"Error checking image existence: {e}")
             return None
     
-    def upload_image(
+    async def upload_image(
         self,
         image_path: Path,
         document_id: UUID,
@@ -190,7 +183,7 @@ class ImageStorageProcessor:
             file_hash = self.calculate_image_hash(image_path)
             
             # 2. Check if already exists
-            existing = self.check_image_exists(file_hash)
+            existing = await self.check_image_exists(file_hash)
             
             if existing:
                 # Image already exists - just create new mapping
@@ -234,37 +227,29 @@ class ImageStorageProcessor:
             else:
                 storage_url = f"{self.endpoint_url}/{self.bucket_name}/{storage_path}"
             
-            # 4. Insert to database
-            image_record = {
-                'document_id': str(document_id),
-                'filename': storage_path,
-                'storage_path': storage_path,
-                'storage_url': storage_url,
-                'file_hash': file_hash,
-                'file_size': image_path.stat().st_size,
-                'image_format': extension.upper(),
-                'page_number': page_number,
-                'image_type': image_type,
-            }
+            # 4. Insert to database using DatabaseAdapter
+            from backend.core.data_models import ImageModel
             
-            # Add metadata if provided
-            if metadata:
-                if 'width' in metadata:
-                    image_record['width_px'] = metadata['width']
-                if 'height' in metadata:
-                    image_record['height_px'] = metadata['height']
-                if 'ai_description' in metadata:
-                    image_record['ai_description'] = metadata['ai_description']
-                if 'ai_confidence' in metadata:
-                    image_record['ai_confidence'] = metadata['ai_confidence']
-                if 'contains_text' in metadata:
-                    image_record['contains_text'] = metadata['contains_text']
-                if 'ocr_text' in metadata:
-                    image_record['ocr_text'] = metadata['ocr_text']
-                if 'ocr_confidence' in metadata:
-                    image_record['ocr_confidence'] = metadata['ocr_confidence']
+            image_model = ImageModel(
+                document_id=str(document_id),
+                filename=storage_path,
+                storage_path=storage_path,
+                storage_url=storage_url,
+                file_hash=file_hash,
+                file_size=image_path.stat().st_size,
+                image_format=extension.upper(),
+                page_number=page_number,
+                image_type=image_type,
+                width_px=metadata.get('width') if metadata else None,
+                height_px=metadata.get('height') if metadata else None,
+                ai_description=metadata.get('ai_description') if metadata else None,
+                ai_confidence=metadata.get('ai_confidence') if metadata else None,
+                contains_text=metadata.get('contains_text') if metadata else None,
+                ocr_text=metadata.get('ocr_text') if metadata else None,
+                ocr_confidence=metadata.get('ocr_confidence') if metadata else None
+            )
             
-            db_result = self.supabase.table('vw_images').insert(image_record).execute()
+            db_id = await self.db_client.create_image(image_model)
             
             self.logger.debug(f"Uploaded new image: {file_hash[:8]}... -> {storage_path}")
             
@@ -274,7 +259,7 @@ class ImageStorageProcessor:
                 'storage_path': storage_path,
                 'file_hash': file_hash,
                 'deduplicated': False,
-                'db_id': db_result.data[0]['id'] if db_result.data else None
+                'db_id': db_id
             }
             
         except Exception as e:
@@ -286,7 +271,7 @@ class ImageStorageProcessor:
                 'deduplicated': False
             }
     
-    def upload_images(
+    async def upload_images(
         self,
         document_id: UUID,
         images: List[Dict[str, Any]],
@@ -327,7 +312,7 @@ class ImageStorageProcessor:
                 continue
             
             # Upload with deduplication
-            result = self.upload_image(
+            result = await self.upload_image(
                 image_path=image_path,
                 document_id=document_id,
                 page_number=image_info.get('page_num', 0),
@@ -374,31 +359,31 @@ class ImageStorageProcessor:
             'urls': urls
         }
     
-    def get_storage_stats(self) -> Dict[str, Any]:
+    async def get_storage_stats(self) -> Dict[str, Any]:
         """
         Get storage statistics from DB
         
         Returns:
             Dict with statistics
         """
-        if not self.supabase:
+        if not self.db_client:
             return {}
         
         try:
-            # Total images
-            total_result = self.supabase.table('vw_images') \
-                .select('id', count='exact') \
-                .execute()
-            
-            total_images = total_result.count if hasattr(total_result, 'count') else 0
+            # Total images count
+            total_query = "SELECT COUNT(*) as count FROM krai_content.images"
+            total_result = await self.db_client.fetch_one(total_query, [])
+            total_images = total_result['count'] if total_result else 0
             
             # Unique hashes (deduplicated images)
-            unique_result = self.supabase.rpc('count_unique_image_hashes').execute()
-            unique_hashes = unique_result.data if unique_result.data else 0
+            unique_query = "SELECT COUNT(DISTINCT file_hash) as count FROM krai_content.images"
+            unique_result = await self.db_client.fetch_one(unique_query, [])
+            unique_hashes = unique_result['count'] if unique_result else 0
             
             # Total size
-            size_result = self.supabase.rpc('sum_image_sizes').execute()
-            total_size = size_result.data if size_result.data else 0
+            size_query = "SELECT COALESCE(SUM(file_size), 0) as total_size FROM krai_content.images"
+            size_result = await self.db_client.fetch_one(size_query, [])
+            total_size = size_result['total_size'] if size_result else 0
             
             return {
                 'total_images': total_images,
@@ -424,10 +409,10 @@ class ImageStorageProcessor:
 
 
 # Convenience function
-def upload_images_to_storage(
+async def upload_images_to_storage(
     document_id: UUID,
     images: List[Dict[str, Any]],
-    supabase_client=None
+    database_adapter=None
 ) -> Dict[str, Any]:
     """
     Convenience function to upload images to object storage
@@ -435,10 +420,10 @@ def upload_images_to_storage(
     Args:
         document_id: Document UUID
         images: List of image dicts
-        supabase_client: Supabase client
+        database_adapter: Database adapter
         
     Returns:
         Upload results
     """
-    processor = ImageStorageProcessor(supabase_client=supabase_client)
-    return processor.upload_images(document_id, images)
+    processor = ImageStorageProcessor(database_adapter=database_adapter)
+    return await processor.upload_images(document_id, images)

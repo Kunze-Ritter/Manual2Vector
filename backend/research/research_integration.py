@@ -9,9 +9,11 @@ the configured web scraping backend (Firecrawl or BeautifulSoup).
 import logging
 from typing import Optional, Dict, Any
 from uuid import UUID
+import json
 
 from research.product_researcher import ProductResearcher
 from services.config_service import ConfigService
+from services.db_pool import get_pool
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +26,6 @@ class ResearchIntegration:
     
     def __init__(
         self,
-        supabase,
         enabled: bool = True,
         config_service: Optional[ConfigService] = None,
     ):
@@ -32,15 +33,13 @@ class ResearchIntegration:
         Initialize integration
         
         Args:
-            supabase: Supabase client
             enabled: Enable/disable research (can be controlled via env var)
             config_service: Optional configuration service for scraping settings
         """
-        self.supabase = supabase
         self.enabled = enabled
         self.config_service = config_service or ConfigService()
         self.researcher = (
-            ProductResearcher(supabase=supabase, config_service=self.config_service)
+            ProductResearcher(config_service=self.config_service)
             if enabled
             else None
         )
@@ -51,7 +50,7 @@ class ResearchIntegration:
             self.researcher.scraping_backend if self.researcher else "disabled",
         )
     
-    def enrich_product(
+    async def enrich_product(
         self,
         product_id: UUID,
         manufacturer_name: str,
@@ -80,14 +79,15 @@ class ResearchIntegration:
         
         # Get current product data
         try:
-            product = self.supabase.table('vw_products').select(
-                'id,series_id,specifications,oem_manufacturer'
-            ).eq('id', str(product_id)).single().execute()
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                product_data = await conn.fetchrow(
+                    "SELECT id, series_id, specifications, oem_manufacturer FROM krai_core.products WHERE id = $1",
+                    str(product_id)
+                )
             
-            if not product.data:
+            if not product_data:
                 return False
-            
-            product_data = product.data
             
             # Decide if research is needed
             needs_research = (
@@ -104,7 +104,7 @@ class ResearchIntegration:
             logger.info(f"🔍 Researching product: {manufacturer_name} {model_number}")
             
             # Perform research
-            research = self.researcher.research_product(
+            research = await self.researcher.research_product(
                 manufacturer=manufacturer_name,
                 model_number=model_number
             )
@@ -114,7 +114,7 @@ class ResearchIntegration:
                 return False
             
             # Update product with research results
-            self._apply_research_to_product(product_id, research)
+            await self._apply_research_to_product(product_id, research)
             
             logger.info(f"✅ Product enriched with research (confidence: {research.get('confidence', 0):.2f})")
             return True
@@ -139,7 +139,7 @@ class ResearchIntegration:
             'scraping_info': self.researcher.get_scraping_info(),
         }
     
-    def _apply_research_to_product(self, product_id: UUID, research: Dict[str, Any]):
+    async def _apply_research_to_product(self, product_id: UUID, research: Dict[str, Any]):
         """
         Apply research results to product
         
@@ -174,58 +174,77 @@ class ResearchIntegration:
             
             # Update product
             if update_data:
-                self.supabase.table('vw_products').update(update_data).eq(
-                    'id', str(product_id)
-                ).execute()
+                # Build dynamic UPDATE query
+                set_clauses = []
+                params = []
+                param_idx = 1
                 
+                for key, value in update_data.items():
+                    if key == 'specifications':
+                        set_clauses.append(f"{key} = ${param_idx}::jsonb")
+                        params.append(json.dumps(value))
+                    else:
+                        set_clauses.append(f"{key} = ${param_idx}")
+                        params.append(value)
+                    param_idx += 1
+                
+                params.append(str(product_id))
+                query = f"UPDATE krai_core.products SET {', '.join(set_clauses)} WHERE id = ${param_idx}"
+                
+                pool = await get_pool()
+                async with pool.acquire() as conn:
+                    await conn.execute(query, *params)
                 logger.debug(f"Updated product {product_id} with {len(update_data)} fields")
             
             # Try to link series (if series_name found)
             if research.get('series_name'):
-                self._link_series(product_id, research['series_name'])
+                await self._link_series(product_id, research['series_name'])
             
         except Exception as e:
             logger.error(f"Failed to apply research: {e}")
     
-    def _link_series(self, product_id: UUID, series_name: str):
+    async def _link_series(self, product_id: UUID, series_name: str):
         """
         Try to link product to series
         
         Creates series if it doesn't exist
         """
         try:
-            # Check if series exists
-            series_result = self.supabase.table('vw_product_series').select('id').eq(
-                'series_name', series_name
-            ).limit(1).execute()
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                # Check if series exists
+                series = await conn.fetchrow(
+                    "SELECT id FROM krai_core.product_series WHERE series_name = $1 LIMIT 1",
+                    series_name
+                )
             
-            if series_result.data:
-                # Link to existing series
-                series_id = series_result.data[0]['id']
-                self.supabase.table('vw_products').update({
-                    'series_id': series_id
-                }).eq('id', str(product_id)).execute()
-                
-                logger.debug(f"Linked product to existing series: {series_name}")
-            else:
-                # Create new series
-                new_series = self.supabase.table('vw_product_series').insert({
-                    'series_name': series_name,
-                    'source': 'online_research'
-                }).execute()
-                
-                if new_series.data:
-                    series_id = new_series.data[0]['id']
-                    self.supabase.table('vw_products').update({
-                        'series_id': series_id
-                    }).eq('id', str(product_id)).execute()
+                if series:
+                    # Link to existing series
+                    series_id = series['id']
+                    await conn.execute(
+                        "UPDATE krai_core.products SET series_id = $1 WHERE id = $2",
+                        series_id, str(product_id)
+                    )
+                    logger.debug(f"Linked product to existing series: {series_name}")
+                else:
+                    # Create new series
+                    new_series = await conn.fetchrow(
+                        "INSERT INTO krai_core.product_series (series_name, source) VALUES ($1, $2) RETURNING id",
+                        series_name, 'online_research'
+                    )
                     
-                    logger.info(f"Created new series: {series_name}")
+                    if new_series:
+                        series_id = new_series['id']
+                        await conn.execute(
+                            "UPDATE krai_core.products SET series_id = $1 WHERE id = $2",
+                            series_id, str(product_id)
+                        )
+                        logger.info(f"Created new series: {series_name}")
         
         except Exception as e:
             logger.debug(f"Could not link series: {e}")
     
-    def batch_enrich_products(self, limit: int = 100) -> Dict[str, int]:
+    async def batch_enrich_products(self, limit: int = 100) -> Dict[str, int]:
         """
         Batch enrich products that need research
         
@@ -241,37 +260,41 @@ class ResearchIntegration:
         stats = {'enriched': 0, 'skipped': 0, 'failed': 0}
         
         try:
-            # Find products that need research
-            # (no specs, no series, or low confidence)
-            products = self.supabase.table('vw_products').select(
-                'id,model_number,manufacturer_id,specifications,series_id'
-            ).is_('specifications', 'null').limit(limit).execute()
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                # Find products that need research
+                # (no specs, no series, or low confidence)
+                products = await conn.fetch(
+                    "SELECT id, model_number, manufacturer_id, specifications, series_id FROM krai_core.products WHERE specifications IS NULL LIMIT $1",
+                    limit
+                )
             
-            if not products.data:
-                logger.info("No products need research")
-                return stats
-            
-            logger.info(f"Found {len(products.data)} products that need research")
-            
-            # Get manufacturer names
-            manufacturer_ids = list(set(p['manufacturer_id'] for p in products.data if p.get('manufacturer_id')))
-            manufacturers = {}
-            
-            for mfr_id in manufacturer_ids:
-                mfr_result = self.supabase.table('vw_manufacturers').select('id,name').eq(
-                    'id', mfr_id
-                ).execute()
-                if mfr_result.data:
-                    manufacturers[mfr_id] = mfr_result.data[0]['name']
+                if not products:
+                    logger.info("No products need research")
+                    return stats
+                
+                logger.info(f"Found {len(products)} products that need research")
+                
+                # Get manufacturer names
+                manufacturer_ids = list(set(p['manufacturer_id'] for p in products if p.get('manufacturer_id')))
+                manufacturers = {}
+                
+                for mfr_id in manufacturer_ids:
+                    mfr = await conn.fetchrow(
+                        "SELECT id, name FROM krai_core.manufacturers WHERE id = $1",
+                        mfr_id
+                    )
+                    if mfr:
+                        manufacturers[mfr_id] = mfr['name']
             
             # Process each product
-            for product in products.data:
+            for product in products:
                 manufacturer_name = manufacturers.get(product.get('manufacturer_id'))
                 if not manufacturer_name:
                     stats['skipped'] += 1
                     continue
                 
-                success = self.enrich_product(
+                success = await self.enrich_product(
                     product_id=product['id'],
                     manufacturer_name=manufacturer_name,
                     model_number=product['model_number'],
@@ -294,22 +317,22 @@ class ResearchIntegration:
 if __name__ == '__main__':
     # Test mode
     import os
-    from supabase import create_client
+    import asyncio
+    from services.database_factory import create_database_adapter
     from dotenv import load_dotenv
     
     load_dotenv()
     
-    supabase_url = os.getenv('SUPABASE_URL')
-    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    supabase = create_client(supabase_url, supabase_key)
+    async def main():
+        integration = ResearchIntegration(enabled=True)
+        
+        # Batch enrich products
+        print("Starting batch enrichment...")
+        stats = await integration.batch_enrich_products(limit=10)
+        
+        print(f"\n✅ Batch enrichment complete:")
+        print(f"   Enriched: {stats['enriched']}")
+        print(f"   Skipped: {stats['skipped']}")
+        print(f"   Failed: {stats['failed']}")
     
-    integration = ResearchIntegration(supabase=supabase, enabled=True)
-    
-    # Batch enrich products
-    print("Starting batch enrichment...")
-    stats = integration.batch_enrich_products(limit=10)
-    
-    print(f"\n✅ Batch enrichment complete:")
-    print(f"   Enriched: {stats['enriched']}")
-    print(f"   Skipped: {stats['skipped']}")
-    print(f"   Failed: {stats['failed']}")
+    asyncio.run(main())

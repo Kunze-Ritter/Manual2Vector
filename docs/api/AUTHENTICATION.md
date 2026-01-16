@@ -269,7 +269,6 @@ Check application logs (`logger` in `auth_service.py` / `auth_middleware.py`) fo
 ## Reference Links
 
 - [FastAPI Security Documentation](https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/)
-- [Supabase Policies](https://supabase.com/docs/guides/auth)
 - [OAuth 2.0 Threats & Mitigations](https://datatracker.ietf.org/doc/html/rfc6819)
 - [JSON Web Token RFC](https://www.rfc-editor.org/rfc/rfc7519)
 - Project Files:

@@ -39,7 +39,7 @@ The API runs batches synchronously when the item count is below `ASYNC_THRESHOLD
 
 ### Transaction Handling
 
-`TransactionManager.execute_batch_with_transaction()` acquires an asyncpg transaction when available. Each per-record operation receives the transactional connection, enabling parameterized SQL (`DELETE` / `UPDATE`) for deterministic behavior. When asyncpg is not configured, operations fall back to Supabase client calls without transactional guarantees.
+`TransactionManager.execute_batch_with_transaction()` acquires an asyncpg transaction. Each per-record operation receives the transactional connection, enabling parameterized SQL (`DELETE` / `UPDATE`) for deterministic behavior.
 
 The response tracks:
 

@@ -55,7 +55,7 @@ class TestLinkChunkClassificationPipeline:
             chunk["document_id"] = document_id
             mock_database_adapter.chunks[chunk["id"]] = dict(chunk)
 
-        # Supabase-like client used by ChunkPreprocessor and ClassificationProcessor
+        # Database-like client used by ChunkPreprocessor and ClassificationProcessor
         class DummyResult:
             def __init__(self, data: List[Dict[str, Any]] | None = None) -> None:
                 self.data = data or []

@@ -1,4 +1,47 @@
-# KRAI Technician Agent V2.1 - Deployment Guide
+# ⚠️ DEPRECATED - n8n Deployment Guide
+
+**Status**: Deprecated (Januar 2025)
+
+Diese Deployment-Anleitung ist **nicht mehr gültig** für die aktuelle PostgreSQL-only Architektur.
+
+## Aktuelle Deployment-Optionen
+
+### 1. Laravel Dashboard (Empfohlen)
+```bash
+cd laravel-admin
+composer install
+php artisan serve
+```
+Siehe: `docs/LARAVEL_DASHBOARD_INTEGRATION.md`
+
+### 2. FastAPI Backend
+```bash
+cd backend
+uvicorn api.app:app --host 0.0.0.0 --port 8000
+```
+Siehe: `DEPLOYMENT.md`
+
+### 3. Docker Compose (Komplett-Setup)
+```bash
+docker-compose up -d
+```
+Siehe: `DOCKER_SETUP.md`
+
+---
+
+## Historische n8n Deployment-Dokumentation (Read-Only)
+
+Die folgende Anleitung beschreibt das **veraltete** n8n Deployment mit Supabase.
+
+---
+
+# KRAI Technician Agent V2.1 - Deployment Guide (Legacy)
+
+> **⚠️ DEPRECATED - Legacy Supabase Architecture**  
+> This deployment guide references legacy Supabase architecture (pre-KRAI-002).  
+> **Status:** Deprecated as of November 2024  
+> **Alternative:** Use Laravel Dashboard or FastAPI endpoints  
+> **Reference:** See `README_DEPRECATION.md` for current alternatives
 
 > **Note**: n8n is not part of the core KRAI stack. This guide references archived configurations available in `archive/docker/docker-compose.yml`. For the main KRAI system, use the active compose files: `docker-compose.simple.yml`, `docker-compose.with-firecrawl.yml`, or `docker-compose.production.yml`.
 

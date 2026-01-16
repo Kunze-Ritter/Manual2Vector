@@ -17,7 +17,7 @@ def generate_doc():
     
     if not csv_files:
         print("ERROR: No CSV file found!")
-        print("Expected file like: 'Supabase Snippet Image Figure Metadata Columns.csv'")
+        print("Expected file like: 'PostgreSQL_Columns.csv'")
         return
     
     csv_files.sort(key=lambda path: path.stat().st_mtime, reverse=True)
@@ -52,7 +52,7 @@ def generate_doc():
     doc.append("")
     doc.append(f"**Zuletzt aktualisiert:** {datetime.now().strftime('%d.%m.%Y um %H:%M Uhr')}")
     doc.append("")
-    doc.append("**Quelle:** Direkt aus Supabase (ECHTE Struktur)")
+    doc.append("**Quelle:** Direkt aus PostgreSQL (ECHTE Struktur)")
     doc.append("")
     doc.append("## ⚠️ WICHTIGE INFORMATIONEN")
     doc.append("")

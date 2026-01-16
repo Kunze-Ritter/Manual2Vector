@@ -6,41 +6,45 @@ from typing import Any, Dict, List
 import logging
 
 from fastapi import APIRouter, HTTPException, Depends
+import asyncpg
 
-from services.database_adapter import DatabaseAdapter
+from api.app import get_database_pool
 from api.middleware.auth_middleware import require_permission
 
 logger = logging.getLogger(__name__)
 
 
-def create_dashboard_router(database_adapter: DatabaseAdapter) -> APIRouter:
-    """Create dashboard router with aggregated stats endpoints."""
+router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
-    router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
-    async def _fetch_count(query: str) -> int:
-        row = await database_adapter.fetch_one(query)
-        if not row:
-            return 0
-        return int(row["count"] or 0)
+async def _fetch_count(pool: asyncpg.Pool, query: str) -> int:
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query)
+    if not row:
+        return 0
+    return int(row["count"] or 0)
 
-    async def _fetch_group_counts(query: str, key_field: str) -> Dict[str, int]:
-        rows = await database_adapter.fetch_all(query)
-        results: Dict[str, int] = {}
-        for row in rows or []:
-            key = row.get(key_field) or "unknown"
-            results[str(key)] = int(row.get("count", 0) or 0)
-        return results
 
-    async def _fetch_recent_documents(limit: int = 5) -> List[Dict[str, Any]]:
-        rows = await database_adapter.fetch_all(
+async def _fetch_group_counts(pool: asyncpg.Pool, query: str, key_field: str) -> Dict[str, int]:
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query)
+    results: Dict[str, int] = {}
+    for row in rows or []:
+        key = row.get(key_field) or "unknown"
+        results[str(key)] = int(row.get("count", 0) or 0)
+    return results
+
+
+async def _fetch_recent_documents(pool: asyncpg.Pool, limit: int = 5) -> List[Dict[str, Any]]:
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
             """
             SELECT id, filename, processing_status, manufacturer, updated_at
             FROM krai_core.documents
             ORDER BY updated_at DESC
             LIMIT $1
             """,
-            [limit],
+            limit,
         )
         recent: List[Dict[str, Any]] = []
         for row in rows or []:
@@ -58,82 +62,95 @@ def create_dashboard_router(database_adapter: DatabaseAdapter) -> APIRouter:
             )
         return recent
 
-    @router.get("/overview")
-    async def get_dashboard_overview(
-        current_user: dict = Depends(require_permission('monitoring:read'))
-    ) -> Dict[str, Any]:
-        """Return aggregated dashboard stats for production data.
 
-        This endpoint requires 'monitoring:read' permission to access.
-        Any failure to query optional tables (or other runtime issues) is logged
-        and a safe fallback overview with zero/empty stats is returned instead of a 500 error.
-        """
+@router.get("/overview")
+async def get_dashboard_overview(
+    current_user: dict = Depends(require_permission('monitoring:read')),
+    pool: asyncpg.Pool = Depends(get_database_pool),
+) -> Dict[str, Any]:
+    """Return aggregated dashboard stats for production data.
+
+    This endpoint requires 'monitoring:read' permission to access.
+    Any failure to query optional tables (or other runtime issues) is logged
+    and a safe fallback overview with zero/empty stats is returned instead of a 500 error.
+    """
+
+    try:
+        total_documents = await _fetch_count(
+            pool,
+            "SELECT COUNT(*) AS count FROM krai_core.documents"
+        )
+        documents_by_status = await _fetch_group_counts(
+            pool,
+            "SELECT processing_status, COUNT(*) AS count "
+            "FROM krai_core.documents GROUP BY processing_status",
+            "processing_status",
+        )
+        documents_by_type = await _fetch_group_counts(
+            pool,
+            "SELECT document_type, COUNT(*) AS count "
+            "FROM krai_core.documents GROUP BY document_type",
+            "document_type",
+        )
+        processed_last_24h = await _fetch_count(
+            pool,
+            "SELECT COUNT(*) AS count FROM krai_core.documents "
+            "WHERE processing_status = 'completed' "
+            "AND updated_at >= NOW() - INTERVAL '24 hours'",
+        )
+
+        total_products = await _fetch_count(
+            pool,
+            "SELECT COUNT(*) AS count FROM krai_core.products"
+        )
+        manufacturers_total = await _fetch_count(
+            pool,
+            "SELECT COUNT(*) AS count FROM krai_core.manufacturers"
+        )
+        active_products = await _fetch_count(
+            pool,
+            "SELECT COUNT(*) AS count FROM krai_core.products "
+            "WHERE end_of_life_date IS NULL OR end_of_life_date > NOW()"
+        )
+        discontinued_products = await _fetch_count(
+            pool,
+            "SELECT COUNT(*) AS count FROM krai_core.products "
+            "WHERE end_of_life_date IS NOT NULL AND end_of_life_date <= NOW()"
+        )
+
+        queue_by_status = await _fetch_group_counts(
+            pool,
+            "SELECT status, COUNT(*) AS count FROM krai_system.processing_queue GROUP BY status",
+            "status",
+        )
+        queue_total = sum(queue_by_status.values())
 
         try:
-            total_documents = await _fetch_count(
-                "SELECT COUNT(*) AS count FROM krai_core.documents"
+            images_total = await _fetch_count(
+                pool,
+                "SELECT COUNT(*) AS count FROM krai_content.images"
             )
-            documents_by_status = await _fetch_group_counts(
-                "SELECT processing_status, COUNT(*) AS count "
-                "FROM krai_core.documents GROUP BY processing_status",
-                "processing_status",
-            )
-            documents_by_type = await _fetch_group_counts(
-                "SELECT document_type, COUNT(*) AS count "
-                "FROM krai_core.documents GROUP BY document_type",
-                "document_type",
-            )
-            processed_last_24h = await _fetch_count(
-                "SELECT COUNT(*) AS count FROM krai_core.documents "
-                "WHERE processing_status = 'completed' "
-                "AND updated_at >= NOW() - INTERVAL '24 hours'",
-            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Dashboard images_total query failed: %s", exc)
+            images_total = 0
 
-            total_products = await _fetch_count(
-                "SELECT COUNT(*) AS count FROM krai_core.products"
+        try:
+            videos_total = await _fetch_count(
+                pool,
+                "SELECT COUNT(*) AS count FROM krai_content.videos"
             )
-            manufacturers_total = await _fetch_count(
-                "SELECT COUNT(*) AS count FROM krai_core.manufacturers"
-            )
-            active_products = await _fetch_count(
-                "SELECT COUNT(*) AS count FROM krai_core.products "
-                "WHERE end_of_life_date IS NULL OR end_of_life_date > NOW()"
-            )
-            discontinued_products = await _fetch_count(
-                "SELECT COUNT(*) AS count FROM krai_core.products "
-                "WHERE end_of_life_date IS NOT NULL AND end_of_life_date <= NOW()"
-            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Dashboard videos_total query failed: %s", exc)
+            videos_total = 0
 
-            queue_by_status = await _fetch_group_counts(
-                "SELECT status, COUNT(*) AS count FROM krai_system.processing_queue GROUP BY status",
-                "status",
-            )
-            queue_total = sum(queue_by_status.values())
-
-            try:
-                images_total = await _fetch_count(
-                    "SELECT COUNT(*) AS count FROM krai_content.images"
-                )
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("Dashboard images_total query failed: %s", exc)
-                images_total = 0
-
-            try:
-                videos_total = await _fetch_count(
-                    "SELECT COUNT(*) AS count FROM krai_content.videos"
-                )
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("Dashboard videos_total query failed: %s", exc)
-                videos_total = 0
-
-            overview = {
-                "documents": {
-                    "total": total_documents,
-                    "by_status": documents_by_status,
-                    "by_type": documents_by_type,
-                    "processed_last_24h": processed_last_24h,
-                    "recent": await _fetch_recent_documents(),
-                },
+        overview = {
+            "documents": {
+                "total": total_documents,
+                "by_status": documents_by_status,
+                "by_type": documents_by_type,
+                "processed_last_24h": processed_last_24h,
+                "recent": await _fetch_recent_documents(pool),
+            },
                 "products": {
                     "total": total_products,
                     "manufacturers": manufacturers_total,
@@ -150,32 +167,30 @@ def create_dashboard_router(database_adapter: DatabaseAdapter) -> APIRouter:
                 },
             }
 
-            return {"success": True, "data": overview}
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.error("Failed to load dashboard data, returning safe fallback: %s", exc)
-            fallback_overview = {
-                "documents": {
-                    "total": 0,
-                    "by_status": {},
-                    "by_type": {},
-                    "processed_last_24h": 0,
-                    "recent": [],
-                },
-                "products": {
-                    "total": 0,
-                    "manufacturers": 0,
-                    "active": 0,
-                    "discontinued": 0,
-                },
-                "queue": {
-                    "total": 0,
-                    "by_status": {},
-                },
-                "media": {
-                    "images": 0,
-                    "videos": 0,
-                },
-            }
-            return {"success": True, "data": fallback_overview}
-
-    return router
+        return {"success": True, "data": overview}
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Failed to load dashboard data, returning safe fallback: %s", exc)
+        fallback_overview = {
+            "documents": {
+                "total": 0,
+                "by_status": {},
+                "by_type": {},
+                "processed_last_24h": 0,
+                "recent": [],
+            },
+            "products": {
+                "total": 0,
+                "manufacturers": 0,
+                "active": 0,
+                "discontinued": 0,
+            },
+            "queue": {
+                "total": 0,
+                "by_status": {},
+            },
+            "media": {
+                "images": 0,
+                "videos": 0,
+            },
+        }
+        return {"success": True, "data": fallback_overview}

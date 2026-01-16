@@ -80,8 +80,8 @@ ADD COLUMN oem_notes TEXT;
 Wichtige Funktionen:
 
 ```python
-# Sync OEM mappings to database
-sync_oem_relationships_to_db(supabase)
+# Sync OEM mappings to database (PostgreSQL)
+sync_oem_relationships_to_db(db_pool)
 
 # Get equivalent manufacturers for search
 get_oem_equivalent_manufacturers("Konica Minolta", "5000i")
@@ -102,18 +102,19 @@ expand_search_query_with_oem("Konica Minolta", "5000i", "error C4080")
 
 ```bash
 # Migration 72: Create oem_relationships table
-psql -f database/migrations/72_create_oem_relationships.sql
+psql -h localhost -p 5432 -U postgres -d krai -f database/migrations/72_create_oem_relationships.sql
 
 # Migration 73: Add OEM columns to products
-psql -f database/migrations/73_add_oem_to_products.sql
+psql -h localhost -p 5432 -U postgres -d krai -f database/migrations/73_add_oem_to_products.sql
 ```
 
-**Oder in Supabase Dashboard:**
-1. SQL Editor öffnen
-2. Inhalt von `72_create_oem_relationships.sql` einfügen
-3. Execute
-4. Inhalt von `73_add_oem_to_products.sql` einfügen
-5. Execute
+**Or via pgAdmin/DBeaver:**
+1. Connect to PostgreSQL (host: localhost, port: 5432, database: krai)
+2. Open SQL Editor
+3. Copy content from `72_create_oem_relationships.sql`
+4. Execute
+5. Copy content from `73_add_oem_to_products.sql`
+6. Execute
 
 ### 2. OEM Mappings in DB synchronisieren
 

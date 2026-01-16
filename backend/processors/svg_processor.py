@@ -459,7 +459,7 @@ class SVGProcessor(BaseProcessor):
                     }
                 }
                 
-                # Insert into processing queue using proper method
+                # Insert into processing queue using adapter method
                 stage_payload = {
                     "document_id": str(document_id),
                     "stage": "storage",
@@ -467,10 +467,16 @@ class SVGProcessor(BaseProcessor):
                     "status": "pending",
                     "payload": payload
                 }
-                self.database_service.client.table("vw_processing_queue").insert([stage_payload]).execute()
-                queued_count += 1
                 
-                self.logger.debug(f"Queued SVG image: {svg_data['filename']}")
+                # Use adapter method if available, otherwise skip queuing
+                if hasattr(self.database_service, 'create_svg_queue_entry'):
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    loop.run_until_complete(self.database_service.create_svg_queue_entry(stage_payload))
+                    queued_count += 1
+                    self.logger.debug(f"Queued SVG image: {svg_data['filename']}")
+                else:
+                    self.logger.warning("Database service does not support SVG queuing")
                 
             except Exception as e:
                 self.logger.error(f"Failed to queue SVG image {svg_data['filename']}: {e}")

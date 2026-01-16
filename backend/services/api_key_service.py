@@ -9,7 +9,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from config.security_config import get_security_config
-from services.database_adapter import DatabaseAdapter
+import asyncpg
+import json
 
 logger = logging.getLogger("krai.api_keys")
 
@@ -17,8 +18,8 @@ logger = logging.getLogger("krai.api_keys")
 class APIKeyService:
     """Service for API key CRUD, validation, and rotation."""
 
-    def __init__(self, adapter: DatabaseAdapter):
-        self.adapter = adapter
+    def __init__(self, pool: asyncpg.Pool):
+        self.pool = pool
         self.config = get_security_config()
 
     @staticmethod
@@ -59,14 +60,14 @@ class APIKeyService:
                 revoked,
                 revoked_at
             )
-            VALUES (%s, %s, %s, %s::jsonb, %s, NOW(), NOW(), %s, FALSE, NULL)
+            VALUES ($1, $2, $3, $4::jsonb, $5, NOW(), NOW(), $6, FALSE, NULL)
             RETURNING id, name, permissions, version, created_at, updated_at, expires_at, last_used_at, revoked
         """
-        result = await self.adapter.execute_query(
-            query,
-            [user_id, name, key_hash, permissions, 1, expires_at],
-        )
-        record = result[0]
+        async with self.pool.acquire() as conn:
+            record = await conn.fetchrow(
+                query,
+                user_id, name, key_hash, json.dumps(permissions), 1, expires_at,
+            )
         logger.info("Created API key %s for user %s", record["id"], user_id)
         return {
             "id": record["id"],
@@ -85,20 +86,22 @@ class APIKeyService:
         query = """
             SELECT id, name, permissions, version, created_at, updated_at, expires_at, last_used_at, revoked
             FROM krai_system.api_keys
-            WHERE user_id = %s
+            WHERE user_id = $1
             ORDER BY created_at DESC
         """
-        rows = await self.adapter.execute_query(query, [user_id])
-        return rows
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query, user_id)
+        return [dict(row) for row in rows]
 
     async def revoke_api_key(self, key_id: str, user_id: Optional[str] = None) -> None:
         query = """
             UPDATE krai_system.api_keys
             SET revoked = TRUE, revoked_at = NOW()
-            WHERE id = %s
-            AND (%s IS NULL OR user_id = %s)
+            WHERE id = $1
+            AND ($2 IS NULL OR user_id = $2)
         """
-        await self.adapter.execute_query(query, [key_id, user_id, user_id])
+        async with self.pool.acquire() as conn:
+            await conn.execute(query, key_id, user_id)
         logger.info("Revoked API key %s", key_id)
 
     async def validate_api_key(self, raw_key: str) -> Optional[Dict[str, str]]:
@@ -106,22 +109,24 @@ class APIKeyService:
         query = """
             SELECT id, user_id, permissions, expires_at, revoked
             FROM krai_system.api_keys
-            WHERE key_hash = %s
+            WHERE key_hash = $1
         """
-        rows = await self.adapter.execute_query(query, [key_hash])
-        if not rows:
+        async with self.pool.acquire() as conn:
+            record = await conn.fetchrow(query, key_hash)
+        if not record:
             return None
-        record = rows[0]
+        record = dict(record)
         if record["revoked"]:
             logger.warning("Attempt to use revoked API key %s", record["id"])
             return None
         if record["expires_at"] < datetime.now(timezone.utc):
             logger.warning("Attempt to use expired API key %s", record["id"])
             return None
-        await self.adapter.execute_query(
-            "UPDATE krai_system.api_keys SET last_used_at = NOW() WHERE id = %s",
-            [record["id"]],
-        )
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE krai_system.api_keys SET last_used_at = NOW() WHERE id = $1",
+                record["id"],
+            )
         return record
 
     async def rotate_api_key(self, key_id: str, user_id: str) -> Dict[str, str]:
@@ -131,18 +136,18 @@ class APIKeyService:
         query = """
             UPDATE krai_system.api_keys
             SET
-                key_hash = %s,
+                key_hash = $1,
                 version = version + 1,
                 created_at = NOW(),
                 updated_at = NOW(),
-                expires_at = %s,
+                expires_at = $2,
                 revoked = FALSE,
                 revoked_at = NULL
-            WHERE id = %s AND user_id = %s
+            WHERE id = $3 AND user_id = $4
             RETURNING id, name, permissions, version, created_at, updated_at, expires_at, last_used_at, revoked
         """
-        result = await self.adapter.execute_query(query, [key_hash, expires_at, key_id, user_id])
-        record = result[0]
+        async with self.pool.acquire() as conn:
+            record = await conn.fetchrow(query, key_hash, expires_at, key_id, user_id)
         logger.info("Rotated API key %s for user %s", key_id, user_id)
         return {
             "id": record["id"],
@@ -158,8 +163,9 @@ class APIKeyService:
         }
 
     async def cleanup_expired_keys(self) -> None:
-        await self.adapter.execute_query(
-            "DELETE FROM krai_system.api_keys WHERE expires_at < NOW() - INTERVAL '%s days'",
-            [self.config.API_KEY_GRACE_PERIOD_DAYS],
-        )
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM krai_system.api_keys WHERE expires_at < NOW() - INTERVAL '$1 days'",
+                self.config.API_KEY_GRACE_PERIOD_DAYS,
+            )
         logger.info("Cleaned up expired API keys")

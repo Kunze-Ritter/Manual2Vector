@@ -13,11 +13,11 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path))
 
-from services.database_service_production import DatabaseService
+from services.database_adapter import create_database_adapter
 
 class PipelineMonitor:
     def __init__(self):
-        self.database_service = None
+        self.database_adapter = None
         
     async def initialize(self):
         """Initialize services"""
@@ -27,12 +27,8 @@ class PipelineMonitor:
         from dotenv import load_dotenv
         load_dotenv()
         
-        # Initialize database service
-        self.database_service = DatabaseService(
-            supabase_url=os.getenv('SUPABASE_URL'),
-            supabase_key=os.getenv('SUPABASE_ANON_KEY')
-        )
-        await self.database_service.connect()
+        # Initialize database adapter
+        self.database_adapter = create_database_adapter()
         
         print("✅ Monitor initialized")
     
@@ -40,7 +36,7 @@ class PipelineMonitor:
         """Get comprehensive pipeline statistics"""
         
         # Get document counts by stage
-        doc_stats = await self.database_service.execute_query("""
+        doc_stats = await self.database_adapter.execute_query("""
             SELECT 
                 COUNT(*) as total_docs,
                 COUNT(CASE WHEN manufacturer IS NOT NULL THEN 1 END) as classified_docs,
@@ -51,7 +47,7 @@ class PipelineMonitor:
         """)
         
         # Get chunk and image counts
-        chunk_stats = await self.database_service.execute_query("""
+        chunk_stats = await self.database_adapter.execute_query("""
             SELECT 
                 COUNT(*) as total_chunks,
                 COUNT(DISTINCT document_id) as docs_with_chunks,
@@ -59,7 +55,7 @@ class PipelineMonitor:
             FROM krai_content.chunks
         """)
         
-        image_stats = await self.database_service.execute_query("""
+        image_stats = await self.database_adapter.execute_query("""
             SELECT 
                 COUNT(*) as total_images,
                 COUNT(DISTINCT document_id) as docs_with_images,
@@ -68,7 +64,7 @@ class PipelineMonitor:
         """)
         
         # Get embedding counts
-        embedding_stats = await self.database_service.execute_query("""
+        embedding_stats = await self.database_adapter.execute_query("""
             SELECT 
                 COUNT(*) as total_embeddings,
                 COUNT(DISTINCT chunk_id) as chunks_with_embeddings

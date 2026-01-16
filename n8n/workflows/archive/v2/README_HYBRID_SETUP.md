@@ -1,5 +1,25 @@
 # KRAI Technician Agent V2.1 - Hybrid Setup Guide
 
+---
+
+## ⚠️ **DEPRECATION NOTICE - SUPABASE REFERENCES**
+
+**This document contains historical Supabase references that are NO LONGER VALID.**
+
+**Current Architecture (as of November 2024):**
+- ✅ **PostgreSQL-only** (direct asyncpg connection pools)
+- ❌ **Supabase** (deprecated and removed)
+- ❌ **PostgREST** (deprecated and removed)
+
+**For current setup instructions, see:**
+- `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` - Migration guide
+- `DOCKER_SETUP.md` - Current PostgreSQL setup
+- `DATABASE_SCHEMA.md` - Current schema reference
+
+**This document is preserved for historical reference only.**
+
+---
+
 ## 🎯 **Architecture Overview**
 
 ```
@@ -26,15 +46,15 @@ ollama pull llama3.1:8b          # Main agent model (with tool support!)
 ### **2. Database Setup**
 
 Your backend has already created:
-- ✅ `krai.chunks` table with embeddings
-- ✅ `krai.error_codes` table
-- ✅ `krai.parts` table
-- ✅ `krai.videos` table
+- ✅ `krai_intelligence.chunks` table with embeddings
+- ✅ `krai_intelligence.error_codes` table
+- ✅ `krai_parts.parts_catalog` table
+- ✅ `krai_content.videos` table
 
 You just need to add the vector search function:
-```sql
--- Run migration 78
-\i database/migrations/78_vector_search_function.sql
+```bash
+# Connect to PostgreSQL
+psql -h localhost -p 5432 -U postgres -d krai -f database/migrations/78_vector_search_function.sql
 ```
 
 ### **3. Backend API**
@@ -47,10 +67,13 @@ Ensure your backend is running with these endpoints:
 
 ### **Step 1: Database Migration**
 
-```sql
--- Supabase SQL Editor
--- Create vector search function
-\i database/migrations/78_vector_search_function.sql
+```bash
+# PostgreSQL (Current)
+# Create vector search function
+psql -h localhost -p 5432 -U postgres -d krai -f database/migrations/78_vector_search_function.sql
+
+# Or via Docker
+docker exec -it krai-postgres psql -U postgres -d krai -f /migrations/78_vector_search_function.sql
 ```
 
 ### **Step 2: Import Workflows**
@@ -65,18 +88,22 @@ Ensure your backend is running with these endpoints:
 
 ### **Step 3: Configure Credentials**
 
-#### **Supabase**
-- n8n → Credentials → Add Supabase
-- URL: Your Supabase URL
-- API Key: `service_role` key
+#### **PostgreSQL**
+- n8n → Credentials → Add PostgreSQL
+- Host: `localhost` (or `krai-postgres` for Docker)
+- Port: `5432`
+- Database: `krai`
+- User: `postgres`
+- Password: Your password
+- SSL: Disabled (for local development)
 
 #### **Ollama**
 - n8n → Credentials → Add Ollama
 - Base URL: `http://ollama:11434` (if using Docker)
 
-#### **Postgres (for memory)**
-- Already configured in previous setup
-- Uses `n8n_chat_histories` view
+#### **Memory**
+- Uses PostgreSQL `krai_agent.memory` table
+- View: `public.n8n_chat_histories`
 
 ### **Step 4: Verify Data**
 
@@ -87,7 +114,7 @@ Check if your backend has processed PDFs:
 SELECT 
   COUNT(*) as total_chunks,
   COUNT(embedding) as chunks_with_embeddings
-FROM krai.chunks;
+FROM krai_intelligence.chunks;
 
 -- Should show: total_chunks > 0 AND chunks_with_embeddings > 0
 ```
@@ -170,20 +197,20 @@ Welche Fuser Unit passt zum CX963?
 
 1. **Check if chunks have embeddings:**
    ```sql
-   SELECT COUNT(*) FROM krai.chunks WHERE embedding IS NOT NULL;
+   SELECT COUNT(*) FROM krai_intelligence.chunks WHERE embedding IS NOT NULL;
    ```
 
 2. **Test the match_chunks function:**
    ```sql
-   SELECT * FROM krai.match_chunks(
-     (SELECT embedding FROM krai.chunks WHERE embedding IS NOT NULL LIMIT 1),
+   SELECT * FROM match_chunks(
+     (SELECT embedding FROM krai_intelligence.chunks WHERE embedding IS NOT NULL LIMIT 1),
      0.5,
      5
    );
    ```
 
-3. **Check Supabase Vector Store node config:**
-   - Table Name: `krai.chunks`
+3. **Check PostgreSQL Vector Store node config:**
+   - Table Name: `krai_intelligence.chunks`
    - Query Name: `match_chunks`
 
 ### **Memory Issues?**

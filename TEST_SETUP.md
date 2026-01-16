@@ -147,12 +147,22 @@ pip install tavily-python
 ### 4. Environment konfigurieren
 Erstelle `.env.test` oder verwende `.env`:
 ```bash
+# PostgreSQL Test Database
+DATABASE_TYPE=postgresql
 DATABASE_URL=postgresql://user:password@localhost:5432/krai_test
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=krai_test
+
+# AI Services
 OLLAMA_URL=http://krai-ollama:11434
+
+# Web Scraping (Optional)
 FIRECRAWL_API_URL=http://krai-firecrawl-api:3002
 FIRECRAWL_API_KEY=your-api-key
+
+# Note: Supabase support removed (November 2024, KRAI-002)
+# Use PostgreSQL-only configuration above
 ```
 
 ### 5. Tests ausführen

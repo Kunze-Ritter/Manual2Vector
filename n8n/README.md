@@ -1,4 +1,32 @@
-# N8N Integration
+# ⚠️ n8n Integration - DEPRECATED
+
+**Status**: Alle Workflows archiviert (Stand: Januar 2025)
+
+## Schnellübersicht
+
+- ❌ **n8n Workflows**: Archiviert in `workflows/archive/`
+- ✅ **Laravel Dashboard**: Empfohlene Alternative
+- ✅ **FastAPI Endpoints**: Für programmatischen Zugriff
+- ✅ **CLI Tools**: Für Batch-Processing
+
+Siehe `workflows/README.md` für Details und Alternativen.
+
+---
+
+## Historische Dokumentation (Deprecated)
+
+Die folgende Dokumentation beschreibt die **veraltete** Supabase-basierte n8n Integration.
+Für aktuelle Integration siehe oben genannte Alternativen.
+
+---
+
+# N8N Integration (Legacy)
+
+> **⚠️ DEPRECATED - Legacy Supabase Architecture**  
+> **Migration Status:** All n8n workflows are deprecated as of November 2024 (KRAI-002).  
+> **Reason:** These workflows rely on legacy Supabase architecture which has been replaced with PostgreSQL-only.  
+> **Alternative:** Use Laravel Dashboard or FastAPI directly for automation.  
+> **Reference:** See `README_DEPRECATION.md` for migration details.
 
 This folder contains all n8n automation workflows and credentials for KRAI.
 
@@ -21,22 +49,30 @@ See `docs/n8n/` for detailed setup guides:
 - **N8N_LANGCHAIN_AI_AGENT_SETUP.md** - LangChain integration
 - **N8N_POSTGRES_MEMORY_INTEGRATION.md** - Database memory integration
 
-## 🔐 Database Access
+## 🔐 Database Access (Legacy)
 
-n8n accesses the database via Supabase service_role or anon key:
+> **Note:** This section describes legacy Supabase access. Current PostgreSQL-only architecture uses direct database connections.
+
+Legacy n8n workflows accessed the database via Supabase:
 
 ```
 View: public.vw_agent_memory
 Table: krai_agent.memory
-Connection: Use Supabase URL + service_role_key
+Connection: Supabase URL + service_role_key (DEPRECATED)
 ```
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Legacy - Not Recommended)
+
+> **⚠️ DEPRECATED:** These workflows require Supabase credentials which are no longer supported.  
+> **Recommended Alternative:** Use Laravel Dashboard (`laravel-admin/`) or FastAPI endpoints (`backend/api/`) for automation.  
+> **Migration Guide:** See `README_DEPRECATION.md` for PostgreSQL-only alternatives.
+
+### Legacy Workflow Usage (For Reference Only)
 
 1. **Install n8n**: `npm install -g n8n`
 2. **Start n8n**: `n8n start`
 3. **Import workflows**: Import JSON files from `workflows/`
-4. **Configure credentials**: Use Supabase URL + service_role_key
+4. **⚠️ Note:** Workflows require legacy Supabase credentials (no longer configured by default)
 
 ## 🔗 Related
 

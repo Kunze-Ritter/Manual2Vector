@@ -1,5 +1,25 @@
 # KRAI Technician Agent V2.1 - Architecture Guide
 
+---
+
+## ⚠️ **DEPRECATION NOTICE - SUPABASE REFERENCES**
+
+**This document contains historical Supabase references that are NO LONGER VALID.**
+
+**Current Architecture (as of November 2024):**
+- ✅ **PostgreSQL-only** (direct asyncpg connection pools)
+- ❌ **Supabase** (deprecated and removed)
+- ❌ **PostgREST** (deprecated and removed)
+
+**For current setup instructions, see:**
+- `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` - Migration guide
+- `DOCKER_SETUP.md` - Current PostgreSQL setup
+- `DATABASE_SCHEMA.md` - Current schema reference
+
+**This document is preserved for historical reference only.**
+
+---
+
 ## 🎯 **Correct Multi-Agent Architecture**
 
 ### **Key Discovery: Agent Tools ARE Sub-Agents!**
@@ -35,7 +55,7 @@ Main Coordinator Agent
         ├─ Manual LLM (llama3.2:latest)
         ├─ Specialized Prompt
         └─ Answer questions with vector store (Tool)
-            ├─ Search Manuals Vector Store (Supabase)
+            ├─ Search Manuals Vector Store (PostgreSQL)
             ├─ Embeddings (embeddinggemma:latest)
             └─ Ollama Chat Model (for vector store queries)
 ```
@@ -243,7 +263,7 @@ Rules:
 **LLM:** llama3.2:latest (temp: 0.1)
 
 **Tool:** Answer questions with vector store
-- Vector Store: Supabase (`krai.chunks`)
+- Vector Store: PostgreSQL (`krai_intelligence.chunks`)
 - Embeddings: embeddinggemma:latest
 - Query LLM: Ollama Chat Model
 
@@ -442,8 +462,8 @@ Expected:
 - **manual_specialist:** llama3.2:latest, temp 0.1
 
 ### **Vector Store Settings**
-- **Table:** krai.chunks
-- **Function:** match_chunks
+- **Table:** krai_intelligence.chunks
+- **Function:** match_chunks (PostgreSQL function)
 - **Embeddings:** embeddinggemma:latest
 - **Top K:** 5 (default)
 
@@ -531,8 +551,8 @@ psql -f database/migrations/78_vector_search_function.sql
 2. Select: Technician-Agent V2.1.json
 3. Configure credentials:
    - Ollama API
-   - Postgres (for memory)
-   - Supabase (for vector store)
+   - PostgreSQL (for memory and vector store)
+     Host: localhost, Port: 5432, Database: krai
 4. Activate workflow
 5. Test with: "Lexmark CX963 Fehlercode 88.10"
 ```

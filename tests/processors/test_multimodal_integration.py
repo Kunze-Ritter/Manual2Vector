@@ -20,40 +20,6 @@ from backend.core.base_processor import ProcessingContext
 pytestmark = [pytest.mark.processor, pytest.mark.multimodal]
 
 
-class DummyDatabaseService:
-    """Shim exposing `.client.table("vw_processing_queue")` for SVG/Image processors.
-
-    Note: This test composes processors on a minimal ProcessingContext and does
-    not go through the full Upload/Text pipeline.
-    """
-
-    def __init__(self, adapter) -> None:
-        self.adapter = adapter
-        self.queued = []
-
-        class _Client:
-            def __init__(self, outer) -> None:
-                self._outer = outer
-
-            def table(self, name):  # pragma: no cover - thin shim
-                outer = self._outer
-
-                class _Table:
-                    def insert(self, rows):
-                        if isinstance(rows, list):
-                            outer.queued.extend(rows)
-                        else:
-                            outer.queued.append(rows)
-                        return self
-
-                    def execute(self):
-                        return None
-
-                return _Table()
-
-        self.client = _Client(self)
-
-
 class TestMultiModalContentExtraction:
     """Smoke tests for running several processors sequentially on a multimodal PDF.
 
@@ -90,20 +56,18 @@ class TestMultiModalContentExtraction:
         table_result = await table_processor.process(base_ctx)
         assert table_result.success or table_result.data.get("tables_extracted", 0) == 0
 
-        # SVG processor (uses DummyDatabaseService shim around adapter)
-        svg_db = DummyDatabaseService(mock_database_adapter)
+        # SVG processor (uses adapter directly)
         svg_processor = SVGProcessor(
-            database_service=svg_db,
+            database_service=mock_database_adapter,
             storage_service=mock_storage_service,
             ai_service=None,
         )
         svg_result = await svg_processor.process(base_ctx)
         assert svg_result.success
 
-        # Image processor
-        image_db = DummyDatabaseService(mock_database_adapter)
+        # Image processor (uses adapter directly)
         image_processor = ImageProcessor(
-            supabase_client=image_db,
+            database_service=mock_database_adapter,
             storage_service=mock_storage_service,
             ai_service=mock_ai_service,
             enable_ocr=False,

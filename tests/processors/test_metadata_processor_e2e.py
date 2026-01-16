@@ -716,12 +716,12 @@ class TestMetadataProcessorPerformance:
         assert memory_increase < 100  # Should not increase by more than 100MB
 
 
-class FakeSupabaseResult:
+class FakeDatabaseResult:
     def __init__(self, data=None):
         self.data = data or []
 
 
-class FakeSupabaseTable:
+class FakeDatabaseTable:
     def __init__(self, name, client):
         self.name = name
         self.client = client
@@ -749,22 +749,22 @@ class FakeSupabaseTable:
             if getattr(self.client, "fail_error_code_inserts", False):
                 raise Exception("Simulated error_codes insert failure")
             self.client.error_code_rows.append(self._pending_row)
-            return FakeSupabaseResult([self._pending_row])
+            return FakeDatabaseResult([self._pending_row])
 
         if self.name == "documents" and self._last_operation == "update":
             if getattr(self.client, "fail_document_updates", False):
-                raise Exception("Simulated documents update failure")
+                raise Exception("Simulated document update failure")
             update_record = {
-                "where": self._last_filter,
+                "document_id": self._last_filter,
                 "values": self._pending_update,
             }
             self.client.document_updates.append(update_record)
-            return FakeSupabaseResult([self._pending_update])
+            return FakeDatabaseResult([self._pending_update])
 
-        return FakeSupabaseResult([])
+        return FakeDatabaseResult([])
 
 
-class FakeSupabaseClient:
+class FakeDatabaseClient:
     def __init__(self):
         self.error_code_rows = []
         self.document_updates = []
@@ -772,12 +772,12 @@ class FakeSupabaseClient:
         self.fail_document_updates = False
 
     def table(self, name):
-        return FakeSupabaseTable(name, self)
+        return FakeDatabaseTable(name, self)
 
 
 class FakeDatabaseService:
     def __init__(self):
-        self.client = FakeSupabaseClient()
+        self.client = FakeDatabaseClient()
 
 
 @pytest.mark.metadata
@@ -794,7 +794,7 @@ class TestMetadataProcessorAIDatabasePersistenceV2:
         mock_error_code_extractor,
         mock_version_extractor,
     ):
-        """MetadataProcessorAI wired to fake Supabase-style database_service and mocks."""
+        """MetadataProcessorAI wired to fake database-style database_service and mocks."""
         processor = MetadataProcessorAI(database_service=database_service)
         processor.error_code_extractor = mock_error_code_extractor
         processor.version_extractor = mock_version_extractor
@@ -854,7 +854,7 @@ class TestMetadataProcessorAIDatabasePersistenceV2:
         assert result.data.get("error_codes_extracted", 0) >= 1
         assert result.data.get("version_info") == "Edition 3, 5/2024"
 
-        # Verify error_codes persisted via Supabase-style client.table('error_codes').insert()
+        # Verify error_codes persisted via database-style client.table('error_codes').insert()
         error_rows = database_service.client.error_code_rows
         assert len(error_rows) >= 1
         row = error_rows[0]

@@ -2,32 +2,44 @@
 OEM Relationships Sync Utility
 ===============================
 
-Syncs OEM mappings from oem_mappings.py to the database.
+Syncs OEM mappings from oem_mappings.py to the PostgreSQL database.
 Also updates products table with OEM information.
 
 Usage:
     from utils.oem_sync import sync_oem_relationships_to_db
     
-    sync_oem_relationships_to_db(supabase)
+    await sync_oem_relationships_to_db()
 """
 
 import re
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 import logging
+import json
 
 from config.oem_mappings import OEM_MAPPINGS, get_oem_manufacturer, get_oem_info
+from services.database_factory import create_database_adapter
+from services.database_adapter import DatabaseAdapter
 
 logger = logging.getLogger(__name__)
 
+# Module-level adapter instance (lazy initialization)
+_adapter: Optional[DatabaseAdapter] = None
 
-def sync_oem_relationships_to_db(supabase) -> Dict[str, int]:
+
+async def _get_adapter() -> DatabaseAdapter:
+    """Get or create the module-level database adapter."""
+    global _adapter
+    if _adapter is None:
+        _adapter = create_database_adapter()
+        await _adapter.connect()
+    return _adapter
+
+
+async def sync_oem_relationships_to_db(adapter: Optional[DatabaseAdapter] = None) -> Dict[str, int]:
     """
     Sync OEM mappings from oem_mappings.py to database
     
-    Args:
-        supabase: Supabase client instance
-        
     Returns:
         Dictionary with sync statistics
     """
@@ -41,41 +53,39 @@ def sync_oem_relationships_to_db(supabase) -> Dict[str, int]:
     
     logger.info(f"Syncing {stats['total_mappings']} OEM mappings to database...")
     
+    # Get or use provided adapter
+    if adapter is None:
+        adapter = await _get_adapter()
+    
     for (brand, pattern), mapping in OEM_MAPPINGS.items():
         try:
             # Check if mapping already exists
-            existing = supabase.table('oem_relationships') \
-                .select('id') \
-                .eq('brand_manufacturer', brand) \
-                .eq('brand_series_pattern', pattern) \
-                .eq('oem_manufacturer', mapping['oem_manufacturer']) \
-                .execute()
+            existing = await adapter.fetch_one(
+                "SELECT id FROM krai_core.oem_relationships WHERE brand_manufacturer = $1 AND brand_series_pattern = $2 AND oem_manufacturer = $3",
+                [brand, pattern, mapping['oem_manufacturer']]
+            )
             
-            data = {
-                'brand_manufacturer': brand,
-                'brand_series_pattern': pattern,
-                'oem_manufacturer': mapping['oem_manufacturer'],
-                'relationship_type': 'engine',  # Default type
-                'applies_to': mapping.get('applies_to', ['error_codes', 'parts']),
-                'notes': mapping.get('notes', ''),
-                'confidence': 1.0,  # High confidence for manually curated mappings
-                'source': 'oem_mappings.py',
-                'verified': True
-            }
+            applies_to = json.dumps(mapping.get('applies_to', ['error_codes', 'parts']))
+            notes = mapping.get('notes', '')
             
-            if existing.data:
+            if existing:
                 # Update existing
-                supabase.table('oem_relationships') \
-                    .update(data) \
-                    .eq('id', existing.data[0]['id']) \
-                    .execute()
+                await adapter.execute_query(
+                    """UPDATE krai_core.oem_relationships 
+                       SET relationship_type = $1, applies_to = $2::jsonb, notes = $3, confidence = $4, source = $5, verified = $6
+                       WHERE id = $7""",
+                    ['engine', applies_to, notes, 1.0, 'oem_mappings.py', True, existing['id']]
+                )
                 stats['updated'] += 1
                 logger.debug(f"Updated: {brand} {pattern} → {mapping['oem_manufacturer']}")
             else:
                 # Insert new
-                supabase.table('oem_relationships') \
-                    .insert(data) \
-                    .execute()
+                await adapter.execute_query(
+                    """INSERT INTO krai_core.oem_relationships 
+                       (brand_manufacturer, brand_series_pattern, oem_manufacturer, relationship_type, applies_to, notes, confidence, source, verified)
+                       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9)""",
+                    [brand, pattern, mapping['oem_manufacturer'], 'engine', applies_to, notes, 1.0, 'oem_mappings.py', True]
+                )
                 stats['inserted'] += 1
                 logger.debug(f"Inserted: {brand} {pattern} → {mapping['oem_manufacturer']}")
         
@@ -87,12 +97,11 @@ def sync_oem_relationships_to_db(supabase) -> Dict[str, int]:
     return stats
 
 
-def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model_or_series: str) -> bool:
+async def update_product_oem_info(product_id: UUID, manufacturer: str, model_or_series: str, adapter: Optional[DatabaseAdapter] = None) -> bool:
     """
     Update a product with OEM information
     
     Args:
-        supabase: Supabase client instance
         product_id: UUID of product to update
         manufacturer: Brand manufacturer name
         model_or_series: Model or series name
@@ -108,12 +117,15 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
             # No OEM relationship
             return False
         
+        # Get or use provided adapter
+        if adapter is None:
+            adapter = await _get_adapter()
+        
         # Update product with OEM info
-        supabase.schema('krai_core').table('products').update({
-            'oem_manufacturer': oem_info['oem_manufacturer'],
-            'oem_relationship_type': 'engine',
-            'oem_notes': oem_info['notes']
-        }).eq('id', str(product_id)).execute()
+        await adapter.execute_query(
+            "UPDATE krai_core.products SET oem_manufacturer = $1, oem_relationship_type = $2, oem_notes = $3 WHERE id = $4",
+            [oem_info['oem_manufacturer'], 'engine', oem_info['notes'], str(product_id)]
+        )
         
         logger.info(f"✅ Updated product {product_id} with OEM: {oem_info['oem_manufacturer']}")
         return True
@@ -123,12 +135,11 @@ def update_product_oem_info(supabase, product_id: UUID, manufacturer: str, model
         return False
 
 
-def batch_update_products_oem_info(supabase, limit: int = 1000) -> Dict[str, int]:
+async def batch_update_products_oem_info(limit: int = 1000, adapter: Optional[DatabaseAdapter] = None) -> Dict[str, int]:
     """
     Batch update all products with OEM information
     
     Args:
-        supabase: Supabase client instance
         limit: Maximum number of products to process
         
     Returns:
@@ -144,45 +155,49 @@ def batch_update_products_oem_info(supabase, limit: int = 1000) -> Dict[str, int
     logger.info("Batch updating products with OEM information...")
     
     try:
-        # Get all products
-        result = supabase.table('vw_products') \
-            .select('id,manufacturer_id,model_name,series_name') \
-            .limit(limit) \
-            .execute()
+        # Get or use provided adapter
+        if adapter is None:
+            adapter = await _get_adapter()
         
-        if not result.data:
+        # Get all products
+        products = await adapter.fetch_all(
+            "SELECT p.id, p.manufacturer_id, p.model_number, s.series_name FROM krai_core.products p LEFT JOIN krai_core.product_series s ON p.series_id = s.id LIMIT $1",
+            [limit]
+        )
+        
+        if not products:
             logger.info("No products found")
             return stats
         
-        stats['total_products'] = len(result.data)
+        stats['total_products'] = len(products)
         
         # Get manufacturer names
-        manufacturer_ids = list(set(p['manufacturer_id'] for p in result.data if p.get('manufacturer_id')))
+        manufacturer_ids = list(set(p['manufacturer_id'] for p in products if p.get('manufacturer_id')))
         manufacturers = {}
         
         for mfr_id in manufacturer_ids:
-            mfr_result = supabase.table('vw_manufacturers') \
-                .select('id,name') \
-                .eq('id', mfr_id) \
-                .execute()
-            if mfr_result.data:
-                manufacturers[mfr_id] = mfr_result.data[0]['name']
+            mfr = await adapter.fetch_one(
+                "SELECT id, name FROM krai_core.manufacturers WHERE id = $1",
+                [mfr_id]
+            )
+            if mfr:
+                manufacturers[mfr_id] = mfr['name']
         
         # Update each product
-        for product in result.data:
+        for product in products:
             try:
                 manufacturer_name = manufacturers.get(product.get('manufacturer_id'))
                 if not manufacturer_name:
                     stats['no_oem'] += 1
                     continue
                 
-                model_or_series = product.get('series_name') or product.get('model_name')
+                model_or_series = product.get('series_name') or product.get('model_number')
                 if not model_or_series:
                     stats['no_oem'] += 1
                     continue
                 
                 # Update OEM info
-                if update_product_oem_info(supabase, product['id'], manufacturer_name, model_or_series):
+                if await update_product_oem_info(product['id'], manufacturer_name, model_or_series, adapter):
                     stats['updated'] += 1
                 else:
                     stats['no_oem'] += 1

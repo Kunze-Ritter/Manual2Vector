@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     libcairo2-dev \
     libfreetype6-dev \
     libfontconfig1-dev \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
@@ -34,7 +35,6 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY backend/ /app/
 COPY backend/ /app/backend/
 COPY scripts/ /app/scripts/
-COPY main.py /app/main.py
 
 # Create necessary directories
 # Runtime environment variables:
@@ -51,4 +51,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command (can be overridden)
-CMD ["python", "main.py"]
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]

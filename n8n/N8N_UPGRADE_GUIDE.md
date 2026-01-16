@@ -1,4 +1,23 @@
-# 🚀 N8N Agent Upgrade Guide
+# ⚠️ DEPRECATED - Supabase Legacy Setup
+
+**Diese Anleitung ist veraltet und funktioniert nicht mit der aktuellen PostgreSQL-only Architektur.**
+
+**Für aktuelle Setup-Optionen siehe:**
+- Laravel Dashboard: `docs/LARAVEL_DASHBOARD_INTEGRATION.md`
+- FastAPI Endpoints: `docs/api/STAGE_BASED_PROCESSING.md`
+- CLI Tools: `docs/processor/QUICK_START.md`
+
+**Archivierte Workflows**: `workflows/archive/`
+
+---
+
+## Historische Dokumentation (Read-Only)
+
+Die folgende Anleitung beschreibt das **veraltete** Supabase-basierte Setup.
+
+---
+
+# 🚀 N8N Agent Upgrade Guide (Legacy)
 
 ## 📋 Was wurde gefixt?
 

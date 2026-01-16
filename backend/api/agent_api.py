@@ -38,7 +38,8 @@ from pathlib import Path
 
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from services.database_adapter import DatabaseAdapter
+import asyncpg
+from services.db_pool import get_pool
 from processors.env_loader import load_all_env_files
 
 # Load consolidated environment configuration (supports legacy overrides)
@@ -75,10 +76,10 @@ class ChatResponse(BaseModel):
 class KRAITools:
     """Tools for the KRAI agent"""
     
-    def __init__(self, adapter: DatabaseAdapter):
-        self.adapter = adapter
+    def __init__(self, pool: asyncpg.Pool):
+        self.pool = pool
         self.logger = logging.getLogger(__name__)
-        self.logger.info(f'Agent tools initialized with {type(adapter).__name__}')
+        self.logger.info('Agent tools initialized with asyncpg pool')
     
     async def search_error_codes(self, query: str) -> str:
         """
@@ -110,16 +111,17 @@ class KRAITools:
             self.logger.info(f"Extracted error code: '{search_term}' from query: '{query}'")
             
             # Query using direct krai tables with JOIN
-            error_codes = await self.adapter.execute_query(
-                """SELECT ec.error_code, ec.error_description, ec.solution_text, de.page_number, 
-                          ec.severity_level, ec.confidence_score, ec.manufacturer_id, ec.document_id
-                   FROM krai_content.error_codes ec
-                   JOIN krai_content.document_error_codes de ON ec.id = de.error_code_id
-                   WHERE ec.error_code ILIKE %s 
-                   ORDER BY ec.confidence_score DESC 
-                   LIMIT 10""",
-                [f'%{search_term}%']
-            )
+            async with self.pool.acquire() as conn:
+                error_codes = await conn.fetch(
+                    """SELECT ec.error_code, ec.error_description, ec.solution_text, de.page_number, 
+                              ec.severity_level, ec.confidence_score, ec.manufacturer_id, ec.document_id
+                       FROM krai_intelligence.error_codes ec
+                       LEFT JOIN krai_intelligence.chunks de ON ec.chunk_id = de.id
+                       WHERE ec.error_code ILIKE $1
+                       ORDER BY ec.confidence_score DESC
+                       LIMIT 5""",
+                    f'%{search_term}%'
+                )
             
             if not error_codes:
                 return json.dumps({
@@ -133,18 +135,20 @@ class KRAITools:
             
             manufacturers = {}
             if manufacturer_ids:
-                mfr_results = await self.adapter.execute_query(
-                    "SELECT id, name FROM krai_core.manufacturers WHERE id = ANY(%s)",
-                    [manufacturer_ids]
-                )
+                async with self.pool.acquire() as conn:
+                    mfr_results = await conn.fetch(
+                        "SELECT id, name FROM krai_core.manufacturers WHERE id = ANY($1)",
+                        manufacturer_ids
+                    )
                 manufacturers = {row['id']: row['name'] for row in mfr_results}
             
             documents = {}
             if document_ids:
-                doc_results = await self.adapter.execute_query(
-                    "SELECT id, filename FROM krai_core.documents WHERE id = ANY(%s)",
-                    [document_ids]
-                )
+                async with self.pool.acquire() as conn:
+                    doc_results = await conn.fetch(
+                        "SELECT id, filename FROM krai_core.documents WHERE id = ANY($1)",
+                        document_ids
+                    )
                 documents = {row['id']: row['filename'] for row in doc_results}
             
             # Format results
@@ -189,27 +193,28 @@ class KRAITools:
             self.logger.info(f"Tool called: search_parts with query='{query}', manufacturer='{manufacturer}'")
             
             # Build query with optional manufacturer filter using JOIN
-            if manufacturer:
-                parts = await self.adapter.execute_query(
-                    """SELECT p.part_number, p.part_name, p.description, m.name as manufacturer_name, 
-                              p.manufacturer_code, p.price_usd
-                       FROM krai_parts.parts p
-                       JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
-                       WHERE (p.part_number ILIKE %s OR p.part_name ILIKE %s OR p.description ILIKE %s)
-                         AND m.name ILIKE %s
-                       LIMIT 10""",
-                    [f'%{query}%', f'%{query}%', f'%{query}%', f'%{manufacturer}%']
-                )
-            else:
-                parts = await self.adapter.execute_query(
-                    """SELECT p.part_number, p.part_name, p.description, m.name as manufacturer_name, 
-                              p.manufacturer_code, p.price_usd
-                       FROM krai_parts.parts p
-                       JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
-                       WHERE p.part_number ILIKE %s OR p.part_name ILIKE %s OR p.description ILIKE %s
-                       LIMIT 10""",
-                    [f'%{query}%', f'%{query}%', f'%{query}%']
-                )
+            async with self.pool.acquire() as conn:
+                if manufacturer:
+                    parts = await conn.fetch(
+                        """SELECT p.part_number, p.part_name, p.description, m.name as manufacturer_name, 
+                                  p.manufacturer_code, p.price_usd
+                           FROM krai_parts.parts_catalog p
+                           JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+                           WHERE (p.part_number ILIKE $1 OR p.part_name ILIKE $2 OR p.description ILIKE $3)
+                             AND m.name ILIKE $4
+                           LIMIT 10""",
+                        f'%{query}%', f'%{query}%', f'%{query}%', f'%{manufacturer}%'
+                    )
+                else:
+                    parts = await conn.fetch(
+                        """SELECT p.part_number, p.part_name, p.description, m.name as manufacturer_name, 
+                                  p.manufacturer_code, p.price_usd
+                           FROM krai_parts.parts_catalog p
+                           JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+                           WHERE p.part_number ILIKE $1 OR p.part_name ILIKE $2 OR p.description ILIKE $3
+                           LIMIT 10""",
+                        f'%{query}%', f'%{query}%', f'%{query}%'
+                    )
             
             if not parts:
                 return json.dumps({
@@ -279,25 +284,19 @@ class KRAITools:
             
             query_embedding = embedding_response.json()['embedding']
             
-            # 2. Search using adapter RPC (if available) or fallback to search_embeddings
-            try:
-                response = await self.adapter.rpc(
-                    'match_documents',
-                    {
-                        'query_embedding': query_embedding,
-                        'match_count': limit,
-                        'filter': {}
-                    }
-                )
-                results_data = response if isinstance(response, list) else []
-            except NotImplementedError:
-                # Fallback to adapter.search_embeddings for PostgreSQL
-                self.logger.info("RPC not available, using search_embeddings fallback")
-                results_data = await self.adapter.search_embeddings(
-                    query_embedding=query_embedding,
-                    limit=limit,
-                    match_threshold=0.7,
-                    match_count=limit
+            # 2. Search using direct PostgreSQL vector similarity
+            async with self.pool.acquire() as conn:
+                results_data = await conn.fetch(
+                    """
+                    SELECT content, metadata, document_id, id as chunk_id,
+                           1 - (embedding <=> $1::vector) as similarity
+                    FROM krai_intelligence.chunks
+                    WHERE embedding IS NOT NULL
+                    ORDER BY embedding <=> $1::vector
+                    LIMIT $2
+                    """,
+                    query_embedding,
+                    limit
                 )
             
             if not results_data:
@@ -346,13 +345,14 @@ class KRAITools:
             self.logger.info(f"Tool called: search_videos with query='{query}'")
             
             # Query using direct krai table
-            videos = await self.adapter.execute_query(
-                """SELECT title, url, description, duration, manufacturer_id, model_series
-                   FROM krai_content.instructional_videos 
-                   WHERE title ILIKE %s OR description ILIKE %s OR model_series ILIKE %s
-                   LIMIT 10""",
-                [f'%{query}%', f'%{query}%', f'%{query}%']
-            )
+            async with self.pool.acquire() as conn:
+                videos = await conn.fetch(
+                    """SELECT title, url, description, duration, manufacturer_id, model_series
+                       FROM krai_content.videos 
+                       WHERE title ILIKE $1 OR description ILIKE $2 OR model_series ILIKE $3
+                       LIMIT 10""",
+                    f'%{query}%', f'%{query}%', f'%{query}%'
+                )
             
             if not videos:
                 return json.dumps({
@@ -364,10 +364,11 @@ class KRAITools:
             manufacturer_ids = list(set([row['manufacturer_id'] for row in videos if row.get('manufacturer_id')]))
             manufacturers = {}
             if manufacturer_ids:
-                mfr_results = await self.adapter.execute_query(
-                    "SELECT id, name FROM krai_core.manufacturers WHERE id = ANY(%s)",
-                    [manufacturer_ids]
-                )
+                async with self.pool.acquire() as conn:
+                    mfr_results = await conn.fetch(
+                        "SELECT id, name FROM krai_core.manufacturers WHERE id = ANY($1)",
+                        manufacturer_ids
+                    )
                 manufacturers = {row['id']: row['name'] for row in mfr_results}
             
             # Format results
@@ -455,8 +456,8 @@ class KRAITools:
 class KRAIAgent:
     """KRAI conversational agent"""
     
-    def __init__(self, adapter: DatabaseAdapter, ollama_base_url: str = None):
-        self.adapter = adapter
+    def __init__(self, pool: asyncpg.Pool, ollama_base_url: str = None):
+        self.pool = pool
         
         # Get Ollama URL from environment
         if ollama_base_url is None:
@@ -464,7 +465,7 @@ class KRAIAgent:
         
         self.ollama_base_url = ollama_base_url
         self.logger = logging.getLogger(__name__)
-        self.logger.info(f'Agent initialized with {type(adapter).__name__}')
+        self.logger.info('Agent initialized with asyncpg pool')
         
         # Store for chat histories (session_id -> InMemoryChatMessageHistory)
         self.chat_histories = {}
@@ -484,7 +485,7 @@ class KRAIAgent:
         )
         
         # Initialize tools
-        self.tools_manager = KRAITools(adapter)
+        self.tools_manager = KRAITools(pool)
         self.tools = self.tools_manager.get_tools()
         
         # Create prompt for tool-calling agent (simpler, works better with Ollama)
@@ -641,7 +642,7 @@ Antworte auf Deutsch."""),
 # FastAPI Application
 # ============================================================================
 
-def create_agent_api(adapter: DatabaseAdapter) -> APIRouter:
+def create_agent_api(pool: asyncpg.Pool) -> APIRouter:
     """Create API router for the agent (to be included in main app)"""
     
     print("DEBUG: Creating Agent API router...")
@@ -651,7 +652,7 @@ def create_agent_api(adapter: DatabaseAdapter) -> APIRouter:
     )
     
     # Initialize agent
-    agent = KRAIAgent(adapter)
+    agent = KRAIAgent(pool)
     
     @router.post("/chat", response_model=ChatResponse)
     async def chat(message: ChatMessage):

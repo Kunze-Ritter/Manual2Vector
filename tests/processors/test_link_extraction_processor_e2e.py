@@ -305,7 +305,7 @@ class TestDatabasePersistenceHelpers:
         monkeypatch: pytest.MonkeyPatch,
         mock_database_adapter,
     ) -> None:
-        # Build a minimal supabase-like client
+        # Build a minimal database-like client
         inserted: List[Dict[str, Any]] = []
 
         class DummyResult:

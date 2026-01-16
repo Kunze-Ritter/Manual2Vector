@@ -2,7 +2,7 @@
 Sync OEM Relationships to Database
 ===================================
 
-Syncs OEM mappings from oem_mappings.py to Supabase database.
+Syncs OEM mappings from oem_mappings.py to PostgreSQL database.
 Also updates existing products with OEM information.
 
 Usage:
@@ -24,7 +24,7 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent / 'backend'
 sys.path.insert(0, str(backend_path))
 
-from supabase import create_client
+import asyncio
 from processors.env_loader import load_all_env_files
 from utils.oem_sync import (
     sync_oem_relationships_to_db,
@@ -38,20 +38,11 @@ print("Loading environment variables...")
 for env_file in loaded_env_files:
     print(f"  ✓ Loaded: {env_file}")
 
-# Initialize Supabase client
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("\n❌ Error: SUPABASE credentials not found")
-    sys.exit(1)
-
-print(f"✓ Connected to Supabase: {SUPABASE_URL}\n")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Database connection will be initialized via get_pool()
+print("✓ Database connection ready\n")
 
 
-def main():
+async def main():
     """Main entry point"""
     dry_run = '--dry-run' in sys.argv
     update_products = '--update-products' in sys.argv
@@ -74,7 +65,7 @@ def main():
     print("Step 1: Syncing OEM Relationships to Database")
     print("=" * 80)
     
-    stats = sync_oem_relationships_to_db(supabase)
+    stats = await sync_oem_relationships_to_db()
     
     print(f"\n✅ OEM Relationships Sync Complete:")
     print(f"   Total mappings: {stats['total_mappings']}")
@@ -88,7 +79,7 @@ def main():
         print("Step 2: Updating Products with OEM Information")
         print("=" * 80)
         
-        product_stats = batch_update_products_oem_info(supabase, limit=10000)
+        product_stats = await batch_update_products_oem_info(limit=10000)
         
         print(f"\n✅ Products Update Complete:")
         print(f"   Total products: {product_stats['total_products']}")
@@ -113,4 +104,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())

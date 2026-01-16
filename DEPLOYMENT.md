@@ -52,7 +52,7 @@ API_PORT=8000
 LOG_LEVEL=INFO
 ```
 
-> **Note:** This deployment uses PostgreSQL + MinIO for local-first architecture. Legacy Supabase and Cloudflare R2 configurations are deprecated. See `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` for migration guidance.
+> **⚠️ IMPORTANT - PostgreSQL-Only Architecture:** This deployment uses PostgreSQL + MinIO for local-first architecture. **Migration from Supabase completed in November 2024 (KRAI-002).** Legacy Supabase and Cloudflare R2 configurations are deprecated and no longer supported. For legacy users migrating from Supabase, see `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` for complete migration guidance.
 
 ### Frontend Configuration
 

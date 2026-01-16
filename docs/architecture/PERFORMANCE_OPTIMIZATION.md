@@ -73,17 +73,18 @@ self.parallel_processor = ParallelChunkingProcessor(max_workers=chunk_workers)
 column images.image_hash does not exist
 ```
 
-**Ursache:** Supabase PostgREST kann nicht auf `krai_content.images.file_hash` zugreifen
+**Ursache (Historical - Supabase Era):** PostgREST could not access `krai_content.images.file_hash` across schemas
 
-**Fix:** Image-Deduplication temporär deaktiviert (weniger kritisch als Document-Deduplication)
+**Current Status (PostgreSQL):** Direct asyncpg connection pools can access all schemas. Image deduplication can be re-enabled using direct SQL queries.
 
 ```python
-# DISABLED: Schema issue - images table is in krai_content schema
-# TODO: Create SQL view or RPC function for cross-schema access
-return None
+# HISTORICAL NOTE: Was disabled due to Supabase PostgREST schema limitations
+# With PostgreSQL direct connection, can now query:
+# SELECT * FROM krai_content.images WHERE file_hash = $1
+return None  # TODO: Re-enable with PostgreSQL direct query
 ```
 
-**Impact:** Keine Error-Logs mehr, Processing läuft durch
+**Impact:** Processing runs without errors. Image deduplication should be re-enabled.
 
 ## Performance-Berechnung
 

@@ -1,7 +1,7 @@
 """
 Live Pipeline Test - Real Document Processing
 
-Tests the complete pipeline with a real PDF and Supabase connection.
+Tests the complete pipeline with a real PDF and database connection.
 """
 
 import sys
@@ -17,33 +17,25 @@ env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
 from backend.pipeline.master_pipeline import KRMasterPipeline
-from supabase import create_client
+from backend.services.database_adapter import create_database_adapter
 
 
-def test_supabase_connection():
-    """Test Supabase connection"""
+def test_database_connection():
+    """Test database connection"""
     print("\n" + "="*80)
-    print("TEST 1: Supabase Connection")
+    print("TEST 1: Database Connection")
     print("="*80)
     
-    supabase_url = os.getenv('SUPABASE_URL')
-    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if not supabase_url or not supabase_key:
-        print("\n❌ Supabase credentials not found")
-        return None
-    
     try:
-        supabase = create_client(supabase_url, supabase_key)
+        database_adapter = create_database_adapter()
         
         # Test query
-        result = supabase.table('vw_documents').select('id').limit(1).execute()
+        result = database_adapter.select("krai_core.documents", columns=["id"], limit=1)
         
-        print(f"\n✅ Supabase connected!")
-        print(f"   URL: {supabase_url}")
+        print(f"\n✅ Database connected!")
         print(f"   Documents table accessible")
         
-        return supabase
+        return database_adapter
         
     except Exception as e:
         print(f"\n❌ Connection failed: {e}")
@@ -80,7 +72,7 @@ def find_test_pdf():
     return None
 
 
-def test_pipeline_initialization(supabase):
+def test_pipeline_initialization(database_adapter):
     """Test pipeline initialization"""
     print("\n" + "="*80)
     print("TEST 3: Pipeline Initialization")
@@ -88,7 +80,7 @@ def test_pipeline_initialization(supabase):
     
     try:
         pipeline = KRMasterPipeline(
-            supabase_client=supabase,
+            database_adapter=database_adapter,
             manufacturer="Konica Minolta",
             enable_images=True,
             enable_ocr=True,
@@ -221,10 +213,10 @@ def main():
     print("   Real Document + Real Database")
     print("=" * 80)
     
-    # Test 1: Supabase
-    supabase = test_supabase_connection()
-    if not supabase:
-        print("\n⚠️  Cannot continue without Supabase connection")
+    # Test 1: Database
+    database_adapter = test_database_connection()
+    if not database_adapter:
+        print("\n⚠️  Cannot continue without database connection")
         return
     
     # Test 2: Find PDF
@@ -234,7 +226,7 @@ def main():
         return
     
     # Test 3: Initialize Pipeline
-    pipeline = test_pipeline_initialization(supabase)
+    pipeline = test_pipeline_initialization(database_adapter)
     if not pipeline:
         print("\n⚠️  Cannot continue without pipeline")
         return

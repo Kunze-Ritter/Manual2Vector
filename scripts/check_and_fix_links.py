@@ -39,7 +39,7 @@ try:
     from dotenv import load_dotenv
 except ImportError:
     load_dotenv = lambda: None  # Fallback
-from supabase import create_client, Client
+import json
 
 # Load environment variables
 load_dotenv()
@@ -52,17 +52,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+DB_HOST = os.getenv('DB_HOST')
+DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
 
-# Initialize Supabase (lazy - only when needed)
-supabase: Client = None
+# Database adapter will be injected
+db_adapter = None
 
-def get_supabase():
-    global supabase
-    if supabase is None:
-        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    return supabase
+# Import get_pool for async PostgreSQL connections
+sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
+from services.db_pool import get_pool
 
 
 class LinkChecker:
@@ -367,14 +367,18 @@ class LinkChecker:
     async def update_link(self, link_id: str, new_url: str, old_url: str):
         """Update link in database"""
         try:
-            get_supabase().table('links').update({
-                'url': new_url,
-                'metadata': {
+            import json
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                metadata = {
                     'fixed_at': datetime.utcnow().isoformat(),
                     'original_url': old_url,
                     'fixed_by': 'link_checker_script'
                 }
-            }).eq('id', link_id).execute()
+                await conn.execute(
+                    "UPDATE krai_content.links SET url = $1, metadata = $2 WHERE id = $3",
+                    new_url, json.dumps(metadata), link_id
+                )
             
             logger.info(f"   💾 Database updated")
             
@@ -384,13 +388,17 @@ class LinkChecker:
     async def deactivate_link(self, link_id: str):
         """Mark link as inactive"""
         try:
-            get_supabase().table('links').update({
-                'is_active': False,
-                'metadata': {
+            import json
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                metadata = {
                     'deactivated_at': datetime.utcnow().isoformat(),
                     'reason': 'broken_link_404'
                 }
-            }).eq('id', link_id).execute()
+                await conn.execute(
+                    "UPDATE krai_content.links SET is_active = $1, metadata = $2 WHERE id = $3",
+                    False, json.dumps(metadata), link_id
+                )
             
             logger.info(f"   💾 Link marked as inactive")
             
@@ -403,19 +411,20 @@ class LinkChecker:
         
         try:
             # Query links
-            query = get_supabase().table('links').select('id,url,link_type,is_active')
-            
-            # Note: is_active might be NULL (default), so we include NULL and TRUE
-            # PostgREST doesn't have OR directly, so we use 'or' filter syntax
-            if not check_inactive:
-                # Include links where is_active is NULL or TRUE (exclude only FALSE)
-                query = query.or_('is_active.is.null,is_active.eq.true')
-            
-            if limit:
-                query = query.limit(limit)
-            
-            response = query.execute()
-            links = response.data
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                if check_inactive:
+                    # Get all links
+                    query = "SELECT id, url, link_type, is_active FROM krai_content.links"
+                    if limit:
+                        query += f" LIMIT {limit}"
+                    links = await conn.fetch(query)
+                else:
+                    # Include links where is_active is NULL or TRUE (exclude only FALSE)
+                    query = "SELECT id, url, link_type, is_active FROM krai_content.links WHERE (is_active IS NULL OR is_active = true)"
+                    if limit:
+                        query += f" LIMIT {limit}"
+                    links = await conn.fetch(query)
             
             logger.info(f"📊 Query returned {len(links) if links else 0} links")
             

@@ -569,7 +569,7 @@ class ManufacturerCrawler:
 
     def _get_db_client(self):
         """
-        Get a compatible database client for Supabase-style operations.
+        Get a compatible database client for database operations.
         
         Returns the underlying client from DatabaseService if available.
         Logs an error and returns None if unavailable.
@@ -578,7 +578,7 @@ class ManufacturerCrawler:
             return self._database_service.service_client
         if hasattr(self._database_service, 'client') and self._database_service.client:
             return self._database_service.client
-        self._logger.error("Database client unavailable for Supabase-style operations")
+        self._logger.error("Database client unavailable for database operations")
         return None
 
     async def _update_job(self, job_id: str, updates: Dict[str, Any]) -> None:

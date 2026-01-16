@@ -1,7 +1,27 @@
 # KRAI Agent V2 - Architektur
 
+---
+
+## ⚠️ **DEPRECATION NOTICE - SUPABASE REFERENCES**
+
+**This document contains historical Supabase references that are NO LONGER VALID.**
+
+**Current Architecture (as of November 2024):**
+- ✅ **PostgreSQL-only** (direct asyncpg connection pools)
+- ❌ **Supabase** (deprecated and removed)
+- ❌ **PostgREST** (deprecated and removed)
+
+**For current setup instructions, see:**
+- `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` - Migration guide
+- `DOCKER_SETUP.md` - Current PostgreSQL setup
+- `DATABASE_SCHEMA.md` - Current schema reference
+
+**This document is preserved for historical reference only.**
+
+---
+
 **Erstellt:** 09.10.2025  
-**Status:** In Entwicklung
+**Status:** In Entwicklung (DEPRECATED)
 
 ---
 
@@ -177,13 +197,13 @@ switch(intent.type) {
 ## 📊 DATENQUELLEN
 
 ### Aktuell (Phase 1)
-- ✅ KRAI Database (Supabase)
-  - error_codes
-  - products
-  - documents
-  - links
-  - videos
-  - manufacturers
+- ✅ KRAI Database (PostgreSQL)
+  - krai_intelligence.error_codes
+  - krai_core.products
+  - krai_core.documents
+  - krai_content.links
+  - krai_content.videos
+  - krai_core.manufacturers
 
 ### Zukunft (Phase 2+)
 - ⏳ Printer Monitoring API
@@ -287,8 +307,9 @@ switch(intent.type) {
 - **Fallback:** OpenAI GPT-4 (optional)
 
 ### Database
-- **Supabase PostgreSQL**
-- **Schema:** krai_core
+- **PostgreSQL** (direct connection)
+- **Schemas:** krai_core, krai_intelligence, krai_content, krai_agent
+- **Connection:** postgresql://postgres:password@localhost:5432/krai
 - **Neue Spalten:** manufacturers.support_email, manufacturers.support_phone
 
 ---

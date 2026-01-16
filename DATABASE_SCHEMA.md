@@ -3,7 +3,7 @@
 
 **Zuletzt aktualisiert:** 20.12.2025 um 17:00 Uhr
 
-**Quelle:** PostgreSQL Database (ECHTE Struktur)
+**Quelle:** PostgreSQL Database (Production Structure - Migration from Supabase completed November 2024, KRAI-002)
 
 **Setup:** Siehe `database/README.md` für PostgreSQL Installation
 
@@ -732,6 +732,139 @@
 | `server_instance` | character varying(100) | YES | - |
 | `additional_context` | jsonb | YES | '{}'::jsonb |
 
+### krai_system.stage_completion_markers
+
+**Description:** Tracks stage completion with data hashing for idempotency checks
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `document_id` | uuid | NO | - |
+| `stage_name` | character varying(50) | NO | - |
+| `completed_at` | timestamp | NO | CURRENT_TIMESTAMP |
+| `data_hash` | character varying(64) | YES | - |
+| `metadata` | jsonb | YES | - |
+
+**Primary Key:** `(document_id, stage_name)`
+
+### krai_system.pipeline_errors
+
+**Description:** Primary table for error tracking and Dashboard queries
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | gen_random_uuid() |
+| `error_id` | character varying(100) | NO | - |
+| `document_id` | uuid | NO | - |
+| `stage_name` | character varying(50) | NO | - |
+| `error_type` | character varying(50) | NO | - |
+| `error_category` | character varying(50) | NO | - |
+| `error_message` | text | NO | - |
+| `stack_trace` | text | YES | - |
+| `context` | jsonb | YES | - |
+| `retry_count` | int4 | NO | 0 |
+| `max_retries` | int4 | NO | 3 |
+| `next_retry_at` | timestamp | YES | - |
+| `status` | character varying(20) | NO | 'pending' |
+| `severity` | character varying(20) | NO | 'medium' |
+| `is_transient` | bool | NO | true |
+| `correlation_id` | character varying(100) | YES | - |
+| `parent_error_id` | character varying(100) | YES | - |
+| `created_at` | timestamp | NO | CURRENT_TIMESTAMP |
+| `updated_at` | timestamp | NO | CURRENT_TIMESTAMP |
+| `resolved_at` | timestamp | YES | - |
+| `resolved_by` | uuid | YES | - |
+| `resolution_notes` | text | YES | - |
+
+**Unique Constraint:** `error_id`
+
+### krai_system.alert_queue
+
+**Description:** Queue for alert aggregation to prevent spam
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | gen_random_uuid() |
+| `alert_type` | character varying(50) | NO | - |
+| `severity` | character varying(20) | NO | - |
+| `message` | text | NO | - |
+| `details` | jsonb | YES | - |
+| `aggregation_key` | character varying(200) | YES | - |
+| `aggregation_count` | int4 | NO | 1 |
+| `first_occurrence` | timestamp | NO | CURRENT_TIMESTAMP |
+| `last_occurrence` | timestamp | NO | CURRENT_TIMESTAMP |
+| `status` | character varying(20) | NO | 'pending' |
+| `sent_at` | timestamp | YES | - |
+| `created_at` | timestamp | NO | CURRENT_TIMESTAMP |
+
+### krai_system.alert_configurations
+
+**Description:** Stores alert rules and recipients configured via Dashboard
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | gen_random_uuid() |
+| `rule_name` | character varying(100) | NO | - |
+| `description` | text | YES | - |
+| `is_enabled` | bool | NO | true |
+| `error_types` | character varying(50)[] | YES | - |
+| `stages` | character varying(50)[] | YES | - |
+| `severity_threshold` | character varying(20) | NO | 'medium' |
+| `error_count_threshold` | int4 | NO | 5 |
+| `time_window_minutes` | int4 | NO | 15 |
+| `aggregation_window_minutes` | int4 | NO | 5 |
+| `email_recipients` | text[] | YES | - |
+| `slack_webhooks` | text[] | YES | - |
+| `created_by` | uuid | YES | - |
+| `created_at` | timestamp | NO | CURRENT_TIMESTAMP |
+| `updated_at` | timestamp | NO | CURRENT_TIMESTAMP |
+
+**Unique Constraint:** `rule_name`
+
+### krai_system.retry_policies
+
+**Description:** Configurable retry policies per service/stage
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | gen_random_uuid() |
+| `policy_name` | character varying(100) | NO | - |
+| `service_name` | character varying(50) | NO | - |
+| `stage_name` | character varying(50) | YES | - |
+| `max_retries` | int4 | NO | 3 |
+| `base_delay_seconds` | numeric(5,2) | NO | 1.0 |
+| `max_delay_seconds` | numeric(5,2) | NO | 60.0 |
+| `exponential_base` | numeric(3,2) | NO | 2.0 |
+| `jitter_enabled` | bool | NO | true |
+| `circuit_breaker_enabled` | bool | NO | false |
+| `circuit_breaker_threshold` | int4 | NO | 5 |
+| `circuit_breaker_timeout_seconds` | int4 | NO | 60 |
+| `created_at` | timestamp | NO | CURRENT_TIMESTAMP |
+| `updated_at` | timestamp | NO | CURRENT_TIMESTAMP |
+
+**Unique Constraint:** `policy_name`
+
+### krai_system.performance_baselines
+
+**Description:** Stores performance baselines and measurements
+
+| Spalte | Typ | Nullable | Default |
+|--------|-----|----------|---------|
+| `id` | uuid | NO | gen_random_uuid() |
+| `stage_name` | character varying(50) | NO | - |
+| `baseline_avg_seconds` | numeric(10,3) | NO | - |
+| `baseline_p50_seconds` | numeric(10,3) | NO | - |
+| `baseline_p95_seconds` | numeric(10,3) | NO | - |
+| `baseline_p99_seconds` | numeric(10,3) | NO | - |
+| `current_avg_seconds` | numeric(10,3) | YES | - |
+| `current_p50_seconds` | numeric(10,3) | YES | - |
+| `current_p95_seconds` | numeric(10,3) | YES | - |
+| `current_p99_seconds` | numeric(10,3) | YES | - |
+| `improvement_percentage` | numeric(5,2) | YES | - |
+| `test_document_ids` | uuid[] | YES | - |
+| `measurement_date` | timestamp | NO | CURRENT_TIMESTAMP |
+| `notes` | text | YES | - |
+| `created_at` | timestamp | NO | CURRENT_TIMESTAMP |
+
 ## krai_users
 
 ### krai_users.user_sessions
@@ -802,5 +935,5 @@ Alle Views nutzen `vw_` Prefix und zeigen auf Tabellen in krai_* Schemas:
 ## Statistik
 
 - **Schemas:** 6
-- **Tabellen:** 38
-- **Spalten:** 516
+- **Tabellen:** 44
+- **Spalten:** 604

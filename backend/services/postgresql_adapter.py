@@ -2,7 +2,7 @@
 PostgreSQL Database Adapter
 
 Pure asyncpg implementation for direct PostgreSQL connections.
-No Supabase dependencies - uses only asyncpg for database access.
+Pure PostgreSQL implementation - uses only asyncpg for database access.
 """
 
 import logging

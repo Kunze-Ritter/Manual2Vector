@@ -19,6 +19,7 @@ import os
 import secrets
 import sys
 import logging
+import functools
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -44,14 +45,15 @@ from api.middleware.rate_limit_middleware import (
 )
 from api.middleware.request_validation_middleware import RequestValidationMiddleware
 from services.database_service import DatabaseService
-from services.auth_service import AuthService, AuthenticationError
 from services.database_adapter import DatabaseAdapter
-from services.database_factory import create_database_adapter
+from services.auth_service import AuthService, AuthenticationError
+from services.db_pool import get_pool
 from services.batch_task_service import BatchTaskService
 from services.transaction_manager import TransactionManager
 
 # Import API routers
-from api.agent_api import create_agent_api
+# DISABLED: agent_api requires langchain dependencies that need to be fixed
+# from api.agent_api import create_agent_api
 from api.routes import documents, products
 from api.routes.error_codes import router as error_codes_router
 from api.routes.videos import router as videos_router
@@ -148,7 +150,7 @@ async def add_security_headers(request: Request, call_next):
 security_scheme = HTTPBearer(auto_error=False)
 
 # Global state
-supabase_adapter: DatabaseAdapter | None = None  # Now holds DatabaseAdapter (unified interface)
+# Connection pool is managed by db_pool.get_pool()
 upload_processor = None
 document_processor = None
 agent_app = None
@@ -162,36 +164,33 @@ websocket_manager: websocket_api.WebSocketManager | None = None
 
 # === AUTH SERVICE INITIALIZATION ===
 
-def ensure_auth_service() -> AuthService:
+async def ensure_auth_service() -> AuthService:
     """Ensure the singleton AuthService is available and registered."""
     global auth_service
     if auth_service is None:
-        # Use database adapter for authentication
-        adapter = get_database_adapter()
-        return create_auth_service(adapter)
+        # Use database pool for authentication
+        pool = await get_pool()
+        auth_service = create_auth_service(pool)
     return auth_service
 
 
 # === DEPENDENCY INJECTION ===
 
 
-def get_database_adapter() -> DatabaseAdapter:
-    """Provide shared DatabaseAdapter instance (singleton)."""
-    global supabase_adapter
-    if supabase_adapter is None:
-        supabase_adapter = create_database_adapter()
-    return supabase_adapter
+async def get_database_pool():
+    """Provide shared asyncpg connection pool."""
+    return await get_pool()
 
 
-def get_upload_processor():
+async def get_upload_processor():
     """Get Upload Processor instance"""
     global upload_processor
     if upload_processor is None:
-        # UploadProcessor accepts DatabaseAdapter
-        adapter = get_database_adapter()
+        # UploadProcessor will be refactored to use pool directly
+        pool = await get_pool()
         return UploadProcessor(
-            adapter=adapter,
-            stage_tracker=None  # StageTracker may need refactoring for PostgreSQL
+            pool=pool,
+            stage_tracker=None
         )
     return upload_processor
 
@@ -208,12 +207,15 @@ def get_document_processor():
     return document_processor
 
 
-def get_agent_app():
+async def get_agent_app():
     """Get Agent API app"""
-    global agent_app
-    if agent_app is None:
-        agent_app = create_agent_api(get_database_adapter())
-    return agent_app
+    # DISABLED: agent_api requires langchain dependencies
+    # global agent_app
+    # if agent_app is None:
+    #     pool = await get_pool()
+    #     agent_app = create_agent_api(pool)
+    # return agent_app
+    raise HTTPException(status_code=503, detail="Agent API temporarily disabled")
 
 
 async def get_batch_task_service() -> BatchTaskService:
@@ -221,8 +223,8 @@ async def get_batch_task_service() -> BatchTaskService:
 
     global batch_task_service
     if batch_task_service is None:
-        adapter = get_database_adapter()
-        batch_task_service = BatchTaskService(adapter)
+        pool = await get_pool()
+        batch_task_service = BatchTaskService(pool)
     return batch_task_service
 
 
@@ -231,8 +233,8 @@ async def get_transaction_manager() -> TransactionManager:
 
     global transaction_manager
     if transaction_manager is None:
-        adapter = get_database_adapter()
-        transaction_manager = TransactionManager(adapter)
+        pool = await get_pool()
+        transaction_manager = TransactionManager(pool)
     return transaction_manager
 
 
@@ -240,9 +242,9 @@ async def get_metrics_service() -> MetricsService:
     """Return singleton MetricsService."""
     global metrics_service
     if metrics_service is None:
-        adapter = get_database_adapter()
-        stage_tracker = StageTracker(adapter)
-        metrics_service = MetricsService(adapter, stage_tracker)
+        pool = await get_pool()
+        stage_tracker = StageTracker(pool)
+        metrics_service = MetricsService(pool, stage_tracker)
     return metrics_service
 
 
@@ -250,9 +252,9 @@ async def get_alert_service() -> AlertService:
     """Return singleton AlertService."""
     global alert_service
     if alert_service is None:
-        adapter = get_database_adapter()
+        pool = await get_pool()
         metrics_svc = await get_metrics_service()
-        alert_service = AlertService(adapter, metrics_svc)
+        alert_service = AlertService(pool, metrics_svc)
     return alert_service
 
 
@@ -262,6 +264,22 @@ def get_websocket_manager() -> websocket_api.WebSocketManager:
     if websocket_manager is None:
         websocket_manager = websocket_api.WebSocketManager()
     return websocket_manager
+
+
+@functools.lru_cache(maxsize=1)
+def _get_cached_adapter() -> DatabaseAdapter:
+    """Create and cache a single DatabaseAdapter instance."""
+    from services.database_factory import create_database_adapter
+    return create_database_adapter()
+
+
+async def get_database_adapter() -> DatabaseAdapter:
+    """Return shared database adapter instance for dependency injection."""
+    adapter = _get_cached_adapter()
+    if not hasattr(adapter, '_connected') or not adapter._connected:
+        await adapter.connect()
+        adapter._connected = True
+    return adapter
 
 
 # === PYDANTIC MODELS ===
@@ -353,9 +371,7 @@ async def root():
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 @limiter.limit(rate_limit_health)
-async def health_check(
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
-):
+async def health_check():
     """
     Health check endpoint
     
@@ -365,8 +381,6 @@ async def health_check(
     - Ollama status
     - Storage access
     """
-    transaction_support = getattr(adapter, 'pg_pool', None) is not None
-
     services = {
         "api": {"status": "healthy", "message": "API is running"},
         "database": {"status": "unknown", "message": ""},
@@ -377,11 +391,9 @@ async def health_check(
     
     # Check database
     try:
-        # Use direct krai.documents table instead of view
-        result = await adapter.execute_query(
-            "SELECT id FROM krai_core.documents LIMIT 1",
-            []
-        )
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
         services["database"] = {
             "status": "healthy",
             "message": "Database connected"
@@ -563,16 +575,16 @@ async def startup_events():
         logger.error("Failed to ensure default admin user: %s", exc)
         raise
 
-    adapter = get_database_adapter()
-    if hasattr(adapter, "connect"):
-        try:
-            await adapter.connect()
-        except Exception as exc:  # pragma: no cover - startup logging
-            logger.warning("Database adapter connection failed: %s", exc)
+    pool = await get_pool()
+    try:
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+    except Exception as exc:  # pragma: no cover - startup logging
+        logger.warning("Database pool connection failed: %s", exc)
 
     await get_batch_task_service()
     await get_transaction_manager()
-    logger.info("Batch services initialized (transaction support=%s)", getattr(adapter, 'pg_pool', None) is not None)
+    logger.info("Batch services initialized with asyncpg pool")
     
     # Initialize monitoring services
     metrics_svc = await get_metrics_service()
@@ -600,8 +612,8 @@ async def upload_directory(
     document_type: str = "service_manual",
     recursive: bool = False,
     force_reprocess: bool = False,
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
-    current_user: dict = Depends(require_permission('documents:write'))
+    current_user: dict = Depends(require_permission('documents:write')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter)
 ):
     """
     Upload all PDFs from a directory
@@ -639,8 +651,8 @@ async def upload_directory(
 @limiter.limit(rate_limit_standard)
 async def get_document_status(
     document_id: str,
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
-    current_user: dict = Depends(require_permission('documents:read'))
+    current_user: dict = Depends(require_permission('documents:read')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter)
 ):
     """
     Get processing status for a document
@@ -679,8 +691,8 @@ async def get_document_status(
 
 @app.get("/status/pipeline", tags=["Status"])
 async def get_pipeline_status(
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
-    current_user: dict = Depends(require_permission('documents:read'))
+    current_user: dict = Depends(require_permission('documents:read')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter)
 ):
     """
     Get overall pipeline status
@@ -729,8 +741,8 @@ async def get_pipeline_status(
 @app.get("/logs/{document_id}", tags=["Monitoring"])
 async def get_document_logs(
     document_id: str,
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
-    current_user: dict = Depends(require_permission('monitoring:read'))
+    current_user: dict = Depends(require_permission('monitoring:read')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter)
 ):
     """
     Get processing logs for a document
@@ -763,7 +775,6 @@ async def get_document_logs(
 
 @app.get("/stages/statistics", tags=["Monitoring"])
 async def get_stage_statistics(
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
     current_user: dict = Depends(require_permission('monitoring:read'))
 ):
     """
@@ -773,7 +784,7 @@ async def get_stage_statistics(
         Stage-wise statistics including pending, processing, completed counts
     """
     try:
-        # Stage statistics require PostgreSQL equivalent of Supabase RPC
+        # Stage statistics require PostgreSQL functions
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Stage statistics require PostgreSQL functions (not implemented yet)"
@@ -787,8 +798,8 @@ async def get_stage_statistics(
 
 @app.get("/monitoring/system", tags=["Monitoring"])
 async def get_system_metrics(
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
-    current_user: dict = Depends(require_permission('monitoring:read'))
+    current_user: dict = Depends(require_permission('monitoring:read')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter)
 ):
     """
     Get system performance metrics
@@ -822,9 +833,10 @@ async def get_system_metrics(
 from api.routes import auth as auth_routes
 from api.routes import scraping
 from api.routes import pipeline_errors
-# Initialize auth routes
-auth_router = auth_routes.initialize_auth_routes(get_database_adapter())
-app.include_router(auth_router, prefix="/api/v1")
+# Note: Auth routes and dashboard will need pool-based initialization
+# Temporarily commented out until refactored
+# auth_router = auth_routes.initialize_auth_routes(pool)
+# app.include_router(auth_router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
 app.include_router(products.router, prefix="/api/v1")
 app.include_router(error_codes_router, prefix="/api/v1")
@@ -842,9 +854,10 @@ app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Mo
 
 # Mount Dashboard API
 # Dashboard router provides aggregated production metrics at /api/v1/dashboard/overview
-# Use shared adapter to ensure consistent DB behavior and connection pooling
-dashboard_router = create_dashboard_router(get_database_adapter())
-app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard"])
+# Note: Dashboard will need pool-based initialization
+# Temporarily commented out until refactored
+# dashboard_router = create_dashboard_router(pool)
+# app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard"])
 
 # Mount WebSocket API
 app.include_router(websocket_api.router, tags=["WebSocket"])

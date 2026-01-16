@@ -11,7 +11,7 @@ Comprehensive tests for the semantic search stages:
 
 The suite focuses on realistic usage patterns using the
 `MockDatabaseAdapter` and deterministic embedding services, so **no real
-Ollama or Supabase connection is required**.
+Ollama or PostgreSQL connection is required**.
 
 ---
 

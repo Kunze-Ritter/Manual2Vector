@@ -217,7 +217,7 @@ class SearchAPI:
                 self.logger.info(f"Error code search: query='{q}' -> extracted='{search_term}'")
                 
                 # Build query
-                # Use Supabase PostgREST API - search in public.error_codes view
+                # Use PostgreSQL query - search in public.error_codes view
                 query_builder = self.database_service.client.table('vw_error_codes').select(
                     'error_code, error_description, solution_text, page_number, severity_level, confidence_score, '
                     'manufacturer_id, document_id'

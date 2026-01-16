@@ -219,7 +219,7 @@ KRAI is a comprehensive multimodal AI system that automatically extracts, analyz
 - **Ollama AI Service** - Local LLM inference with multiple models
 - **FastAPI Backend** - High-performance REST API with async support
 - **React Frontend** - Modern web interface with real-time updates
-- **PostgreSQL-Only Architecture** - Complete migration from cloud services for data sovereignty
+- **PostgreSQL-Only Architecture** - Complete migration from Supabase (November 2024, KRAI-002) for data sovereignty and local-first control
 
 #### 🎛️ Pipeline Control
 
@@ -511,6 +511,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Missing `.env` file**: Run `./setup.sh` or `.\setup.ps1` to generate
 - **Invalid credentials**: Check `python scripts/validate_env.py` output
 - **Port conflicts**: See [DOCKER_SETUP.md](DOCKER_SETUP.md#troubleshooting) for solutions
+- **Legacy Supabase Migration (Reference Only)**: See [SUPABASE_TO_POSTGRESQL_MIGRATION.md](docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md) - migration completed November 2024 (KRAI-002)
 
 **Docker Services:**
 - **Container not starting**: Check logs with `docker-compose logs [service]`

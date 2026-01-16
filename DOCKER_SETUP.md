@@ -133,7 +133,7 @@ Die konsolidierte `.env` enthält 10 Sektionen mit 60+ Variablen. Die folgenden 
 | 9. Docker Compose | 64 Variablen | n8n, pgAdmin, Firecrawl, Test-Credentials |
 | 10. Security Reminders | Hinweise | – |
 
-> **Hinweis:** Supabase- und R2-Variablen sind in der `.env` auskommentiert und deprecated. Verwende PostgreSQL + MinIO für Production-Deployments.
+> **⚠️ WICHTIG - Migration abgeschlossen:** Supabase- und R2-Variablen sind in der `.env` auskommentiert und deprecated. **Die Migration zu PostgreSQL + MinIO wurde im November 2024 (KRAI-002) abgeschlossen.** Verwende ausschließlich PostgreSQL + MinIO für alle Deployments. Für Legacy-Nutzer, die von Supabase migrieren: Siehe `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md`.
 
 ### Kritische Variablen (müssen gesetzt sein)
 
@@ -145,7 +145,7 @@ Die konsolidierte `.env` enthält 10 Sektionen mit 60+ Variablen. Die folgenden 
 
 Diese Werte werden durch die Setup-Skripte erzeugt und sollten nicht manuell geändert werden.
 
-> **Deprecated:** `SUPABASE_*` und `R2_*` Variablen sind nicht mehr erforderlich. Verwende stattdessen `DATABASE_*` und `OBJECT_STORAGE_*` Variablen.
+> **⚠️ Removed (November 2024, KRAI-002):** `SUPABASE_*` und `R2_*` Variablen wurden entfernt und werden nicht mehr unterstützt. Verwende ausschließlich `DATABASE_*` (PostgreSQL) und `OBJECT_STORAGE_*` (MinIO) Variablen.
 
 ### Optionale Variablen (Warnungen bei fehlender Konfiguration)
 

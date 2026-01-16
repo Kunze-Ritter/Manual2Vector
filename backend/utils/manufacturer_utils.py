@@ -8,11 +8,25 @@ Auto-creates entities when detected but not in database
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 import logging
+from services.database_factory import create_database_adapter
+from services.database_adapter import DatabaseAdapter
 
 logger = logging.getLogger(__name__)
 
+# Module-level adapter instance (lazy initialization)
+_adapter: Optional[DatabaseAdapter] = None
 
-def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUID]:
+
+async def _get_adapter() -> DatabaseAdapter:
+    """Get or create the module-level database adapter."""
+    global _adapter
+    if _adapter is None:
+        _adapter = create_database_adapter()
+        await _adapter.connect()
+    return _adapter
+
+
+async def ensure_manufacturer_exists(manufacturer_name: str, adapter: Optional[DatabaseAdapter] = None) -> Optional[UUID]:
     """
     Ensure manufacturer exists in database, create if needed
     
@@ -21,7 +35,6 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
     
     Args:
         manufacturer_name: Name of manufacturer (e.g., "HP", "Lexmark", "Konica Minolta")
-        supabase: Supabase client instance
         
     Returns:
         manufacturer_id (UUID) if found/created, None if failed
@@ -33,53 +46,53 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
         return None
     
     try:
-        # 1. Try exact match first
-        result = supabase.table('vw_manufacturers') \
-            .select('id,name') \
-            .eq('name', manufacturer_name) \
-            .limit(1) \
-            .execute()
+        # Get or use provided adapter
+        if adapter is None:
+            adapter = await _get_adapter()
         
-        if result.data:
-            manufacturer_id = result.data[0]['id']
+        # 1. Try exact match first
+        result = await adapter.fetch_one(
+            "SELECT id, name FROM krai_core.manufacturers WHERE name = $1 LIMIT 1",
+            [manufacturer_name]
+        )
+        
+        if result:
+            manufacturer_id = result['id']
             logger.debug(f"✅ Found manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
             return manufacturer_id
         
         # 2. Try case-insensitive match
-        result = supabase.table('vw_manufacturers') \
-            .select('id,name') \
-            .ilike('name', manufacturer_name) \
-            .limit(1) \
-            .execute()
-        
-        if result.data:
-            manufacturer_id = result.data[0]['id']
-            logger.debug(f"✅ Found manufacturer (ilike): {result.data[0]['name']} (ID: {manufacturer_id})")
+        result = await adapter.fetch_one(
+            "SELECT id, name FROM krai_core.manufacturers WHERE LOWER(name) = LOWER($1) LIMIT 1",
+            [manufacturer_name]
+        )
+            
+        if result:
+            manufacturer_id = result['id']
+            logger.debug(f"✅ Found manufacturer (ilike): {result['name']} (ID: {manufacturer_id})")
             return manufacturer_id
         
         # 3. Try partial match
-        result = supabase.table('vw_manufacturers') \
-            .select('id,name') \
-            .ilike('name', f'%{manufacturer_name}%') \
-            .limit(1) \
-            .execute()
-        
-        if result.data:
-            manufacturer_id = result.data[0]['id']
-            logger.debug(f"✅ Found manufacturer (partial): {result.data[0]['name']} (ID: {manufacturer_id})")
+        result = await adapter.fetch_one(
+            "SELECT id, name FROM krai_core.manufacturers WHERE LOWER(name) LIKE LOWER($1) LIMIT 1",
+            [f'%{manufacturer_name}%']
+        )
+            
+        if result:
+            manufacturer_id = result['id']
+            logger.debug(f"✅ Found manufacturer (partial): {result['name']} (ID: {manufacturer_id})")
             return manufacturer_id
         
         # 4. Manufacturer not found - create new entry
         logger.info(f"🔨 Creating new manufacturer: {manufacturer_name}")
         
-        create_result = supabase.table('vw_manufacturers') \
-            .insert({
-                'name': manufacturer_name
-            }) \
-            .execute()
-        
-        if create_result.data:
-            manufacturer_id = create_result.data[0]['id']
+        create_result = await adapter.fetch_one(
+            "INSERT INTO krai_core.manufacturers (name) VALUES ($1) RETURNING id",
+            [manufacturer_name]
+        )
+            
+        if create_result:
+            manufacturer_id = create_result['id']
             logger.info(f"✅ Created manufacturer: {manufacturer_name} (ID: {manufacturer_id})")
             return manufacturer_id
         else:
@@ -91,13 +104,12 @@ def ensure_manufacturer_exists(manufacturer_name: str, supabase) -> Optional[UUI
         return None
 
 
-def detect_manufacturer_from_domain(domain: str, supabase) -> Optional[UUID]:
+async def detect_manufacturer_from_domain(domain: str, adapter: Optional[DatabaseAdapter] = None) -> Optional[UUID]:
     """
     Detect manufacturer from URL domain and ensure it exists
     
     Args:
         domain: Domain name (e.g., 'publications.lexmark.com')
-        supabase: Supabase client instance
         
     Returns:
         manufacturer_id (UUID) or None
@@ -132,16 +144,16 @@ def detect_manufacturer_from_domain(domain: str, supabase) -> Optional[UUID]:
     for domain_key, manufacturer_name in domain_mapping.items():
         if domain_key in domain_lower:
             logger.info(f"🔍 Domain matched: {domain_key} → {manufacturer_name}")
-            return ensure_manufacturer_exists(manufacturer_name, supabase)
+            return await ensure_manufacturer_exists(manufacturer_name, adapter)
     
     logger.debug(f"ℹ️ No manufacturer detected from domain: {domain}")
     return None
 
 
-def ensure_series_exists(
+async def ensure_series_exists(
     series_name: str, 
-    manufacturer_id: UUID, 
-    supabase
+    manufacturer_id: UUID,
+    adapter: Optional[DatabaseAdapter] = None
 ) -> Optional[UUID]:
     """
     Ensure product series exists in database, create if needed
@@ -149,7 +161,6 @@ def ensure_series_exists(
     Args:
         series_name: Name of series (e.g., "LaserJet Pro", "CS900")
         manufacturer_id: UUID of manufacturer
-        supabase: Supabase client instance
         
     Returns:
         series_id (UUID) or None
@@ -158,31 +169,31 @@ def ensure_series_exists(
         return None
     
     try:
-        # 1. Try to find existing series
-        result = supabase.table('vw_product_series') \
-            .select('id,name') \
-            .eq('manufacturer_id', str(manufacturer_id)) \
-            .ilike('name', series_name) \
-            .limit(1) \
-            .execute()
+        # Get or use provided adapter
+        if adapter is None:
+            adapter = await _get_adapter()
         
-        if result.data:
-            series_id = result.data[0]['id']
+        # 1. Try to find existing series
+        result = await adapter.fetch_one(
+            "SELECT id, series_name FROM krai_core.product_series WHERE manufacturer_id = $1 AND LOWER(series_name) LIKE LOWER($2) LIMIT 1",
+            [str(manufacturer_id), series_name]
+        )
+            
+        if result:
+            series_id = result['id']
             logger.debug(f"✅ Found series: {series_name} (ID: {series_id})")
             return series_id
         
         # 2. Series not found - create new entry
         logger.info(f"🔨 Creating new series: {series_name}")
         
-        create_result = supabase.table('vw_product_series') \
-            .insert({
-                'series_name': series_name,
-                'manufacturer_id': str(manufacturer_id)
-            }) \
-            .execute()
-        
-        if create_result.data:
-            series_id = create_result.data[0]['id']
+        create_result = await adapter.fetch_one(
+            "INSERT INTO krai_core.product_series (series_name, manufacturer_id) VALUES ($1, $2) RETURNING id",
+            [series_name, str(manufacturer_id)]
+        )
+            
+        if create_result:
+            series_id = create_result['id']
             logger.info(f"✅ Created series: {series_name} (ID: {series_id})")
             return series_id
         else:
@@ -194,11 +205,11 @@ def ensure_series_exists(
         return None
 
 
-def ensure_product_exists(
+async def ensure_product_exists(
     model_name: str,
     manufacturer_id: UUID,
     series_id: Optional[UUID] = None,
-    supabase = None
+    adapter: Optional[DatabaseAdapter] = None
 ) -> Optional[UUID]:
     """
     Ensure product exists in database, create if needed
@@ -207,7 +218,6 @@ def ensure_product_exists(
         model_name: Model name (e.g., "CS943", "CX94X")
         manufacturer_id: UUID of manufacturer
         series_id: Optional UUID of series
-        supabase: Supabase client instance
         
     Returns:
         product_id (UUID) or None
@@ -216,37 +226,37 @@ def ensure_product_exists(
         return None
     
     try:
-        # 1. Try to find existing product
-        result = supabase.table('vw_products') \
-            .select('id,model_name') \
-            .eq('manufacturer_id', str(manufacturer_id)) \
-            .ilike('model_name', model_name) \
-            .limit(1) \
-            .execute()
+        # Get or use provided adapter
+        if adapter is None:
+            adapter = await _get_adapter()
         
-        if result.data:
-            product_id = result.data[0]['id']
+        # 1. Try to find existing product
+        result = await adapter.fetch_one(
+            "SELECT id, model_number FROM krai_core.products WHERE manufacturer_id = $1 AND LOWER(model_number) LIKE LOWER($2) LIMIT 1",
+            [str(manufacturer_id), model_name]
+        )
+            
+        if result:
+            product_id = result['id']
             logger.debug(f"✅ Found product: {model_name} (ID: {product_id})")
             return product_id
         
         # 2. Product not found - create new entry
         logger.info(f"🔨 Creating new product: {model_name}")
         
-        product_data = {
-            'model_number': model_name,
-            'model_name': model_name,
-            'manufacturer_id': str(manufacturer_id)
-        }
-        
         if series_id:
-            product_data['series_id'] = str(series_id)
-        
-        create_result = supabase.table('vw_products') \
-            .insert(product_data) \
-            .execute()
-        
-        if create_result.data:
-            product_id = create_result.data[0]['id']
+            create_result = await adapter.fetch_one(
+                "INSERT INTO krai_core.products (model_number, manufacturer_id, series_id) VALUES ($1, $2, $3) RETURNING id",
+                [model_name, str(manufacturer_id), str(series_id)]
+            )
+        else:
+            create_result = await adapter.fetch_one(
+                "INSERT INTO krai_core.products (model_number, manufacturer_id) VALUES ($1, $2) RETURNING id",
+                [model_name, str(manufacturer_id)]
+            )
+            
+        if create_result:
+            product_id = create_result['id']
             logger.info(f"✅ Created product: {model_name} (ID: {product_id})")
             return product_id
         else:
@@ -258,11 +268,11 @@ def ensure_product_exists(
         return None
 
 
-def link_video_to_products(
+async def link_video_to_products(
     video_id: UUID,
     model_names: List[str],
     manufacturer_id: UUID,
-    supabase
+    adapter: Optional[DatabaseAdapter] = None
 ) -> List[UUID]:
     """
     Link video to products, auto-creating products if needed
@@ -271,7 +281,6 @@ def link_video_to_products(
         video_id: UUID of video
         model_names: List of model names (e.g., ['CS943', 'CX94X'])
         manufacturer_id: UUID of manufacturer
-        supabase: Supabase client instance
         
     Returns:
         List of product IDs that were linked
@@ -279,30 +288,30 @@ def link_video_to_products(
     if not video_id or not model_names or not manufacturer_id:
         return []
     
+    # Get or use provided adapter
+    if adapter is None:
+        adapter = await _get_adapter()
+    
     linked_products = []
     
     for model_name in model_names:
         try:
             # Ensure product exists
-            product_id = ensure_product_exists(model_name, manufacturer_id, None, supabase)
+            product_id = await ensure_product_exists(model_name, manufacturer_id, None, adapter)
             
             if product_id:
                 # Check if link already exists
-                existing = supabase.table('vw_video_products') \
-                    .select('id') \
-                    .eq('video_id', str(video_id)) \
-                    .eq('product_id', str(product_id)) \
-                    .limit(1) \
-                    .execute()
+                existing = await adapter.fetch_one(
+                    "SELECT id FROM krai_content.video_products WHERE video_id = $1 AND product_id = $2 LIMIT 1",
+                    [str(video_id), str(product_id)]
+                )
                 
-                if not existing.data:
+                if not existing:
                     # Create link
-                    supabase.table('vw_video_products') \
-                        .insert({
-                            'video_id': str(video_id),
-                            'product_id': str(product_id)
-                        }) \
-                        .execute()
+                    await adapter.execute_query(
+                        "INSERT INTO krai_content.video_products (video_id, product_id) VALUES ($1, $2)",
+                        [str(video_id), str(product_id)]
+                    )
                     
                     logger.info(f"🔗 Linked video to product: {model_name}")
                 

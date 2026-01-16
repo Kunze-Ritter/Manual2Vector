@@ -80,12 +80,12 @@ except ImportError:
     print("\n❌ psycopg2 not installed")
     print("\n💡 Install with:")
     print("   pip install psycopg2-binary")
-    print("\n📋 Or run SQL manually in Supabase SQL Editor:")
+    print("\n📋 Or run SQL manually in PostgreSQL client (psql or pgAdmin):")
     print(f"   File: {migration_file}")
     sys.exit(1)
     
 except Exception as e:
     print(f"\n❌ Migration failed: {e}")
-    print("\n📋 Please run SQL manually in Supabase SQL Editor:")
+    print("\n📋 Please run SQL manually in PostgreSQL client (psql or pgAdmin):")
     print(f"   File: {migration_file}")
     sys.exit(1)

@@ -36,7 +36,7 @@ async def process_query_progressive(query: str, database_service, ai_service) ->
     yield "# 🔍 Suche in Service Manuals...\n\n"
     
     try:
-        # Fix: Escape % for Supabase query
+        # Fix: Escape % for PostgreSQL query
         search_code = code.replace('%', '')
         error_info = database_service.client.table('vw_error_codes').select(
             'error_code, error_description, manufacturer_id, page_number, document_id, chunk_id'

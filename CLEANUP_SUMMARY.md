@@ -24,6 +24,12 @@
 - ❌ `link_warnings.txt`, `pipeline_debug.log`, `pipeline_output.txt`
 - ❌ All `foliant_*.json`, `foliant_*.txt`, `foliant_*.csv` files
 
+### Documentation Cleanup (January 2025, KRAI-009)
+- ✅ **Supabase references removed** from 50+ documentation files
+- ✅ **Deprecation notices added** to legacy n8n documentation
+- ✅ **Migration guides updated** to reflect completed status
+- ✅ **PostgreSQL-only architecture** reflected throughout docs
+
 ### Environment Files (Obsolete)
 - ❌ `.env.ai`, `.env.auth`, `.env.clean`
 - ❌ `.env.database`, `.env.local.example`

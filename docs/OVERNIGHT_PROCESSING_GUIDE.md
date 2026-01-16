@@ -170,7 +170,7 @@ Total Duration: 1200.5s (20.0m)
 ### **Falls immer noch viele "failed":**
 Prüfen Sie die Logs für wiederkehrende Fehler:
 - AI-Service nicht erreichbar? → Ollama läuft?
-- Database-Fehler? → Supabase Verbindung OK?
+- Database-Fehler? → PostgreSQL Verbindung OK?
 - Memory-Probleme? → Mehr RAM freigeben?
 
 ### **Falls Classification immer fehlschlägt:**

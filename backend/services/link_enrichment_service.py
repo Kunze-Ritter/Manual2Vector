@@ -4,7 +4,7 @@ This module orchestrates scraping of URLs using WebScrapingService
 (Firecrawl primary, BeautifulSoup fallback) and persists the
 resulting artefacts into ``krai_system.link_scraping_jobs`` table.
 
-Refactored to use DatabaseService instead of Supabase client.
+Refactored to use DatabaseService for database operations.
 """
 
 from __future__ import annotations

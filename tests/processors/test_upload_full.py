@@ -1,12 +1,12 @@
 """
-Comprehensive Upload Processor Tests with Real Supabase
+Comprehensive Upload Processor Tests with Real Database
 """
 
 import sys
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from supabase import create_client
+from backend.services.database_adapter import create_database_adapter
 
 # Load environment
 load_dotenv()
@@ -23,13 +23,10 @@ class UploadProcessorTester:
     """Comprehensive test suite for Upload Processor"""
     
     def __init__(self):
-        """Initialize tester with Supabase connection"""
-        self.supabase = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        )
+        """Initialize tester with database connection"""
+        self.database_adapter = create_database_adapter()
         self.processor = UploadProcessor(
-            supabase_client=self.supabase,
+            database_adapter=self.database_adapter,
             max_file_size_mb=500
         )
         self.test_results = {
@@ -195,28 +192,30 @@ class UploadProcessorTester:
                 
                 # Verify in database
                 print("\n  4.2 Verifying in database...")
-                doc = self.supabase.table("vw_documents") \
-                    .select("*") \
-                    .eq("id", result['document_id']) \
-                    .execute()
+                doc = self.database_adapter.select(
+                    "krai_core.documents",
+                    columns=["*"],
+                    filters={"id": result['document_id']}
+                )
                 
-                if doc.data and len(doc.data) > 0:
+                if doc and len(doc) > 0:
                     self._pass("Document found in database")
-                    print(f"      Status: {doc.data[0].get('status')}")
-                    print(f"      Stage: {doc.data[0].get('processing_stage')}")
+                    print(f"      Status: {doc[0].get('status')}")
+                    print(f"      Stage: {doc[0].get('processing_stage')}")
                 else:
                     self._fail("Document not found in database")
                 
                 # Check processing queue
                 print("\n  4.3 Checking processing queue...")
-                queue = self.supabase.table("processing_queue") \
-                    .select("*") \
-                    .eq("document_id", result['document_id']) \
-                    .execute()
+                queue = self.database_adapter.select(
+                    "krai_system.processing_queue",
+                    columns=["*"],
+                    filters={"document_id": result['document_id']}
+                )
                 
-                if queue.data and len(queue.data) > 0:
+                if queue and len(queue) > 0:
                     self._pass("Document added to processing queue")
-                    print(f"      Queue status: {queue.data[0].get('status')}")
+                    print(f"      Queue status: {queue[0].get('status')}")
                 else:
                     self._fail("Document not in processing queue")
                 
@@ -275,7 +274,7 @@ class UploadProcessorTester:
         
         print("\n  6.1 Initializing batch processor...")
         batch_processor = BatchUploadProcessor(
-            supabase_client=self.supabase,
+            database_adapter=self.database_adapter,
             max_file_size_mb=500
         )
         

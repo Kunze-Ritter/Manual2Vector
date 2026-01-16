@@ -3,18 +3,16 @@
 
 import os
 import sys
+import asyncio
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from supabase import create_client
-from dotenv import load_dotenv
+from processors.env_loader import load_all_env_files
+from services.db_pool import get_pool
 
-load_dotenv()
-
-supabase = create_client(
-    os.getenv('SUPABASE_URL'),
-    os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-)
+# Load environment variables
+project_root = Path(__file__).parent.parent.parent
+load_all_env_files(project_root)
 
 print("=" * 80)
 print("RUNNING MIGRATION: error_code_images junction table")
@@ -32,45 +30,25 @@ print("-" * 80)
 
 print("\n🚀 Executing migration...")
 
-try:
-    # Execute SQL via RPC (if available) or direct query
-    # Note: Supabase Python client doesn't support raw SQL directly
-    # We need to use psycopg2 or execute via Supabase SQL Editor
-    
-    print("\n⚠️  MANUAL STEP REQUIRED:")
-    print("\n1. Go to Supabase SQL Editor:")
-    print("   https://supabase.com/dashboard/project/YOUR_PROJECT/sql")
-    print("\n2. Copy and paste this SQL:")
-    print(f"\n   File: {migration_file}")
-    print("\n3. Run the SQL")
-    print("\n4. Then run: python scripts/link_error_codes_to_images.py")
-    
-    # Alternative: Use psycopg2 if available
+
+async def run_migration():
+    """Execute migration using asyncpg"""
     try:
-        import psycopg2
-        
-        # Parse connection string from Supabase URL
-        db_url = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
-        
-        if db_url:
-            print("\n✅ Found DATABASE_URL - executing via psycopg2...")
-            conn = psycopg2.connect(db_url)
-            cur = conn.cursor()
-            cur.execute(sql)
-            conn.commit()
-            cur.close()
-            conn.close()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(sql)
             print("✅ Migration executed successfully!")
-        else:
-            print("\n❌ No DATABASE_URL found - please run SQL manually")
-            
-    except ImportError:
-        print("\n💡 TIP: Install psycopg2 for automatic migration:")
-        print("   pip install psycopg2-binary")
+            print("\n📋 Next steps:")
+            print("   Run: python scripts/link_error_codes_to_images.py")
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
-        print("\nPlease run SQL manually in Supabase SQL Editor")
+        print("\n📋 Please run SQL manually in PostgreSQL client (psql or pgAdmin):")
+        print(f"   File: {migration_file}")
+        sys.exit(1)
 
+
+try:
+    asyncio.run(run_migration())
 except Exception as e:
     print(f"❌ Error: {e}")
 

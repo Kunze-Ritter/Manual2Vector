@@ -219,7 +219,7 @@ This document provides a comprehensive reference for all environment variables u
 ### Related Documentation
 
 - [`.env.example`](../.env.example) - Complete variable reference with examples
-- [`docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md`](SUPABASE_TO_POSTGRESQL_MIGRATION.md) - Migration from cloud to local-first
+- [`docs/DATABASE_MIGRATION_COMPLETE.md`](DATABASE_MIGRATION_COMPLETE.md) - Migration from Supabase to PostgreSQL complete
 - [`docs/setup/DEPRECATED_VARIABLES.md`](setup/DEPRECATED_VARIABLES.md) - Legacy variable mappings
 - [`DEPLOYMENT.md`](../DEPLOYMENT.md) - Production deployment guide
 - [`DOCKER_SETUP.md`](../DOCKER_SETUP.md) - Docker configuration guide
@@ -258,18 +258,18 @@ Variables are organized by functional area matching the structure in `.env.examp
 
 For complete deprecation information, migration instructions, and variable mappings, see:
 - [`docs/setup/DEPRECATED_VARIABLES.md`](setup/DEPRECATED_VARIABLES.md) - Complete deprecation reference
-- [`docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md`](SUPABASE_TO_POSTGRESQL_MIGRATION.md) - Migration guide
+- [`docs/DATABASE_MIGRATION_COMPLETE.md`](DATABASE_MIGRATION_COMPLETE.md) - Migration guide
 
 ### Deprecated Database Variables
 
-| Variable | Replaced By | Notes |
-|----------|-------------|-------|
-| `SUPABASE_URL` | `DATABASE_CONNECTION_URL` | Use PostgreSQL connection string |
-| `SUPABASE_ANON_KEY` | *(not needed)* | PostgreSQL uses password authentication |
-| `SUPABASE_SERVICE_ROLE_KEY` | *(not needed)* | PostgreSQL uses password authentication |
-| `SUPABASE_STORAGE_URL` | `OBJECT_STORAGE_ENDPOINT` | Use MinIO endpoint |
-| `SUPABASE_DB_PASSWORD` | `DATABASE_PASSWORD` | Direct PostgreSQL password |
-| `DATABASE_URL` | `DATABASE_CONNECTION_URL` | Renamed for clarity |
+| Variable | Status | Notes |
+|----------|--------|-------|
+| `SUPABASE_URL` | ✅ Removed | Use `DATABASE_URL` instead |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ Removed | Use `DATABASE_SERVICE_KEY` instead |
+| `SUPABASE_ANON_KEY` | ✅ Removed | Not needed with PostgreSQL |
+| `SUPABASE_STORAGE_URL` | ✅ Removed | Use `OBJECT_STORAGE_ENDPOINT` instead |
+| `SUPABASE_DB_PASSWORD` | ✅ Removed | Use `DATABASE_PASSWORD` instead |
+| `DATABASE_URL` | ✅ Active | PostgreSQL connection string |
 
 ### Deprecated Storage Variables
 

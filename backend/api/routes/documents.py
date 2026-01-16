@@ -9,8 +9,9 @@ from math import ceil
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from api.app import get_database_adapter
-from services.database_adapter import DatabaseAdapter
+from api.app import get_database_pool
+import asyncpg
+import json
 from api.middleware.auth_middleware import require_permission
 from api.middleware.rate_limit_middleware import (
     limiter,
@@ -48,7 +49,7 @@ class MessagePayload(BaseModel):
 
 
 def _apply_document_filters(query: Any, filters: DocumentFilterParams) -> Any:
-    """Apply filter parameters to the Supabase query."""
+    """Apply filter parameters to the database query."""
     if filters.manufacturer_id:
         query = query.eq("manufacturer_id", filters.manufacturer_id)
     if filters.product_id:
@@ -70,12 +71,12 @@ def _apply_document_filters(query: Any, filters: DocumentFilterParams) -> Any:
 
 
 def _apply_sorting(query: Any, sort: DocumentSortParams) -> Any:
-    """Apply sorting parameters to the Supabase query."""
+    """Apply sorting parameters to the database query."""
     return query.order(sort.sort_by, desc=sort.sort_order == SortOrder.DESC)
 
 
 def _apply_pagination(query: Any, pagination: PaginationParams) -> Any:
-    """Apply pagination parameters to the Supabase query."""
+    """Apply pagination parameters to the database query."""
     start_index = (pagination.page - 1) * pagination.page_size
     end_index = start_index + pagination.page_size - 1
     return query.range(start_index, end_index)
@@ -119,7 +120,7 @@ async def list_documents(
     filters: DocumentFilterParams = Depends(),
     sort: DocumentSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentListResponse]:
     """List documents with pagination, filtering, and sorting."""
     try:
@@ -157,7 +158,8 @@ async def list_documents(
             {limit_clause}
         """
         
-        result = await adapter.execute_query(query, params)
+        async with pool.acquire() as conn:
+            result = await conn.fetch(query, *params)
         
         # Get total count from first row or execute separate count query
         total_count = 0
@@ -166,7 +168,8 @@ async def list_documents(
         else:
             # Fallback count query
             count_query = f"SELECT COUNT(*) as count FROM krai_core.documents{where_clause}"
-            count_result = await adapter.execute_query(count_query, params)
+            async with pool.acquire() as conn:
+                count_result = await conn.fetch(count_query, *params)
             total_count = count_result[0].get('count', 0) if count_result else 0
         
         return SuccessResponse(
@@ -195,7 +198,7 @@ async def get_error_codes_by_document(
     filters: DocumentFilterParams = Depends(),
     sort: DocumentSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentListResponse]:
     """List error codes by document with pagination, filtering, and sorting."""
     try:
@@ -224,14 +227,15 @@ async def get_error_codes_by_document(
 async def get_document(
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentResponse]:
     """Retrieve a single document by ID."""
     try:
-        result = await adapter.execute_query(
-            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
-            [document_id]
-        )
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+                document_id
+            )
         
         if not result:
             raise HTTPException(
@@ -240,7 +244,7 @@ async def get_document(
             )
 
         LOGGER.info("Retrieved document %s", document_id)
-        return SuccessResponse(data=DocumentResponse(**result[0]))
+        return SuccessResponse(data=DocumentResponse(**dict(result)))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive
@@ -256,15 +260,16 @@ async def get_document(
 async def create_document(
     payload: DocumentCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentResponse]:
     """Create a new document record."""
     try:
         # Detect duplicate file hash
-        duplicate_check = await adapter.execute_query(
-            "SELECT id FROM krai_core.documents WHERE file_hash = $1 LIMIT 1",
-            [payload.file_hash]
-        )
+        async with pool.acquire() as conn:
+            duplicate_check = await conn.fetchrow(
+                "SELECT id FROM krai_core.documents WHERE file_hash = $1 LIMIT 1",
+                payload.file_hash
+            )
         
         if duplicate_check:
             raise HTTPException(
@@ -281,7 +286,14 @@ async def create_document(
         document_dict["created_at"] = now
         document_dict["updated_at"] = now
 
-        result = await adapter.create_document(document_dict)
+        # Build INSERT query dynamically
+        columns = list(document_dict.keys())
+        placeholders = [f"${i+1}" for i in range(len(columns))]
+        values = list(document_dict.values())
+        
+        query = f"INSERT INTO krai_core.documents ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING *"
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(query, *values)
         
         if not result:
             raise HTTPException(
@@ -289,15 +301,17 @@ async def create_document(
                 detail=_error_response("Server Error", "Failed to create document"),
             )
 
-        document_id = result["id"]
+        result_dict = dict(result)
+        document_id = result_dict["id"]
         LOGGER.info("Created document %s", document_id)
 
         # Audit log
         try:
-            await adapter.execute_query(
-                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values) VALUES ($1, $2, $3, $4, $5)",
-                ["documents", document_id, "INSERT", current_user.get("id"), document_dict]
-            )
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values) VALUES ($1, $2, $3, $4, $5::jsonb)",
+                    "documents", document_id, "INSERT", current_user.get("id"), json.dumps(document_dict)
+                )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log insert failed for document %s: %s", document_id, audit_exc)
 
@@ -317,14 +331,15 @@ async def update_document(
     document_id: str,
     payload: DocumentUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentResponse]:
     """Update an existing document."""
     try:
-        existing = await adapter.execute_query(
-            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
-            [document_id]
-        )
+        async with pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+                document_id
+            )
         
         if not existing:
             raise HTTPException(
@@ -332,10 +347,28 @@ async def update_document(
                 detail=_error_response("Not Found", "Document not found", "DOCUMENT_NOT_FOUND"),
             )
 
+        existing_dict = dict(existing)
         update_payload = payload.dict(exclude_unset=True, exclude_none=True)
         update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        result = await adapter.update_document(document_id, update_payload)
+        # Build UPDATE query dynamically
+        set_clauses = []
+        params = []
+        param_count = 0
+        
+        for key, value in update_payload.items():
+            param_count += 1
+            set_clauses.append(f"{key} = ${param_count}")
+            params.append(value)
+        
+        param_count += 1
+        params.append(document_id)
+        
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(
+                f"UPDATE krai_core.documents SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *",
+                *params
+            )
         
         if not result:
             raise HTTPException(
@@ -343,14 +376,16 @@ async def update_document(
                 detail=_error_response("Server Error", "Failed to update document"),
             )
 
+        result_dict = dict(result)
         LOGGER.info("Updated document %s", document_id)
 
         # Audit log
         try:
-            await adapter.execute_query(
-                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, old_values, new_values) VALUES ($1, $2, $3, $4, $5, $6)",
-                ["documents", document_id, "UPDATE", current_user.get("id"), existing[0], update_payload]
-            )
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, old_values, new_values) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)",
+                    "documents", document_id, "UPDATE", current_user.get("id"), json.dumps(existing_dict), json.dumps(update_payload)
+                )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log update failed for document %s: %s", document_id, audit_exc)
 
@@ -369,14 +404,15 @@ async def update_document(
 async def delete_document(
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:delete")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[MessagePayload]:
     """Delete a document by ID."""
     try:
-        existing = await adapter.execute_query(
-            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
-            [document_id]
-        )
+        async with pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+                document_id
+            )
         
         if not existing:
             raise HTTPException(
@@ -384,15 +420,20 @@ async def delete_document(
                 detail=_error_response("Not Found", "Document not found", "DOCUMENT_NOT_FOUND"),
             )
 
-        await adapter.delete_document(document_id)
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM krai_core.documents WHERE id = $1",
+                document_id
+            )
         LOGGER.info("Deleted document %s", document_id)
 
         # Audit log
         try:
-            await adapter.execute_query(
-                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, old_values) VALUES ($1, $2, $3, $4, $5)",
-                ["documents", document_id, "DELETE", current_user.get("id"), existing[0]]
-            )
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, old_values) VALUES ($1, $2, $3, $4, $5::jsonb)",
+                    "documents", document_id, "DELETE", current_user.get("id"), json.dumps(dict(existing))
+                )
         except Exception as audit_exc:  # pragma: no cover - defensive
             LOGGER.warning("Audit log delete failed for document %s: %s", document_id, audit_exc)
 
@@ -410,34 +451,38 @@ async def delete_document(
 @limiter.limit(rate_limit_search)
 async def get_document_stats(
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentStatsResponse]:
     """Return aggregated document statistics."""
     try:
-        total_result = await adapter.execute_query("SELECT COUNT(*) as count FROM krai_core.documents")
+        async with pool.acquire() as conn:
+            total_result = await conn.fetch("SELECT COUNT(*) as count FROM krai_core.documents")
         total_documents = total_result[0].get('count', 0) if total_result else 0
 
-        type_result = await adapter.execute_query(
-            "SELECT document_type, COUNT(*) as count FROM krai_core.documents GROUP BY document_type"
-        )
+        async with pool.acquire() as conn:
+            type_result = await conn.fetch(
+                "SELECT document_type, COUNT(*) as count FROM krai_core.documents GROUP BY document_type"
+            )
         by_type: Dict[str, int] = {
             item.get("document_type"): int(item.get("count", 0))
             for item in type_result or []
             if item.get("document_type")
         }
 
-        status_result = await adapter.execute_query(
-            "SELECT processing_status, COUNT(*) as count FROM krai_core.documents GROUP BY processing_status"
-        )
+        async with pool.acquire() as conn:
+            status_result = await conn.fetch(
+                "SELECT processing_status, COUNT(*) as count FROM krai_core.documents GROUP BY processing_status"
+            )
         by_status: Dict[str, int] = {
             item.get("processing_status"): int(item.get("count", 0))
             for item in status_result or []
             if item.get("processing_status")
         }
 
-        manufacturer_result = await adapter.execute_query(
-            "SELECT manufacturer, COUNT(*) as count FROM krai_core.documents GROUP BY manufacturer"
-        )
+        async with pool.acquire() as conn:
+            manufacturer_result = await conn.fetch(
+                "SELECT manufacturer, COUNT(*) as count FROM krai_core.documents GROUP BY manufacturer"
+            )
         by_manufacturer: Dict[str, int] = {
             item.get("manufacturer"): int(item.get("count", 0))
             for item in manufacturer_result or []
@@ -520,7 +565,7 @@ def _parse_stage_status(stage_status_jsonb: Optional[Dict[str, Any]]) -> Dict[st
 async def get_document_stages(
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentStageStatusResponse]:
     """Get stage-level processing status for a document."""
     try:
@@ -532,7 +577,8 @@ async def get_document_stages(
             FROM krai_core.documents
             WHERE id = $1
         """
-        result = await adapter.execute_query(query, [document_id])
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(query, document_id)
         
         if not result:
             _log_and_raise(
@@ -594,7 +640,7 @@ async def retry_document_stage(
     document_id: str,
     stage_name: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[MessagePayload]:
     """Retry a failed stage for a document."""
     try:
@@ -613,7 +659,8 @@ async def retry_document_stage(
             FROM krai_core.documents
             WHERE id = $1
         """
-        result = await adapter.execute_query(query, [document_id])
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(query, document_id)
         
         if not result:
             _log_and_raise(
@@ -657,21 +704,21 @@ async def retry_document_stage(
             "metadata": {}
         }
         
-        await adapter.execute_query(
-            update_query,
-            [
+        async with pool.acquire() as conn:
+            await conn.execute(
+                update_query,
                 [stage_name],  # JSONB path
                 reset_stage_data,  # New value
                 document_id
-            ]
-        )
+            )
         
         # Enqueue in processing queue
         enqueue_query = """
             INSERT INTO krai_system.processing_queue (document_id, task_type, priority, status)
             VALUES ($1, $2, 5, 'pending')
         """
-        await adapter.execute_query(enqueue_query, [document_id, stage_name])
+        async with pool.acquire() as conn:
+            await conn.execute(enqueue_query, document_id, stage_name)
         
         LOGGER.info(
             "Stage retry triggered: document=%s stage=%s user=%s",

@@ -1,8 +1,47 @@
-# 🚀 N8N Agent V2.1 Upgrade Guide
+# ⚠️ DEPRECATED - Supabase Legacy Setup
+
+**Diese Anleitung ist veraltet und funktioniert nicht mit der aktuellen PostgreSQL-only Architektur.**
+
+**Für aktuelle Setup-Optionen siehe:**
+- Laravel Dashboard: `docs/LARAVEL_DASHBOARD_INTEGRATION.md`
+- FastAPI Endpoints: `docs/api/STAGE_BASED_PROCESSING.md`
+- CLI Tools: `docs/processor/QUICK_START.md`
+
+**Archivierte Workflows**: `workflows/archive/`
+
+---
+
+## Historische Dokumentation (Read-Only)
+
+Die folgende Anleitung beschreibt das **veraltete** Supabase-basierte Setup.
+
+---
+
+# 🚀 N8N Agent V2.1 Upgrade Guide (Legacy)
+
+---
+
+## ⚠️ **DEPRECATION NOTICE - SUPABASE REFERENCES**
+
+**This document contains historical Supabase references that are NO LONGER VALID.**
+
+**Current Architecture (as of November 2024):**
+- ✅ **PostgreSQL-only** (direct asyncpg connection pools)
+- ❌ **Supabase** (deprecated and removed)
+- ❌ **PostgREST** (deprecated and removed)
+
+**For current setup instructions, see:**
+- `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` - Migration guide
+- `DOCKER_SETUP.md` - Current PostgreSQL setup
+- `DATABASE_SCHEMA.md` - Current schema reference
+
+**This document is preserved for historical reference only.**
+
+---
 
 **Version:** V2.0 → V2.1 (Clean Refactoring)  
 **Date:** 2025-10-06  
-**Status:** Ready for Testing
+**Status:** DEPRECATED
 
 ---
 
@@ -216,10 +255,14 @@ User: "Zeige System Status"
    - Import in N8N UI
    - Configure credentials
 
-3. **Configure Supabase Credentials:**
+3. **Configure PostgreSQL Credentials:**
    ```
-   URL: https://YOUR-PROJECT.supabase.co
-   API Key: YOUR-SERVICE-ROLE-KEY
+   Host: localhost (or krai-postgres for Docker)
+   Port: 5432
+   Database: krai
+   User: postgres
+   Password: YOUR-PASSWORD
+   SSL: Disabled (for local development)
    ```
 
 4. **Test All Endpoints:**

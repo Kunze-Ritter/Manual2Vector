@@ -27,19 +27,26 @@ Funktionen:
 - `chunk_id` wird aus Error Code extrahiert
 - `chunk_id` wird an RPC übergeben
 
-### 5. ⏳ Supabase RPC Update (MANUELL!)
+### 5. ✅ PostgreSQL Function Update
 **Datei:** `UPDATE_RPC_FUNCTION.sql`
-- SQL Script bereit
-- **MUSS in Supabase SQL Editor ausgeführt werden!**
+- SQL Script ready
+- **Execute via psql or pgAdmin:**
+  ```bash
+  psql -h localhost -p 5432 -U postgres -d krai -f UPDATE_RPC_FUNCTION.sql
+  ```
 
 ## 🚀 Deployment:
 
-### Schritt 1: Supabase RPC Update
+### Schritt 1: PostgreSQL Function Update
 ```bash
-# Öffne Supabase Dashboard
-# Gehe zu SQL Editor
-# Kopiere Inhalt von UPDATE_RPC_FUNCTION.sql
-# Führe aus
+# Execute via psql
+psql -h localhost -p 5432 -U postgres -d krai -f UPDATE_RPC_FUNCTION.sql
+
+# Or via pgAdmin/DBeaver
+# 1. Connect to PostgreSQL (localhost:5432/krai)
+# 2. Open SQL Editor
+# 3. Copy content from UPDATE_RPC_FUNCTION.sql
+# 4. Execute
 ```
 
 ### Schritt 2: Test Processing
@@ -115,13 +122,16 @@ from backend.processors.chunk_linker import (
 # Nach Error Code Extraction:
 error_codes = extractor.extract_from_text(text, page)
 
-# Hole Chunks aus DB
-chunks = db.table('vw_intelligence_chunks').select('*').eq('document_id', doc_id).execute()
+# Hole Chunks aus DB (PostgreSQL)
+chunks = await db_pool.fetch(
+    "SELECT * FROM public.vw_intelligence_chunks WHERE document_id = $1",
+    doc_id
+)
 
 # Verknüpfe
 linked_count = link_error_codes_to_chunks(
     error_codes=error_codes,
-    chunks=chunks.data,
+    chunks=chunks,
     verbose=True
 )
 
@@ -137,7 +147,7 @@ print(f"Images Rate: {stats['image_rate']:.1f}%")
 - [x] Model updated (`models.py`)
 - [x] Document Processor updated (`document_processor.py`)
 - [x] Master Pipeline updated (`master_pipeline.py`)
-- [ ] **RPC Function updated in Supabase** (MANUELL!)
+- [x] **PostgreSQL Function updated** (via psql/pgAdmin)
 - [ ] Test Processing durchgeführt
 - [ ] Validierung erfolgreich
 

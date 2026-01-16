@@ -9,8 +9,9 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from api.app import get_database_adapter
-from services.database_adapter import DatabaseAdapter
+from api.app import get_database_pool
+import asyncpg
+import json
 from api.middleware.auth_middleware import require_permission
 from api.middleware.rate_limit_middleware import (
     limiter,
@@ -76,56 +77,60 @@ def _calculate_total_pages(total: int, page_size: int) -> int:
     return ceil(total / page_size)
 
 
-async def _fetch_document(adapter: DatabaseAdapter, document_id: Optional[str]) -> Optional[DocumentResponse]:
+async def _fetch_document(pool: asyncpg.Pool, document_id: Optional[str]) -> Optional[DocumentResponse]:
     if not document_id:
         return None
-    result = await adapter.execute_query(
-        "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
-        [document_id]
-    )
+    async with pool.acquire() as conn:
+        result = await conn.fetchrow(
+            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+            document_id
+        )
     if not result:
         return None
-    return DocumentResponse(**result[0])
+    return DocumentResponse(**dict(result))
 
 
 async def _fetch_manufacturer(
-    adapter: DatabaseAdapter, manufacturer_id: Optional[str]
+    pool: asyncpg.Pool, manufacturer_id: Optional[str]
 ) -> Optional[ManufacturerResponse]:
     if not manufacturer_id:
         return None
-    result = await adapter.execute_query(
-        "SELECT * FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
-        [manufacturer_id]
-    )
+    async with pool.acquire() as conn:
+        result = await conn.fetchrow(
+            "SELECT * FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
+            manufacturer_id
+        )
     if not result:
         return None
-    return ManufacturerResponse(**result[0])
+    return ManufacturerResponse(**dict(result))
 
 
-async def _fetch_chunk(adapter: DatabaseAdapter, chunk_id: Optional[str]) -> Optional[ChunkExcerpt]:
+async def _fetch_chunk(pool: asyncpg.Pool, chunk_id: Optional[str]) -> Optional[ChunkExcerpt]:
     if not chunk_id:
         return None
-    result = await adapter.execute_query(
-        "SELECT text_chunk,page_start,page_end FROM krai_intelligence.chunks WHERE id = $1 LIMIT 1",
-        [chunk_id]
-    )
+    async with pool.acquire() as conn:
+        result = await conn.fetchrow(
+            "SELECT text_chunk,page_start,page_end FROM krai_intelligence.chunks WHERE id = $1 LIMIT 1",
+            chunk_id
+        )
     if not result:
         return None
-    return ChunkExcerpt(**result[0])
+    return ChunkExcerpt(**dict(result))
 
 
 async def _validate_foreign_keys(
-    adapter: DatabaseAdapter,
+    pool: asyncpg.Pool,
     *,
     chunk_id: Optional[str] = None,
     document_id: Optional[str] = None,
     manufacturer_id: Optional[str] = None,
 ) -> None:
     if chunk_id:
-        chunk = await adapter.execute_query(
-            "SELECT id FROM krai_intelligence.chunks WHERE id = $1 LIMIT 1",
-            [chunk_id]
-        )
+        async with pool.acquire() as conn:
+            chunk = await conn.fetchrow(
+                "SELECT id FROM krai_intelligence.chunks WHERE id = $1 LIMIT 1",
+                chunk_id
+            )
         if not chunk:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
@@ -134,10 +139,11 @@ async def _validate_foreign_keys(
                 error_code="CHUNK_NOT_FOUND",
             )
     if document_id:
-        document = await adapter.execute_query(
-            "SELECT id FROM krai_core.documents WHERE id = $1 LIMIT 1",
-            [document_id]
-        )
+        async with pool.acquire() as conn:
+            document = await conn.fetchrow(
+                "SELECT id FROM krai_core.documents WHERE id = $1 LIMIT 1",
+                document_id
+            )
         if not document:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
@@ -146,10 +152,11 @@ async def _validate_foreign_keys(
                 error_code="DOCUMENT_NOT_FOUND",
             )
     if manufacturer_id:
-        manufacturer = await adapter.execute_query(
-            "SELECT id FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
-            [manufacturer_id]
-        )
+        async with pool.acquire() as conn:
+            manufacturer = await conn.fetchrow(
+                "SELECT id FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
+                manufacturer_id
+            )
         if not manufacturer:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
@@ -160,7 +167,7 @@ async def _validate_foreign_keys(
 
 
 async def _build_relations(
-    adapter: DatabaseAdapter, record: Dict[str, Any], include_relations: bool
+    pool: asyncpg.Pool, record: Dict[str, Any], include_relations: bool
 ) -> ErrorCodeWithRelationsResponse:
     error_code = ErrorCodeResponse(**record)
     if not include_relations:
@@ -168,14 +175,14 @@ async def _build_relations(
 
     return ErrorCodeWithRelationsResponse(
         **error_code.dict(),
-        document=await _fetch_document(adapter, record.get("document_id")),
-        manufacturer=await _fetch_manufacturer(adapter, record.get("manufacturer_id")),
-        chunk=await _fetch_chunk(adapter, record.get("chunk_id")),
+        document=await _fetch_document(pool, record.get("document_id")),
+        manufacturer=await _fetch_manufacturer(pool, record.get("manufacturer_id")),
+        chunk=await _fetch_chunk(pool, record.get("chunk_id")),
     )
 
 
 async def _insert_audit_log(
-    adapter: DatabaseAdapter,
+    pool: asyncpg.Pool,
     *,
     record_id: str,
     operation: str,
@@ -184,20 +191,16 @@ async def _insert_audit_log(
     old_values: Optional[Dict[str, Any]] = None,
 ) -> None:
     try:
-        payload = {
-            "table_name": "error_codes",
-            "record_id": record_id,
-            "operation": operation,
-            "changed_by": changed_by,
-        }
-        if new_values is not None:
-            payload["new_values"] = new_values
-        if old_values is not None:
-            payload["old_values"] = old_values
-        await adapter.execute_query(
-            "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values, old_values) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)",
-            [payload.get("table_name"), payload.get("record_id"), payload.get("operation"), payload.get("changed_by"), payload.get("new_values"), payload.get("old_values")]
-        )
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values, old_values) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)",
+                "error_codes",
+                record_id,
+                operation,
+                changed_by,
+                json.dumps(new_values) if new_values else None,
+                json.dumps(old_values) if old_values else None
+            )
     except Exception as audit_exc:  # pragma: no cover - defensive
         LOGGER.warning("Audit log insert failed for error_code %s: %s", record_id, audit_exc)
 
@@ -279,7 +282,8 @@ async def list_error_codes(
             {limit_clause}
         """
         
-        result = await adapter.execute_query(query, params)
+        async with pool.acquire() as conn:
+            result = await conn.fetch(query, *params)
         
         # Get total count from first row or execute separate count query
         total = 0
@@ -288,7 +292,8 @@ async def list_error_codes(
         else:
             # Fallback count query
             count_query = f"SELECT COUNT(*) as count FROM krai_intelligence.error_codes{where_clause}"
-            count_result = await adapter.execute_query(count_query, params)
+            async with pool.acquire() as conn:
+                count_result = await conn.fetch(count_query, *params)
             total = count_result[0].get('count', 0) if count_result else 0
 
         LOGGER.info(
@@ -299,7 +304,7 @@ async def list_error_codes(
         )
 
         payload = ErrorCodeListResponse(
-            error_codes=[ErrorCodeResponse(**item) for item in result or []],
+            error_codes=[ErrorCodeResponse(**dict(item)) for item in result or []],
             total=total,
             page=pagination.page,
             page_size=pagination.page_size,
@@ -321,13 +326,14 @@ async def get_error_code(
     error_code_id: str,
     include_relations: bool = Query(False, description="Include related entities when true."),
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[ErrorCodeWithRelationsResponse]:
     try:
-        result = await adapter.execute_query(
-            "SELECT * FROM krai_intelligence.error_codes WHERE id = $1 LIMIT 1",
-            [error_code_id]
-        )
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT * FROM krai_intelligence.error_codes WHERE id = $1 LIMIT 1",
+                error_code_id
+            )
         if not result:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
@@ -336,8 +342,8 @@ async def get_error_code(
                 ),
             )
 
-        record = result[0]
-        enriched = await _build_relations(adapter, record, include_relations)
+        record = dict(result)
+        enriched = await _build_relations(pool, record, include_relations)
         LOGGER.info("Retrieved error code %s include_relations=%s", error_code_id, include_relations)
         return SuccessResponse(data=enriched)
     except HTTPException:
@@ -355,21 +361,23 @@ async def get_error_code(
 async def create_error_code(
     payload: ErrorCodeCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[ErrorCodeResponse]:
     try:
         await _validate_foreign_keys(
-            adapter,
+            pool,
             chunk_id=payload.chunk_id,
             document_id=payload.document_id,
             manufacturer_id=payload.manufacturer_id,
         )
 
         # Check for duplicates
-        duplicate_check = await adapter.execute_query(
-            "SELECT id FROM krai_intelligence.error_codes WHERE error_code = $1 AND document_id = $2 LIMIT 1",
-            [payload.error_code, payload.document_id] if payload.document_id else [payload.error_code, None]
-        )
+        async with pool.acquire() as conn:
+            duplicate_check = await conn.fetchrow(
+                "SELECT id FROM krai_intelligence.error_codes WHERE error_code = $1 AND document_id = $2 LIMIT 1",
+                payload.error_code,
+                payload.document_id if payload.document_id else None
+            )
         if duplicate_check:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -385,9 +393,9 @@ async def create_error_code(
         record_dict["created_at"] = now
         record_dict["updated_at"] = now
 
-        result = await adapter.execute_query(
-            "INSERT INTO krai_intelligence.error_codes (error_code, error_description, solution_text, severity_level, requires_technician, requires_parts, manufacturer_id, document_id, chunk_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *",
-            [
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "INSERT INTO krai_intelligence.error_codes (error_code, error_description, solution_text, severity_level, requires_technician, requires_parts, manufacturer_id, document_id, chunk_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *",
                 record_dict.get("error_code"),
                 record_dict.get("error_description"),
                 record_dict.get("solution_text"),
@@ -399,8 +407,7 @@ async def create_error_code(
                 record_dict.get("chunk_id"),
                 record_dict.get("created_at"),
                 record_dict.get("updated_at")
-            ]
-        )
+            )
         
         if not result:
             raise HTTPException(
@@ -408,16 +415,17 @@ async def create_error_code(
                 detail=_error_response("Server Error", "Failed to create error code"),
             )
 
-        error_code_id = result[0]["id"]
+        result_dict = dict(result)
+        error_code_id = result_dict["id"]
         LOGGER.info("Created error code %s", error_code_id)
         await _insert_audit_log(
-            adapter,
+            pool,
             record_id=error_code_id,
             operation="INSERT",
             changed_by=current_user.get("id"),
-            new_values=result[0],
+            new_values=result_dict,
         )
-        return SuccessResponse(data=ErrorCodeResponse(**result[0]))
+        return SuccessResponse(data=ErrorCodeResponse(**result_dict))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -433,13 +441,14 @@ async def update_error_code(
     error_code_id: str,
     payload: ErrorCodeUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[ErrorCodeResponse]:
     try:
-        existing = await adapter.execute_query(
-            "SELECT * FROM krai_intelligence.error_codes WHERE id = $1 LIMIT 1",
-            [error_code_id]
-        )
+        async with pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                "SELECT * FROM krai_intelligence.error_codes WHERE id = $1 LIMIT 1",
+                error_code_id
+            )
         if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
@@ -448,12 +457,13 @@ async def update_error_code(
                 ),
             )
 
+        existing_dict = dict(existing)
         update_payload = payload.model_dump(exclude_unset=True, exclude_none=True)
         if not update_payload:
-            return SuccessResponse(data=ErrorCodeResponse(**existing[0]))
+            return SuccessResponse(data=ErrorCodeResponse(**existing_dict))
 
         await _validate_foreign_keys(
-            adapter,
+            pool,
             chunk_id=update_payload.get("chunk_id"),
             document_id=update_payload.get("document_id"),
             manufacturer_id=update_payload.get("manufacturer_id"),
@@ -474,10 +484,11 @@ async def update_error_code(
         param_count += 1
         params.append(error_code_id)
         
-        result = await adapter.execute_query(
-            f"UPDATE krai_intelligence.error_codes SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *",
-            params
-        )
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(
+                f"UPDATE krai_intelligence.error_codes SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *",
+                *params
+            )
         
         if not result:
             raise HTTPException(
@@ -485,16 +496,17 @@ async def update_error_code(
                 detail=_error_response("Server Error", "Failed to update error code"),
             )
 
+        result_dict = dict(result)
         LOGGER.info("Updated error code %s", error_code_id)
         await _insert_audit_log(
-            adapter,
+            pool,
             record_id=error_code_id,
             operation="UPDATE",
             changed_by=current_user.get("id"),
-            new_values=result[0],
-            old_values=existing[0],
+            new_values=result_dict,
+            old_values=existing_dict,
         )
-        return SuccessResponse(data=ErrorCodeResponse(**result[0]))
+        return SuccessResponse(data=ErrorCodeResponse(**result_dict))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -509,13 +521,14 @@ async def update_error_code(
 async def delete_error_code(
     error_code_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:delete")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[MessagePayload]:
     try:
-        existing = await adapter.execute_query(
-            "SELECT * FROM krai_intelligence.error_codes WHERE id = $1 LIMIT 1",
-            [error_code_id]
-        )
+        async with pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                "SELECT * FROM krai_intelligence.error_codes WHERE id = $1 LIMIT 1",
+                error_code_id
+            )
         if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
@@ -524,17 +537,18 @@ async def delete_error_code(
                 ),
             )
 
-        await adapter.execute_query(
-            "DELETE FROM krai_intelligence.error_codes WHERE id = $1",
-            [error_code_id]
-        )
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM krai_intelligence.error_codes WHERE id = $1",
+                error_code_id
+            )
         LOGGER.info("Deleted error code %s", error_code_id)
         await _insert_audit_log(
-            adapter,
+            pool,
             record_id=error_code_id,
             operation="DELETE",
             changed_by=current_user.get("id"),
-            old_values=existing[0],
+            old_values=dict(existing),
         )
         return SuccessResponse(data=MessagePayload(message="Error code deleted successfully"))
     except HTTPException:
@@ -551,7 +565,7 @@ async def delete_error_code(
 async def search_error_codes(
     payload: ErrorCodeSearchRequest,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[ErrorCodeSearchResponse]:
     try:
         search_fields = [field for field in payload.search_in if field in ALLOWED_SEARCH_FIELDS]
@@ -598,12 +612,13 @@ async def search_error_codes(
         
         query = f"SELECT * FROM krai_intelligence.error_codes{where_clause}{limit_clause}"
         
-        result = await adapter.execute_query(query, params)
+        async with pool.acquire() as conn:
+            result = await conn.fetch(query, *params)
         duration_ms = int((time.perf_counter() - start_time) * 1000)
 
         results: List[ErrorCodeWithRelationsResponse] = []
         for record in result or []:
-            results.append(await _build_relations(adapter, record, include_relations=True))
+            results.append(await _build_relations(pool, dict(record), include_relations=True))
 
         LOGGER.info(
             "Search error codes query='%s' results=%s duration=%sms",

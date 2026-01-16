@@ -24,15 +24,15 @@ from models.batch import (
 class TransactionManager:
     """Coordinates transactional execution for batch operations."""
 
-    def __init__(self, database_adapter: "DatabaseAdapter") -> None:
-        self._adapter = database_adapter
+    def __init__(self, pool: asyncpg.Pool) -> None:
+        self._pool = pool
         self._logger = logging.getLogger("krai.services.transaction_manager")
 
     @property
-    def pg_pool(self) -> Optional["asyncpg.pool.Pool"]:  # type: ignore[name-defined]
-        """Expose the asyncpg pool provided by the adapter, when available."""
+    def pg_pool(self) -> Optional["asyncpg.pool.Pool"]:
+        """Expose the asyncpg pool."""
 
-        return getattr(self._adapter, "pg_pool", None)
+        return self._pool
 
     def has_transaction_support(self) -> bool:
         """Return True when asyncpg transaction support is available."""
@@ -47,15 +47,14 @@ class TransactionManager:
         case the caller is responsible for compensating transactions.
         """
 
-        pool = self.pg_pool
-        if not pool:
+        if not self._pool:
             self._logger.info(
                 "Transaction fallback in use - asyncpg pool unavailable, executing without explicit transaction",
             )
             yield None
             return
 
-        conn = await pool.acquire()
+        conn = await self._pool.acquire()
         self._logger.debug("Beginning PostgreSQL transaction")
         txn = conn.transaction()
         await txn.start()
@@ -68,7 +67,7 @@ class TransactionManager:
             await txn.rollback()
             raise
         finally:
-            await pool.release(conn)
+            await self._pool.release(conn)
 
     async def execute_batch_with_transaction(
         self,
@@ -172,7 +171,7 @@ class TransactionManager:
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # Build INSERT query using DatabaseAdapter
+        # Build INSERT query using asyncpg
         columns = list(payload.keys())
         placeholders = [f"${i+1}" for i in range(len(columns))]
         values = list(payload.values())
@@ -182,7 +181,8 @@ class TransactionManager:
             VALUES ({', '.join(placeholders)})
         """
         
-        await self._adapter.execute_query(query, values)
+        async with self._pool.acquire() as conn:
+            await conn.execute(query, *values)
         self._logger.debug("Created rollback point %s for %s", rollback_point_id, table)
         return rollback_point_id
 
@@ -196,8 +196,9 @@ class TransactionManager:
             LIMIT 1
         """
         
-        result = await self._adapter.execute_query(query, [rollback_point_id])
-        data = result[0] if result else None
+        async with self._pool.acquire() as conn:
+            result = await conn.fetchrow(query, rollback_point_id)
+        data = dict(result) if result else None
         
         if not data:
             self._logger.warning("Rollback point %s not found", rollback_point_id)
@@ -218,7 +219,8 @@ class TransactionManager:
             WHERE id = $1
         """
         
-        await self._adapter.execute_query(update_query, [record_id] + list(old_values.values()))
+        async with self._pool.acquire() as conn:
+            await conn.execute(update_query, record_id, *list(old_values.values()))
         
         # Log the rollback
         rollback_payload = {
@@ -241,7 +243,8 @@ class TransactionManager:
             VALUES ({', '.join(placeholders)})
         """
         
-        await self._adapter.execute_query(audit_query, values)
+        async with self._pool.acquire() as conn:
+            await conn.execute(audit_query, *values)
         self._logger.info("Executed rollback for %s via rollback point %s", record_id, rollback_point_id)
         return True
 

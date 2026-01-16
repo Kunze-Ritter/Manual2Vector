@@ -29,9 +29,9 @@ load_dotenv(env_path)
 
 # Check required variables
 checks = {
-    "Supabase": [
-        ("SUPABASE_URL", True),
-        ("SUPABASE_SERVICE_ROLE_KEY", True),
+    "Database": [
+        ("DATABASE_URL", True),
+        ("DATABASE_SERVICE_KEY", False),
     ],
     "R2 Storage (Optional)": [
         ("R2_ACCESS_KEY_ID", False),

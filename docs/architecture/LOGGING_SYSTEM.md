@@ -98,7 +98,7 @@ logger = get_logger(name="krai.pipeline")
 logger.info("Application started")
 logger.success("Document ingested successfully")
 logger.warning("Validation returned low confidence")
-logger.error("Supabase update failed")
+logger.error("Database update failed")
 ```
 
 ### Structured sections and panels

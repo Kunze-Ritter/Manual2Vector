@@ -83,26 +83,24 @@ async def test_factory_pattern():
         
         # Test 1.1: Default adapter (from environment)
         print_test("Creating adapter from environment (DATABASE_TYPE)")
-        db_type = os.getenv("DATABASE_TYPE", "supabase")
+        db_type = os.getenv("DATABASE_TYPE", "postgresql")
         print_info(f"DATABASE_TYPE = {db_type}")
         
         adapter = create_database_adapter()
         print_success(f"Created adapter: {adapter.__class__.__name__}")
         
-        # Test 1.2: Explicit Supabase adapter
-        print_test("Creating Supabase adapter explicitly")
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_ANON_KEY")
+        # Test 1.2: Explicit PostgreSQL adapter
+        print_test("Creating PostgreSQL adapter explicitly")
+        postgres_url = os.getenv("DATABASE_CONNECTION_URL")
         
-        if supabase_url and supabase_key:
-            supabase_adapter = create_database_adapter(
-                database_type="supabase",
-                supabase_url=supabase_url,
-                supabase_key=supabase_key
+        if postgres_url:
+            pg_adapter = create_database_adapter(
+                database_type="postgresql",
+                connection_url=postgres_url
             )
-            print_success(f"Created Supabase adapter: {supabase_adapter.__class__.__name__}")
+            print_success(f"Created PostgreSQL adapter: {pg_adapter.__class__.__name__}")
         else:
-            print_warning("SUPABASE_URL or SUPABASE_ANON_KEY not set - skipping Supabase test")
+            print_warning("DATABASE_CONNECTION_URL not set - skipping explicit PostgreSQL test")
         
         # Test 1.3: Invalid adapter type
         print_test("Testing invalid adapter type (should raise ValueError)")
@@ -131,23 +129,19 @@ async def test_backward_compatibility():
         print_test("Testing DatabaseService (production wrapper)")
         from backend.services.database_service_production import DatabaseService
         
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_ANON_KEY")
+        postgres_url = os.getenv("DATABASE_CONNECTION_URL")
         
-        if not supabase_url or not supabase_key:
-            print_warning("SUPABASE credentials not set - skipping production wrapper test")
+        if not postgres_url:
+            print_warning("DATABASE_CONNECTION_URL not set - skipping production wrapper test")
             return True
         
         db = DatabaseService(
-            supabase_url=supabase_url,
-            supabase_key=supabase_key,
-            postgres_url=os.getenv("DATABASE_CONNECTION_URL")
+            postgres_url=postgres_url
         )
         print_success("DatabaseService instantiated successfully")
         
         # Check that it has the expected attributes
         assert hasattr(db, '_adapter'), "Missing _adapter attribute"
-        assert hasattr(db, 'supabase_url'), "Missing supabase_url attribute"
         assert hasattr(db, 'logger'), "Missing logger attribute"
         print_success("All expected attributes present")
         
@@ -156,8 +150,7 @@ async def test_backward_compatibility():
         from backend.services.database_service import DatabaseService as APIService
         
         api_db = APIService(
-            supabase_url=supabase_url,
-            supabase_key=supabase_key
+            postgres_url=postgres_url
         )
         print_success("API DatabaseService instantiated successfully")
         
@@ -201,14 +194,11 @@ async def test_adapter_connection():
         # Test 3.3: Check adapter attributes
         print_test("Checking adapter attributes")
         
-        if hasattr(adapter, 'client'):
-            print_info(f"Has Supabase client: {adapter.client is not None}")
-        
         if hasattr(adapter, 'pg_pool'):
             print_info(f"Has PostgreSQL pool: {adapter.pg_pool is not None}")
         
-        if hasattr(adapter, 'service_client'):
-            print_info(f"Has service role client: {adapter.service_client is not None}")
+        if hasattr(adapter, 'connection_url'):
+            print_info(f"Has connection URL configured: {adapter.connection_url is not None}")
         
         print_success("Adapter attributes checked")
         
@@ -346,28 +336,8 @@ async def test_environment_configuration():
         print_test("Checking environment variables")
         
         # Check DATABASE_TYPE
-        db_type = os.getenv("DATABASE_TYPE", "supabase")
+        db_type = os.getenv("DATABASE_TYPE", "postgresql")
         print_info(f"DATABASE_TYPE: {db_type}")
-        
-        # Check Supabase config
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_ANON_KEY")
-        service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        
-        if supabase_url:
-            print_success(f"SUPABASE_URL: {supabase_url[:30]}...")
-        else:
-            print_warning("SUPABASE_URL not set")
-        
-        if supabase_key:
-            print_success(f"SUPABASE_ANON_KEY: {supabase_key[:20]}...")
-        else:
-            print_warning("SUPABASE_ANON_KEY not set")
-        
-        if service_role_key:
-            print_success(f"SUPABASE_SERVICE_ROLE_KEY: {service_role_key[:20]}...")
-        else:
-            print_info("SUPABASE_SERVICE_ROLE_KEY not set (optional)")
         
         # Check PostgreSQL config
         postgres_url = os.getenv("DATABASE_CONNECTION_URL") or os.getenv("POSTGRES_URL")

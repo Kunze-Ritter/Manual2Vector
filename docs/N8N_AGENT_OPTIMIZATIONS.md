@@ -353,15 +353,15 @@ When user asks a question, preprocess query to remove noise:
 
 ---
 
-## 📝 **Notes**
+## **Notes**
 
 - All optimizations are **backward compatible**
 - Existing chunks can be **reprocessed** if needed
-- Metadata is **queryable** in Supabase
+- Metadata is queryable in PostgreSQL
 - Implementation is in `backend/processors_v2/chunker.py`
 
 ---
 
 **Last Updated:** 2025-01-04  
-**Status:** ✅ Implemented in production pipeline  
+**Status:** **Implemented in production pipeline**  
 **Next Review:** Before n8n agent enhancement sprint

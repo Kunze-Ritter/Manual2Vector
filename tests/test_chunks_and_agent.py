@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 import requests
 import json
+from backend.services.database_factory import create_database_adapter
 
 # Ensure project root on path and load environment
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -18,9 +19,12 @@ loaded_env_files = load_all_env_files(PROJECT_ROOT)
 if not loaded_env_files:
     print("⚠️  Keine .env-Dateien gefunden – verwende System-Umgebung")
 
-# Supabase Config
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+# Database Config
+DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_KEY = os.getenv("DATABASE_SERVICE_KEY")
+
+# Initialize database adapter
+db_adapter = create_database_adapter()
 
 print("=" * 80)
 print("KRAI - Chunk-Größe & Agent Test")
@@ -32,25 +36,21 @@ print("=" * 80)
 print("\n📊 1. CHUNK-GRÖSSE PRÜFEN")
 print("-" * 80)
 
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
-}
-
 # Hole ein paar Chunks und prüfe deren Größe
-response = requests.get(
-    f"{SUPABASE_URL}/rest/v1/krai_intelligence.chunks",
-    headers=headers,
-    params={
-        "select": "id,text_chunk,chunk_index,page_start,page_end,document_id",
-        "limit": 5,
-        "order": "created_at.desc"
-    }
-)
+try:
+    chunks = db_adapter.select(
+        "krai_intelligence.chunks",
+        columns=["id", "text_chunk", "chunk_index", "page_start", "page_end", "document_id"],
+        limit=5,
+        order=[("created_at", "desc")]
+    )
+    success = True
+except Exception as e:
+    print(f"❌ Fehler beim Abrufen der Chunks: {e}")
+    success = False
+    chunks = []
 
-if response.status_code == 200:
-    chunks = response.json()
+if success and chunks:
     print(f"✅ {len(chunks)} Chunks gefunden\n")
     
     for i, chunk in enumerate(chunks, 1):
@@ -73,9 +73,8 @@ if response.status_code == 200:
         print("⚠️  Chunks sind relativ klein (< 500 Zeichen)")
     else:
         print("✅ Chunk-Größe sieht gut aus!")
-else:
-    print(f"❌ Fehler beim Abrufen der Chunks: {response.status_code}")
-    print(response.text)
+elif not success:
+    print("❌ Fehler beim Abrufen der Chunks (siehe oben)")
 
 # ============================================================================
 # 2. Agent testen

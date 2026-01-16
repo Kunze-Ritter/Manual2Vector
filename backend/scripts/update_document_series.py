@@ -10,69 +10,74 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from supabase import create_client
+import asyncio
 from dotenv import load_dotenv
+from services.db_pool import get_pool
 
 load_dotenv()
 
-supabase = create_client(
-    os.getenv('SUPABASE_URL'),
-    os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-)
-
-print("=" * 80)
-print("UPDATE DOCUMENT SERIES FROM PRODUCTS")
-print("=" * 80)
-
-# Get all documents without series
-docs = supabase.table('vw_documents') \
-    .select('id, filename, manufacturer') \
-    .is_('series', 'null') \
-    .execute()
-
-print(f"\n📄 Documents without series: {len(docs.data)}")
-
-updated_count = 0
-
-for doc in docs.data:
-    doc_id = doc['id']
-    filename = doc['filename']
+async def main():
+    print("=" * 80)
+    print("UPDATE DOCUMENT SERIES FROM PRODUCTS")
+    print("=" * 80)
     
-    # Get products for this document via JOIN
-    result = supabase.rpc('execute_sql', {
-        'sql_text': f"""
-            SELECT DISTINCT p.series
-            FROM krai_core.document_products dp
-            JOIN krai_core.products p ON dp.product_id = p.id
-            WHERE dp.document_id = '{doc_id}'
-            AND p.series IS NOT NULL
-        """
-    }).execute()
+    pool = await get_pool()
     
-    if not result.data:
-        continue
+    # Get all documents without series
+    async with pool.acquire() as conn:
+        docs = await conn.fetch("""
+            SELECT id, filename, manufacturer
+            FROM public.vw_documents
+            WHERE series IS NULL
+        """)
     
-    # Collect unique series
-    series_set = set()
-    for row in result.data:
-        series = row.get('series')
-        if series:
-            series_set.add(series)
+    print(f"\n📄 Documents without series: {len(docs)}")
     
-    if series_set:
-        # Update document with series
-        series_str = ','.join(sorted(series_set))
+    updated_count = 0
+    
+    for doc in docs:
+        doc_id = doc['id']
+        filename = doc['filename']
         
-        supabase.table('vw_documents') \
-            .update({'series': series_str}) \
-            .eq('id', doc_id) \
-            .execute()
+        # Get products for this document via JOIN
+        async with pool.acquire() as conn:
+            result = await conn.fetch("""
+                SELECT DISTINCT p.series
+                FROM krai_core.document_products dp
+                JOIN krai_core.products p ON dp.product_id = p.id
+                WHERE dp.document_id = $1
+                AND p.series IS NOT NULL
+            """, doc_id)
         
-        print(f"✅ {filename}: {series_str}")
-        updated_count += 1
+        if not result:
+            continue
+        
+        # Collect unique series
+        series_set = set()
+        for row in result:
+            series = row.get('series')
+            if series:
+                series_set.add(series)
+        
+        if series_set:
+            # Update document with series
+            series_str = ','.join(sorted(series_set))
+            
+            async with pool.acquire() as conn:
+                await conn.execute("""
+                    UPDATE krai_core.documents
+                    SET series = $1
+                    WHERE id = $2
+                """, series_str, doc_id)
+            
+            print(f"✅ {filename}: {series_str}")
+            updated_count += 1
+    
+    print(f"\n" + "=" * 80)
+    print(f"SUMMARY")
+    print(f"=" * 80)
+    print(f"Documents updated: {updated_count}")
+    print(f"✅ Done!")
 
-print(f"\n" + "=" * 80)
-print(f"SUMMARY")
-print(f"=" * 80)
-print(f"Documents updated: {updated_count}")
-print(f"✅ Done!")
+if __name__ == '__main__':
+    asyncio.run(main())

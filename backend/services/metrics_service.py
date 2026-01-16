@@ -21,7 +21,7 @@ from models.monitoring import (
     ValidationMetrics,
 )
 from processors.stage_tracker import StageTracker
-from services.database_adapter import DatabaseAdapter
+import asyncpg
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,9 +31,9 @@ class MetricsService:
 
     CACHE_TTL_SECONDS = 5
 
-    def __init__(self, database_adapter: DatabaseAdapter, stage_tracker: StageTracker):
+    def __init__(self, pool: asyncpg.Pool, stage_tracker: StageTracker):
         """Initialize metrics service."""
-        self.adapter = database_adapter
+        self.pool = pool
         self.stage_tracker = stage_tracker
         self._cache: Dict[str, Tuple[Any, datetime]] = {}
         self.logger = LOGGER
@@ -85,9 +85,10 @@ class MetricsService:
             return cached
 
         try:
-            # Query aggregated view using DatabaseAdapter
+            # Query aggregated view using asyncpg
             query = "SELECT * FROM public.vw_pipeline_metrics_aggregated LIMIT 1"
-            response = await self.adapter.execute_query(query)
+            async with self.pool.acquire() as conn:
+                response = await conn.fetch(query)
             
             if not response or len(response) == 0:
                 raise RuntimeError("No aggregated metrics available")
@@ -132,9 +133,10 @@ class MetricsService:
             return cached
 
         try:
-            # Query aggregated stage metrics view using DatabaseAdapter
+            # Query aggregated stage metrics view using asyncpg
             query = "SELECT * FROM public.vw_stage_metrics_aggregated"
-            stage_data = await self.adapter.execute_query(query)
+            async with self.pool.acquire() as conn:
+                stage_data = await conn.fetch(query)
             stage_data = stage_data or []
 
             metrics = []
@@ -156,7 +158,8 @@ class MetricsService:
                     FROM krai_core.stage_status 
                     WHERE stage_name = $1
                 """
-                activity_data = await self.adapter.execute_query(activity_query, [stage_name])
+                async with self.pool.acquire() as conn:
+                    activity_data = await conn.fetch(activity_query, stage_name)
                 activity = activity_data[0] if activity_data else {}
                 
                 last_activity = activity.get("last_activity")
@@ -178,7 +181,8 @@ class MetricsService:
                       AND status = 'failed'
                       AND updated_at > NOW() - INTERVAL '1 hour'
                 """
-                error_data = await self.adapter.execute_query(error_query, [stage_name])
+                async with self.pool.acquire() as conn:
+                    error_data = await conn.fetch(error_query, stage_name)
                 error_count_last_hour = int(error_data[0].get("error_count", 0)) if error_data else 0
 
                 metrics.append(
@@ -212,9 +216,10 @@ class MetricsService:
             return cached
 
         try:
-            # Query aggregated view using DatabaseAdapter
+            # Query aggregated view using asyncpg
             query = "SELECT * FROM public.vw_queue_metrics_aggregated LIMIT 1"
-            response = await self.adapter.execute_query(query)
+            async with self.pool.acquire() as conn:
+                response = await conn.fetch(query)
             
             if not response or len(response) == 0:
                 raise RuntimeError("No aggregated queue metrics available")
@@ -223,7 +228,8 @@ class MetricsService:
             
             # Get task type breakdown
             type_query = "SELECT task_type FROM krai_system.processing_queue"
-            type_response = await self.adapter.execute_query(type_query)
+            async with self.pool.acquire() as conn:
+                type_response = await conn.fetch(type_query)
             by_task_type: Dict[str, int] = {}
             for item in (type_response or []):
                 task_type = item.get("task_type", "unknown")
@@ -277,7 +283,8 @@ class MetricsService:
             """
             params.append(limit)
 
-            items = await self.adapter.execute_query(query, params)
+            async with self.pool.acquire() as conn:
+                items = await conn.fetch(query, *params)
             items = items or []
 
             return [
@@ -306,12 +313,17 @@ class MetricsService:
             return cached
 
         try:
-            # Query duplicates by file_hash using RPC
-            hash_duplicates = await self.adapter.rpc("get_duplicate_hashes", {})
-            hash_duplicates = hash_duplicates or []
+            # Query duplicates by file_hash
+            async with self.pool.acquire() as conn:
+                hash_duplicates = await conn.fetch(
+                    "SELECT file_hash, COUNT(*) as count FROM krai_core.documents GROUP BY file_hash HAVING COUNT(*) > 1"
+                )
+                hash_duplicates = hash_duplicates or []
 
-            # Query duplicates by filename using RPC
-            filename_duplicates = await self.adapter.rpc("get_duplicate_filenames", {})
+                # Query duplicates by filename
+                filename_duplicates = await conn.fetch(
+                    "SELECT filename, COUNT(*) as count FROM krai_core.documents GROUP BY filename HAVING COUNT(*) > 1"
+                )
             filename_duplicates = filename_duplicates or []
 
             duplicate_documents = []
@@ -348,9 +360,10 @@ class MetricsService:
             return cached
 
         try:
-            # Query documents with errors using DatabaseAdapter
+            # Query documents with errors using asyncpg
             query = "SELECT id, filename, stage_status FROM krai_core.documents"
-            documents = await self.adapter.execute_query(query)
+            async with self.pool.acquire() as conn:
+                documents = await conn.fetch(query)
             documents = documents or []
 
             errors_by_stage: Dict[str, int] = {}
@@ -392,9 +405,10 @@ class MetricsService:
             return cached
 
         try:
-            # Query documents using DatabaseAdapter
+            # Query documents using asyncpg
             query = "SELECT * FROM public.vw_documents"
-            documents = await self.adapter.execute_query(query)
+            async with self.pool.acquire() as conn:
+                documents = await conn.fetch(query)
             documents = documents or []
 
             total_processed = len(documents)
@@ -553,7 +567,8 @@ class MetricsService:
                     FROM krai_core.stage_status
                     WHERE stage_name = $1
                 """
-                result = await self.adapter.execute_query(query, [stage_name])
+                async with self.pool.acquire() as conn:
+                    result = await conn.fetch(query, stage_name)
                 data = result[0] if result else {}
 
                 documents_processing = int(data.get("documents_processing", 0))
@@ -635,7 +650,8 @@ class MetricsService:
                 ORDER BY created_at
                 LIMIT $2
             """
-            items_data = await self.adapter.execute_query(query, [stage_name, limit])
+            async with self.pool.acquire() as conn:
+                items_data = await conn.fetch(query, stage_name, limit)
             items_data = items_data or []
 
             # Convert to QueueItem format
@@ -713,7 +729,8 @@ class MetricsService:
                 ORDER BY updated_at DESC
                 LIMIT $2
             """
-            errors_data = await self.adapter.execute_query(query, [stage_name, limit])
+            async with self.pool.acquire() as conn:
+                errors_data = await conn.fetch(query, stage_name, limit)
             errors_data = errors_data or []
 
             # Convert to StageErrorLog format
@@ -746,7 +763,8 @@ class MetricsService:
                 WHERE stage_name = $1 
                   AND updated_at > NOW() - INTERVAL '1 day'
             """
-            rate_data = await self.adapter.execute_query(error_rate_query, [stage_name])
+            async with self.pool.acquire() as conn:
+                rate_data = await conn.fetch(error_rate_query, stage_name)
             rate = rate_data[0] if rate_data else {}
             failed_count = int(rate.get("failed_count", 0))
             total_count = int(rate.get("total_count", 0))
@@ -788,7 +806,8 @@ class MetricsService:
                   AND status = 'failed'
                 RETURNING id
             """
-            result = await self.adapter.execute_query(query, [document_id, stage_name])
+            async with self.pool.acquire() as conn:
+                result = await conn.fetch(query, document_id, stage_name)
             
             if result and len(result) > 0:
                 self.logger.info(f"Retry triggered for document {document_id}, stage {stage_name}")

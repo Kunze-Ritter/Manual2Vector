@@ -1,5 +1,29 @@
 # ⚠️ n8n Integration Deprecated
 
+**Letzte Aktualisierung**: Januar 2025  
+**Aktion**: Alle Workflows archiviert in `workflows/archive/`
+
+## Aktuelle Situation
+
+✅ **Archivierung abgeschlossen**:
+- Alle v1 Workflows → `workflows/archive/v1/`
+- Alle v2 Workflows → `workflows/archive/v2/`
+- Supabase Credentials → `credentials/archive/`
+- Dokumentation mit Deprecation Notices versehen
+
+❌ **Nicht mehr verfügbar**:
+- n8n Workflows (archiviert)
+- Supabase Vector Store Integration
+- PostgREST Views
+- Legacy API Endpoints
+
+✅ **Verfügbare Alternativen**:
+- Laravel Dashboard (empfohlen)
+- FastAPI REST Endpoints
+- CLI Pipeline Processor
+
+---
+
 The n8n workflows in this directory reference the legacy Supabase architecture and are no longer maintained. They are kept for historical reference only.
 
 ## Current Status

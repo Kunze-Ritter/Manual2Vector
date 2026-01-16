@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 
 from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult, Stage, ProcessingError
 from backend.core.data_models import DocumentModel, ProcessingQueueModel, ProcessingStatus, DocumentType
-from backend.services.database_adapter import DatabaseAdapter
+import asyncpg
 from backend.processors.logger import get_logger
 from .stage_tracker import StageTracker
 
@@ -31,7 +31,7 @@ class UploadProcessor(BaseProcessor):
     
     def __init__(
         self,
-        database_adapter: DatabaseAdapter,
+        pool: asyncpg.Pool,
         max_file_size_mb: int = 500,
         allowed_extensions: list = None
     ):
@@ -340,9 +340,9 @@ class UploadProcessor(BaseProcessor):
 class BatchUploadProcessor:
     """Process multiple documents in batch"""
     
-    def __init__(self, database_adapter: DatabaseAdapter, max_file_size_mb: int = 500):
+    def __init__(self, pool: asyncpg.Pool, max_file_size_mb: int = 500):
         """Initialize batch processor"""
-        self.upload_processor = UploadProcessor(database_adapter, max_file_size_mb)
+        self.upload_processor = UploadProcessor(pool, max_file_size_mb)
         self.logger = get_logger()
 
     async def process_batch(

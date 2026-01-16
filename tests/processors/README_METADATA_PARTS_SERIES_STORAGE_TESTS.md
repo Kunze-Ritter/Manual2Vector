@@ -129,7 +129,7 @@ Sie soll helfen, schnell zu verstehen, **was** wo getestet wird und **wie** man 
 
 - **Mocks**
   - Eigenständige Mocks im Testmodul:
-    - `MockClient` + `MockTable` (Supabase-ähnliches `table().select().insert().execute()`-Interface).
+    - `MockClient` + `MockTable` (PostgreSQL-ähnliches `table().select().insert().execute()`-Interface).
     - `UnifiedMockDatabase` mit Methoden wie `get_document`, `get_chunks_by_document`, `get_error_codes_by_document`, `create_part`, `get_part_by_number*`, `create_product_series`, `update_product`, …
     - `AsyncStorageService` für Bild-/Storage-Aufrufe (hier nur Links genutzt).
 

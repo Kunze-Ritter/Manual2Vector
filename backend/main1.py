@@ -119,7 +119,7 @@ async def lifespan(app: FastAPI):
         database_service = create_database_adapter()
         # Factory automatically selects adapter based on DATABASE_TYPE environment variable
         await database_service.connect()
-        database_type = os.getenv('DATABASE_TYPE', 'supabase')
+        database_type = os.getenv('DATABASE_TYPE', 'postgresql')
         logger.info(f"✅ Database service connected ({database_type})")
         if database_service.pg_pool:
             logger.info("✅ PostgreSQL connection pool initialized")

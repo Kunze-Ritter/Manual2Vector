@@ -8,8 +8,8 @@ from math import ceil
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from api.app import get_database_adapter
-from services.database_adapter import DatabaseAdapter
+from api.app import get_database_pool
+import asyncpg
 from api.middleware.auth_middleware import require_permission
 from api.middleware.rate_limit_middleware import (
     limiter,
@@ -66,74 +66,81 @@ def _calculate_total_pages(total: int, page_size: int) -> int:
     return ceil(total / page_size) if total > 0 else 1
 
 
-async def _fetch_document(adapter: DatabaseAdapter, document_id: Optional[str]) -> Optional[DocumentResponse]:
+async def _fetch_document(pool: asyncpg.Pool, document_id: Optional[str]) -> Optional[DocumentResponse]:
     if not document_id:
         return None
-    result = await adapter.execute_query(
-        "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
-        [document_id]
-    )
+    async with pool.acquire() as conn:
+        result = await conn.fetchrow(
+            "SELECT * FROM krai_core.documents WHERE id = $1 LIMIT 1",
+            document_id
+        )
     if not result:
         return None
-    return DocumentResponse(**result[0])
+    return DocumentResponse(**dict(result))
 
 
 async def _fetch_manufacturer(
-    adapter: DatabaseAdapter, manufacturer_id: Optional[str]
+    pool: asyncpg.Pool, manufacturer_id: Optional[str]
 ) -> Optional[ManufacturerResponse]:
     if not manufacturer_id:
         return None
-    result = await adapter.execute_query(
-        "SELECT * FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
-        [manufacturer_id]
-    )
+    async with pool.acquire() as conn:
+        result = await conn.fetchrow(
+            "SELECT * FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
+            manufacturer_id
+        )
     if not result:
         return None
-    return ManufacturerResponse(**result[0])
+    return ManufacturerResponse(**dict(result))
 
 
-async def _fetch_series(adapter: DatabaseAdapter, series_id: Optional[str]) -> Optional[ProductSeriesResponse]:
+async def _fetch_series(pool: asyncpg.Pool, series_id: Optional[str]) -> Optional[ProductSeriesResponse]:
     if not series_id:
         return None
-    result = await adapter.execute_query(
-        "SELECT * FROM krai_core.product_series WHERE id = $1 LIMIT 1",
-        [series_id]
-    )
+    async with pool.acquire() as conn:
+        result = await conn.fetchrow(
+            "SELECT * FROM krai_core.product_series WHERE id = $1 LIMIT 1",
+            series_id
+        )
     if not result:
         return None
-    return ProductSeriesResponse(**result[0])
+    return ProductSeriesResponse(**dict(result))
 
 
-async def _fetch_linked_products(adapter: DatabaseAdapter, video_id: str) -> List[ProductResponse]:
-    links = await adapter.execute_query(
-        "SELECT product_id FROM krai_content.video_products WHERE video_id = $1",
-        [video_id]
-    )
-    product_ids = [link["product_id"] for link in links if link.get("product_id")]
-    if not product_ids:
+async def _fetch_linked_products(pool: asyncpg.Pool, video_id: str) -> List[ProductResponse]:
+    async with pool.acquire() as conn:
+        links = await conn.fetch(
+            "SELECT product_id FROM krai_content.video_products WHERE video_id = $1",
+            video_id
+        )
+    if not links:
         return []
+    
+    product_ids = [link["product_id"] for link in links]
     
     # Build IN query with proper parameter binding
     placeholders = ','.join([f'${i+1}' for i in range(len(product_ids))])
-    products = await adapter.execute_query(
-        f"SELECT * FROM krai_core.products WHERE id IN ({placeholders})",
-        product_ids
-    )
-    return [ProductResponse(**item) for item in products or []]
+    async with pool.acquire() as conn:
+        products = await conn.fetch(
+            f"SELECT * FROM krai_core.products WHERE id IN ({placeholders})",
+            *product_ids
+        )
+    return [ProductResponse(**dict(p)) for p in products] or []
 
 
 async def _validate_foreign_keys(
-    adapter: DatabaseAdapter,
+    pool: asyncpg.Pool,
     *,
     manufacturer_id: Optional[str] = None,
     series_id: Optional[str] = None,
     document_id: Optional[str] = None,
 ) -> None:
     if manufacturer_id:
-        manufacturer = await adapter.execute_query(
-            "SELECT id FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
-            [manufacturer_id]
-        )
+        async with pool.acquire() as conn:
+            manufacturer = await conn.fetchrow(
+                "SELECT id FROM krai_core.manufacturers WHERE id = $1 LIMIT 1",
+                manufacturer_id
+            )
         if not manufacturer:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
@@ -142,10 +149,11 @@ async def _validate_foreign_keys(
                 error_code="MANUFACTURER_NOT_FOUND",
             )
     if series_id:
-        series = await adapter.execute_query(
-            "SELECT id FROM krai_core.product_series WHERE id = $1 LIMIT 1",
-            [series_id]
-        )
+        async with pool.acquire() as conn:
+            series = await conn.fetchrow(
+                "SELECT id FROM krai_core.product_series WHERE id = $1 LIMIT 1",
+                series_id
+            )
         if not series:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
@@ -154,10 +162,11 @@ async def _validate_foreign_keys(
                 error_code="SERIES_NOT_FOUND",
             )
     if document_id:
-        document = await adapter.execute_query(
-            "SELECT id FROM krai_core.documents WHERE id = $1 LIMIT 1",
-            [document_id]
-        )
+        async with pool.acquire() as conn:
+            document = await conn.fetchrow(
+                "SELECT id FROM krai_core.documents WHERE id = $1 LIMIT 1",
+                document_id
+            )
         if not document:
             _log_and_raise(
                 status.HTTP_400_BAD_REQUEST,
@@ -168,25 +177,25 @@ async def _validate_foreign_keys(
 
 
 async def _build_relations(
-    adapter: DatabaseAdapter,
+    pool: asyncpg.Pool,
     record: Dict[str, Any],
     include_relations: bool,
 ) -> VideoWithRelationsResponse:
-    base = VideoResponse(**record)
+    video = VideoResponse(**record)
     if not include_relations:
-        return VideoWithRelationsResponse(**base.model_dump(), linked_products=[])
+        return VideoWithRelationsResponse(**video.dict())
 
     return VideoWithRelationsResponse(
-        **base.model_dump(),
-        manufacturer=await _fetch_manufacturer(adapter, record.get("manufacturer_id")),
-        series=await _fetch_series(adapter, record.get("series_id")),
-        document=await _fetch_document(adapter, record.get("document_id")),
-        linked_products=await _fetch_linked_products(adapter, record.get("id")),
+        **video.dict(),
+        document=await _fetch_document(pool, record.get("document_id")),
+        manufacturer=await _fetch_manufacturer(pool, record.get("manufacturer_id")),
+        series=await _fetch_series(pool, record.get("series_id")),
+        linked_products=await _fetch_linked_products(pool, record["id"]),
     )
 
 
 async def _insert_audit_log(
-    adapter: DatabaseAdapter,
+    pool: asyncpg.Pool,
     *,
     record_id: str,
     operation: str,
@@ -195,43 +204,39 @@ async def _insert_audit_log(
     old_values: Optional[Dict[str, Any]] = None,
 ) -> None:
     try:
-        payload = {
-            "table_name": "videos",
-            "record_id": record_id,
-            "operation": operation,
-            "changed_by": changed_by,
-        }
-        if new_values is not None:
-            payload["new_values"] = new_values
-        if old_values is not None:
-            payload["old_values"] = old_values
-        await adapter.execute_query(
-            "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values, old_values) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)",
-            [payload.get("table_name"), payload.get("record_id"), payload.get("operation"), payload.get("changed_by"), payload.get("new_values"), payload.get("old_values")]
-        )
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO krai_system.audit_log (table_name, record_id, operation, changed_by, new_values, old_values) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)",
+                "videos",
+                record_id,
+                operation,
+                changed_by,
+                json.dumps(new_values) if new_values else None,
+                json.dumps(old_values) if old_values else None
+            )
     except Exception as audit_exc:  # pragma: no cover
         LOGGER.warning("Audit log insert failed for video %s: %s", record_id, audit_exc)
 
 
 async def _deduplicate_video(
-    adapter: DatabaseAdapter,
+    pool: asyncpg.Pool,
     payload: VideoCreateRequest,
 ) -> Optional[Dict[str, Any]]:
     if payload.youtube_id:
-        duplicate = await adapter.execute_query(
-            "SELECT * FROM krai_content.videos WHERE youtube_id = $1 LIMIT 1",
-            [payload.youtube_id]
-        )
+        async with pool.acquire() as conn:
+            duplicate = await conn.fetchrow(
+                "SELECT * FROM krai_content.videos WHERE youtube_id = $1 LIMIT 1",
+                payload.youtube_id
+            )
         if duplicate:
-            return duplicate[0]
+            return dict(duplicate)
     
-    duplicate = await adapter.execute_query(
-        "SELECT * FROM krai_content.videos WHERE video_url = $1 LIMIT 1",
-        [str(payload.video_url)]
-    )
-    if duplicate:
-        return duplicate[0]
-    return None
+    async with pool.acquire() as conn:
+        duplicate = await conn.fetchrow(
+            "SELECT * FROM krai_content.videos WHERE video_url = $1 LIMIT 1",
+            str(payload.video_url)
+        )
+    return dict(duplicate) if duplicate else None
 
 
 def _detect_content_type(filename: str) -> Optional[str]:
@@ -270,7 +275,7 @@ async def list_videos(
     filters: VideoFilterParams = Depends(),
     sort: VideoSortParams = Depends(),
     current_user: Dict[str, Any] = Depends(require_permission("videos:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[VideoListResponse]:
     try:
         # Build SQL query with filters and pagination
@@ -330,7 +335,8 @@ async def list_videos(
             {limit_clause}
         """
         
-        result = await adapter.execute_query(query, params)
+        async with pool.acquire() as conn:
+            result = await conn.fetch(query, *params)
         
         # Get total count from first row or execute separate count query
         total = 0
@@ -339,7 +345,8 @@ async def list_videos(
         else:
             # Fallback count query
             count_query = f"SELECT COUNT(*) as count FROM krai_content.videos{where_clause}"
-            count_result = await adapter.execute_query(count_query, params)
+            async with pool.acquire() as conn:
+                count_result = await conn.fetch(count_query, *params)
             total = count_result[0].get('count', 0) if count_result else 0
 
         LOGGER.info(
@@ -350,7 +357,7 @@ async def list_videos(
         )
 
         payload = VideoListResponse(
-            videos=[VideoResponse(**item) for item in result or []],
+            videos=[VideoResponse(**dict(item)) for item in result or []],
             total=total,
             page=pagination.page,
             page_size=pagination.page_size,
@@ -372,20 +379,21 @@ async def get_video(
     video_id: str,
     include_relations: bool = Query(False),
     current_user: Dict[str, Any] = Depends(require_permission("videos:read")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[VideoWithRelationsResponse]:
     try:
-        result = await adapter.execute_query(
-            "SELECT * FROM krai_content.videos WHERE id = $1 LIMIT 1",
-            [video_id]
-        )
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT * FROM krai_content.videos WHERE id = $1 LIMIT 1",
+                video_id
+            )
         if not result:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Video not found", "VIDEO_NOT_FOUND"),
             )
 
-        enriched = await _build_relations(adapter, result[0], include_relations)
+        enriched = await _build_relations(pool, dict(result), include_relations)
         return SuccessResponse(data=enriched)
     except HTTPException:
         raise
@@ -402,17 +410,17 @@ async def get_video(
 async def create_video(
     payload: VideoCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[VideoResponse]:
     try:
         await _validate_foreign_keys(
-            adapter,
+            pool,
             manufacturer_id=payload.manufacturer_id,
             series_id=payload.series_id,
             document_id=payload.document_id,
         )
 
-        duplicate = await _deduplicate_video(adapter, payload)
+        duplicate = await _deduplicate_video(pool, payload)
         if duplicate:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -434,7 +442,8 @@ async def create_video(
         values = list(record_dict.values())
         
         query = f"INSERT INTO krai_content.videos ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING *"
-        result = await adapter.execute_query(query, values)
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(query, *values)
         
         if not result:
             raise HTTPException(
@@ -442,16 +451,17 @@ async def create_video(
                 detail=_error_response("Server Error", "Failed to create video"),
             )
 
-        video_id = result[0]["id"]
+        result_dict = dict(result)
+        video_id = result_dict["id"]
         LOGGER.info("Created video %s", video_id)
         await _insert_audit_log(
-            adapter,
+            pool,
             record_id=video_id,
             operation="INSERT",
             changed_by=current_user.get("id"),
-            new_values=result[0],
+            new_values=result_dict,
         )
-        return SuccessResponse(data=VideoResponse(**result[0]))
+        return SuccessResponse(data=VideoResponse(**result_dict))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -467,25 +477,27 @@ async def update_video(
     video_id: str,
     payload: VideoUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[VideoResponse]:
     try:
-        existing = await adapter.execute_query(
-            "SELECT * FROM krai_content.videos WHERE id = $1 LIMIT 1",
-            [video_id]
-        )
+        async with pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                "SELECT * FROM krai_content.videos WHERE id = $1 LIMIT 1",
+                video_id
+            )
         if not existing:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Video not found", "VIDEO_NOT_FOUND"),
             )
 
+        existing_dict = dict(existing)
         update_payload = payload.model_dump(exclude_unset=True, exclude_none=True)
         if not update_payload:
-            return SuccessResponse(data=VideoResponse(**existing[0]))
+            return SuccessResponse(data=VideoResponse(**existing_dict))
 
         await _validate_foreign_keys(
-            adapter,
+            pool,
             manufacturer_id=update_payload.get("manufacturer_id"),
             series_id=update_payload.get("series_id"),
             document_id=update_payload.get("document_id"),
@@ -506,10 +518,11 @@ async def update_video(
         param_count += 1
         params.append(video_id)
         
-        result = await adapter.execute_query(
-            f"UPDATE krai_content.videos SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *",
-            params
-        )
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(
+                f"UPDATE krai_content.videos SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *",
+                *params
+            )
         
         if not result:
             raise HTTPException(
@@ -517,16 +530,17 @@ async def update_video(
                 detail=_error_response("Server Error", "Failed to update video"),
             )
 
+        result_dict = dict(result)
         LOGGER.info("Updated video %s", video_id)
         await _insert_audit_log(
-            adapter,
+            pool,
             record_id=video_id,
             operation="UPDATE",
             changed_by=current_user.get("id"),
-            new_values=result[0],
-            old_values=existing[0],
+            new_values=result_dict,
+            old_values=existing_dict,
         )
-        return SuccessResponse(data=VideoResponse(**result[0]))
+        return SuccessResponse(data=VideoResponse(**result_dict))
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover
@@ -541,7 +555,7 @@ async def update_video(
 async def enrich_video(
     payload: VideoEnrichmentRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
-    adapter: DatabaseAdapter = Depends(get_database_adapter),
+    pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[VideoEnrichmentResponse]:
     try:
         service = VideoEnrichmentService()

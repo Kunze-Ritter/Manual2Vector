@@ -1,4 +1,43 @@
-# KRAI Technician Agent V2.1 - Setup Guide
+# ⚠️ DEPRECATED - Supabase Legacy Setup
+
+**Diese Anleitung ist veraltet und funktioniert nicht mit der aktuellen PostgreSQL-only Architektur.**
+
+**Für aktuelle Setup-Optionen siehe:**
+- Laravel Dashboard: `docs/LARAVEL_DASHBOARD_INTEGRATION.md`
+- FastAPI Endpoints: `docs/api/STAGE_BASED_PROCESSING.md`
+- CLI Tools: `docs/processor/QUICK_START.md`
+
+**Archivierte Workflows**: `workflows/archive/`
+
+---
+
+## Historische Dokumentation (Read-Only)
+
+Die folgende Anleitung beschreibt das **veraltete** Supabase-basierte Setup.
+
+---
+
+# KRAI Technician Agent V2.1 - Setup Guide (Legacy)
+
+---
+
+## ⚠️ **DEPRECATION NOTICE - SUPABASE REFERENCES**
+
+**This document contains historical Supabase references that are NO LONGER VALID.**
+
+**Current Architecture (as of November 2024):**
+- ✅ **PostgreSQL-only** (direct asyncpg connection pools)
+- ❌ **Supabase** (deprecated and removed)
+- ❌ **PostgREST** (deprecated and removed)
+
+**For current setup instructions, see:**
+- `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` - Migration guide
+- `DOCKER_SETUP.md` - Current PostgreSQL setup
+- `DATABASE_SCHEMA.md` - Current schema reference
+
+**This document is preserved for historical reference only.**
+
+---
 
 ## 📊 **Database Schema Overview**
 
@@ -43,15 +82,20 @@ All agent-related data in one place:
 
 ### **1. Datenbank Migration ausführen**
 
+**PostgreSQL (Current):**
 ```bash
-# Migration anwenden
-psql -h your-supabase-host -U postgres -d postgres -f database/migrations/75_agent_tool_functions.sql
+# Connect to PostgreSQL container
+docker exec -it krai-postgres psql -U postgres -d krai
+
+# Or use psql directly
+psql -h localhost -p 5432 -U postgres -d krai -f database/migrations/75_agent_tool_functions.sql
 ```
 
-**Oder via Supabase Dashboard:**
-1. Öffne Supabase Dashboard → SQL Editor
-2. Kopiere Inhalt von `75_agent_tool_functions.sql`
-3. Klicke "Run"
+**Or via pgAdmin/DBeaver:**
+1. Connect to PostgreSQL (host: localhost, port: 5432, database: krai)
+2. Open SQL Editor
+3. Copy content from `75_agent_tool_functions.sql`
+4. Execute
 
 ### **2. n8n Workflows importieren**
 
@@ -67,14 +111,19 @@ psql -h your-supabase-host -U postgres -d postgres -f database/migrations/75_age
 
 ### **3. Credentials konfigurieren**
 
-**Supabase Postgres:**
+**PostgreSQL (Current):**
 ```
-Host: your-project.supabase.co
+Host: localhost (or krai-postgres for Docker)
 Port: 5432
-Database: postgres
+Database: krai
 User: postgres
 Password: your-password
-SSL: Require
+SSL: Disable (for local development)
+```
+
+**Connection String:**
+```
+postgresql://postgres:your-password@localhost:5432/krai
 ```
 
 **Ollama:**
@@ -145,9 +194,10 @@ Expected: YouTube-Links mit Beschreibung
 
 ### **Problem: Postgres Connection Error**
 **Lösung:**
-1. Prüfe Supabase Credentials
-2. Aktiviere "Pooler" in Supabase (Port 6543)
-3. Nutze Connection String: `postgresql://postgres:password@host:6543/postgres`
+1. Check PostgreSQL container is running: `docker ps | grep krai-postgres`
+2. Verify connection: `psql -h localhost -p 5432 -U postgres -d krai`
+3. Check credentials in `.env` file
+4. Use connection string: `postgresql://postgres:password@localhost:5432/krai`
 
 ---
 

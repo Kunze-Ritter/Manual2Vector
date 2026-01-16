@@ -71,11 +71,11 @@ cd database_migrations/
 ./run_krai_migration.sh
 
 # 3. Or run manually step by step:
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 01_schema_and_tables.sql
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 02_security_rls_triggers.sql
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 03_indexes_performance.sql
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 04_extensions_and_storage.sql
-docker exec -i supabase_db_KR-AI-Engine psql -U postgres -d postgres < 05_performance_test.sql
+docker exec -i krai-postgres psql -U postgres -d postgres < 01_schema_and_tables.sql
+docker exec -i krai-postgres psql -U postgres -d postgres < 02_security_rls_triggers.sql
+docker exec -i krai-postgres psql -U postgres -d postgres < 03_indexes_performance.sql
+docker exec -i krai-postgres psql -U postgres -d postgres < 04_extensions_and_storage.sql
+docker exec -i krai-postgres psql -U postgres -d postgres < 05_performance_test.sql
 
 # 4. Run standalone performance tests anytime:
 ./test_performance_standalone.sh

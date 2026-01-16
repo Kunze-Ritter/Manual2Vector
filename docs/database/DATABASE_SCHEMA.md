@@ -3,7 +3,7 @@
 
 **Zuletzt aktualisiert:** 23.10.2025 um 13:32 Uhr
 
-**Quelle:** Direkt aus Supabase (ECHTE Struktur)
+**Quelle:** PostgreSQL Database (Production Structure)
 
 ## ⚠️ WICHTIGE INFORMATIONEN
 

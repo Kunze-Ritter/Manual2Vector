@@ -66,8 +66,8 @@ def get_env_summary() -> dict:
     """Get summary of loaded environment variables"""
     return {
         'database': {
-            'supabase_url': os.getenv('SUPABASE_URL', 'Not set'),
-            'has_service_key': bool(os.getenv('SUPABASE_SERVICE_ROLE_KEY')),
+            'database_url': os.getenv('DATABASE_URL', 'Not set'),
+            'has_service_key': bool(os.getenv('DATABASE_SERVICE_KEY')),
         },
         'storage': {
             'configured': bool(os.getenv('OBJECT_STORAGE_ACCESS_KEY') or os.getenv('R2_ACCESS_KEY_ID')),

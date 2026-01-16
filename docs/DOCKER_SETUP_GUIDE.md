@@ -917,9 +917,12 @@ services:
 
 ## Migration from Cloud
 
-### Supabase → PostgreSQL
+### Supabase → PostgreSQL (Completed November 2024)
 
-#### Export Data from Supabase
+> **⚠️ HISTORICAL REFERENCE - Migration Complete (KRAI-002)**  
+> This section is preserved for legacy users only. All new deployments should use PostgreSQL-only configuration.
+
+#### Export Data from Supabase (Historical Reference)
 
 ```bash
 # Using pg_dump with Supabase 

@@ -6,7 +6,8 @@ import logging
 from typing import List, Dict, Optional, Set
 from uuid import UUID
 from dataclasses import dataclass
-from supabase import Client
+from services.database_factory import create_database_adapter
+from services.database_adapter import DatabaseAdapter
 
 
 @dataclass
@@ -29,11 +30,11 @@ class ValidationResult:
 class ConfigurationValidator:
     """Validates product configurations against option dependencies"""
     
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
+    def __init__(self, adapter: Optional[DatabaseAdapter] = None):
         self.logger = logging.getLogger(__name__)
+        self.adapter = adapter
     
-    def validate_configuration(
+    async def validate_configuration(
         self,
         product_id: UUID,
         accessory_ids: List[UUID]
@@ -53,30 +54,36 @@ class ConfigurationValidator:
         recommendations = []
         
         try:
+            # Get or create adapter
+            adapter = self.adapter
+            if adapter is None:
+                adapter = create_database_adapter()
+                await adapter.connect()
+            
             # Get all dependencies for the accessories
-            dependencies = self._get_dependencies(accessory_ids)
+            dependencies = await self._get_dependencies(accessory_ids, adapter)
             
             # Check 'requires' dependencies
-            required_errors = self._check_required_dependencies(
-                accessory_ids, dependencies
+            required_errors = await self._check_required_dependencies(
+                accessory_ids, dependencies, adapter
             )
             errors.extend(required_errors)
             
             # Check 'excludes' dependencies (conflicts)
-            conflict_errors = self._check_conflicts(
-                accessory_ids, dependencies
+            conflict_errors = await self._check_conflicts(
+                accessory_ids, dependencies, adapter
             )
             errors.extend(conflict_errors)
             
             # Check 'alternative' dependencies (warnings)
-            alternative_warnings = self._check_alternatives(
-                accessory_ids, dependencies
+            alternative_warnings = await self._check_alternatives(
+                accessory_ids, dependencies, adapter
             )
             warnings.extend(alternative_warnings)
             
             # Get recommendations
-            recommendations = self._get_recommendations(
-                product_id, accessory_ids, dependencies
+            recommendations = await self._get_recommendations(
+                product_id, accessory_ids, dependencies, adapter
             )
             
             # Configuration is valid if no errors
@@ -98,7 +105,7 @@ class ConfigurationValidator:
                 recommendations=[]
             )
     
-    def _get_dependencies(self, accessory_ids: List[UUID]) -> List[Dict]:
+    async def _get_dependencies(self, accessory_ids: List[UUID], adapter: DatabaseAdapter) -> List[Dict]:
         """Get all dependencies for given accessories"""
         try:
             if not accessory_ids:
@@ -107,28 +114,29 @@ class ConfigurationValidator:
             # Convert UUIDs to strings
             accessory_id_strs = [str(aid) for aid in accessory_ids]
             
-            # Query dependencies
-            response = self.supabase.schema('krai_core').table('option_dependencies').select(
-                'id, option_id, depends_on_option_id, dependency_type, notes'
-            ).in_('option_id', accessory_id_strs).execute()
+            # Build IN clause for SQL
+            placeholders = ', '.join([f'${i+1}' for i in range(len(accessory_id_strs))])
+            query = f"SELECT id, option_id, depends_on_option_id, dependency_type, notes FROM krai_core.option_dependencies WHERE option_id IN ({placeholders})"
             
-            return response.data if response.data else []
+            results = await adapter.fetch_all(query, accessory_id_strs)
+            return [dict(r) for r in results] if results else []
             
         except Exception as e:
             self.logger.error(f"Error getting dependencies: {e}")
             return []
     
-    def _check_required_dependencies(
+    async def _check_required_dependencies(
         self,
         accessory_ids: List[UUID],
-        dependencies: List[Dict]
+        dependencies: List[Dict],
+        adapter: DatabaseAdapter
     ) -> List[str]:
         """Check if all required dependencies are satisfied"""
         errors = []
         accessory_id_set = set(str(aid) for aid in accessory_ids)
         
         # Get product details for better error messages
-        product_names = self._get_product_names(accessory_ids)
+        product_names = await self._get_product_names(accessory_ids, adapter)
         
         for dep in dependencies:
             if dep['dependency_type'] == 'requires':
@@ -138,7 +146,7 @@ class ConfigurationValidator:
                 # Check if required option is in configuration
                 if required_id not in accessory_id_set:
                     option_name = product_names.get(option_id, option_id)
-                    required_name = self._get_product_name(required_id)
+                    required_name = await self._get_product_name(required_id, adapter)
                     
                     error_msg = (
                         f"❌ {option_name} requires {required_name} "
@@ -151,17 +159,18 @@ class ConfigurationValidator:
         
         return errors
     
-    def _check_conflicts(
+    async def _check_conflicts(
         self,
         accessory_ids: List[UUID],
-        dependencies: List[Dict]
+        dependencies: List[Dict],
+        adapter: DatabaseAdapter
     ) -> List[str]:
         """Check for conflicting options (excludes)"""
         errors = []
         accessory_id_set = set(str(aid) for aid in accessory_ids)
         
         # Get product details for better error messages
-        product_names = self._get_product_names(accessory_ids)
+        product_names = await self._get_product_names(accessory_ids, adapter)
         
         for dep in dependencies:
             if dep['dependency_type'] == 'excludes':
@@ -184,17 +193,18 @@ class ConfigurationValidator:
         
         return errors
     
-    def _check_alternatives(
+    async def _check_alternatives(
         self,
         accessory_ids: List[UUID],
-        dependencies: List[Dict]
+        dependencies: List[Dict],
+        adapter: DatabaseAdapter
     ) -> List[str]:
         """Check for alternative options (warnings)"""
         warnings = []
         accessory_id_set = set(str(aid) for aid in accessory_ids)
         
         # Get product details for better messages
-        product_names = self._get_product_names(accessory_ids)
+        product_names = await self._get_product_names(accessory_ids, adapter)
         
         for dep in dependencies:
             if dep['dependency_type'] == 'alternative':
@@ -217,28 +227,30 @@ class ConfigurationValidator:
         
         return warnings
     
-    def _get_recommendations(
+    async def _get_recommendations(
         self,
         product_id: UUID,
         accessory_ids: List[UUID],
-        dependencies: List[Dict]
+        dependencies: List[Dict],
+        adapter: DatabaseAdapter
     ) -> List[str]:
         """Get recommendations for the configuration"""
         recommendations = []
         
         # Check if there are standard accessories not included
         try:
-            response = self.supabase.schema('krai_core').table('product_accessories').select(
-                'accessory_id, is_standard'
-            ).eq('product_id', str(product_id)).eq('is_standard', True).execute()
+            results = await adapter.fetch_all(
+                "SELECT accessory_id, is_standard FROM krai_core.product_accessories WHERE product_id = $1 AND is_standard = TRUE",
+                [str(product_id)]
+            )
             
-            if response.data:
+            if results:
                 accessory_id_set = set(str(aid) for aid in accessory_ids)
                 
-                for row in response.data:
+                for row in results:
                     accessory_id = row['accessory_id']
                     if accessory_id not in accessory_id_set:
-                        accessory_name = self._get_product_name(accessory_id)
+                        accessory_name = await self._get_product_name(accessory_id, adapter)
                         recommendations.append(
                             f"💡 Consider adding {accessory_name} (standard accessory)"
                         )
@@ -248,20 +260,20 @@ class ConfigurationValidator:
         
         return recommendations
     
-    def _get_product_names(self, product_ids: List[UUID]) -> Dict[str, str]:
+    async def _get_product_names(self, product_ids: List[UUID], adapter: DatabaseAdapter) -> Dict[str, str]:
         """Get product names for multiple products"""
         try:
             if not product_ids:
                 return {}
             
             product_id_strs = [str(pid) for pid in product_ids]
+            placeholders = ', '.join([f'${i+1}' for i in range(len(product_id_strs))])
+            query = f"SELECT id, model_number FROM krai_core.products WHERE id IN ({placeholders})"
             
-            response = self.supabase.schema('krai_core').table('products').select(
-                'id, model_number'
-            ).in_('id', product_id_strs).execute()
+            results = await adapter.fetch_all(query, product_id_strs)
             
-            if response.data:
-                return {row['id']: row['model_number'] for row in response.data}
+            if results:
+                return {row['id']: row['model_number'] for row in results}
             
             return {}
             
@@ -269,15 +281,16 @@ class ConfigurationValidator:
             self.logger.error(f"Error getting product names: {e}")
             return {}
     
-    def _get_product_name(self, product_id: str) -> str:
+    async def _get_product_name(self, product_id: str, adapter: DatabaseAdapter) -> str:
         """Get product name for a single product"""
         try:
-            response = self.supabase.schema('krai_core').table('products').select(
-                'model_number'
-            ).eq('id', product_id).single().execute()
+            result = await adapter.fetch_one(
+                "SELECT model_number FROM krai_core.products WHERE id = $1",
+                [product_id]
+            )
             
-            if response.data:
-                return response.data['model_number']
+            if result:
+                return result['model_number']
             
             return product_id
             
@@ -285,42 +298,48 @@ class ConfigurationValidator:
             self.logger.error(f"Error getting product name: {e}")
             return product_id
     
-    def get_compatible_accessories(self, product_id: UUID) -> List[Dict]:
-        """
-        Get all compatible accessories for a product
+    async def get_compatible_accessories(self, product_id: UUID) -> List[Dict]:
+        """Get all compatible accessories for a product
         
         Returns list with compatibility info and dependency warnings
         """
         try:
-            # Get all accessories for this product
-            response = self.supabase.schema('krai_core').table('product_accessories').select(
-                'accessory_id, is_standard, compatibility_notes'
-            ).eq('product_id', str(product_id)).execute()
+            # Get or create adapter
+            adapter = self.adapter
+            if adapter is None:
+                adapter = create_database_adapter()
+                await adapter.connect()
             
-            if not response.data:
+            # Get all accessories for this product
+            results = await adapter.fetch_all(
+                "SELECT accessory_id, is_standard, compatibility_notes FROM krai_core.product_accessories WHERE product_id = $1",
+                [str(product_id)]
+            )
+            
+            if not results:
                 return []
             
-            accessory_ids = [row['accessory_id'] for row in response.data]
+            accessory_ids = [row['accessory_id'] for row in results]
             
             # Get accessory details
-            accessories_response = self.supabase.schema('krai_core').table('products').select(
-                'id, model_number, product_type'
-            ).in_('id', accessory_ids).execute()
+            placeholders = ', '.join([f'${i+1}' for i in range(len(accessory_ids))])
+            accessories_query = f"SELECT id, model_number, product_type FROM krai_core.products WHERE id IN ({placeholders})"
+            accessories = await adapter.fetch_all(accessories_query, accessory_ids)
             
-            if not accessories_response.data:
+            if not accessories:
                 return []
             
             # Get dependencies for these accessories
-            dependencies = self._get_dependencies([UUID(aid) for aid in accessory_ids])
+            dependencies = await self._get_dependencies([UUID(aid) for aid in accessory_ids], adapter)
             
             # Build result with dependency info
             result = []
-            for accessory in accessories_response.data:
+            for accessory in accessories:
                 accessory_id = accessory['id']
                 
                 # Find original compatibility info
                 compat_info = next(
-                    (r for r in response.data if r['accessory_id'] == accessory_id),
+                    (r for r in results if r['accessory_id'] == accessory_id),
                     {}
                 )
                 

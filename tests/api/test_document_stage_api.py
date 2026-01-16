@@ -222,7 +222,6 @@ class TestDocumentStageAPI:
         """Test getting stage status"""
         # Setup mocks
         mock_services['database'].get_document.return_value = mock_document
-        mock_services['database'].supabase = MagicMock()
         
         # Mock pipeline response
         mock_status_result = {
@@ -259,7 +258,6 @@ class TestDocumentStageAPI:
         """Test video processing"""
         # Setup mocks
         mock_services['database'].get_document.return_value = mock_document
-        mock_services['database'].supabase = MagicMock()
         
         # Mock video service response
         mock_video_result = {
@@ -321,7 +319,6 @@ class TestDocumentStageAPI:
         """Test thumbnail generation"""
         # Setup mocks
         mock_services['database'].get_document.return_value = mock_document
-        mock_services['database'].supabase = MagicMock()
         
         # Mock thumbnail processor response
         mock_thumbnail_result = MagicMock()
@@ -372,7 +369,6 @@ class TestDocumentStageAPI:
         """Test thumbnail generation with default parameters"""
         # Setup mocks
         mock_services['database'].get_document.return_value = mock_document
-        mock_services['database'].supabase = MagicMock()
         
         # Mock thumbnail processor response
         mock_thumbnail_result = MagicMock()
@@ -431,7 +427,6 @@ class TestDocumentStageAPI:
         """Test error handling when pipeline processing fails"""
         # Setup mocks
         mock_services['database'].get_document.return_value = mock_document
-        mock_services['database'].supabase = MagicMock()
         
         # Mock pipeline failure
         mock_pipeline_result = {

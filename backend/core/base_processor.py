@@ -4,102 +4,26 @@ Foundation for all 8 specialized processors in the KR-AI-Engine pipeline
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass
-from enum import Enum
-from datetime import datetime
+from typing import Dict, List, Optional, Any, Union, TYPE_CHECKING
 import contextlib
 import logging
-from uuid import UUID
+from uuid import UUID, uuid4
+from datetime import datetime
+import asyncio
 
 from backend.processors.logger import get_logger
+from backend.core.types import (
+    ProcessingStatus,
+    ProcessingError,
+    ProcessingResult,
+    ProcessingContext,
+    Stage
+)
+from backend.core.retry_engine import ErrorClassifier, RetryPolicyManager, RetryOrchestrator
 
-class ProcessingStatus(Enum):
-    """Processing status enumeration"""
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-class ProcessingError(Exception):
-    """Custom exception for processing errors"""
-    def __init__(self, message: str, processor: str, error_code: str = None):
-        self.message = message
-        self.processor = processor
-        self.error_code = error_code
-        super().__init__(f"[{processor}] {message}")
-
-@dataclass
-class ProcessingResult:
-    """Result of a processing operation"""
-    success: bool
-    processor: str
-    status: ProcessingStatus
-    data: Dict[str, Any]
-    metadata: Dict[str, Any]
-    error: Optional[ProcessingError] = None
-    processing_time: float = 0.0
-    timestamp: datetime = None
-    
-    def __post_init__(self):
-        if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
-
-@dataclass
-class ProcessingContext:
-    """Context information for processing operations
-    
-    Extended with Phase 5 context extraction support:
-    - page_texts: Page text from TextProcessor (key: page_number, value: text)
-    - images/tables/links/videos: Extracted media with context metadata
-    - pdf_path: Alias for file_path for clarity
-    """
-    document_id: str
-    file_path: str
-    document_type: str
-    manufacturer: Optional[str] = None
-    model: Optional[str] = None
-    series: Optional[str] = None
-    version: Optional[str] = None
-    language: str = "en"
-    processing_config: Dict[str, Any] = None
-    file_hash: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-    file_size: Optional[int] = None
-    # Phase 5: Context extraction fields
-    page_texts: Optional[Dict[int, str]] = None  # Page text from TextProcessor
-    pdf_path: Optional[str] = None  # PDF path (alias for file_path)
-    images: Optional[List[Dict[str, Any]]] = None  # Extracted images with context
-    tables: Optional[List[Dict[str, Any]]] = None  # Extracted tables with context
-    links: Optional[List[Dict[str, Any]]] = None  # Extracted links with context
-    videos: Optional[List[Dict[str, Any]]] = None  # Extracted videos with context
-    
-    def __post_init__(self):
-        if self.processing_config is None:
-            self.processing_config = {}
-        # Auto-populate pdf_path from file_path for clarity
-        if self.pdf_path is None:
-            self.pdf_path = self.file_path
-
-class Stage(Enum):
-    """Canonical stage names for pipeline processors."""
-
-    UPLOAD = "upload"
-    TEXT_EXTRACTION = "text_extraction"
-    TABLE_EXTRACTION = "table_extraction"  # Stage 2b: Table Processor → krai_intelligence.structured_tables
-    SVG_PROCESSING = "svg_processing"  # Stage 3a: SVG Processor → Convert vector graphics to PNG
-    IMAGE_PROCESSING = "image_processing"
-    VISUAL_EMBEDDING = "visual_embedding"  # Stage 3b: Visual Embedding Processor → krai_intelligence.embeddings_v2 (images)
-    LINK_EXTRACTION = "link_extraction"
-    CHUNK_PREPROCESSING = "chunk_prep"
-    CLASSIFICATION = "classification"
-    METADATA_EXTRACTION = "metadata_extraction"
-    PARTS_EXTRACTION = "parts_extraction"
-    SERIES_DETECTION = "series_detection"
-    STORAGE = "storage"
-    EMBEDDING = "embedding"  # Stage 7: Embedding Processor → krai_intelligence.chunks (legacy) + embeddings_v2 (new)
-    SEARCH_INDEXING = "search_indexing"
+if TYPE_CHECKING:
+    from backend.core.idempotency import IdempotencyChecker
+    from backend.services.error_logging_service import ErrorLogger
 
 
 class BaseProcessor(ABC):
@@ -130,6 +54,10 @@ class BaseProcessor(ABC):
         self._base_logger = processor_logger.logger
         self._base_extra: Dict[str, Any] = {"processor": self.name}
         self._logger_adapter = logging.LoggerAdapter(self._base_logger, dict(self._base_extra))
+        self._idempotency_checker: Optional["IdempotencyChecker"] = None  # Lazy initialized
+        self._error_logger: Optional["ErrorLogger"] = None  # Lazy initialized
+        self._retry_orchestrator: Optional[RetryOrchestrator] = None  # Lazy initialized
+        self.service_name: str = config.get('service_name', 'default') if config else 'default'
 
     @contextlib.contextmanager
     def logger_context(
@@ -267,68 +195,288 @@ class BaseProcessor(ABC):
         metadata: Dict[str, Any] = None,
         data: Optional[Dict[str, Any]] = None,
     ) -> ProcessingResult:
-        """Create a failed processing result"""
+        """Create a failed processing result with error_id and correlation_id support"""
+        result_metadata = metadata or {}
         return ProcessingResult(
             success=False,
             processor=self.name,
             status=ProcessingStatus.FAILED,
             data=data or {},
-            metadata=metadata or {},
+            metadata=result_metadata,
             error=error,
             processing_time=0.0  # Will be set by caller
         )
     
+    def create_retrying_result(
+        self,
+        correlation_id: str,
+        metadata: Dict[str, Any] = None
+    ) -> ProcessingResult:
+        """Create a result indicating async retry is in progress"""
+        result_metadata = metadata or {}
+        result_metadata['correlation_id'] = correlation_id
+        return ProcessingResult(
+            success=False,
+            processor=self.name,
+            status=ProcessingStatus.IN_PROGRESS,
+            data={'message': 'Async retry in progress', 'correlation_id': correlation_id},
+            metadata=result_metadata,
+            processing_time=0.0
+        )
+    
+    def create_result(
+        self,
+        status: str,
+        data: Dict[str, Any] = None,
+        metadata: Dict[str, Any] = None
+    ) -> ProcessingResult:
+        """Create a generic processing result for special cases"""
+        return ProcessingResult(
+            success=(status == ProcessingStatus.COMPLETED),
+            processor=self.name,
+            status=status,
+            data=data or {},
+            metadata=metadata or {},
+            processing_time=0.0
+        )
+    
     async def safe_process(self, context: ProcessingContext) -> ProcessingResult:
         """
-        Safely execute processing with error handling
+        Safely execute processing with hybrid retry loop.
+        
+        Implements intelligent retry logic with:
+        - Synchronous first retry (immediate with short delay)
+        - Asynchronous subsequent retries (background tasks with exponential backoff)
+        - Idempotency checks to prevent duplicate processing
+        - PostgreSQL advisory locks to prevent concurrent retries
+        - Error classification and logging
+        
+        Retry Flow:
+        1. First attempt: Execute immediately
+        2. First retry (attempt 0): Synchronous retry after base_delay
+        3. Subsequent retries: Spawn background tasks with exponential backoff
         
         Args:
-            context: Processing context
+            context: Processing context with document information
             
         Returns:
-            ProcessingResult: Result of processing (success or failure)
+            ProcessingResult: Result of processing (success, failure, or retrying)
+            
+        Correlation ID Format:
+            {request_id}.stage_{stage_name}.retry_{attempt}
+            Example: req_a3f2e8d1.stage_image_processing.retry_2
         """
+        # Phase A: Initialization
+        # Generate request_id if not present
+        if not hasattr(context, 'request_id') or not context.request_id:
+            context.request_id = f"req_{uuid4().hex[:8]}"
+        
+        # Load retry policy
+        retry_policy = await RetryPolicyManager.get_policy(self.service_name, self.name)
+        
+        # Get retry components (with graceful degradation)
+        error_logger = self._get_error_logger()
+        orchestrator = self._get_retry_orchestrator()
+        
+        # Initialize timing
         start_time = datetime.utcnow()
         
-        try:
-            # Validate inputs
-            self.validate_inputs(context)
+        # Phase B: Hybrid Retry Loop
+        for attempt in range(retry_policy.max_retries + 1):
+            # Generate correlation_id for this attempt
+            correlation_id = f"{context.request_id}.stage_{self.name}.retry_{attempt}"
+            context.correlation_id = correlation_id
+            context.retry_attempt = attempt
             
-            # Log start
-            self.log_processing_start(context)
+            # Phase C: Idempotency Check
+            marker = await self._check_completion_marker(context)
+            if marker:
+                current_hash = self._compute_data_hash(context)
+                if marker.get('data_hash') == current_hash:
+                    # Data unchanged - skip processing
+                    self.logger.info(
+                        f"Skipping {self.name} for document {context.document_id} - already processed"
+                    )
+                    return self.create_result(
+                        status=ProcessingStatus.COMPLETED,
+                        data={'skipped': 'already_processed', 'marker': marker},
+                        metadata={'correlation_id': correlation_id}
+                    )
+                else:
+                    # Data changed - cleanup and continue
+                    self.logger.info(
+                        f"Data changed for {context.document_id} - cleaning up old data"
+                    )
+                    await self._cleanup_old_data(context)
             
-            # Execute processing
-            result = await self.process(context)
+            # Phase D: Advisory Lock Acquisition
+            lock_acquired = False
+            if orchestrator:
+                lock_acquired = await orchestrator.acquire_advisory_lock(
+                    context.document_id,
+                    self.name
+                )
+                
+                # If lock not acquired and this is a retry, another process is handling it
+                if not lock_acquired and attempt > 0:
+                    self.logger.info(
+                        f"Retry already in progress for {context.document_id} (attempt {attempt})"
+                    )
+                    return self.create_result(
+                        status="retry_in_progress",
+                        data={'message': 'Another retry is in progress'},
+                        metadata={'correlation_id': correlation_id}
+                    )
             
-            # Calculate processing time
-            processing_time = (datetime.utcnow() - start_time).total_seconds()
-            result.processing_time = processing_time
+            try:
+                # Phase E: Processing Execution
+                try:
+                    # Validate inputs
+                    self.validate_inputs(context)
+                    
+                    # Log start
+                    self.log_processing_start(context)
+                    
+                    # Execute processing
+                    result = await self.process(context)
+                    
+                    # Calculate processing time
+                    processing_time = (datetime.utcnow() - start_time).total_seconds()
+                    result.processing_time = processing_time
+                    
+                    # Set completion marker
+                    await self._set_completion_marker(
+                        context,
+                        {
+                            'processing_time': processing_time,
+                            'retry_attempt': attempt,
+                            'correlation_id': correlation_id
+                        }
+                    )
+                    
+                    # Log end
+                    self.log_processing_end(result)
+                    
+                    return result
+                
+                # Phase F: Exception Handling
+                except Exception as e:
+                    # Classify error
+                    classification = ErrorClassifier.classify(e)
+                    
+                    # Log error
+                    error_id = None
+                    if error_logger:
+                        try:
+                            error_id = await error_logger.log_error(
+                                context=context,
+                                exception=e,
+                                classification=classification,
+                                retry_attempt=attempt,
+                                max_retries=retry_policy.max_retries,
+                                correlation_id=correlation_id,
+                                stage_name=self.name
+                            )
+                            context.error_id = error_id
+                        except Exception as log_error:
+                            self.logger.error(
+                                f"Failed to log error: {log_error}",
+                                exc_info=True
+                            )
+                    
+                    # Phase G: Retry Decision Logic
+                    is_transient = classification.is_transient
+                    has_retries_remaining = attempt < retry_policy.max_retries
+                    
+                    if is_transient and has_retries_remaining:
+                        if orchestrator:
+                            # Orchestrator available - use hybrid retry strategy
+                            if attempt == 0:
+                                # First retry: Synchronous
+                                self.logger.info(
+                                    f"Transient error on attempt {attempt}, retrying synchronously "
+                                    f"after {retry_policy.base_delay_seconds}s"
+                                )
+                                await asyncio.sleep(retry_policy.base_delay_seconds)
+                                # Continue loop for immediate retry
+                                continue
+                            else:
+                                # Subsequent retries: Asynchronous
+                                # Generate new correlation_id for next attempt
+                                next_correlation_id = RetryOrchestrator.generate_correlation_id(
+                                    context.request_id,
+                                    self.name,
+                                    attempt + 1
+                                )
+                                self.logger.info(
+                                    f"Transient error on attempt {attempt}, spawning background retry"
+                                )
+                                await orchestrator.spawn_background_retry(
+                                    context,
+                                    attempt + 1,
+                                    retry_policy,
+                                    next_correlation_id,
+                                    self.safe_process,
+                                    self.name
+                                )
+                                return self.create_retrying_result(
+                                    next_correlation_id,
+                                    metadata={'error_id': error_id}
+                                )
+                        else:
+                            # Fallback: Orchestrator unavailable but error is transient
+                            # Perform synchronous retry to avoid treating transient errors as permanent
+                            self.logger.warning(
+                                f"Retry orchestrator unavailable, falling back to synchronous retry "
+                                f"for transient error on attempt {attempt}"
+                            )
+                            await asyncio.sleep(retry_policy.base_delay_seconds)
+                            # Continue loop for immediate retry
+                            continue
+                    else:
+                        # Permanent error or max retries exceeded
+                        processing_time = (datetime.utcnow() - start_time).total_seconds()
+                        
+                        if isinstance(e, ProcessingError):
+                            error = e
+                        else:
+                            error = ProcessingError(
+                                f"Error after {attempt} attempts: {str(e)}",
+                                self.name,
+                                "PROCESSING_ERROR"
+                            )
+                        
+                        result = self.create_error_result(
+                            error,
+                            metadata={
+                                'correlation_id': correlation_id,
+                                'error_id': error_id,
+                                'retry_attempt': attempt,
+                                'error_category': classification.error_category
+                            }
+                        )
+                        result.processing_time = processing_time
+                        self.log_processing_end(result)
+                        return result
             
-            # Log end
-            self.log_processing_end(result)
-            
-            return result
-            
-        except ProcessingError as e:
-            # Processing error - log and return error result
-            processing_time = (datetime.utcnow() - start_time).total_seconds()
-            result = self.create_error_result(e)
-            result.processing_time = processing_time
-            self.log_processing_end(result)
-            return result
-            
-        except Exception as e:
-            # Unexpected error - convert to ProcessingError
-            processing_time = (datetime.utcnow() - start_time).total_seconds()
-            error = ProcessingError(
-                f"Unexpected error: {str(e)}",
-                self.name,
-                "UNEXPECTED_ERROR"
-            )
-            result = self.create_error_result(error)
-            result.processing_time = processing_time
-            self.log_processing_end(result)
-            return result
+            finally:
+                # Phase H: Lock Release
+                if orchestrator and lock_acquired:
+                    await orchestrator.release_advisory_lock(
+                        context.document_id,
+                        self.name
+                    )
+        
+        # Should never reach here, but handle gracefully
+        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        error = ProcessingError(
+            "Max retries exceeded",
+            self.name,
+            "MAX_RETRIES_EXCEEDED"
+        )
+        result = self.create_error_result(error)
+        result.processing_time = processing_time
+        return result
     
     def get_resource_requirements(self) -> Dict[str, Any]:
         """
@@ -372,3 +520,219 @@ class BaseProcessor(ABC):
             List[str]: List of bucket names
         """
         return []
+    
+    def _get_idempotency_checker(self) -> Optional["IdempotencyChecker"]:
+        """
+        Get or initialize the IdempotencyChecker instance.
+        
+        Returns:
+            IdempotencyChecker instance if database adapter is available, None otherwise
+        """
+        if self._idempotency_checker is None:
+            # Lazy initialization - requires database adapter
+            # Subclasses should set db_adapter attribute if they want idempotency support
+            if hasattr(self, 'db_adapter') and self.db_adapter is not None:
+                # Lazy import to break circular dependency
+                from backend.core.idempotency import IdempotencyChecker
+                self._idempotency_checker = IdempotencyChecker(self.db_adapter)
+        return self._idempotency_checker
+    
+    def _get_error_logger(self) -> Optional["ErrorLogger"]:
+        """
+        Get or initialize the ErrorLogger instance.
+        
+        Returns:
+            ErrorLogger instance if database adapter is available, None otherwise
+        """
+        if self._error_logger is None:
+            if hasattr(self, 'db_adapter') and self.db_adapter is not None:
+                try:
+                    from backend.services.error_logging_service import ErrorLogger
+                    self._error_logger = ErrorLogger(self.db_adapter)
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to initialize ErrorLogger: {e}"
+                    )
+        return self._error_logger
+    
+    def _get_retry_orchestrator(self) -> Optional[RetryOrchestrator]:
+        """
+        Get or initialize the RetryOrchestrator instance.
+        
+        Returns:
+            RetryOrchestrator instance if database adapter and error logger are available, None otherwise
+        """
+        if self._retry_orchestrator is None:
+            error_logger = self._get_error_logger()
+            if hasattr(self, 'db_adapter') and self.db_adapter is not None and error_logger:
+                try:
+                    self._retry_orchestrator = RetryOrchestrator(
+                        self.db_adapter,
+                        error_logger
+                    )
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to initialize RetryOrchestrator: {e}"
+                    )
+        return self._retry_orchestrator
+    
+    async def _check_completion_marker(
+        self, 
+        context: ProcessingContext
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if a completion marker exists for this stage and document.
+        
+        This method delegates to IdempotencyChecker to query the database
+        for existing completion markers. Use this to determine if a stage
+        has already been processed.
+        
+        Args:
+            context: Processing context containing document_id
+            
+        Returns:
+            Dictionary containing marker data if found, None otherwise.
+            Marker includes: document_id, stage_name, completed_at, data_hash, metadata
+            
+        Example:
+            ```python
+            marker = await self._check_completion_marker(context)
+            if marker:
+                # Stage already completed
+                current_hash = self._compute_data_hash(context)
+                if marker['data_hash'] == current_hash:
+                    # Data unchanged - skip processing
+                    return cached_result
+            ```
+        """
+        checker = self._get_idempotency_checker()
+        if checker is None:
+            self.logger.warning(
+                f"Idempotency checker not available for {self.name} - "
+                "database adapter not configured"
+            )
+            return None
+        
+        return await checker.check_completion_marker(
+            context.document_id,
+            self.name
+        )
+    
+    async def _set_completion_marker(
+        self,
+        context: ProcessingContext,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Mark this stage as completed for the document.
+        
+        This method delegates to IdempotencyChecker to insert or update
+        a completion marker in the database. Call this after successful
+        processing to prevent re-execution.
+        
+        Args:
+            context: Processing context containing document_id
+            metadata: Optional metadata to store (processing time, output summary, etc.)
+            
+        Returns:
+            True if marker was set successfully, False otherwise
+            
+        Example:
+            ```python
+            # After successful processing
+            success = await self._set_completion_marker(
+                context,
+                {
+                    "processing_time": result.processing_time,
+                    "chunks_created": len(chunks),
+                    "retry_count": context.retry_attempt
+                }
+            )
+            ```
+        """
+        checker = self._get_idempotency_checker()
+        if checker is None:
+            self.logger.warning(
+                f"Idempotency checker not available for {self.name} - "
+                "database adapter not configured"
+            )
+            return False
+        
+        data_hash = self._compute_data_hash(context)
+        return await checker.set_completion_marker(
+            context.document_id,
+            self.name,
+            data_hash,
+            metadata
+        )
+    
+    async def _cleanup_old_data(self, context: ProcessingContext) -> bool:
+        """
+        Remove old data for this stage to prepare for re-processing.
+        
+        This method delegates to IdempotencyChecker to delete the completion
+        marker. Call this when data has changed and re-processing is needed.
+        
+        Note: This only removes the completion marker. Stage-specific data
+        cleanup (e.g., chunks, embeddings) should be handled by the processor.
+        
+        Args:
+            context: Processing context containing document_id
+            
+        Returns:
+            True if cleanup was successful, False otherwise
+            
+        Example:
+            ```python
+            marker = await self._check_completion_marker(context)
+            if marker:
+                current_hash = self._compute_data_hash(context)
+                if marker['data_hash'] != current_hash:
+                    # Data changed - cleanup and re-process
+                    await self._cleanup_old_data(context)
+                    # Continue with processing...
+            ```
+        """
+        checker = self._get_idempotency_checker()
+        if checker is None:
+            self.logger.warning(
+                f"Idempotency checker not available for {self.name} - "
+                "database adapter not configured"
+            )
+            return False
+        
+        return await checker.cleanup_old_data(
+            context.document_id,
+            self.name
+        )
+    
+    def _compute_data_hash(self, context: ProcessingContext) -> str:
+        """
+        Calculate SHA-256 hash of input data.
+        
+        Uses the standalone compute_context_hash function, which works without
+        requiring a database adapter. This allows hash computation to be decoupled
+        from database availability.
+        
+        Args:
+            context: Processing context containing document metadata
+            
+        Returns:
+            64-character hexadecimal SHA-256 hash string
+            
+        Example:
+            ```python
+            hash1 = self._compute_data_hash(context1)
+            hash2 = self._compute_data_hash(context2)
+            
+            if hash1 == hash2:
+                # Data unchanged
+                pass
+            else:
+                # Data changed - re-processing needed
+                pass
+            ```
+        """
+        # Use standalone hash function - no DB required
+        from backend.core.idempotency import compute_context_hash
+        return compute_context_hash(context)

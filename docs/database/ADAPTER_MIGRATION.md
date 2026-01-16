@@ -1,8 +1,14 @@
 # Database Adapter Migration Guide
 
+> **⚠️ HISTORICAL REFERENCE - Adapter Pattern Removed**  
+> This guide documents the legacy adapter pattern used during migration.  
+> **Current Architecture:** Direct asyncpg connection pools (see `backend/services/database/`)  
+> **Status:** Adapter pattern removed in KRAI-002 (November 2024)  
+> **Purpose:** Historical reference only
+
 ## Overview
 
-The KRAI system now supports multiple database backends through a unified `DatabaseAdapter` interface. This allows the system to run with either Supabase or pure PostgreSQL backends.
+The KRAI system previously supported multiple database backends through a unified `DatabaseAdapter` interface. This allowed the system to run with either Supabase or pure PostgreSQL backends. **This pattern has been removed in favor of direct PostgreSQL connections.**
 
 ## Architecture
 
@@ -10,9 +16,9 @@ The KRAI system now supports multiple database backends through a unified `Datab
 
 All database operations go through the `DatabaseAdapter` abstract base class defined in `backend/services/database_adapter.py`.
 
-**Implementations:**
-- `SupabaseAdapter` - Uses Supabase client with PostgREST API
-- `PostgreSQLAdapter` - Direct PostgreSQL connection via asyncpg
+**Implementations (Deprecated):**
+- `SupabaseAdapter` - Uses Supabase client with PostgREST API (removed)
+- `PostgreSQLAdapter` - Direct PostgreSQL connection via asyncpg (removed in favor of direct connection pools)
 
 ### Database Factory
 
@@ -27,9 +33,9 @@ adapter = create_database_adapter()
 
 ## Configuration
 
-### Environment Variables
+### Environment Variables (Historical)
 
-**For Supabase:**
+**For Supabase (Deprecated - No Longer Supported):**
 ```bash
 DATABASE_TYPE=supabase
 SUPABASE_URL=https://your-project.supabase.co

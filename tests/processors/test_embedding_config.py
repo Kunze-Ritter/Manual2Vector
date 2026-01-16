@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.processors.embedding_processor import EmbeddingProcessor
 from backend.processors.logger import get_logger
+from backend.services.database_adapter import create_database_adapter
 
 
 def main():
@@ -36,43 +37,26 @@ def main():
     else:
         logger.warning(f"\n⚠️  No .env file found at: {env_path}")
     
-    # Try to initialize Supabase client
-    supabase_client = None
-    supabase_url = os.getenv('SUPABASE_URL')
-    # Try both possible key names
-    supabase_key = os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_ANON_KEY')
+    # Initialize database adapter
+    database_adapter = None
+    logger.info("\n🔑 Checking database connection...")
     
-    logger.info("\n🔑 Checking Supabase credentials...")
-    logger.info(f"  • SUPABASE_URL: {'✓ Set' if supabase_url else '✗ Missing'}")
-    logger.info(f"  • SUPABASE_SERVICE_ROLE_KEY: {'✓ Set' if os.getenv('SUPABASE_SERVICE_ROLE_KEY') else '✗ Missing'}")
-    logger.info(f"  • SUPABASE_ANON_KEY: {'✓ Set' if os.getenv('SUPABASE_ANON_KEY') else '✗ Missing'}")
-    logger.info(f"  • Using Key: {'✓ Available' if supabase_key else '✗ Missing'}")
-    
-    if supabase_url and supabase_key:
+    try:
+        database_adapter = create_database_adapter()
+        logger.success("✅ Database adapter created successfully")
+        
+        # Test connection
         try:
-            from supabase import create_client
-            supabase_client = create_client(supabase_url, supabase_key)
-            logger.success("✅ Supabase client created successfully")
-            
-            # Test connection
-            try:
-                # Try a simple query to verify connection
-                result = supabase_client.table('vw_documents').select("id").limit(1).execute()
-                logger.success("✅ Supabase connection verified (can query database)")
-            except Exception as e:
-                logger.warning(f"⚠️  Supabase client created but query failed: {e}")
-                logger.info("   → This might be OK if tables don't exist yet")
-                
-        except ImportError:
-            logger.error("❌ supabase-py package not installed")
-            logger.info("   → Install: pip install supabase")
+            result = database_adapter.select("krai_core.documents", columns=["id"], limit=1)
+            logger.success("✅ Database connection verified (can query database)")
         except Exception as e:
-            logger.error(f"❌ Failed to create Supabase client: {e}")
-    else:
-        logger.warning("⚠️  Supabase credentials not in .env or incomplete")
+            logger.warning(f"⚠️  Database adapter created but query failed: {e}")
+            logger.info("   → This might be OK if tables don't exist yet")
+    except Exception as e:
+        logger.error(f"❌ Failed to create database adapter: {e}")
     
-    # Initialize processor with Supabase if available
-    processor = EmbeddingProcessor(supabase_client=supabase_client)
+    # Initialize processor with database adapter
+    processor = EmbeddingProcessor(database_adapter=database_adapter)
     
     # Get detailed status
     status = processor.get_configuration_status()
@@ -85,7 +69,7 @@ def main():
     logger.info(f"  ✓ Model Name: {status['model_name']}")
     logger.info(f"  ✓ Embedding Dimension: {status['embedding_dimension']}")
     logger.info(f"  ✓ Batch Size: {status['batch_size']}")
-    logger.info(f"  ✓ Supabase Configured: {status['supabase_configured']}")
+    logger.info(f"  ✓ Database Configured: {status['supabase_configured']}")
     logger.info("-" * 70)
     
     # Overall result
@@ -132,11 +116,11 @@ def main():
             logger.info("")
         
         if not status['supabase_configured']:
-            logger.error("\n🔴 PROBLEM: Supabase client is not configured")
+            logger.error("\n🔴 PROBLEM: Database adapter is not configured")
             logger.info("\n📝 SOLUTION:")
-            logger.info("   • Make sure to pass supabase_client to EmbeddingProcessor")
-            logger.info("   • Check your .env file for Supabase credentials")
-            logger.info("   • Verify SUPABASE_URL and SUPABASE_KEY are set")
+            logger.info("   • Make sure to pass database_adapter to EmbeddingProcessor")
+            logger.info("   • Check your .env file for database credentials")
+            logger.info("   • Verify DATABASE_URL and DATABASE_SERVICE_KEY are set")
             logger.info("")
         
         logger.error("=" * 70)

@@ -29,7 +29,7 @@ def _create_context(document_id: str, pdf_path: Path) -> ProcessingContext:
 class DummyDatabaseService:
     """Very small shim exposing `.client.table("vw_processing_queue")`.
 
-    The real Supabase wrapper used by Image/SVG processors exposes `.client`.
+    The real database wrapper used by Image/SVG processors exposes `.client`.
     Here we intercept queued items in a plain list for assertions.
     """
 

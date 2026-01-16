@@ -70,10 +70,13 @@ The system uses PostgreSQL as the sole database, eliminating all cloud dependenc
 - **Full-Text Search** - PostgreSQL tsvector indexes
 - **ACID Compliance** - Reliable transaction handling
 
-### Migration from Supabase
+### Migration from Supabase (Completed)
+
+> **ℹ️ Historical Reference:** This section is for historical reference only. All new deployments use PostgreSQL-only architecture.
+
 - **Completed November 2024 (KRAI-002)**
 - **All Supabase dependencies removed** from codebase
-- **DatabaseAdapter interface** standardizes all database access
+- **DatabaseAdapter interface** standardizes all database access (later removed - now using direct asyncpg pools)
 - **Legacy Supabase scripts archived** to `archive/scripts/supabase/`
 
 ## Core Components

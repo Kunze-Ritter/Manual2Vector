@@ -2,9 +2,15 @@
 
 ## ⚡ **SCHNELL-ANLEITUNG (2 Minuten):**
 
-### **1. Supabase SQL Editor öffnen:**
-```
-https://supabase.com/dashboard/project/[DEIN-PROJECT]/sql/new
+### **1. PostgreSQL SQL Editor öffnen:**
+
+**Option A - pgAdmin:**
+- Öffne pgAdmin und verbinde mit `krai-postgres`
+- Rechtsklick auf Database → Query Tool
+
+**Option B - psql:**
+```bash
+psql -h localhost -U krai_user -d krai
 ```
 
 ### **2. Diesen SQL Code kopieren & ausführen:**
@@ -145,9 +151,9 @@ WHERE processing_status = 'failed';
 
 ## 🚀 **NOCHMAL KURZ:**
 
-1. **Gehe zu:** https://supabase.com/dashboard/project/[DEIN-PROJECT]/sql/new
+1. **Öffne:** pgAdmin oder psql (siehe oben)
 2. **Kopiere:** SQL Code von oben
-3. **Run:** Klick auf "Run"
+3. **Run:** Execute/Ausführen
 4. **Done:** ✅
 
 **Dann Script neu starten - alles wird korrekt gespeichert!** 🎉

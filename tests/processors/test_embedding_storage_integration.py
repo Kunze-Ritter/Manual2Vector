@@ -26,7 +26,7 @@ class E2EEmbeddingProcessor(EmbeddingProcessor):
 
     - Avoids real Ollama calls by forcing `_check_ollama` to succeed.
     - Treats the adapter as the source of truth for chunks and embeddings.
-    - Bypasses Supabase-specific `.table()` APIs entirely.
+    - Bypasses database-specific `.table()` APIs entirely.
     """
 
     def __init__(self, database_adapter, **kwargs: Any) -> None:  # type: ignore[override]
@@ -34,7 +34,7 @@ class E2EEmbeddingProcessor(EmbeddingProcessor):
         self.database_adapter = database_adapter
         self.stage_tracker = StageTracker(database_adapter)
         self.ollama_available = True
-        # Context embeddings and Supabase-backed multi-modal views are
+        # Context embeddings and database-backed multi-modal views are
         # disabled for these focused tests.
         self.enable_context_embeddings = False
 
@@ -54,7 +54,7 @@ class E2EEmbeddingProcessor(EmbeddingProcessor):
         """Synchronously persist embedding into mock adapter stores.
 
         This simulates the behaviour of storing into `vw_chunks` and
-        `embeddings_v2` without requiring Supabase or pgvector.
+        `embeddings_v2` without requiring PostgreSQL or pgvector.
         """
 
         doc_id_str = str(document_id)

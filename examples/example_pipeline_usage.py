@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 load_dotenv()
 
 from backend.pipeline.master_pipeline import KRMasterPipeline
-from supabase import create_client
+from backend.services.database_adapter import create_database_adapter
 
 
 def main():
@@ -27,22 +27,19 @@ def main():
     print("="*80)
     
     # ==========================================
-    # 1. Initialize Supabase
+    # 1. Initialize Database Connection
     # ==========================================
-    print("\n1️⃣  Initializing Supabase...")
+    print("\n1️⃣  Initializing Database Connection...")
     
-    supabase_url = os.getenv('SUPABASE_URL')
-    supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
-    
-    if not supabase_url or not supabase_key:
-        print("❌ Error: Supabase credentials not found in environment")
-        print("\nPlease set:")
-        print("  SUPABASE_URL=https://your-project.supabase.co")
-        print("  SUPABASE_SERVICE_KEY=your-service-key")
+    try:
+        database_adapter = create_database_adapter()
+        print("✅ Database connected")
+    except Exception as e:
+        print(f"❌ Error: Failed to connect to database: {e}")
+        print("\nPlease check:")
+        print("  DATABASE_URL is set correctly")
+        print("  DATABASE_SERVICE_KEY is set correctly")
         return
-    
-    supabase = create_client(supabase_url, supabase_key)
-    print("✅ Supabase connected")
     
     # ==========================================
     # 2. Initialize Pipeline
@@ -50,7 +47,7 @@ def main():
     print("\n2️⃣  Initializing Master Pipeline...")
     
     pipeline = KRMasterPipeline(
-        supabase_client=supabase,
+        database_adapter=database_adapter,
         manufacturer="AUTO",          # Auto-detect manufacturer
         enable_images=True,            # Extract images
         enable_ocr=True,               # OCR on images
@@ -137,13 +134,10 @@ def example_batch_processing():
     print("="*80)
     
     # Initialize
-    supabase = create_client(
-        os.getenv('SUPABASE_URL'),
-        os.getenv('SUPABASE_SERVICE_KEY')
-    )
+    database_adapter = create_database_adapter()
     
     pipeline = KRMasterPipeline(
-        supabase_client=supabase,
+        database_adapter=database_adapter,
         enable_embeddings=True
     )
     
@@ -175,13 +169,10 @@ def example_semantic_search():
     from processors.embedding_processor import EmbeddingProcessor
     
     # Initialize
-    supabase = create_client(
-        os.getenv('SUPABASE_URL'),
-        os.getenv('SUPABASE_SERVICE_KEY')
-    )
+    database_adapter = create_database_adapter()
     
     embedding_processor = EmbeddingProcessor(
-        supabase_client=supabase
+        database_adapter=database_adapter
     )
     
     # Search for similar content
