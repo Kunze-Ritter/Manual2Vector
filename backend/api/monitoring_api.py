@@ -18,6 +18,7 @@ from models.monitoring import (
     AlertSeverity,
     CreateAlertRule,
     DataQualityResponse,
+    PerformanceMetricsResponse,
     PipelineStatusResponse,
     ProcessorHealthResponse,
     QueueStatusResponse,
@@ -26,6 +27,7 @@ from models.monitoring import (
 )
 from services.alert_service import AlertService
 from services.metrics_service import MetricsService
+from services.performance_service import PerformanceCollector
 
 router = APIRouter()
 
@@ -41,6 +43,12 @@ async def get_alert_service() -> AlertService:
     """Get alert service instance from app.py."""
     from api.app import get_alert_service as app_get_alert
     return await app_get_alert()
+
+
+async def get_performance_collector() -> PerformanceCollector:
+    """Get performance collector instance from app.py."""
+    from api.app import get_performance_collector as app_get_performance
+    return await app_get_performance()
 
 class StageStatus(BaseModel):
     stage_name: str
@@ -333,6 +341,53 @@ async def get_data_quality_metrics(
 ):
     """Get data quality metrics."""
     return await metrics_svc.get_data_quality_metrics()
+
+
+@router.get("/performance", response_model=PerformanceMetricsResponse)
+async def get_performance_metrics(
+    current_user: Dict[str, Any] = Depends(require_permission("monitoring:read")),
+    performance_collector: PerformanceCollector = Depends(get_performance_collector),
+):
+    """Get performance metrics with baseline comparison."""
+    from models.monitoring import PerformanceMetrics
+    
+    # Get all baselines from the performance collector
+    baselines = await performance_collector.get_all_baselines()
+    
+    # Convert baselines to PerformanceMetrics objects
+    stages = []
+    improvements = []
+    
+    for baseline in baselines:
+        stage_metrics = PerformanceMetrics(
+            stage_name=baseline.get("stage_name", "unknown"),
+            baseline_avg_seconds=baseline.get("baseline_avg_seconds"),
+            current_avg_seconds=baseline.get("current_avg_seconds"),
+            baseline_p50_seconds=baseline.get("baseline_p50_seconds"),
+            current_p50_seconds=baseline.get("current_p50_seconds"),
+            baseline_p95_seconds=baseline.get("baseline_p95_seconds"),
+            current_p95_seconds=baseline.get("current_p95_seconds"),
+            baseline_p99_seconds=baseline.get("baseline_p99_seconds"),
+            current_p99_seconds=baseline.get("current_p99_seconds"),
+            improvement_percentage=baseline.get("improvement_percentage"),
+            measurement_date=baseline.get("measurement_date"),
+        )
+        stages.append(stage_metrics)
+        
+        # Collect improvement percentages for overall calculation
+        if baseline.get("improvement_percentage") is not None:
+            improvements.append(baseline["improvement_percentage"])
+    
+    # Calculate overall improvement as average of all stage improvements
+    overall_improvement = None
+    if improvements:
+        overall_improvement = sum(improvements) / len(improvements)
+    
+    return PerformanceMetricsResponse(
+        overall_improvement=overall_improvement,
+        stages=stages,
+        timestamp=datetime.utcnow(),
+    )
 
 
 # Processor-level monitoring endpoints

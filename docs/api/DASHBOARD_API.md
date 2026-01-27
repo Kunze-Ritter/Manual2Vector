@@ -1,6 +1,6 @@
 # Dashboard API Documentation
 
-This document consolidates all API endpoints and WebSocket protocols used by the Dashboard frontend.
+This document consolidates all API endpoints and WebSocket protocols used by the Laravel Dashboard.
 
 ## REST Endpoints
 

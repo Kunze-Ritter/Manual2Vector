@@ -19,7 +19,7 @@ docker-compose -f docker-compose.production.yml up -d --build
 
 | Service | Port | Description | Access |
 |---------|------|-------------|--------|
-| **Frontend Dashboard** | 3000 | React + Vite + Nginx (with API proxy) | http://localhost:3000 |
+| **Laravel Dashboard** | 80 | Laravel + Filament Admin Dashboard | http://localhost:80 |
 | **Backend API** | 8000 | FastAPI Python Backend | http://localhost:8000 |
 | **API Documentation** | 8000/docs | Interactive API Docs | http://localhost:8000/docs |
 | **PostgreSQL Database** | 5432 | pgvector-enabled Database | localhost:5432 |
@@ -54,23 +54,7 @@ LOG_LEVEL=INFO
 
 > **⚠️ IMPORTANT - PostgreSQL-Only Architecture:** This deployment uses PostgreSQL + MinIO for local-first architecture. **Migration from Supabase completed in November 2024 (KRAI-002).** Legacy Supabase and Cloudflare R2 configurations are deprecated and no longer supported. For legacy users migrating from Supabase, see `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` for complete migration guidance.
 
-### Frontend Configuration
-
-**Production environment variables** are configured in `frontend/.env.production` and are **baked into the build** at compile time.
-
-**Key settings:**
-- `VITE_API_BASE_URL=/api` - Uses nginx proxy for API requests
-- `VITE_ENABLE_DEVTOOLS=false` - DevTools disabled in production
-- `VITE_USE_MOCK_AUTH=false` - Real authentication only
-
-**Important:** Changing frontend environment variables requires rebuilding the Docker image:
-```bash
-docker-compose -f docker-compose.production.yml build krai-frontend
-```
-
-**For detailed frontend deployment information, see:**
-- [Frontend Production Deployment Guide](docs/setup/FRONTEND_PRODUCTION_DEPLOYMENT.md)
-- [Frontend README](frontend/README.md)
+> **Dashboard Interface:** KRAI uses **Laravel/Filament** as the sole dashboard interface, accessible at http://localhost:80. The dashboard provides visual pipeline management, document processing control, and real-time monitoring capabilities.
 
 ### Default Credentials
 - **MinIO Console:** See `OBJECT_STORAGE_ACCESS_KEY` / `OBJECT_STORAGE_SECRET_KEY` in `.env`
@@ -84,9 +68,7 @@ docker-compose -f docker-compose.production.yml build krai-frontend
 ### Docker Compose Structure
 ```
 docker-compose.production.yml
-├── krai-frontend (React + Vite + Nginx)
-│   ├── Build-time: Vite compiles with .env.production
-│   ├── Runtime: Nginx serves static files + proxies /api
+├── krai-laravel (Laravel + Filament + Nginx)
 │   └── Port 80 → Container port 80
 ├── krai-engine (FastAPI + Uvicorn)
 ├── krai-postgres (PostgreSQL + pgvector)
@@ -109,7 +91,7 @@ docker-compose.production.yml
 ## 📊 Monitoring & Health
 
 ### Health Check Endpoints
-- **Frontend:** http://localhost:3000/health
+- **Laravel Dashboard:** http://localhost:80/health
 - **Backend:** http://localhost:8000/health
 - **Database:** `pg_isready -U krai_user -d krai`
 - **MinIO:** http://localhost:9000/minio/health/live
@@ -186,7 +168,7 @@ server {
 ### Access Control
 ```bash
 # Restrict external access to database
-# Only expose frontend and API ports externally
+# Only expose dashboard (80) and API (8000) ports externally
 # Use Docker networks for internal communication
 ```
 
@@ -213,74 +195,14 @@ services:
 docker-compose -f docker-compose.production.yml up -d --scale krai-engine=3
 ```
 
-## 🔨 Frontend Build Process
-
-### Building the Frontend
-
-The frontend uses a **multi-stage Docker build** that bakes environment variables into the static bundle:
-
-```bash
-# Build frontend only
-docker-compose -f docker-compose.production.yml build krai-frontend
-
-# Build with no cache (clean build)
-docker-compose -f docker-compose.production.yml build --no-cache krai-frontend
-```
-
-**Build stages:**
-1. **Builder stage:** Installs dependencies, copies `.env.production`, runs Vite build
-2. **Production stage:** Copies built files to nginx, configures proxy
-
-**When to rebuild:**
-- After changing `frontend/.env.production`
-- After updating frontend dependencies
-- After modifying frontend source code
-- After changing nginx configuration
-
-**For detailed information, see:** [Frontend Production Deployment Guide](docs/setup/FRONTEND_PRODUCTION_DEPLOYMENT.md)
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-#### Frontend Issues
-
-**API requests fail with 404:**
-```bash
-# Check backend is running
-docker-compose -f docker-compose.production.yml ps krai-engine
-
-# Check nginx proxy configuration
-docker-compose -f docker-compose.production.yml exec krai-frontend cat /etc/nginx/nginx.conf | grep -A 10 "location /api"
-```
-
-**Environment variables not working:**
-```bash
-# Verify .env.production exists
-ls -la frontend/.env.production
-
-# Rebuild frontend (REQUIRED after changing env vars)
-docker-compose -f docker-compose.production.yml build --no-cache krai-frontend
-docker-compose -f docker-compose.production.yml up -d krai-frontend
-```
-
-**DevTools appear in production:**
-```bash
-# Check VITE_ENABLE_DEVTOOLS is false
-cat frontend/.env.production | grep VITE_ENABLE_DEVTOOLS
-
-# Should show: VITE_ENABLE_DEVTOOLS=false
-# If not, edit and rebuild
-```
-
-**React Router 404 on refresh:**
-- Check nginx `try_files` directive in `nginx/nginx-simple.conf`
-- Should have: `try_files $uri $uri/ /index.html;`
-
 #### Port Conflicts
 ```bash
 # Check what's using ports
-netstat -tulpn | grep :3000
+netstat -tulpn | grep :80
 netstat -tulpn | grep :8000
 
 # Change ports in docker-compose.production.yml
@@ -319,9 +241,10 @@ docker logs krai-postgres-prod
 # Use development compose file
 docker-compose -f docker-compose.yml up -d
 
-# Or run services locally
+# Or run backend locally
 cd backend && python -m uvicorn main:app --reload
-cd frontend && npm run dev
+
+# Laravel dashboard runs in Docker (see laravel-admin/README.md for local setup)
 ```
 
 ### Production Deployment
@@ -376,7 +299,7 @@ docker-compose -f docker-compose.production.yml exec krai-engine curl -f http://
 ## 🎯 Success Criteria
 
 ✅ **Portable:** Single docker-compose file for deployment  
-✅ **Complete:** All services included (Frontend, Backend, Database, Storage, AI)  
+✅ **Complete:** All services included (Laravel Dashboard, Backend, Database, Storage, AI)  
 ✅ **Production-Ready:** Health checks, restarts, logging, monitoring  
 ✅ **Scalable:** Resource limits and scaling capabilities  
 ✅ **Secure:** Internal networking, configurable credentials  

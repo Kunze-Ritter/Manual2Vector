@@ -1,9 +1,11 @@
 # End‑to‑End (E2E) Testing Guide
 
+**Note:** This guide was originally written for a React frontend. It should be updated for Laravel/Filament dashboard testing or archived if no longer applicable.
+
 This guide explains how to set up and run the Playwright end‑to‑end test suite for the KRAI dashboard.
 
 ## Prerequisites
-- Node.js 20+ (as defined in `frontend/package.json`).
+- Node.js 20+ (as defined in `laravel-admin/package.json`).
 - Playwright browsers installed: `npx playwright install --with-deps`.
 - The backend API must be running (`uvicorn backend.main:app --host 0.0.0.0 --port 8000`).
 - A PostgreSQL instance reachable by the backend (Docker compose provides `krai-postgres`).
@@ -28,7 +30,7 @@ This opens a visible browser window for debugging.
 ```bash
 npx playwright test path/to/spec.ts
 ```
-Replace `path/to/spec.ts` with the relative path under `frontend/tests/e2e/`.
+Replace `path/to/spec.ts` with the relative path under `laravel-admin/tests/e2e/`.
 
 ## Test Structure
 - **fixtures/** – reusable login/auth fixtures.

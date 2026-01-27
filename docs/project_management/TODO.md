@@ -215,7 +215,7 @@
   - **Step 4:** Review & export
   - **Priority:** MEDIUM
   - **Effort:** 8-10 hours
-  - **Stack:** React + TailwindCSS
+  - **Stack:** Laravel/Filament
 
 - [ ] Real-time validation feedback
   - **Show:** Conflicts, missing requirements, recommendations

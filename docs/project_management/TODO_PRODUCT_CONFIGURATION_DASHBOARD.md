@@ -1,5 +1,7 @@
 # TODO: KRAI Admin Dashboard & Configuration System
 
+> **Note:** This document was created before Laravel/Filament dashboard implementation. All UI features should be implemented in the existing Laravel/Filament dashboard at `laravel-admin/`.
+
 > **Note:** For consolidated project-wide TODOs, see `/MASTER-TODO.md` 
 > This file focuses on dashboard-specific implementation details.
 
@@ -81,7 +83,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: System status (DB connection, queue length, last backup)
 ```
 
-**UI Framework:** React + TailwindCSS + shadcn/ui
+**UI Framework:** Laravel/Filament (existing dashboard at `laravel-admin/`)
 **Priority:** 🔥 HIGHEST (Foundation for everything)
 **Effort:** 6-8 hours
 **Blockers:** None
@@ -136,7 +138,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Success message
 ```
 
-**UI Framework:** React + TailwindCSS + shadcn/ui + TanStack Table
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 🔥 HIGH
 **Effort:** 8-10 hours
 **Blockers:** 3.0 (Dashboard Core)
@@ -194,7 +196,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Processing job ID
 ```
 
-**UI Framework:** React + TailwindCSS + shadcn/ui + React Dropzone
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 🔥 HIGH
 **Effort:** 8-10 hours
 **Blockers:** 3.0 (Dashboard Core)
@@ -260,7 +262,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Enrichment job ID
 ```
 
-**UI Framework:** React + TailwindCSS + shadcn/ui + React Player
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 🔥 HIGH
 **Effort:** 8-10 hours
 **Blockers:** 3.0 (Dashboard Core)
@@ -315,7 +317,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Success message
 ```
 
-**UI Framework:** React + TailwindCSS + shadcn/ui
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 🔥 HIGH
 **Effort:** 6-8 hours
 **Blockers:** 3.0 (Dashboard Core)
@@ -360,7 +362,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Configuration ID
 ```
 
-**UI Framework:** React + TailwindCSS + shadcn/ui
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 🔥 HIGH
 **Effort:** 12-16 hours
 **Blockers:** None (backend ready!)
@@ -411,7 +413,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Success message
 ```
 
-**UI Framework:** React + TailwindCSS + React Flow (for graph)
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 🔍 MEDIUM
 **Effort:** 8-12 hours
 **Blockers:** None
@@ -445,7 +447,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Matrix data structure
 ```
 
-**UI Framework:** React + TailwindCSS + AG Grid
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 📌 MEDIUM
 **Effort:** 6-8 hours
 **Blockers:** None
@@ -481,7 +483,7 @@ Ein vollständiges Admin Dashboard zum:
 # Returns: Created link
 ```
 
-**UI Framework:** React + TailwindCSS + shadcn/ui
+**UI Framework:** Laravel/Filament (existing dashboard)
 **Priority:** 📌 LOW
 **Effort:** 4-6 hours
 **Blockers:** None
@@ -491,17 +493,18 @@ Ein vollständiges Admin Dashboard zum:
 ## 🛠️ Technical Stack
 
 ### Frontend
-- **Framework:** React 18 + TypeScript
-- **Styling:** TailwindCSS + shadcn/ui components
-- **State Management:** React Query (for API calls)
-- **Routing:** React Router v6
-- **Graph Visualization:** React Flow (for dependency graphs)
-- **Tables:** AG Grid or TanStack Table
-- **Icons:** Lucide React
+- **Framework:** Laravel 12 + Filament 4
+- **Styling:** TailwindCSS (built into Filament)
+- **State Management:** Livewire (built into Filament)
+- **Routing:** Laravel routing
+- **Graph Visualization:** Filament Charts plugin, Livewire + ApexCharts, or Filament Table widgets with tree views
+- **Tables:** Filament Tables (built-in)
+- **Forms:** Filament Forms (built-in)
+- **Icons:** Heroicons (built into Filament)
 
 ### Backend (Already exists!)
 - **Framework:** FastAPI (Python)
-- **Database:** Supabase (PostgreSQL)
+- **Database:** PostgreSQL
 - **Validation:** `configuration_validator.py`
 - **Auto-linking:** `accessory_linker.py`
 
@@ -532,15 +535,15 @@ Ein vollständiges Admin Dashboard zum:
 ## 📊 Implementation Roadmap
 
 ### 🔥 Week 1: Dashboard Foundation (3.0)
-**Goal:** Get the base dashboard running
-1. ✅ Set up React project (Vite + TypeScript)
-2. ✅ Install dependencies (TailwindCSS, shadcn/ui, React Router, React Query)
-3. ✅ Create base layout (Sidebar, Header, Main content)
-4. ✅ Implement navigation
+**Goal:** Extend existing Laravel/Filament dashboard
+1. ✅ Use existing Laravel/Filament setup at `laravel-admin/`
+2. ✅ Add new Filament pages and resources as needed
+3. ✅ Extend navigation in `KradminPanelProvider`
+4. ✅ Create dashboard widgets for overview stats
 5. ✅ Build Dashboard Overview (Stats, Activity, Status)
-6. ✅ Create API endpoints for dashboard stats
+6. ✅ Create API endpoints for dashboard stats (if needed beyond existing)
 
-**Deliverable:** Working dashboard with navigation and overview page
+**Deliverable:** Extended dashboard with product configuration features
 **Effort:** 6-8 hours
 
 ---
@@ -574,10 +577,10 @@ Ein vollständiges Admin Dashboard zum:
 
 ### 🔍 Week 4: Dependencies & Advanced Features (3.6, 3.7)
 **Goal:** Dependency management and visualization
-1. ✅ Dependencies Management (CRUD)
-2. ✅ Dependency Graph Visualization (React Flow)
-3. ✅ Compatibility Matrix
-4. ✅ Bulk operations
+1. ✅ In Filament dashboard: Dependencies Management (CRUD)
+2. ✅ In Filament dashboard: Dependency Graph Visualization (Filament Charts/Livewire + ApexCharts)
+3. ✅ In Filament dashboard: Compatibility Matrix
+4. ✅ In Filament dashboard: Bulk operations
 
 **Deliverable:** Complete dependency management system
 **Effort:** 12-16 hours (2 days)
@@ -660,12 +663,12 @@ Ein vollständiges Admin Dashboard zum:
 
 ## 🚀 Next Steps
 
-1. **Create API endpoints** for configuration validation
-2. **Set up React frontend** project
-3. **Build Configuration Builder** UI (Phase 3.1)
-4. **Test with sample data**
-5. **Add more dependencies** to database
-6. **Build Dependency Dashboard** (Phase 3.2)
+1. **Create API endpoints** for configuration validation in `backend/api/routes/`
+2. **Extend existing Filament dashboard** with new Pages/Resources at `laravel-admin/app/Filament/`
+3. **Build Configuration Builder** UI in Filament (Phase 3.1) using `php artisan make:filament-page ConfigurationBuilder`
+4. **Test with sample data** via Filament forms and tables
+5. **Add more dependencies** to database via Filament resource or seeder
+6. **Build Dependency Dashboard** in Filament (Phase 3.2) using Filament widgets and custom pages
 
 ---
 

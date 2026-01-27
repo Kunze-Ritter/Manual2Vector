@@ -524,6 +524,50 @@ class MonitoringService
         });
     }
 
+    public function getPerformanceMetrics(): array
+    {
+        $ttl = config('krai.monitoring.cache_ttl.performance', 60);
+        $cacheKey = 'monitoring.performance';
+        
+        return $this->deduplicatedRequest($cacheKey, $ttl, function () use ($ttl, $cacheKey) {
+            return Cache::remember($cacheKey, $ttl, function () {
+                try {
+                    $response = $this->createHttpClient()
+                        ->get("{$this->baseUrl}/api/v1/monitoring/performance");
+                    
+                    if ($response->successful()) {
+                        return [
+                            'success' => true,
+                            'data' => $response->json(),
+                            'error' => null,
+                        ];
+                    }
+                    
+                    Log::error('Failed to fetch performance metrics', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+                    
+                    return [
+                        'success' => false,
+                        'data' => [],
+                        'error' => "HTTP {$response->status()}: {$response->body()}",
+                    ];
+                } catch (\Exception $e) {
+                    Log::error('Exception fetching performance metrics', [
+                        'message' => $e->getMessage(),
+                    ]);
+                    
+                    return [
+                        'success' => false,
+                        'data' => [],
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            });
+        });
+    }
+
     public function getBatchMonitoringData(array $endpoints): array
     {
         $cacheKey = 'monitoring.batch.' . md5(json_encode($endpoints));
@@ -609,6 +653,7 @@ class MonitoringService
         Cache::forget('monitoring.processors');
         Cache::forget('monitoring.processors.badge');
         Cache::forget('monitoring.data_quality');
+        Cache::forget('monitoring.performance');
     }
 
     private function deduplicatedRequest(string $key, int $ttl, callable $callback): mixed

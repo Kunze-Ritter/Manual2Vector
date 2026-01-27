@@ -164,7 +164,7 @@ curl http://localhost:8000/health
 - Storage adapters (`backend/services/storage/`)
 - Upload endpoints (`backend/api/routes/upload.py`)
 - Document processing (`backend/processors/`)
-- Frontend image loading (`frontend/src/`)
+- Laravel dashboard image loading (`laravel-admin/resources/`)
 
 **AI Service Variables:**
 - AI service clients (`backend/services/ai/`)

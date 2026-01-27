@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends
 import asyncpg
 
-from api.app import get_database_pool
+from api.dependencies.database import get_database_pool
 from api.middleware.auth_middleware import require_permission
 
 logger = logging.getLogger(__name__)

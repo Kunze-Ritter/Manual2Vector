@@ -98,7 +98,7 @@
     ```
   - **Files to modify:**
     - `backend/api/foliant_api.py` (new file)
-    - `frontend/src/pages/FoliantUpload.tsx` (new file)
+    - `laravel-admin/app/Filament/Pages/FoliantUpload.php` (new file)
   - **Priority:** HIGH
   - **Effort:** 3-4 hours
   - **Status:** TODO
@@ -171,7 +171,7 @@
     - Real-time compatibility check
     - Show mounting positions
   - **Files to create:**
-    - `frontend/src/pages/ConfigurationBuilder.tsx`
+    - `laravel-admin/app/Filament/Pages/ConfigurationBuilder.php`
   - **Priority:** LOW
   - **Effort:** 8-10 hours
   - **Status:** TODO

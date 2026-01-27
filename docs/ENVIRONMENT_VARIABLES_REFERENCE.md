@@ -169,8 +169,8 @@ Variables are organized by functional area matching the structure in `.env.examp
 - **Required:** False
 - **Default:** None
 - **Example:** `OBJECT_STORAGE_PUBLIC_URL=http://localhost:9000`
-- **Description:** Public URL for frontend to access stored files
-- **Used by:** Frontend image loading, CDN configuration
+- **Description:** Public URL for dashboard and API clients to access stored files
+- **Used by:** Dashboard image loading, API responses, CDN configuration
 - **Notes:** Must be accessible from user browsers
 ## AI Service Configuration
 

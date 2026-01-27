@@ -48,7 +48,6 @@ This guide provides comprehensive instructions for deploying KRAI Phase 6 with a
 - **NVIDIA Container Toolkit**: Latest version
 - **Python**: 3.11+ (if not using Docker)
 - **PostgreSQL**: 15+ (if not using Docker)
-- **Node.js**: 18+ (for frontend)
 
 ## Architecture Overview
 
@@ -58,10 +57,10 @@ This guide provides comprehensive instructions for deploying KRAI Phase 6 with a
 ┌─────────────────────────────────────────────────────────────┐
 │                    KRAI Phase 6 Architecture                │
 ├─────────────────────────────────────────────────────────────┤
-│  Frontend Layer                                               │
+│  Dashboard Layer                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │   React UI  │  │   Dashboard │  │   Admin UI  │         │
-│  │  + Phase 6  │  │  + Metrics  │  │  + Config   │         │
+│  │   Laravel   │  │   Filament  │  │   Admin UI  │         │
+│  │  Dashboard  │  │  + Metrics  │  │  + Config   │         │
 │  └─────────────┘  └─────────────┘  └─────────────┘         │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -330,7 +329,7 @@ scrape_configs:
 ```bash
 # Import KRAI Phase 6 dashboards
 curl -X POST \
-  http://admin:admin@localhost:3000/api/dashboards/db \
+  http://admin:admin@<grafana-host>/api/dashboards/db \
   -H 'Content-Type: application/json' \
   -d @monitoring/grafana/krai-phase6-dashboard.json
 ```

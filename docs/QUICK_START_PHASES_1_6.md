@@ -118,9 +118,11 @@ python scripts/test_single_document.py service_documents/sample.pdf
 ### Step 5: Access the System
 
 - **API Documentation**: http://localhost:8000/docs
-- **Dashboard**: http://localhost:3000
+- **Laravel Dashboard**: http://localhost:9100
 - **MinIO Console**: http://localhost:9001 (admin/password123)
 - **Database**: localhost:5432 (krai_user/krai_password)
+
+**Note:** Port 3000 is used internally by Playwright service for web scraping (Firecrawl). The user-facing dashboard is Laravel/Filament at port 9100.
 
 🎉 **KRAI is now running!** You can start processing documents and using the search functionality.
 
@@ -133,7 +135,6 @@ This setup includes:
 - **MinIO Object Storage** for documents and media
 - **Ollama AI Service** for embeddings and LLM
 - **FastAPI Backend** with REST API
-- **React Frontend** for document management
 - **Firecrawl Services** (optional) for advanced web scraping
 
 ### Phase 1-6 Features
@@ -219,10 +220,6 @@ KRAI-minimal/
 │   ├── services/           # Core business logic
 │   ├── pipeline/           # Document processing pipeline
 │   └── models/             # Data models and schemas
-├── frontend/               # React web application
-│   ├── src/                # React components
-│   ├── public/             # Static assets
-│   └── package.json        # Node.js dependencies
 ├── database/               # Database schemas and migrations
 │   ├── migrations/         # SQL migration files
 │   ├── seeds/              # Initial data
@@ -296,16 +293,23 @@ python scripts/test_search.py --query "fuser unit error"
 
 **Problem**: Services fail to start due to port conflicts
 
-**Solution**: Change ports in `.env`:
-```bash
-# Change API port
-API_PORT=8001
+**Solution**: Change ports in `docker-compose.yml`:
+```yaml
+# Change API port in docker-compose.yml
+# (No service defined in minimal compose - refer to full compose files)
 
-# Change frontend port  
-FRONTEND_PORT=3001
+# Change Laravel dashboard port
+# Edit docker-compose.yml, find laravel-nginx service:
+services:
+  laravel-nginx:
+    ports:
+      - "9101:80"  # Change from 9100:80
 
 # Change database port
-POSTGRES_PORT=5433
+services:
+  krai-postgres:
+    ports:
+      - "5433:5432"  # Change from 5432:5432
 ```
 
 ### Memory Issues
@@ -405,13 +409,13 @@ curl http://localhost:8000/api/scraping/health
 ### 3. Use the Web Interface
 
 ```bash
-# Open dashboard
-open http://localhost:3000
+# Open Laravel dashboard
+open http://localhost:9100
 
 # Features available:
 # - Document upload and management
 # - Processing status monitoring
-# - Search interface
+# - Search interface with Laravel/Filament
 # - Results visualization
 ```
 

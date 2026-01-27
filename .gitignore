@@ -31,11 +31,7 @@ env.bak/
 
 # Test Results and Reports
 test_output/
-test_results/
-playwright-report/
 reports/
-frontend/test-results/
-frontend/playwright-report/
 
 # Logs
 logs/
@@ -71,7 +67,7 @@ state/
 *.sql
 *.dump
 
-# Node.js (Frontend)
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -89,7 +85,6 @@ build/
 
 # Cache
 .cache/
-.parcel-cache/
 
 # Local Configuration
 config.local.*
@@ -217,6 +212,9 @@ input_pdfs/processed/*.pdf
 input_pdfs/processed/*.pdfz
 input_foliant
 
+# Benchmark documents (exclude PDF files but keep README.md and .gitkeep)
+benchmark-documents/*.pdf
+
 # Large files
 *.pdf
 *.docx
@@ -264,7 +262,6 @@ config/production.py
 
 # Test outputs
 test_outputs/
-test_results/
 *.test_output
 
 # Performance profiling

@@ -337,13 +337,11 @@ Agent:     "🔴 Fehlercode C-9402 - Fuser Unit Fehler
 ### Q4 2025 (November - Dezember)
 **Fokus: Kern-Features & Stabilität**
 
-- [ ] Web-Frontend (React)
-  - Suchmaske mit Auto-Complete
+- [ ] Dashboard-Erweiterungen (Laravel/Filament)
+  - Erweiterte Suchfunktionen
   - Fehlercode-Detailansicht
   - Ersatzteil-Katalog
   - Video-Player Integration
-- [ ] Admin-Dashboard
-  - Dokumenten-Upload
   - Qualitäts-Kontrolle
   - Statistiken & Analytics
 - [ ] API-Dokumentation (Swagger/OpenAPI)
@@ -354,10 +352,9 @@ Agent:     "🔴 Fehlercode C-9402 - Fuser Unit Fehler
 ### Q1 2026 (Januar - März)
 **Fokus: Mobile & Offline-Fähigkeit**
 
-- [ ] Mobile App (React Native)
-  - Barcode-Scanner für Geräte-Identifikation
-  - Offline-Modus (wichtigste Daten lokal)
-  - Push-Benachrichtigungen
+- [ ] Mobile Zugriff
+  - Progressive Web App (PWA) Optimierung
+  - Responsive Dashboard-Verbesserungen
 - [ ] Erweiterte Suche
   - Spracheingabe
   - Bild-Suche (Foto vom Fehler)
@@ -518,7 +515,7 @@ Agent:     "🔴 Fehlercode C-9402 - Fuser Unit Fehler
 - **Projektleitung:** 1 Product Owner (Teilzeit)
 
 ### Benötigte Ressourcen (2026)
-- **Frontend-Developer:** 1 (ab Q4 2025)
+- **Dashboard-Developer:** 1 (ab Q4 2025)
 - **DevOps-Engineer:** 0.5 (ab Q1 2026)
 - **UX-Designer:** 0.5 (ab Q4 2025)
 - **Sales/Marketing:** 1 (ab Q3 2026)
@@ -543,7 +540,7 @@ Agent:     "🔴 Fehlercode C-9402 - Fuser Unit Fehler
 KRAI ist eine innovative KI-Lösung, die technisches Wissen aus Dokumentationen extrahiert und Technikern bei der Fehlerdiagnose unterstützt. Mit 14 Monaten Entwicklung haben wir ein robustes, skalierbares System geschaffen, das bereits heute einen messbaren wirtschaftlichen Nutzen bietet.
 
 **Nächste Schritte:**
-1. Frontend-Entwicklung (Q4 2025)
+1. Dashboard-Erweiterungen (Q4 2025)
 2. Pilotprojekt mit ersten Kunden (Q1 2026)
 3. Produktlaunch (Q4 2026)
 

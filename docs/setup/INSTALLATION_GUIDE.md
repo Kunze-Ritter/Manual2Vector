@@ -102,7 +102,7 @@ python scripts/health_check.py
 Once setup is complete, you can access:
 
 - **API Documentation**: http://localhost:8000/docs
-- **Web Dashboard**: http://localhost:3000
+- **Laravel Dashboard**: http://localhost:9100
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
 - **pgAdmin**: http://localhost:5050 (admin@krai.local/krai_admin_2024)
 - **Ollama API**: http://localhost:11434

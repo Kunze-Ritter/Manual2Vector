@@ -48,14 +48,23 @@ class ErrorResponse(BaseModel):
         None,
         description="Stable machine-readable error code for programmatic handling.",
     )
+    context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Additional contextual information about the error (field names, constraints, expected vs received values).",
+    )
 
     class Config:
         json_schema_extra = {
             "example": {
                 "success": False,
-                "error": "Not Found",
-                "detail": "Document not found",
-                "error_code": "DOCUMENT_NOT_FOUND",
+                "error": "Validation Error",
+                "detail": "File type '.exe' is not supported. Allowed types: .pdf, .docx. Please upload a file with one of the supported extensions.",
+                "error_code": "INVALID_FILE_TYPE",
+                "context": {
+                    "filename": "document.exe",
+                    "extension": ".exe",
+                    "allowed_extensions": [".pdf", ".docx"]
+                }
             }
         }
 

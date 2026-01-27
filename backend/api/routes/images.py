@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel
-from api.app import get_database_pool
+from api.dependencies.database import get_database_pool, get_database_adapter
 import asyncpg
 import json
 from api.middleware.auth_middleware import require_permission

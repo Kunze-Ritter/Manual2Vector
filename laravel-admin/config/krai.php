@@ -198,12 +198,14 @@ return [
             'data_quality' => env('MONITORING_CACHE_TTL_DATA_QUALITY', 300),
             'navigation_badges' => env('MONITORING_CACHE_TTL_NAV_BADGES', 20),
             'pipeline' => env('MONITORING_CACHE_TTL_PIPELINE', 15),
+            'performance' => env('MONITORING_CACHE_TTL_PERFORMANCE', 60),
         ],
         'polling_intervals' => [
             'dashboard' => env('MONITORING_DASHBOARD_POLLING_INTERVAL', 60),
             'queue' => env('MONITORING_QUEUE_POLLING_INTERVAL', 30),
             'processor' => env('MONITORING_PROCESSOR_POLLING_INTERVAL', 30),
             'metrics' => env('MONITORING_METRICS_POLLING_INTERVAL', 60),
+            'performance' => env('MONITORING_PERFORMANCE_POLLING_INTERVAL', 60),
         ],
     ],
 

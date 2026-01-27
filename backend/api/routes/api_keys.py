@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from api.app import get_database_pool
+from api.dependencies.database import get_database_pool
 from api.middleware.auth_middleware import require_permission
 from api.middleware.rate_limit_middleware import (
     limiter,
@@ -49,6 +49,7 @@ def _resolve_target_user(
 @router.get("", response_model=SuccessResponse[APIKeyListResponse])
 @limiter.limit(rate_limit_search)
 async def list_api_keys(
+    request: Request,
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
     pool: asyncpg.Pool = Depends(get_database_pool),
     user_id: Optional[str] = Query(None, description="Filter keys for a specific user (admin only)"),
@@ -69,6 +70,7 @@ async def list_api_keys(
 )
 @limiter.limit(rate_limit_standard)
 async def create_api_key(
+    request: Request,
     payload: APIKeyCreateRequest,
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -93,6 +95,7 @@ async def create_api_key(
 )
 @limiter.limit(rate_limit_standard)
 async def rotate_api_key(
+    request: Request,
     key_id: str,
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -113,6 +116,7 @@ async def rotate_api_key(
 )
 @limiter.limit(rate_limit_standard)
 async def revoke_api_key(
+    request: Request,
     key_id: str,
     current_user: Dict[str, Any] = Depends(require_api_keys_permission),
     pool: asyncpg.Pool = Depends(get_database_pool),

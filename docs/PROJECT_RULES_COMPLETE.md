@@ -300,7 +300,7 @@ self.logger.warning(f"   ⚠️  No product page found for {model}")
 - Code MUSS sofort lauffähig sein
 - Alle Dependencies hinzufügen
 - Alle Imports hinzufügen
-- Bei Web Apps: Moderne UI (React, TailwindCSS, shadcn/ui)
+- Bei Web Apps: Laravel/Filament (existing dashboard)
 
 ---
 

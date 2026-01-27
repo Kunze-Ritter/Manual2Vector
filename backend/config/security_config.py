@@ -30,6 +30,7 @@ class SecurityConfig(BaseSettings):
     RATE_LIMIT_SEARCH: str = "60/minute"
     RATE_LIMIT_STANDARD: str = "100/minute"
     RATE_LIMIT_HEALTH: str = "300/minute"
+    RATE_LIMIT_API_KEY: str = "1000/minute"
     RATE_LIMIT_WHITELIST: List[str] = Field(default_factory=list)
     RATE_LIMIT_BLACKLIST: List[str] = Field(default_factory=list)
 
@@ -86,6 +87,7 @@ class SecurityConfig(BaseSettings):
         "RATE_LIMIT_SEARCH",
         "RATE_LIMIT_STANDARD",
         "RATE_LIMIT_HEALTH",
+        "RATE_LIMIT_API_KEY",
     )
     def validate_rate_limit_format(cls, value: str) -> str:  # noqa: N805
         if "/" not in value:
@@ -157,6 +159,7 @@ def get_rate_limit_config(config: Optional[SecurityConfig] = None) -> dict:
             "search": cfg.RATE_LIMIT_SEARCH,
             "standard": cfg.RATE_LIMIT_STANDARD,
             "health": cfg.RATE_LIMIT_HEALTH,
+            "api_key": cfg.RATE_LIMIT_API_KEY,
         },
         "whitelist": cfg.RATE_LIMIT_WHITELIST,
         "blacklist": cfg.RATE_LIMIT_BLACKLIST,

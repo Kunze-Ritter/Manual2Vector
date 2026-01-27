@@ -120,8 +120,8 @@ KRAI (Knowledge Retrieval and Intelligence) is a comprehensive document processi
 
 ```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend API   │    │   Processing    │
-│   (React)       │◄──►│   (FastAPI)     │◄──►│   Pipeline      │
+│   Dashboard     │    │   Backend API   │    │   Processing    │
+│   (Laravel)     │◄──►│   (FastAPI)     │◄──►│   Pipeline      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       │
@@ -221,7 +221,7 @@ Document Upload → Metadata Extraction → Content Processing
 ### Core Technologies
 
 - **Backend**: FastAPI, Python 3.9+, AsyncIO
-- **Frontend**: React, TypeScript, TailwindCSS
+- **Dashboard**: Laravel 10+, Filament 3+, Livewire
 - **Database**: PostgreSQL 14+, pgvector extension
 - **Storage**: MinIO S3-compatible object storage
 - **AI**: OpenAI API, Ollama local models

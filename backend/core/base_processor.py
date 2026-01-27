@@ -24,6 +24,7 @@ from backend.core.retry_engine import ErrorClassifier, RetryPolicyManager, Retry
 if TYPE_CHECKING:
     from backend.core.idempotency import IdempotencyChecker
     from backend.services.error_logging_service import ErrorLogger
+    from backend.services.performance_service import PerformanceCollector
 
 
 class BaseProcessor(ABC):
@@ -57,6 +58,7 @@ class BaseProcessor(ABC):
         self._idempotency_checker: Optional["IdempotencyChecker"] = None  # Lazy initialized
         self._error_logger: Optional["ErrorLogger"] = None  # Lazy initialized
         self._retry_orchestrator: Optional[RetryOrchestrator] = None  # Lazy initialized
+        self._performance_collector: Optional["PerformanceCollector"] = None
         self.service_name: str = config.get('service_name', 'default') if config else 'default'
 
     @contextlib.contextmanager
@@ -82,6 +84,10 @@ class BaseProcessor(ABC):
             yield adapter
         finally:
             self._logger_adapter = previous_adapter
+
+    def set_performance_collector(self, collector: "PerformanceCollector") -> None:
+        """Set the performance collector for metrics collection."""
+        self._performance_collector = collector
 
     @abstractmethod
     async def process(self, context: ProcessingContext) -> ProcessingResult:
@@ -356,6 +362,18 @@ class BaseProcessor(ABC):
                     
                     # Log end
                     self.log_processing_end(result)
+                    
+                    # Collect performance metrics
+                    if result.success and self._performance_collector:
+                        try:
+                            await self._performance_collector.collect_stage_metrics(
+                                self.name,
+                                result
+                            )
+                        except Exception as metrics_error:
+                            self.logger.debug(
+                                f"Failed to collect performance metrics: {metrics_error}"
+                            )
                     
                     return result
                 

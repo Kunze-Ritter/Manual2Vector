@@ -98,7 +98,22 @@ class LocalSetupVerifier:
             },
             'minio_console': {
                 'url': 'http://localhost:9001'
+            },
+            'backend': {
+                'url': os.getenv('BACKEND_URL', 'http://localhost:8000')
+            },
+            'laravel': {
+                'url': os.getenv('LARAVEL_URL', 'http://localhost:8080')
             }
+        }
+        
+        # Expected values for validation
+        self.expected_values = {
+            'schemas': 6,
+            'tables': 44,
+            'manufacturers': 14,
+            'retry_policies': 4,
+            'embedding_dim': 768
         }
     
     def print_status(self, message: str, status: str = 'info'):
@@ -222,14 +237,23 @@ class LocalSetupVerifier:
                     ORDER BY schema_name
                 """)
                 schemas = [row['schema_name'] for row in cur.fetchall()]
+                schema_count = len(schemas)
                 
                 # Expected schemas
                 expected_schemas = [
                     'krai_core', 'krai_content', 'krai_intelligence', 
-                    'krai_system', 'krai_parts'
+                    'krai_system', 'krai_parts', 'krai_users'
                 ]
                 
                 missing_schemas = [s for s in expected_schemas if s not in schemas]
+                
+                # Count total tables
+                cur.execute("""
+                    SELECT COUNT(*) as count 
+                    FROM information_schema.tables 
+                    WHERE table_schema LIKE 'krai_%' AND table_type = 'BASE TABLE'
+                """)
+                total_tables = cur.fetchone()['count']
                 
                 # Count tables in each schema
                 table_counts = {}
@@ -241,24 +265,62 @@ class LocalSetupVerifier:
                     """, (schema,))
                     table_counts[schema] = cur.fetchone()['count']
                 
+                # Check manufacturers count
+                manufacturers_count = 0
+                try:
+                    cur.execute("SELECT COUNT(*) as count FROM krai_core.manufacturers")
+                    manufacturers_count = cur.fetchone()['count']
+                except Exception:
+                    pass
+                
+                # Check retry policies count
+                retry_policies_count = 0
+                try:
+                    cur.execute("SELECT COUNT(*) as count FROM krai_system.retry_policies")
+                    retry_policies_count = cur.fetchone()['count']
+                except Exception:
+                    pass
+                
                 conn.close()
                 
-                if missing_schemas:
+                # Determine status based on validations
+                issues = []
+                if schema_count != self.expected_values['schemas']:
+                    issues.append(f"Schema count: {schema_count} (expected: {self.expected_values['schemas']})")
+                if total_tables != self.expected_values['tables']:
+                    issues.append(f"Table count: {total_tables} (expected: {self.expected_values['tables']})")
+                if manufacturers_count < self.expected_values['manufacturers']:
+                    issues.append(f"Manufacturers: {manufacturers_count} (expected: >={self.expected_values['manufacturers']})")
+                if retry_policies_count < self.expected_values['retry_policies']:
+                    issues.append(f"Retry policies: {retry_policies_count} (expected: >={self.expected_values['retry_policies']})")
+                
+                if missing_schemas or issues:
+                    status = 'warning' if not missing_schemas else 'error'
+                    message = '; '.join(issues) if issues else f"Missing schemas: {', '.join(missing_schemas)}"
                     return {
-                        'status': 'warning',
+                        'status': status,
                         'vector_version': vector_result['extversion'] if vector_result else None,
                         'schemas': schemas,
+                        'schema_count': schema_count,
+                        'total_tables': total_tables,
+                        'manufacturers_count': manufacturers_count,
+                        'retry_policies_count': retry_policies_count,
                         'missing_schemas': missing_schemas,
                         'table_counts': table_counts,
-                        'message': f"Missing schemas: {', '.join(missing_schemas)}"
+                        'message': message,
+                        'recommendation': 'Run database migrations: docker exec krai-postgres psql -U krai_user -d krai -f /docker-entrypoint-initdb.d/001_core_schema.sql'
                     }
                 else:
                     return {
                         'status': 'success',
                         'vector_version': vector_result['extversion'] if vector_result else None,
                         'schemas': schemas,
+                        'schema_count': schema_count,
+                        'total_tables': total_tables,
+                        'manufacturers_count': manufacturers_count,
+                        'retry_policies_count': retry_policies_count,
                         'table_counts': table_counts,
-                        'message': f"PostgreSQL healthy - {len(schemas)} schemas, vector extension available"
+                        'message': f"PostgreSQL healthy - {schema_count} schemas, {total_tables} tables, vector extension v{vector_result['extversion'] if vector_result else 'N/A'}"
                     }
                     
         except psycopg2.OperationalError as e:
@@ -385,21 +447,48 @@ class LocalSetupVerifier:
             required_models = list(config['models'].values())
             missing_models = [m for m in required_models if m not in available_models]
             
+            # Test embedding generation if embedding model is available
+            embedding_test_result = None
+            embedding_model = config['models']['embedding']
+            if embedding_model in available_models or any(embedding_model.split(':')[0] in m for m in available_models):
+                try:
+                    embed_response = requests.post(
+                        f"{config['url']}/api/embeddings",
+                        json={"model": embedding_model.split(':')[0], "prompt": "test"},
+                        timeout=30
+                    )
+                    if embed_response.status_code == 200:
+                        embed_data = embed_response.json()
+                        if 'embedding' in embed_data:
+                            embedding_dim = len(embed_data['embedding'])
+                            if embedding_dim == self.expected_values['embedding_dim']:
+                                embedding_test_result = f"success (dim: {embedding_dim})"
+                            else:
+                                embedding_test_result = f"dimension mismatch: {embedding_dim} (expected: {self.expected_values['embedding_dim']})"
+                        else:
+                            embedding_test_result = "no embedding in response"
+                    else:
+                        embedding_test_result = f"failed (status: {embed_response.status_code})"
+                except Exception as e:
+                    embedding_test_result = f"error: {str(e)[:50]}"
+            
             if missing_models:
                 return {
                     'status': 'warning',
                     'endpoint': config['url'],
                     'available_models': available_models,
                     'missing_models': missing_models,
+                    'embedding_test': embedding_test_result,
                     'message': f"Missing models: {', '.join(missing_models)}",
-                    'suggestion': f"Run: docker exec krai-ollama ollama pull {missing_models[0]}"
+                    'recommendation': f"Pull model: docker exec krai-ollama ollama pull {missing_models[0]}"
                 }
             else:
                 return {
                     'status': 'success',
                     'endpoint': config['url'],
                     'available_models': available_models,
-                    'message': f"Ollama healthy - {len(available_models)} models available"
+                    'embedding_test': embedding_test_result,
+                    'message': f"Ollama healthy - {len(available_models)} models available, embedding test: {embedding_test_result or 'skipped'}"
                 }
                 
         except requests.exceptions.ConnectionError:
@@ -407,6 +496,196 @@ class LocalSetupVerifier:
                 'status': 'error',
                 'error': f'Cannot connect to Ollama at {config["url"]}',
                 'message': 'Check if Ollama container is running'
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': f'Unexpected error: {e}'
+            }
+    
+    async def check_backend_api(self) -> Dict[str, any]:
+        """Check FastAPI backend endpoints"""
+        if not REQUESTS_AVAILABLE:
+            return {
+                'status': 'error',
+                'error': 'requests not available. Install with: pip install requests'
+            }
+        
+        config = self.services['backend']
+        base_url = config['url']
+        
+        try:
+            # Test /health endpoint
+            health_response = requests.get(f"{base_url}/health", timeout=10)
+            
+            if health_response.status_code != 200:
+                return {
+                    'status': 'error',
+                    'error': f'Backend /health returned status {health_response.status_code}',
+                    'message': 'Check backend logs: docker logs krai-engine'
+                }
+            
+            health_data = health_response.json()
+            
+            # Test documentation endpoints
+            docs_accessible = False
+            redoc_accessible = False
+            
+            try:
+                docs_response = requests.get(f"{base_url}/docs", timeout=5)
+                docs_accessible = docs_response.status_code == 200
+            except Exception:
+                pass
+            
+            try:
+                redoc_response = requests.get(f"{base_url}/redoc", timeout=5)
+                redoc_accessible = redoc_response.status_code == 200
+            except Exception:
+                pass
+            
+            # Check health status details
+            db_status = health_data.get('database', 'unknown')
+            storage_status = health_data.get('storage', 'unknown')
+            ai_status = health_data.get('ai', 'unknown')
+            
+            issues = []
+            if db_status != 'healthy':
+                issues.append(f"database: {db_status}")
+            if storage_status != 'healthy':
+                issues.append(f"storage: {storage_status}")
+            if not docs_accessible:
+                issues.append("docs not accessible")
+            if not redoc_accessible:
+                issues.append("redoc not accessible")
+            
+            if issues:
+                return {
+                    'status': 'warning',
+                    'url': base_url,
+                    'health': health_data,
+                    'docs_accessible': docs_accessible,
+                    'redoc_accessible': redoc_accessible,
+                    'message': f"Backend issues: {', '.join(issues)}"
+                }
+            else:
+                return {
+                    'status': 'success',
+                    'url': base_url,
+                    'health': health_data,
+                    'docs_accessible': docs_accessible,
+                    'redoc_accessible': redoc_accessible,
+                    'message': f"Backend healthy - database: {db_status}, storage: {storage_status}, docs: accessible"
+                }
+                
+        except requests.exceptions.ConnectionError:
+            return {
+                'status': 'error',
+                'error': f'Cannot connect to backend at {base_url}',
+                'message': 'Check if backend container is running',
+                'recommendation': 'Check backend logs: docker logs krai-engine'
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': f'Unexpected error: {e}'
+            }
+    
+    async def check_laravel_admin(self) -> Dict[str, any]:
+        """Check Laravel admin dashboard and Filament"""
+        if not REQUESTS_AVAILABLE:
+            return {
+                'status': 'error',
+                'error': 'requests not available. Install with: pip install requests'
+            }
+        
+        config = self.services['laravel']
+        base_url = config['url']
+        
+        try:
+            # Test dashboard accessibility
+            dashboard_response = requests.get(f"{base_url}/kradmin", timeout=10, allow_redirects=True)
+            
+            if dashboard_response.status_code not in [200, 302]:
+                return {
+                    'status': 'error',
+                    'error': f'Laravel dashboard returned status {dashboard_response.status_code}',
+                    'message': 'Check nginx logs: docker logs krai-laravel-nginx',
+                    'recommendation': 'Check Laravel logs: docker logs krai-laravel-admin'
+                }
+            
+            # Test login page
+            login_accessible = False
+            try:
+                login_response = requests.get(f"{base_url}/kradmin/login", timeout=5)
+                login_accessible = login_response.status_code in [200, 302]
+            except Exception:
+                pass
+            
+            # Test database connection via artisan
+            db_connection_ok = False
+            try:
+                result = subprocess.run(
+                    ['docker', 'exec', 'krai-laravel-admin', 'php', 'artisan', 'db:show'],
+                    capture_output=True,
+                    timeout=10
+                )
+                db_connection_ok = result.returncode == 0
+            except Exception:
+                pass
+            
+            # Check Filament resources
+            resources = ['documents', 'products', 'manufacturers', 'users', 'pipeline-errors', 'alert-configurations']
+            accessible_resources = 0
+            
+            for resource in resources:
+                try:
+                    response = requests.get(f"{base_url}/kradmin/{resource}", timeout=3, allow_redirects=False)
+                    if response.status_code in [200, 302]:
+                        accessible_resources += 1
+                except Exception:
+                    try:
+                        response = requests.get(f"{base_url}/kradmin/resources/{resource}", timeout=3, allow_redirects=False)
+                        if response.status_code in [200, 302]:
+                            accessible_resources += 1
+                    except Exception:
+                        pass
+            
+            issues = []
+            if not login_accessible:
+                issues.append("login page not accessible")
+            if not db_connection_ok:
+                issues.append("database connection failed")
+            if accessible_resources < 3:
+                issues.append(f"limited resources accessible ({accessible_resources}/{len(resources)})")
+            
+            if issues:
+                return {
+                    'status': 'warning',
+                    'url': base_url,
+                    'login_accessible': login_accessible,
+                    'db_connection': db_connection_ok,
+                    'accessible_resources': accessible_resources,
+                    'total_resources': len(resources),
+                    'message': f"Laravel issues: {', '.join(issues)}",
+                    'recommendation': 'Check .env configuration in laravel-admin/'
+                }
+            else:
+                return {
+                    'status': 'success',
+                    'url': base_url,
+                    'login_accessible': login_accessible,
+                    'db_connection': db_connection_ok,
+                    'accessible_resources': accessible_resources,
+                    'total_resources': len(resources),
+                    'message': f"Laravel healthy - dashboard accessible, {accessible_resources} Filament resources available"
+                }
+                
+        except requests.exceptions.ConnectionError:
+            return {
+                'status': 'error',
+                'error': f'Cannot connect to Laravel at {base_url}',
+                'message': 'Check if Laravel container is running',
+                'recommendation': 'Check nginx logs: docker logs krai-laravel-nginx'
             }
         except Exception as e:
             return {
@@ -462,6 +741,8 @@ class LocalSetupVerifier:
         checks = {
             'docker': self.check_docker_services(),
             'postgresql': self.check_postgresql(),
+            'backend': self.check_backend_api(),
+            'laravel': self.check_laravel_admin(),
             'minio': self.check_minio(),
             'ollama': self.check_ollama(),
             'pgadmin': self.check_web_interface('pgAdmin', self.services['pgadmin']['url']),
@@ -490,7 +771,13 @@ class LocalSetupVerifier:
         warning_count = sum(1 for r in results.values() if r['status'] == 'warning')
         error_count = sum(1 for r in results.values() if r['status'] == 'error')
         
-        overall_status = 'success' if error_count == 0 else ('warning' if warning_count > 0 else 'error')
+        # Determine overall status: error if any errors, warning if only warnings, otherwise success
+        if error_count > 0:
+            overall_status = 'error'
+        elif warning_count > 0:
+            overall_status = 'warning'
+        else:
+            overall_status = 'success'
         
         duration = time.time() - start_time
         
@@ -557,7 +844,9 @@ Overall Status: {results['overall_status'].upper()}
             
             for service, result in results['services'].items():
                 if result['status'] in ['warning', 'error']:
-                    if service == 'postgresql' and 'schemas' in result:
+                    if 'recommendation' in result:
+                        recommendations.append(f"• {result['recommendation']}")
+                    elif service == 'postgresql' and 'schemas' in result:
                         recommendations.append("• Run database migrations: Check /docker-entrypoint-initdb.d/")
                     elif service == 'minio' and 'missing_buckets' in result:
                         recommendations.append("• Initialize MinIO: python scripts/init_minio.py")
@@ -566,6 +855,10 @@ Overall Status: {results['overall_status'].upper()}
                         recommendations.append(f"• Pull Ollama model: docker exec krai-ollama ollama pull {model}")
                     elif service == 'docker':
                         recommendations.append("• Start Docker services: docker-compose up -d")
+                    elif service == 'backend':
+                        recommendations.append("• Check backend logs: docker logs krai-engine")
+                    elif service == 'laravel':
+                        recommendations.append("• Check Laravel logs: docker logs krai-laravel-admin")
             
             if recommendations:
                 self.console.print(Panel("\n".join(recommendations), title="💡 Recommendations", border_style="yellow"))
@@ -599,16 +892,28 @@ async def main():
     parser = argparse.ArgumentParser(description='Verify KRAI local Docker setup')
     parser.add_argument('--verbose', action='store_true', help='Show detailed output')
     parser.add_argument('--service', type=str, help='Check specific service only')
+    parser.add_argument('--json', action='store_true', help='Output results in JSON format')
+    parser.add_argument('--no-color', action='store_true', help='Disable colored output for CI/CD')
     
     args = parser.parse_args()
     
-    verifier = LocalSetupVerifier(verbose=args.verbose)
+    # Disable rich output if no-color flag is set
+    if args.no_color and RICH_AVAILABLE:
+        verifier = LocalSetupVerifier(verbose=args.verbose)
+        verifier.console = None
+    else:
+        verifier = LocalSetupVerifier(verbose=args.verbose)
+    
     results = await verifier.run_verification(args.service)
     
     if not results:
         sys.exit(1)
     
-    verifier.print_results(results)
+    # Output results
+    if args.json:
+        print(json.dumps(results, indent=2))
+    else:
+        verifier.print_results(results)
     
     # Exit code based on overall status
     if results['overall_status'] == 'success':

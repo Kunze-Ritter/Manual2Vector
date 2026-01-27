@@ -14,7 +14,7 @@ class RecentFailuresWidget extends Widget
 
     protected int | string | array $columnSpan = 'full';
 
-    protected static string $view = 'filament.widgets.recent-failures';
+    protected string $view = 'filament.widgets.recent-failures';
 
     protected function getPollingInterval(): ?string
     {

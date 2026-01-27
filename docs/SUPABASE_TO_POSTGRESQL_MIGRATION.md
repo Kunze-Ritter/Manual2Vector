@@ -447,10 +447,6 @@ curl http://localhost:8000/health
 
 # Expected: {"status": "healthy", "database": "connected", "storage": "connected"}
 
-# Frontend health
-curl http://localhost:3000/health
-
-# Expected: {"status": "ok"}
 ```
 
 **3. Verify Database Connectivity:**

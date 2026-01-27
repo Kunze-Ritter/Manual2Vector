@@ -6,8 +6,10 @@ use App\Filament\Resources\Monitoring\PipelineErrorResource\Pages;
 use App\Filament\Resources\Monitoring\PipelineErrorResource\Tables\PipelineErrorsTable;
 use App\Models\PipelineError;
 use App\Services\BackendApiService;
+use BackedEnum;
 use Filament\Resources\Resource;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class PipelineErrorResource extends Resource
 {
@@ -28,11 +30,11 @@ class PipelineErrorResource extends Resource
         return static::$backendApiService;
     }
 
-    protected static ?string $navigationGroup = 'Monitoring';
+    protected static UnitEnum|string|null $navigationGroup = 'Monitoring';
 
     protected static ?string $navigationLabel = 'Pipeline-Fehler';
 
-    protected static ?string $navigationIcon = 'heroicon-o-exclamation-triangle';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-exclamation-triangle';
 
     protected static ?int $navigationSort = 3;
 
@@ -54,7 +56,6 @@ class PipelineErrorResource extends Resource
     {
         return [
             'index' => Pages\ListPipelineErrors::route('/'),
-            'view' => Pages\ViewPipelineError::route('/{record}'),
         ];
     }
 

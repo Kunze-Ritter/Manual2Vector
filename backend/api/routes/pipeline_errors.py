@@ -5,12 +5,12 @@ import logging
 import math
 from typing import Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from backend.services.database_adapter import DatabaseAdapter
-from backend.api.app import get_database_adapter
+from api.dependencies.database import get_database_adapter
 from backend.api.middleware.auth_middleware import require_permission
 from backend.api.routes.response_models import SuccessResponse, ErrorResponse
 from backend.models.pipeline_error import (
@@ -21,9 +21,8 @@ from backend.models.pipeline_error import (
     PipelineErrorFilters
 )
 from backend.services.error_logging_service import ErrorLogger
-from backend.core.retry_engine import RetryOrchestrator
-from backend.core.retry_policies import RetryPolicyManager
-from backend.models.processing_context import ProcessingContext
+from backend.core.retry_engine import RetryOrchestrator, RetryPolicyManager
+from backend.core.types import ProcessingContext
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +63,7 @@ def get_retry_orchestrator(
 @router.get("/errors", response_model=SuccessResponse[PipelineErrorListResponse])
 @limiter.limit(rate_limit_standard)
 async def list_pipeline_errors(
+    request: Request,
     document_id: Optional[str] = Query(None, description="Filter by document ID"),
     stage_name: Optional[str] = Query(None, description="Filter by stage name"),
     error_type: Optional[str] = Query(None, description="Filter by error type"),
@@ -195,6 +195,7 @@ async def list_pipeline_errors(
 @router.get("/errors/{error_id}", response_model=SuccessResponse[PipelineErrorResponse])
 @limiter.limit(rate_limit_standard)
 async def get_pipeline_error(
+    request: Request,
     error_id: str,
     error_logger: ErrorLogger = Depends(get_error_logger),
     current_user: dict = Depends(require_permission('monitoring:write'))
@@ -247,6 +248,7 @@ async def get_pipeline_error(
 @router.post("/retry-stage", response_model=SuccessResponse[dict])
 @limiter.limit(rate_limit_standard)
 async def retry_stage(
+    req: Request,
     request: RetryStageRequest,
     adapter: DatabaseAdapter = Depends(get_database_adapter),
     orchestrator: RetryOrchestrator = Depends(get_retry_orchestrator),
@@ -372,6 +374,7 @@ async def retry_stage(
 @router.post("/mark-error-resolved", response_model=SuccessResponse[dict])
 @limiter.limit(rate_limit_standard)
 async def mark_error_resolved(
+    req: Request,
     request: MarkErrorResolvedRequest,
     error_logger: ErrorLogger = Depends(get_error_logger),
     adapter: DatabaseAdapter = Depends(get_database_adapter),

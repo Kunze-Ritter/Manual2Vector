@@ -38,6 +38,7 @@ from backend.services.quality_check_service import QualityCheckService
 from backend.services.file_locator_service import FileLocatorService
 from backend.services.manufacturer_verification_service import ManufacturerVerificationService
 from backend.services.web_scraping_service import create_web_scraping_service
+from backend.services.performance_service import PerformanceCollector
 from backend.utils.colored_logging import apply_colored_logging_globally
 
 from backend.processors.upload_processor import UploadProcessor
@@ -62,13 +63,14 @@ class KRMasterPipeline:
     Master Pipeline für alle KR-AI-Engine Funktionen
     """
     
-    def __init__(self, database_adapter=None, force_continue_on_errors=True):
+    def __init__(self, database_adapter=None, force_continue_on_errors=True, performance_collector=None):
         self.database_adapter = database_adapter
         self.database_service = None
         self.storage_service = None
         self.ai_service = None
         self.config_service = None
         self.features_service = None
+        self.performance_service = performance_collector  # Use provided collector or will be initialized later
         self.processors = {}
         self.force_continue_on_errors = force_continue_on_errors
         
@@ -250,6 +252,16 @@ class KRMasterPipeline:
             web_scraping_service=web_scraping_service
         )
         
+        # Initialize performance collector if not provided
+        if self.performance_service is None:
+            self.performance_service = PerformanceCollector(
+                db_adapter=self.database_service,
+                logger=logging.getLogger("krai.performance")
+            )
+            self.logger.info("✅ Performance service initialized")
+        else:
+            self.logger.info("✅ Performance service provided (shared instance)")
+        
         # Initialize all processors - use sequential variables to avoid initialization ordering issues
         embedding_processor = EmbeddingProcessor(self.database_service, self.ai_service.ollama_url)
         table_processor = TableProcessor(self.database_service, embedding_processor)
@@ -275,6 +287,12 @@ class KRMasterPipeline:
             'search': SearchProcessor(self.database_service, self.ai_service),
             'thumbnail': ThumbnailProcessor(self.database_service, self.storage_service)
         }
+        
+        # Wire performance collector to all processors
+        for processor_name, processor in self.processors.items():
+            if processor and hasattr(processor, 'set_performance_collector'):
+                processor.set_performance_collector(self.performance_service)
+        
         self.logger.info("All services initialized!")
 
     async def _get_document_row_by_filename(self, filename: str) -> Optional[Dict[str, Any]]:
@@ -604,7 +622,13 @@ class KRMasterPipeline:
 
                 self.logger.info("  %s %s", label, filename)
                 try:
-                    result = await self.processors[processor_key].process(context)
+                    # Use safe_process() if available for metrics collection
+                    processor = self.processors[processor_key]
+                    if hasattr(processor, 'safe_process'):
+                        result = await processor.safe_process(context)
+                    else:
+                        result = await processor.process(context)
+                    
                     # Handle both dict and ProcessingResult objects
                     if isinstance(result, dict):
                         success = result.get('success', False)
@@ -704,7 +728,8 @@ class KRMasterPipeline:
             # Stage 1: Upload Processor
             current_stage = "upload"
             self.logger.info("  [%s] Upload: %s", doc_index, filename)
-            result1 = await self.processors['upload'].process(context)
+            processor = self.processors['upload']
+            result1 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             
             # FORCE DEBUG OUTPUT - ALWAYS SHOW
             self.logger.debug("  [%s] FORCE DEBUG: result1.success = %s", doc_index, result1.success)
@@ -771,14 +796,16 @@ class KRMasterPipeline:
             # Stage 2: Text Processor
             current_stage = "text"
             self.logger.info("  [%s] Text Processing: %s", doc_index, filename)
-            result2 = await self.processors['text'].process(context)
+            processor = self.processors['text']
+            result2 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             chunks_count = result2.data.get('chunks_created', 0)
             
             # Stage 2b: Table Processor (NEW! - Multi-modal support)
             current_stage = "table"
             self.logger.info("  [%s] Table Extraction: %s", doc_index, filename)
             try:
-                result2b = await self.processors['table'].process(context)
+                processor = self.processors['table']
+                result2b = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
                 tables_count = result2b.data.get('tables_extracted', 0) if result2b.success else 0
             except Exception as e:
                 if os.getenv('DEBUG_NONFATAL_TABLE_EXTRACTION', 'false').lower() == 'true':
@@ -796,7 +823,8 @@ class KRMasterPipeline:
             if self.processors['svg'] is not None:
                 current_stage = "svg"
                 self.logger.info("  [%s] SVG Processing: %s", doc_index, filename)
-                result3a = await self.processors['svg'].process(context)
+                processor = self.processors['svg']
+                result3a = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
                 svg_count = result3a.data.get('svgs_extracted', 0) if result3a.success else 0
                 svg_converted = result3a.data.get('svgs_converted', 0) if result3a.success else 0
                 self.logger.info("    → %s SVGs extracted, %s converted", svg_count, svg_converted)
@@ -807,7 +835,8 @@ class KRMasterPipeline:
             # Stage 3: Image Processor
             current_stage = "image"
             self.logger.info("  [%s] Image Processing: %s", doc_index, filename)
-            result3 = await self.processors['image'].process(context)
+            processor = self.processors['image']
+            result3 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
 
             if isinstance(result3, dict):
                 images_count = result3.get('images_processed', 0)
@@ -819,25 +848,29 @@ class KRMasterPipeline:
             # Stage 3b: Visual Embedding Processor (NEW! - Multi-modal support)
             current_stage = "visual_embedding"
             self.logger.info("  [%s] Visual Embeddings: %s", doc_index, filename)
-            result3b = await self.processors['visual_embedding'].process(context)
+            processor = self.processors['visual_embedding']
+            result3b = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             visual_embeddings_count = result3b.data.get('embeddings_created', 0) if result3b.success else 0
             
             # Stage 4: Classification Processor
             current_stage = "classification"
             self.logger.info("  [%s] Classification: %s", doc_index, filename)
-            result4 = await self.processors['classification'].process(context)
+            processor = self.processors['classification']
+            result4 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             
             # Stage 5: Chunk Preprocessing (NEW! - AI-ready chunks)
             current_stage = "chunk_prep"
             self.logger.info("  [%s] Chunk Preprocessing: %s", doc_index, filename)
-            result4b = await self.processors['chunk_prep'].process(context)
+            processor = self.processors['chunk_prep']
+            result4b = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             chunks_preprocessed = result4b.data.get('chunks_preprocessed', 0) if result4b.success else 0
             self.logger.info("    → %s chunks preprocessed", chunks_preprocessed)
             
             # Stage 6: Link Extraction Processor
             current_stage = "links"
             self.logger.info("  [%s] Link Extraction: %s", doc_index, filename)
-            result4c = await self.processors['links'].process(context)
+            processor = self.processors['links']
+            result4c = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             links_count = result4c.data.get('links_extracted', 0) if result4c.success else 0
             video_count = result4c.data.get('video_links_created', 0) if result4c.success else 0
             self.logger.info("    → %s links, %s videos", links_count, video_count)
@@ -845,24 +878,28 @@ class KRMasterPipeline:
             # Stage 7: Metadata Processor (Error Codes)
             current_stage = "metadata"
             self.logger.info("  [%s] Metadata (Error Codes): %s", doc_index, filename)
-            result5 = await self.processors['metadata'].process(context)
+            processor = self.processors['metadata']
+            result5 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             error_codes_count = result5.data.get('error_codes_found', 0) if result5.success else 0
             self.logger.info("    → %s error codes", error_codes_count)
             
             # Stage 8: Storage Processor
             current_stage = "storage"
             self.logger.info("  [%s] Storage: %s", doc_index, filename)
-            result6 = await self.processors['storage'].process(context)
+            processor = self.processors['storage']
+            result6 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             
             # Stage 9: Embedding Processor (Uses intelligence.chunks!)
             current_stage = "embedding"
             self.logger.info("  [%s] Embeddings: %s", doc_index, filename)
-            result7 = await self.processors['embedding'].process(context)
+            processor = self.processors['embedding']
+            result7 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             
             # Stage 10: Search Processor
             current_stage = "search"
             self.logger.info("  [%s] Search Index: %s", doc_index, filename)
-            result8 = await self.processors['search'].process(context)
+            processor = self.processors['search']
+            result8 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             
             self.logger.info("  [%s] Completed: %s", doc_index, filename)
             
@@ -1584,8 +1621,31 @@ class KRMasterPipeline:
             
             context = ProcessingContext(**context_data)
             
-            # Run processor
-            result = await processor.process(context)
+            # Run processor - prefer safe_process() for metrics collection
+            if hasattr(processor, 'safe_process'):
+                result = await processor.safe_process(context)
+            else:
+                # Fallback to process() with manual metrics collection
+                import time
+                start_time = time.time()
+                result = await processor.process(context)
+                processing_time = time.time() - start_time
+                
+                # Manually collect metrics if processor doesn't have safe_process()
+                if result.success and self.performance_service:
+                    try:
+                        # Set processing_time if not already set
+                        if not hasattr(result, 'processing_time') or result.processing_time == 0.0:
+                            result.processing_time = processing_time
+                        
+                        await self.performance_service.collect_stage_metrics(
+                            processor_key,
+                            result
+                        )
+                    except Exception as metrics_error:
+                        self.logger.debug(
+                            f"Failed to collect performance metrics for {processor_key}: {metrics_error}"
+                        )
             
             return {
                 'success': result.success if hasattr(result, 'success') else True,

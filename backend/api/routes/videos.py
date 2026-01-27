@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from math import ceil
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from api.app import get_database_pool
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from api.dependencies.database import get_database_pool
 import asyncpg
 from api.middleware.auth_middleware import require_permission
 from api.middleware.rate_limit_middleware import (
@@ -271,6 +271,7 @@ def _serialize_metadata(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 @router.get("", response_model=SuccessResponse[VideoListResponse])
 @limiter.limit(rate_limit_search)
 async def list_videos(
+    request: Request,
     pagination: PaginationParams = Depends(),
     filters: VideoFilterParams = Depends(),
     sort: VideoSortParams = Depends(),
@@ -376,6 +377,7 @@ async def list_videos(
 )
 @limiter.limit(rate_limit_standard)
 async def get_video(
+    request: Request,
     video_id: str,
     include_relations: bool = Query(False),
     current_user: Dict[str, Any] = Depends(require_permission("videos:read")),
@@ -408,6 +410,7 @@ async def get_video(
 )
 @limiter.limit(rate_limit_upload)
 async def create_video(
+    request: Request,
     payload: VideoCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -474,6 +477,7 @@ async def create_video(
 )
 @limiter.limit(rate_limit_standard)
 async def update_video(
+    request: Request,
     video_id: str,
     payload: VideoUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
@@ -553,6 +557,7 @@ async def update_video(
 )
 @limiter.limit(rate_limit_upload)
 async def enrich_video(
+    request: Request,
     payload: VideoEnrichmentRequest,
     current_user: Dict[str, Any] = Depends(require_permission("videos:write")),
     pool: asyncpg.Pool = Depends(get_database_pool),

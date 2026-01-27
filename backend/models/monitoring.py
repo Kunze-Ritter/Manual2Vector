@@ -511,3 +511,64 @@ class WebSocketMessage(BaseModel):
             }
         },
     )
+
+
+class PerformanceMetrics(BaseModel):
+    """Performance metrics for a single pipeline stage."""
+    
+    stage_name: str = Field(..., description="Name of the pipeline stage")
+    baseline_avg_seconds: Optional[float] = Field(None, description="Baseline average processing time in seconds")
+    current_avg_seconds: Optional[float] = Field(None, description="Current average processing time in seconds")
+    baseline_p50_seconds: Optional[float] = Field(None, description="Baseline P50 processing time in seconds")
+    current_p50_seconds: Optional[float] = Field(None, description="Current P50 processing time in seconds")
+    baseline_p95_seconds: Optional[float] = Field(None, description="Baseline P95 processing time in seconds")
+    current_p95_seconds: Optional[float] = Field(None, description="Current P95 processing time in seconds")
+    baseline_p99_seconds: Optional[float] = Field(None, description="Baseline P99 processing time in seconds")
+    current_p99_seconds: Optional[float] = Field(None, description="Current P99 processing time in seconds")
+    improvement_percentage: Optional[float] = Field(None, description="Performance improvement percentage")
+    measurement_date: Optional[datetime] = Field(None, description="Date of measurement")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "stage_name": "text_extraction",
+                "baseline_avg_seconds": 2.5,
+                "current_avg_seconds": 1.8,
+                "baseline_p50_seconds": 2.3,
+                "current_p50_seconds": 1.7,
+                "baseline_p95_seconds": 3.2,
+                "current_p95_seconds": 2.1,
+                "baseline_p99_seconds": 4.1,
+                "current_p99_seconds": 2.8,
+                "improvement_percentage": 28.0,
+                "measurement_date": "2025-01-23T08:00:00Z",
+            }
+        },
+    )
+
+
+class PerformanceMetricsResponse(BaseModel):
+    """Response model for performance metrics endpoint."""
+    
+    overall_improvement: Optional[float] = Field(None, description="Average improvement across all stages")
+    stages: List[PerformanceMetrics] = Field(default_factory=list, description="Per-stage performance metrics")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "overall_improvement": 25.5,
+                "stages": [
+                    {
+                        "stage_name": "text_extraction",
+                        "baseline_avg_seconds": 2.5,
+                        "current_avg_seconds": 1.8,
+                        "improvement_percentage": 28.0,
+                    }
+                ],
+                "timestamp": "2025-01-23T08:00:00Z",
+            }
+        },
+    )

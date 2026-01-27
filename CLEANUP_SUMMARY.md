@@ -126,8 +126,7 @@
 
 ### Core Directories
 - ✅ `backend/` - Python backend
-- ✅ `frontend/` - Frontend application
-- ✅ `laravel-admin/` - Laravel admin panel
+- ✅ `laravel-admin/` - Laravel admin panel (sole dashboard interface)
 - ✅ `database/` - Database migrations & docs
 - ✅ `tests/` - Test suite
 - ✅ `docs/` - Documentation

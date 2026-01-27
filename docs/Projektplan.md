@@ -82,7 +82,7 @@
  
  - Vollautomatisches OEM-spezifisches Ticketing / CRM-Integration (nur vorbereitete APIs/Webhooks)  
  - Vollständig automatisierte Cloud-Multi-Tenant-Plattform (Fokus aktuell: On-Prem/Single Tenant)  
- - Native Mobile Apps (Nutzung über responsive React-Frontend möglich)  
+ - Native Mobile Apps (perspektivisch)  
  - Generelle Endkunden-Self-Service-Portale (Fokus: B2B/OEM & interne Nutzung)
  
  ---
@@ -92,19 +92,20 @@
  - **Produktverantwortliche / Business Owner**  
    Definieren Ziele, Prioritäten, OEM-Fokus, Go-to-Market-Strategie.
  
- - **Tech Lead / Architektur**  
-   Verantwortlich für System-Design, Tech-Stack, Security- und Skalierungsentscheidungen.
+- **Tech Lead / Architektur**  
+  Verantwortlich für System-Design, Tech-Stack, Security- und Skalierungsentscheidungen.
  
- - **Backend-Team**  
-   Implementiert APIs, Datenmodelle, Pipelines, Integrationen mit PostgreSQL/MinIO/Ollama.
+- **Backend-Team**  
+  Implementiert APIs, Datenmodelle, Pipelines, Integrationen mit PostgreSQL/MinIO/Ollama.
  
- - **Frontend-Team**  
-   Entwickelt das React-Dashboard, UX, E2E-Tests und API-Integration.
+- **Dashboard-Team**  
+  Entwickelt das Laravel/Filament-Dashboard, UX, E2E-Tests und API-Integration.
  
- - **DevOps / Infrastruktur**  
-   Verantwortlich für Docker-Compose-Stacks, Monitoring, Backups, Produktions-Deployments.
+- **DevOps / Infrastruktur**  
+  Verantwortlich für Docker-Compose-Stacks, Monitoring, Backups, Produktions-Deployments.
  
- - **Qualitätssicherung / Testing**  
+- **Qualitätssicherung / Testing**  
+  Pflege von Unit-, Integrations- und E2E-Tests, Testdaten und Test-Skripten.
    Pflege von Unit-, Integrations- und E2E-Tests, Testdaten und Test-Skripten.
  
  - **OEM-Partner / Pilotkunden**  
@@ -116,8 +117,8 @@
  
  Die detaillierte Architektur ist in `docs/ARCHITECTURE.md` beschrieben. Kurzüberblick:
  
- - **Frontend-Layer**  
-   React-Dashboard (Port 80) + API-/WebSocket-Zugriff
+ - **Dashboard-Layer (Laravel/Filament)**  
+   Laravel/Filament-Dashboard + API-Zugriff
  
  - **Service-Layer (FastAPI)**  
    Dokument-, Such-, Pipeline-, Agent-, Admin-, Auth- und File-Upload-APIs
@@ -141,11 +142,11 @@
  - **Server:** Uvicorn mit Security-/Performance-Tuning (`UVICORN_*` Variablen)  
  - **Struktur:** Monorepo mit modularen Services (`backend/api`, `backend/services`, `backend/models`)
  
- ### 6.2 Frontend
+ ### 6.2 Dashboard
  
- - **Framework:** React 18+, TypeScript  
- - **Build-Tool:** Vite  
- - **UI:** Moderne Dashboard-Oberfläche, E2E-getestet mit Playwright
+ - **Framework:** Laravel 12+ mit Filament 3+  
+ - **UI Components:** Livewire, Alpine.js  
+ - **UI:** Moderne Admin-Oberfläche mit Filament-Komponenten
  
  ### 6.3 Datenbank & Storage
  
@@ -162,7 +163,7 @@
  ### 6.5 Infrastruktur & Operations
  
  - **Containerisierung:** Docker, Docker Compose (mehrere Stacks: `simple`, `production`, `test`, `with-firecrawl`, `infrastructure` usw.)  
- - **Reverse Proxy:** Nginx (Frontend-Serving, API-Routing)  
+ - **Reverse Proxy:** Nginx (Dashboard-Serving, API-Routing)  
  - **Monitoring & Tools:** Health-Endpoints, Metriken, Skripte (`scripts/verify_local_setup.py`, `scripts/validate_env.py`)
  
  ### 6.6 Security
@@ -176,7 +177,7 @@
  ### 6.7 Testing & Qualität
  
  - **Backend:** `pytest`, Integrationstests, Performance-Tests (`tests/`)  
- - **Frontend:** Playwright E2E mit Page Objects, Fixtures, globalem Setup/Teardown  
+ - **Dashboard:** Laravel Feature-Tests, Browser-Tests (Dusk optional)  
  - **CI:** GitHub Actions Workflows (`.github/workflows/*.yml`)
  
  ---

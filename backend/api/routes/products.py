@@ -6,10 +6,10 @@ from datetime import date, datetime, timezone
 from math import ceil
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from backend.services.database_adapter import DatabaseAdapter
-from api.app import get_database_adapter
+from api.dependencies.database import get_database_adapter
 from backend.constants.product_types import ALLOWED_PRODUCT_TYPES
 from api.middleware.auth_middleware import require_permission
 from api.middleware.rate_limit_middleware import (
@@ -175,6 +175,7 @@ def _build_product_relations(
 )
 @limiter.limit(rate_limit_search)
 async def list_products(
+    request: Request,
     pagination: PaginationParams = Depends(),
     filters: ProductFilterParams = Depends(),
     sort: ProductSortParams = Depends(),
@@ -261,6 +262,7 @@ async def list_products(
 )
 @limiter.limit(rate_limit_search)
 def get_product_types(
+    request: Request,
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
 ) -> SuccessResponse[ProductTypesResponse]:
     """Return the canonical list of allowed product types."""
@@ -275,6 +277,7 @@ def get_product_types(
 )
 @limiter.limit(rate_limit_standard)
 async def get_product(
+    request: Request,
     product_id: str,
     include_relations: bool = Query(False),
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
@@ -307,6 +310,7 @@ async def get_product(
 )
 @limiter.limit(rate_limit_upload)
 async def create_product(
+    request: Request,
     payload: ProductCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
     adapter: DatabaseAdapter = Depends(get_database_adapter),
@@ -413,6 +417,7 @@ async def create_product(
 )
 @limiter.limit(rate_limit_standard)
 async def update_product(
+    request: Request,
     product_id: str,
     payload: ProductUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
@@ -519,6 +524,7 @@ async def update_product(
 )
 @limiter.limit(rate_limit_standard)
 async def delete_product(
+    request: Request,
     product_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("products:delete")),
     adapter: DatabaseAdapter = Depends(get_database_adapter),
@@ -579,6 +585,7 @@ async def delete_product(
 )
 @limiter.limit(rate_limit_search)
 async def get_product_stats(
+    request: Request,
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
     adapter: DatabaseAdapter = Depends(get_database_adapter),
 ) -> SuccessResponse[ProductStatsResponse]:
@@ -665,6 +672,7 @@ async def get_product_stats(
 )
 @limiter.limit(rate_limit_upload)
 async def batch_create_products(
+    request: Request,
     payload: ProductBatchCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
     adapter: DatabaseAdapter = Depends(get_database_adapter),
@@ -778,6 +786,7 @@ async def batch_create_products(
 )
 @limiter.limit(rate_limit_standard)
 async def batch_update_products(
+    request: Request,
     payload: ProductBatchUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:write")),
     adapter: DatabaseAdapter = Depends(get_database_adapter),
@@ -875,6 +884,7 @@ async def batch_update_products(
 )
 @limiter.limit(rate_limit_standard)
 async def batch_delete_products(
+    request: Request,
     payload: ProductBatchDeleteRequest,
     current_user: Dict[str, Any] = Depends(require_permission("products:delete")),
     adapter: DatabaseAdapter = Depends(get_database_adapter),
@@ -956,6 +966,7 @@ async def batch_delete_products(
 )
 @limiter.limit(rate_limit_search)
 async def get_manufacturer_series(
+    request: Request,
     manufacturer_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("products:read")),
     adapter: DatabaseAdapter = Depends(get_database_adapter),

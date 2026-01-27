@@ -45,7 +45,7 @@ from datetime import datetime
 from backend.core.base_processor import ProcessingContext
 from backend.core.retry_engine import ErrorClassification
 from backend.services.structured_logger import StructuredLogger
-from backend.database.database_adapter import DatabaseAdapter
+from backend.services.database_adapter import DatabaseAdapter
 
 
 class ErrorLogger:

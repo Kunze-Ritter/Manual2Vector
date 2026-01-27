@@ -246,8 +246,74 @@ pytest backend/processors/ -v
 
 ---
 
+## 🎯 Benchmark Suite
+
+**Purpose:** Measure and validate pipeline performance improvements with statistical rigor.
+
+**Key Components:**
+- **`scripts/run_benchmark.py`**: Main benchmark execution with baseline storage and comparison
+- **`scripts/select_benchmark_documents.py`**: Document selection with stratification
+- **Database Tables**: `krai_system.performance_baselines`, `krai_system.benchmark_documents`
+
+**Features:**
+- **Baseline Measurement**: Store performance metrics before optimization
+- **Comparison Analysis**: Calculate improvement percentage after optimization
+- **Statistical Metrics**: Average, P50 (median), P95, P99 percentiles
+- **Per-Stage Breakdown**: Identify bottlenecks in pipeline stages
+- **Dashboard Integration**: Visualize results in Filament Performance Metrics Widget
+
+**Performance Target:**
+- **30%+ improvement** across pipeline stages (from resilience architecture)
+- Color-coded indicators: 🟢 Green (30%+), 🟡 Yellow (10-30%), 🔴 Red (<10%)
+
+**Quick Start:**
+
+```bash
+# 1. Select benchmark documents
+python scripts/select_benchmark_documents.py \
+  --snapshot-dir ./staging-snapshots/latest \
+  --count 10
+
+# 2. Run baseline benchmark
+python scripts/run_benchmark.py \
+  --count 10 \
+  --baseline \
+  --output baseline_results.json
+
+# 3. Implement optimizations
+# (Make code changes, adjust configuration)
+
+# 4. Run current benchmark with comparison
+python scripts/run_benchmark.py \
+  --count 10 \
+  --compare \
+  --output current_results.json
+```
+
+**Statistical Metrics:**
+- **Average**: Mean processing time across all documents
+- **P50 (Median)**: Typical performance, less affected by outliers
+- **P95**: 95th percentile, represents typical worst-case
+- **P99**: 99th percentile, captures extreme cases
+
+**Integration with PerformanceCollector:**
+- Benchmark results stored in `krai_system.performance_baselines`
+- Accessible via `PerformanceCollector` service
+- Displayed in Filament dashboard at `/kradmin`
+- API endpoint: `GET /api/monitoring/performance`
+
+**For Detailed Usage:**
+- See **[docs/testing/BENCHMARK_GUIDE.md](testing/BENCHMARK_GUIDE.md)** for comprehensive workflow
+- See **[docs/testing/BENCHMARK_QUICK_REFERENCE.md](testing/BENCHMARK_QUICK_REFERENCE.md)** for quick commands
+
+---
+
 ## 🔗 Related Documentation
 
+- [Benchmark Guide](testing/BENCHMARK_GUIDE.md) - Comprehensive benchmarking workflow
+- [Benchmark Quick Reference](testing/BENCHMARK_QUICK_REFERENCE.md) - Quick command reference
+- [Performance Testing Guide](testing/PERFORMANCE_TESTING_GUIDE.md) - Load testing with Locust
+- [Performance Optimization](architecture/PERFORMANCE_OPTIMIZATION.md) - Optimization strategies
 - [Installation Guide](../docs/setup/INSTALLATION_GUIDE.md)
 - [Configuration Setup](../docs/setup/CONFIGURATION_SETUP.md)
 - [Processing Checklist](../PROCESSING_CHECKLIST.md)

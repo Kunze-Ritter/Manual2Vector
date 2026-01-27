@@ -350,7 +350,7 @@ WHERE dp.document_id = 'doc-uuid'
 
 1. **Accessory Prefixes:** Complete list of prefixes (FS-, PF-, HT-, SD-, ...)
 2. **Compatibility Sources:** Where is compatibility info most reliable?
-3. **UI Framework:** What to use for dashboard? (React, Vue, Svelte?)
+3. **UI Framework:** Use existing Laravel/Filament dashboard
 4. **Priority:** When to build dashboard vs improve extraction?
 
 ---

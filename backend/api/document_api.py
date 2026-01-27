@@ -82,12 +82,31 @@ class DocumentAPI:
         # Initialize upload processor (for initial file handling)
         self.upload_processor = UploadProcessor(database_service)
         
+        # Wire performance collector to standalone processors and pipeline
+        # Import performance_service from main module
+        performance_collector = None
+        try:
+            from backend.main import performance_service
+            performance_collector = performance_service
+            if performance_service:
+                if hasattr(self.upload_processor, 'set_performance_collector'):
+                    self.upload_processor.set_performance_collector(performance_service)
+        except ImportError:
+            # performance_service not available (e.g., in tests)
+            pass
+        
         # Initialize pipeline and processors for stage-based processing
+        # Pass performance_collector so pipeline uses the same global instance
         self.pipeline = KRMasterPipeline(
             database_adapter=database_service,
-            force_continue_on_errors=True
+            force_continue_on_errors=True,
+            performance_collector=performance_collector
         )
         self.thumbnail_processor = ThumbnailProcessor(database_service, storage_service)
+        
+        # Wire performance collector to thumbnail processor
+        if performance_collector and hasattr(self.thumbnail_processor, 'set_performance_collector'):
+            self.thumbnail_processor.set_performance_collector(performance_collector)
         
         # Create router
         self.router = APIRouter(prefix="/documents", tags=["documents"])

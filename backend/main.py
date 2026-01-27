@@ -59,6 +59,7 @@ from services.config_service import ConfigService
 from services.features_service import FeaturesService
 from services.video_enrichment_service import VideoEnrichmentService
 from services.link_checker_service import LinkCheckerService
+from services.performance_service import PerformanceCollector
 
 # Import APIs
 from api.document_api import DocumentAPI
@@ -77,6 +78,7 @@ config_service = None
 features_service = None
 video_enrichment_service = None
 link_checker_service = None
+performance_service = None
 
 # Global APIs (initialized in lifespan)
 document_api = None
@@ -90,7 +92,7 @@ openai_api = None
 async def lifespan(app: FastAPI):
     """Startup event handler"""
     global database_service, storage_service, ai_service, config_service, features_service
-    global video_enrichment_service, link_checker_service
+    global video_enrichment_service, link_checker_service, performance_service
     global document_api, search_api, defect_detection_api, features_api, content_management_api, openai_api
     
     # Startup
@@ -121,8 +123,12 @@ async def lifespan(app: FastAPI):
         ai_service = AIService(
             ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434")
         )
-        await ai_service.connect()
-        logger.info("✅ AI service connected")
+        try:
+            await ai_service.connect()
+            logger.info("✅ AI service connected")
+        except Exception as e:
+            logger.warning(f"⚠️  AI service connection failed: {e}")
+            logger.warning("Application will continue without AI service. AI features may not work until Ollama is available.")
         
         # Initialize features service
         features_service = FeaturesService(ai_service, database_service)
@@ -135,6 +141,13 @@ async def lifespan(app: FastAPI):
         # Initialize link checker service
         link_checker_service = LinkCheckerService()
         logger.info("✅ Link checker service initialized")
+        
+        # Initialize performance collector
+        performance_service = PerformanceCollector(
+            db_adapter=database_service,
+            logger=logging.getLogger("krai.performance")
+        )
+        logger.info("✅ Performance service initialized")
         
         # NOW initialize APIs with services
         document_api = DocumentAPI(database_service, storage_service, ai_service)
@@ -174,6 +187,8 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Storage service disconnected")
     if ai_service:
         logger.info("✅ AI service disconnected")
+    if performance_service:
+        logger.info("✅ Performance service disconnected")
     logger.info("👋 KR-AI-Engine stopped")
 
 # Create FastAPI application with lifespan

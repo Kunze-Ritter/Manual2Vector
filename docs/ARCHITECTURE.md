@@ -4,9 +4,8 @@
 
 ```mermaid
 flowchart TD
-    subgraph "Frontend Layer"
-        A[React Dashboard] --> B[FastAPI Backend]
-        C[Laravel Dashboard] --> B
+    subgraph "Dashboard Layer"
+        A[Laravel Dashboard] --> B[FastAPI Backend]
     end
     
     subgraph "Backend Services"
@@ -36,8 +35,7 @@ flowchart TD
         J --> N
     end
     
-    style A fill:#e1f5fe
-    style C fill:#f3e5f5
+    style A fill:#f3e5f5
     style B fill:#e8f5e8
     style L fill:#fff3e0
     style M fill:#fce4ec
@@ -81,29 +79,7 @@ The system uses PostgreSQL as the sole database, eliminating all cloud dependenc
 
 ## Core Components
 
-### 1. Frontend Layer
-
-#### React Dashboard
-
-- Modern web interface for document management
-- Real-time search and visualization
-- Admin panel for system configuration
-- Responsive design for mobile and desktop
-
-#### API Gateway
-
-- Unified entry point for all client requests
-- Request routing and load balancing
-- Authentication and authorization
-- Rate limiting and request validation
-
-#### WebSocket Gateway
-
-- Real-time communication for processing status
-- Live search results and notifications
-- Bidirectional messaging for interactive features
-
-### 2. Service Layer
+### 1. Service Layer
 
 #### Document API
 
@@ -161,7 +137,7 @@ The KRAI system uses a **15-stage modular pipeline** that provides granular cont
 
 **Reference**: `docs/processor/PIPELINE_ARCHITECTURE.md` for detailed pipeline documentation
 
-### 3. Processing Layer
+### 2. Processing Layer
 
 #### Master Pipeline (Deprecated)
 
@@ -188,9 +164,9 @@ The KRAI system uses a **15-stage modular pipeline** that provides granular cont
 - Link analysis and content summarization
 - Table structure interpretation
 
-### Storage Layer
+### 3. Storage Layer
 
-### MinIO Object Storage (S3-Compatible)
+#### MinIO Object Storage (S3-Compatible)
 
 MinIO is the sole object storage solution, providing S3-compatible local storage:
 
@@ -713,7 +689,7 @@ The Laravel dashboard provides comprehensive visual management:
 #### Current Technologies
 
 - Python 3.11+ for backend services
-- React 18+ for frontend
+- Laravel 10+ with Filament 3+ for dashboard
 - PostgreSQL 15+ with pgvector
 - Docker and Docker Compose
 

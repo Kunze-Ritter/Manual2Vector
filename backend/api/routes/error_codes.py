@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 from math import ceil
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from api.app import get_database_pool
+from api.dependencies.database import get_database_pool, get_database_adapter
 import asyncpg
 import json
 from api.middleware.auth_middleware import require_permission
@@ -208,6 +208,7 @@ async def _insert_audit_log(
 @router.get("", response_model=SuccessResponse[ErrorCodeListResponse])
 @limiter.limit(rate_limit_search)
 async def list_error_codes(
+    request: Request,
     pagination: PaginationParams = Depends(),
     filters: ErrorCodeFilterParams = Depends(),
     sort: ErrorCodeSortParams = Depends(),
@@ -323,6 +324,7 @@ async def list_error_codes(
 )
 @limiter.limit(rate_limit_standard)
 async def get_error_code(
+    request: Request,
     error_code_id: str,
     include_relations: bool = Query(False, description="Include related entities when true."),
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:read")),
@@ -359,6 +361,7 @@ async def get_error_code(
 )
 @limiter.limit(rate_limit_upload)
 async def create_error_code(
+    request: Request,
     payload: ErrorCodeCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:write")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -438,6 +441,7 @@ async def create_error_code(
 )
 @limiter.limit(rate_limit_standard)
 async def update_error_code(
+    request: Request,
     error_code_id: str,
     payload: ErrorCodeUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:write")),
@@ -519,6 +523,7 @@ async def update_error_code(
 )
 @limiter.limit(rate_limit_standard)
 async def delete_error_code(
+    request: Request,
     error_code_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:delete")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -563,6 +568,7 @@ async def delete_error_code(
 )
 @limiter.limit(rate_limit_search)
 async def search_error_codes(
+    request: Request,
     payload: ErrorCodeSearchRequest,
     current_user: Dict[str, Any] = Depends(require_permission("error_codes:read")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -647,6 +653,7 @@ async def search_error_codes(
 )
 @limiter.limit(rate_limit_standard)
 async def get_error_codes_by_document(
+    request: Request,
     document_id: str,
     pagination: PaginationParams = Depends(),
     sort: ErrorCodeSortParams = Depends(),

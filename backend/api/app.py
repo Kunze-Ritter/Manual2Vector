@@ -11,7 +11,8 @@ from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, ValidationError
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -29,18 +30,22 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from processors.upload_processor import UploadProcessor, BatchUploadProcessor
-from processors.document_processor import DocumentProcessor
 from processors.stage_tracker import StageTracker
 from api.dependencies.auth import set_auth_service
 from api.dependencies.auth_factory import create_auth_service
 from api.middleware.auth_middleware import AuthMiddleware, require_permission
 from api.middleware.rate_limit_middleware import (
+    APIKeyValidationMiddleware,
     IPFilterMiddleware,
     limiter,
     rate_limit_health,
+    rate_limit_health_dynamic,
     rate_limit_search,
+    rate_limit_search_dynamic,
     rate_limit_standard,
+    rate_limit_standard_dynamic,
     rate_limit_upload,
+    rate_limit_upload_dynamic,
     rate_limit_exception_handler,
 )
 from api.middleware.request_validation_middleware import RequestValidationMiddleware
@@ -61,10 +66,11 @@ from api.routes.images import router as images_router
 from api.routes.batch import router as batch_router
 from api.routes.search import router as search_router
 from api.routes.api_keys import router as api_keys_router
-from api.routes.dashboard import create_dashboard_router
+from api.routes.dashboard import router as dashboard_router
 from api import websocket as websocket_api
 from services.metrics_service import MetricsService
 from services.alert_service import AlertService
+from services.performance_service import PerformanceCollector
 from processors.env_loader import load_all_env_files
 from config.security_config import get_security_config, get_cors_config
 from slowapi.errors import RateLimitExceeded
@@ -110,6 +116,9 @@ app.add_middleware(
     max_age=cors_config["max_age"],
 )
 
+# API key validation (must run before rate limiting)
+app.add_middleware(APIKeyValidationMiddleware)
+
 # IP blacklist/whitelist enforcement
 app.add_middleware(IPFilterMiddleware)
 
@@ -119,6 +128,248 @@ app.add_middleware(RequestValidationMiddleware)
 # Rate limit configuration
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exception_handler)
+
+# Import validation error handling
+from api.validation_error_codes import ValidationErrorCode, create_validation_error_response
+
+# Custom Pydantic validation exception handlers
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handle FastAPI request validation errors with detailed field-level context.
+    
+    Extracts field-level errors from Pydantic validation and returns a standardized
+    error response with error codes and contextual information.
+    """
+    field_errors = []
+    missing_fields = []
+    
+    for error in exc.errors():
+        # Extract field path (e.g., "body.email" or "query.page")
+        field_path = ".".join(str(loc) for loc in error["loc"])
+        
+        # Extract error details
+        error_type = error["type"]
+        message = error["msg"]
+        
+        # Extract constraints from context if available
+        constraints = {}
+        ctx = error.get("ctx", {})
+        
+        # Common constraint types
+        if "limit_value" in ctx:
+            constraints["max_length"] = ctx["limit_value"]
+        if "min_length" in ctx:
+            constraints["min_length"] = ctx["min_length"]
+        if "ge" in ctx:
+            constraints["ge"] = ctx["ge"]
+        if "le" in ctx:
+            constraints["le"] = ctx["le"]
+        if "gt" in ctx:
+            constraints["gt"] = ctx["gt"]
+        if "lt" in ctx:
+            constraints["lt"] = ctx["lt"]
+        if "pattern" in ctx:
+            constraints["pattern"] = ctx["pattern"]
+        
+        # Derive expected type/constraint from schema or error context
+        expected = None
+        if "expected_type" in ctx:
+            expected = ctx["expected_type"]
+        elif "pattern" in ctx:
+            expected = f"string matching pattern: {ctx['pattern']}"
+        elif "ge" in ctx and "le" in ctx:
+            expected = f"number between {ctx['ge']} and {ctx['le']}"
+        elif "ge" in ctx:
+            expected = f"number >= {ctx['ge']}"
+        elif "le" in ctx:
+            expected = f"number <= {ctx['le']}"
+        elif "limit_value" in ctx:
+            expected = f"string with max length {ctx['limit_value']}"
+        elif "min_length" in ctx:
+            expected = f"string with min length {ctx['min_length']}"
+        elif "allowed" in ctx:
+            expected = ctx["allowed"]
+        elif error_type.startswith("type_error"):
+            # Extract expected type from error type (e.g., "type_error.integer" -> "integer")
+            expected = error_type.split(".")[-1] if "." in error_type else "valid type"
+        
+        # Extract received value from exc.body or error input if available
+        received = None
+        try:
+            # Try to get the actual value from the request body
+            if hasattr(exc, "body") and exc.body:
+                import json
+                body_data = json.loads(exc.body) if isinstance(exc.body, (str, bytes)) else exc.body
+                # Navigate to the field using the location path
+                field_parts = [str(loc) for loc in error["loc"] if str(loc) not in ["body", "query", "path", "header"]]
+                current = body_data
+                for part in field_parts:
+                    if isinstance(current, dict) and part in current:
+                        current = current[part]
+                    else:
+                        break
+                if current != body_data:
+                    received = current
+        except Exception:
+            pass
+        
+        # Fallback to input from error context
+        if received is None and "input" in error:
+            received = error["input"]
+        
+        # Check if this is a missing field error
+        if error_type == "value_error.missing" or error_type == "missing":
+            # Extract location (body, query, path, header)
+            location = error["loc"][0] if error["loc"] else "unknown"
+            field_name = error["loc"][-1] if len(error["loc"]) > 1 else "unknown"
+            
+            # Collect missing field instead of returning immediately
+            missing_fields.append({
+                "field": str(field_name),
+                "location": str(location),
+                "constraints": constraints if constraints else None
+            })
+            continue
+        
+        # Build field error with expected/received context
+        field_error = {
+            "field": field_path,
+            "type": error_type,
+            "message": message,
+            "constraints": constraints if constraints else None
+        }
+        
+        # Add expected/received context when available
+        if expected is not None:
+            field_error["expected"] = expected
+        if received is not None:
+            field_error["received"] = received
+        
+        field_errors.append(field_error)
+    
+    # If we have missing fields, return them all in a single response
+    if missing_fields:
+        if len(missing_fields) == 1:
+            # Single missing field - use original format for backward compatibility
+            missing = missing_fields[0]
+            return create_validation_error_response(
+                error_code=ValidationErrorCode.MISSING_REQUIRED_FIELD,
+                detail=f"Required field '{missing['field']}' is missing from request {missing['location']}. Please provide this field.",
+                context=missing,
+                status_code=422
+            )
+        else:
+            # Multiple missing fields - return all in context
+            field_names = [f["field"] for f in missing_fields]
+            return create_validation_error_response(
+                error_code=ValidationErrorCode.MISSING_REQUIRED_FIELD,
+                detail=f"Required fields are missing from request: {', '.join(field_names)}. Please provide all required fields.",
+                context={"fields": missing_fields},
+                status_code=422
+            )
+    
+    # Return standardized error response for field validation errors
+    error_count = len(field_errors)
+    detail = f"Request validation failed for {error_count} field(s). Please check the field errors in context."
+    
+    return create_validation_error_response(
+        error_code=ValidationErrorCode.FIELD_VALIDATION_ERROR,
+        detail=detail,
+        context={"fields": field_errors},
+        status_code=422
+    )
+
+
+@app.exception_handler(ValidationError)
+async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
+    """
+    Handle direct Pydantic validation errors with detailed field-level context.
+    
+    Similar to RequestValidationError handler but for direct Pydantic model validation.
+    """
+    field_errors = []
+    
+    for error in exc.errors():
+        # Extract field path
+        field_path = ".".join(str(loc) for loc in error["loc"])
+        
+        # Extract error details
+        error_type = error["type"]
+        message = error["msg"]
+        
+        # Extract constraints from context
+        constraints = {}
+        ctx = error.get("ctx", {})
+        
+        if "limit_value" in ctx:
+            constraints["max_length"] = ctx["limit_value"]
+        if "min_length" in ctx:
+            constraints["min_length"] = ctx["min_length"]
+        if "ge" in ctx:
+            constraints["ge"] = ctx["ge"]
+        if "le" in ctx:
+            constraints["le"] = ctx["le"]
+        if "gt" in ctx:
+            constraints["gt"] = ctx["gt"]
+        if "lt" in ctx:
+            constraints["lt"] = ctx["lt"]
+        if "pattern" in ctx:
+            constraints["pattern"] = ctx["pattern"]
+        
+        # Derive expected type/constraint from schema or error context
+        expected = None
+        if "expected_type" in ctx:
+            expected = ctx["expected_type"]
+        elif "pattern" in ctx:
+            expected = f"string matching pattern: {ctx['pattern']}"
+        elif "ge" in ctx and "le" in ctx:
+            expected = f"number between {ctx['ge']} and {ctx['le']}"
+        elif "ge" in ctx:
+            expected = f"number >= {ctx['ge']}"
+        elif "le" in ctx:
+            expected = f"number <= {ctx['le']}"
+        elif "limit_value" in ctx:
+            expected = f"string with max length {ctx['limit_value']}"
+        elif "min_length" in ctx:
+            expected = f"string with min length {ctx['min_length']}"
+        elif "allowed" in ctx:
+            expected = ctx["allowed"]
+        elif error_type.startswith("type_error"):
+            # Extract expected type from error type (e.g., "type_error.integer" -> "integer")
+            expected = error_type.split(".")[-1] if "." in error_type else "valid type"
+        
+        # Extract received value from error input if available
+        received = None
+        if "input" in error:
+            received = error["input"]
+        
+        # Build field error with expected/received context
+        field_error = {
+            "field": field_path,
+            "type": error_type,
+            "message": message,
+            "constraints": constraints if constraints else None
+        }
+        
+        # Add expected/received context when available
+        if expected is not None:
+            field_error["expected"] = expected
+        if received is not None:
+            field_error["received"] = received
+        
+        field_errors.append(field_error)
+    
+    # Return standardized error response
+    error_count = len(field_errors)
+    detail = f"Validation failed for {error_count} field(s). Please check the field errors in context."
+    
+    return create_validation_error_response(
+        error_code=ValidationErrorCode.FIELD_VALIDATION_ERROR,
+        detail=detail,
+        context={"fields": field_errors},
+        status_code=422
+    )
 
 # Security headers middleware
 @app.middleware("http")
@@ -159,6 +410,7 @@ batch_task_service: BatchTaskService | None = None
 transaction_manager: TransactionManager | None = None
 metrics_service: MetricsService | None = None
 alert_service: AlertService | None = None
+performance_collector: PerformanceCollector | None = None
 websocket_manager: websocket_api.WebSocketManager | None = None
 
 
@@ -193,18 +445,6 @@ async def get_upload_processor():
             stage_tracker=None
         )
     return upload_processor
-
-
-def get_document_processor():
-    """Get Document Processor instance"""
-    global document_processor
-    if document_processor is None:
-        document_processor = DocumentProcessor(
-            manufacturer="AUTO",
-            use_llm=True,
-            debug=False
-        )
-    return document_processor
 
 
 async def get_agent_app():
@@ -256,6 +496,15 @@ async def get_alert_service() -> AlertService:
         metrics_svc = await get_metrics_service()
         alert_service = AlertService(pool, metrics_svc)
     return alert_service
+
+
+async def get_performance_collector() -> PerformanceCollector:
+    """Return singleton PerformanceCollector."""
+    global performance_collector
+    if performance_collector is None:
+        adapter = await get_database_adapter()
+        performance_collector = PerformanceCollector(adapter, logger)
+    return performance_collector
 
 
 def get_websocket_manager() -> websocket_api.WebSocketManager:
@@ -370,8 +619,8 @@ async def root():
     }
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
-@limiter.limit(rate_limit_health)
-async def health_check():
+@limiter.limit(rate_limit_health_dynamic)
+async def health_check(request: Request):
     """
     Health check endpoint
     
@@ -504,8 +753,9 @@ async def health_check():
 # === UPLOAD ENDPOINTS ===
 
 @app.post("/upload", response_model=UploadResponse, tags=["Upload"])
-@limiter.limit(rate_limit_standard)
+@limiter.limit(rate_limit_standard_dynamic)
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     document_type: str = "service_manual",
     force_reprocess: bool = False,
@@ -576,6 +826,10 @@ async def startup_events():
         raise
 
     pool = await get_pool()
+    
+    # Initialize db_pool in app.state for API key validation middleware
+    app.state.db_pool = pool
+    
     try:
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
@@ -606,8 +860,9 @@ async def startup_events():
 
 
 @app.post("/upload/directory", tags=["Upload"])
-@limiter.limit(rate_limit_upload)
+@limiter.limit(rate_limit_upload_dynamic)
 async def upload_directory(
+    request: Request,
     directory_path: str,
     document_type: str = "service_manual",
     recursive: bool = False,
@@ -648,8 +903,9 @@ async def upload_directory(
 # === PROCESSING STATUS ===
 
 @app.get("/status/{document_id}", response_model=ProcessingStatus, tags=["Status"])
-@limiter.limit(rate_limit_standard)
+@limiter.limit(rate_limit_standard_dynamic)
 async def get_document_status(
+    request: Request,
     document_id: str,
     current_user: dict = Depends(require_permission('documents:read')),
     adapter: DatabaseAdapter = Depends(get_database_adapter)
@@ -845,19 +1101,13 @@ app.include_router(api_keys_router, prefix="/api/v1")
 app.include_router(images_router, prefix="/api/v1")
 app.include_router(batch_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(scraping.router, prefix="/api/v1")
 app.include_router(pipeline_errors.router, prefix="/api/v1")
 
 # Mount Monitoring API
 from api import monitoring_api
 app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
-
-# Mount Dashboard API
-# Dashboard router provides aggregated production metrics at /api/v1/dashboard/overview
-# Note: Dashboard will need pool-based initialization
-# Temporarily commented out until refactored
-# dashboard_router = create_dashboard_router(pool)
-# app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard"])
 
 # Mount WebSocket API
 app.include_router(websocket_api.router, tags=["WebSocket"])

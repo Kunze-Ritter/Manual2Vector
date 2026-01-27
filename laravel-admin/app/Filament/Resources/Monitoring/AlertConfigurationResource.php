@@ -6,19 +6,21 @@ use App\Filament\Resources\Monitoring\AlertConfigurationResource\Pages;
 use App\Filament\Resources\Monitoring\AlertConfigurationResource\Schemas\AlertConfigurationForm;
 use App\Filament\Resources\Monitoring\AlertConfigurationResource\Tables\AlertConfigurationsTable;
 use App\Models\AlertConfiguration;
+use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class AlertConfigurationResource extends Resource
 {
     protected static ?string $model = AlertConfiguration::class;
 
-    protected static ?string $navigationGroup = 'Monitoring';
+    protected static UnitEnum|string|null $navigationGroup = 'Monitoring';
 
     protected static ?string $navigationLabel = 'Alert-Konfigurationen';
 
-    protected static ?string $navigationIcon = 'heroicon-o-bell-alert';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-bell-alert';
 
     protected static ?int $navigationSort = 2;
 

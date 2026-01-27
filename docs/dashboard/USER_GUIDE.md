@@ -4,7 +4,7 @@ This guide walks you through using the KRAI Dashboard, covering navigation, role
 
 ## Getting Started
 
-1. **Login** – Open `http://localhost:3000/login`. Use the credentials defined in your environment (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, etc.).
+1. **Login** – Open `http://localhost:9100/login` (Laravel/Filament dashboard). Use the credentials defined in your environment (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, etc.).
 2. **Dashboard Home** – After login you are redirected to `/dashboard`. The home page shows quick stats for recent documents, pipeline status, and alerts.
 
 ## Navigation

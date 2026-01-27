@@ -37,7 +37,7 @@ class ImageContextSearchRequest(BaseModel):
 def get_database_service() -> DatabaseService:
     """Get database service instance"""
     # This will be overridden by app.py with proper dependency injection
-    from api.app import get_database
+    from api.dependencies.database import get_database
     return DatabaseService(get_database())
 
 def get_ai_service() -> AIService:

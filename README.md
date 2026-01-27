@@ -50,9 +50,93 @@ docker-compose -f docker-compose.with-firecrawl.yml up --build -d
 
 **🎉 That's it! Your system is running!**
 
+### 🔄 Quick Start from Scratch (Clean Environment)
+
+If you need to completely reset your Docker environment or start fresh:
+
+**Linux/macOS:**
+```bash
+./scripts/docker-clean-setup.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\docker-clean-setup.ps1
+```
+
+This script performs:
+- ✅ Stops all containers with `docker-compose down` 
+- ✅ Removes all KRAI volumes (postgres, minio, ollama, redis, laravel)
+- ✅ Prunes Docker networks
+- ✅ Starts fresh containers with `docker-compose up -d` 
+- ✅ Waits 60 seconds for service initialization
+- ✅ Verifies seed data (14 manufacturers, 4 retry policies)
+
+**Exit Codes:**
+- `0` - Success: All steps completed, seed data verified
+- `1` - Failure: One or more steps failed
+
+> **⚠️ Warning:** This script removes all Docker volumes and data. Use only when you need a completely fresh start.
+
+> **📖 Detailed Documentation:** See [DOCKER_SETUP.md - Clean Setup Scripts](DOCKER_SETUP.md#-clean-setup-scripts) for comprehensive usage examples and troubleshooting.
+
+### 🚀 Complete Docker Setup & Validation (All-in-One)
+
+For a comprehensive setup that includes clean environment reset, health checks, integration tests, and persistency validation:
+
+**Linux/macOS:**
+```bash
+./scripts/full-docker-setup.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\full-docker-setup.ps1
+```
+
+**What this script does:**
+1. ✅ **Clean Setup** - Resets Docker environment (stops containers, removes volumes, starts fresh)
+2. ✅ **Health Check** - Validates all services (PostgreSQL, FastAPI, Laravel, MinIO, Ollama)
+3. ✅ **Integration Tests** - Tests service-to-service connectivity
+4. ✅ **Persistency Tests** - Verifies data survives container restarts
+
+**Duration:** ~8-10 minutes (depending on system performance)
+
+**Exit Codes:**
+- `0` - All steps completed successfully
+- `1` - Completed with warnings (system functional but degraded)
+- `2` - Critical errors detected (manual intervention required)
+
+**Options:**
+```bash
+# Skip clean setup (faster, for quick validation)
+./scripts/full-docker-setup.sh --skip-clean
+
+# Skip integration tests
+./scripts/full-docker-setup.sh --skip-integration
+
+# Save logs to file
+./scripts/full-docker-setup.sh --log-file setup.log
+```
+
+**When to use:**
+- 🆕 Initial project setup
+- 🔄 After major configuration changes
+- 🐛 Troubleshooting environment issues
+- ✅ Pre-deployment validation
+- 📊 CI/CD pipeline integration
+
+> **💡 Tip:** For faster validation without data reset, use `./scripts/docker-health-check.sh` followed by `./scripts/docker-integration-tests.sh`
+
+> **📖 Detailed Documentation:** See [DOCKER_SETUP.md - Full Docker Setup](DOCKER_SETUP.md#-full-docker-setup-orchestrator) for comprehensive usage and troubleshooting.
+
+---
+
+> **Dashboard Interface:** KRAI uses **Laravel/Filament** as the sole dashboard interface at http://localhost:80. This provides visual pipeline management, document processing control, and real-time monitoring capabilities.
+
 **Access your services:**
 
-- 🖥️ **Frontend**: `http://localhost:80`
+- 🖥️ **Laravel Dashboard**: `http://localhost:80`
 - ⚙️ **API**: `http://localhost:8000`
 - 📊 **API Docs**: `http://localhost:8000/docs`
 - 🏥 **Health Check**: `http://localhost:8000/health`
@@ -99,7 +183,7 @@ docker-compose -f docker-compose.simple.yml up --build -d
 
 | Service | Port | Technology | Description | Available In |
 |---------|------|------------|-------------|--------------|
-| **Frontend** | 80 | React + Nginx | Production Dashboard | All compose files |
+| **Laravel Dashboard** | 80 | Laravel + Filament | Admin Dashboard | All compose files |
 | **Backend API** | 8000 | FastAPI + Uvicorn | REST API Server | All compose files |
 | **Database** | 5432 | PostgreSQL + pgvector | Vector Database | All compose files |
 | **Storage** | 9000/9001 | MinIO | Object Storage | All compose files |
@@ -113,11 +197,11 @@ docker-compose -f docker-compose.simple.yml up --build -d
 
 ## 🐳 Docker Compose Files
 
-The project provides 3 production-ready Docker Compose configurations:
+The project provides 4 production-ready Docker Compose configurations:
 
 ### docker-compose.simple.yml
 **Use Case**: Minimal development setup
-**Services**: Frontend, Backend, PostgreSQL, MinIO, Ollama (5 services)
+**Services**: Laravel Dashboard, Backend, PostgreSQL, MinIO, Ollama (5 services)
 **Best for**: Quick testing, development, resource-constrained environments
 **Features**: No Firecrawl, no GPU required, clean minimal stack
 
@@ -132,6 +216,13 @@ The project provides 3 production-ready Docker Compose configurations:
 **Services**: All with-firecrawl.yml services + Firecrawl Worker (11 services)
 **Best for**: Production deployments, GPU-accelerated inference
 **Features**: GPU support for Ollama, optimized PostgreSQL settings, production healthchecks
+
+### docker-compose.staging.yml
+**Use Case**: Isolated staging environment for performance benchmarking
+**Services**: Backend (port 8001), PostgreSQL (port 5433), shares production Ollama and MinIO
+**Best for**: Performance testing, benchmarking, regression detection
+**Features**: BENCHMARK_MODE=true, separate database (krai_staging), benchmark-documents mount
+**Quick Start**: `docker-compose -f docker-compose.staging.yml up -d`
 
 > **Note**: 7 deprecated Docker Compose files have been archived to reduce confusion. See `archive/docker/README.md` for details.
 
@@ -218,7 +309,7 @@ KRAI is a comprehensive multimodal AI system that automatically extracts, analyz
 - **MinIO Object Storage** - Production S3-compatible storage for documents and images
 - **Ollama AI Service** - Local LLM inference with multiple models
 - **FastAPI Backend** - High-performance REST API with async support
-- **React Frontend** - Modern web interface with real-time updates
+- **Laravel/Filament Dashboard** - Admin interface at http://localhost:80 with visual pipeline management
 - **PostgreSQL-Only Architecture** - Complete migration from Supabase (November 2024, KRAI-002) for data sovereignty and local-first control
 
 #### 🎛️ Pipeline Control
@@ -315,17 +406,88 @@ python scripts/pipeline_processor.py --document-id <uuid> --stage text_extractio
 
 ## 🏥 Health & Monitoring
 
-### Service Health Checks
+### Automated Health Checks
 
-- **API Health**: `http://localhost:8000/health`
+Run comprehensive health checks for all services:
+
+**Linux/macOS:**
+```bash
+./scripts/docker-health-check.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\docker-health-check.ps1
+```
+
+**Checks performed:**
+- ✅ PostgreSQL: Connection, schema count (6), table count (44), seed data
+- ✅ FastAPI Backend: `/health` endpoint, database connectivity, API docs
+- ✅ Laravel Admin: Dashboard, login page, database connection, Filament resources
+- ✅ MinIO: API health, console accessibility, bucket operations
+- ✅ Ollama: API availability, model presence (`nomic-embed-text`), embedding generation
+
+**Exit Codes:**
+- `0` - All checks passed
+- `1` - Warnings detected (system functional but degraded)
+- `2` - Critical errors (system may not function properly)
+
+### Data Persistency Testing
+
+Verify data survives container restarts:
+
+**Linux/macOS:**
+```bash
+./scripts/docker-health-check.sh --test-persistency
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\docker-health-check.ps1 -TestPersistency
+```
+
+This test:
+1. Creates test data in PostgreSQL
+2. Stops containers with `docker-compose down` 
+3. Restarts containers with `docker-compose up -d` 
+4. Verifies data persisted
+5. Validates volume mounts (postgres_data, minio_data, ollama_data)
+
+### Integration Testing
+
+Test service-to-service connectivity:
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\docker-integration-tests.ps1
+```
+
+**Tests performed:**
+- Backend → PostgreSQL: Query, write, transaction rollback
+- Backend → MinIO: Upload, download, delete
+- Backend → Ollama: Embedding generation, model availability
+- Laravel → Backend: REST API calls, JWT authentication
+- Laravel → PostgreSQL: Eloquent models (Product, User, PipelineError)
+
+**Environment Variables:**
+- `BACKEND_API_TOKEN` - Required for authenticated tests (optional)
+
+**Exit Codes:**
+- `0` - All integration tests passed
+- `1` - Some tests passed with warnings
+- `2` - Critical integration failures
+
+### Service Health Endpoints
+
+- **API Health**: `http://localhost:8000/health` 
 - **Database**: PostgreSQL connection monitoring
 - **Storage**: MinIO bucket availability
 - **AI Service**: Ollama model status
 
 ### Monitoring Endpoints
 
-- **System Metrics**: `http://localhost:8000/metrics`
-- **API Documentation**: `http://localhost:8000/docs`
+- **System Metrics**: `http://localhost:8000/metrics` 
+- **API Documentation**: `http://localhost:8000/docs` 
 - **Service Status**: `http://localhost:8000/status`
 
 ## 🔧 Configuration
@@ -480,11 +642,6 @@ pip install -r requirements.txt
 
 # Run development server
 python -m uvicorn main:app --reload
-
-# Frontend development
-cd frontend
-npm install
-npm run dev
 ```
 
 > **Host-based backend tip:** Before running `uvicorn` outside Docker, copy `.env.local.example` to `.env.local` and override `DATABASE_HOST` / `POSTGRES_HOST` to `localhost` so the backend reaches the containers via published ports.
@@ -529,10 +686,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🎉 Acknowledgments
 
 - **Ollama** - Local LLM inference
-- **PostgreSQL + pgvector** - Vector database
+- **PostgreSQL** - Vector database
 - **MinIO** - Object storage
 - **FastAPI** - Web framework
-- **React** - Frontend framework
+- **Laravel/Filament** - Dashboard framework
 
 ---
 

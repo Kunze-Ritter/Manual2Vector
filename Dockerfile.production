@@ -6,7 +6,7 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Set PYTHONPATH so both 'from backend.*' and 'from services.*' imports work
+# Set PYTHONPATH so both 'from api.*' and 'from backend.api.*' imports work
 ENV PYTHONPATH=/app:/app/backend:${PYTHONPATH}
 
 # Install system dependencies
@@ -30,11 +30,12 @@ COPY backend/requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Copy application code
-# Copy to both /app/ (for relative imports) and /app/backend/ (for backend.* imports)
-COPY backend/ /app/
+# Copy application code to /app/backend/
 COPY backend/ /app/backend/
 COPY scripts/ /app/scripts/
+
+# Switch to backend directory for all subsequent commands
+WORKDIR /app/backend
 
 # Create necessary directories
 # Runtime environment variables:

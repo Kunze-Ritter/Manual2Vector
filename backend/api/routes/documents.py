@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from math import ceil
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from api.app import get_database_pool
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from api.dependencies.database import get_database_pool
 import asyncpg
 import json
 from api.middleware.auth_middleware import require_permission
@@ -116,6 +116,7 @@ def _log_and_raise(
 )
 @limiter.limit(rate_limit_search)
 async def list_documents(
+    request: Request,
     pagination: PaginationParams = Depends(),
     filters: DocumentFilterParams = Depends(),
     sort: DocumentSortParams = Depends(),
@@ -193,6 +194,7 @@ async def list_documents(
 )
 @limiter.limit(rate_limit_search)
 async def get_error_codes_by_document(
+    request: Request,
     document_id: str,
     pagination: PaginationParams = Depends(),
     filters: DocumentFilterParams = Depends(),
@@ -225,6 +227,7 @@ async def get_error_codes_by_document(
 )
 @limiter.limit(rate_limit_standard)
 async def get_document(
+    request: Request,
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -258,6 +261,7 @@ async def get_document(
 )
 @limiter.limit(rate_limit_upload)
 async def create_document(
+    request: Request,
     payload: DocumentCreateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -328,6 +332,7 @@ async def create_document(
 )
 @limiter.limit(rate_limit_standard)
 async def update_document(
+    request: Request,
     document_id: str,
     payload: DocumentUpdateRequest,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),
@@ -402,6 +407,7 @@ async def update_document(
 )
 @limiter.limit(rate_limit_standard)
 async def delete_document(
+    request: Request,
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:delete")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -450,6 +456,7 @@ async def delete_document(
 )
 @limiter.limit(rate_limit_search)
 async def get_document_stats(
+    request: Request,
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
     pool: asyncpg.Pool = Depends(get_database_pool),
 ) -> SuccessResponse[DocumentStatsResponse]:
@@ -563,6 +570,7 @@ def _parse_stage_status(stage_status_jsonb: Optional[Dict[str, Any]]) -> Dict[st
 )
 @limiter.limit(rate_limit_standard)
 async def get_document_stages(
+    request: Request,
     document_id: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:read")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -637,6 +645,7 @@ async def get_document_stages(
 )
 @limiter.limit(rate_limit_standard)
 async def retry_document_stage(
+    request: Request,
     document_id: str,
     stage_name: str,
     current_user: Dict[str, Any] = Depends(require_permission("documents:write")),

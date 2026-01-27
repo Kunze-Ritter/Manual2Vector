@@ -9,7 +9,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
-from api.app import get_database_pool
+from api.dependencies.database import get_database_pool
 from api.middleware.auth_middleware import require_permission
 from api.routes.response_models import SuccessResponse
 from models.batch import (
@@ -85,7 +85,7 @@ def _get_resource_permission(resource_type: str, action: str) -> str:
 
 
 async def _get_services(pool: asyncpg.Pool) -> Dict[str, Any]:
-    from api.app import get_batch_task_service, get_transaction_manager  # Circular import guard
+    from api.dependencies.database import get_batch_task_service, get_transaction_manager
 
     task_service = await get_batch_task_service()
     transaction_manager = await get_transaction_manager()

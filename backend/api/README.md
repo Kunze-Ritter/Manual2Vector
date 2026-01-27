@@ -284,7 +284,7 @@ The API provides several endpoints for monitoring:
 The API can be integrated with monitoring dashboards like:
 - Grafana
 - Prometheus
-- Custom React/Vue dashboard
+- Laravel/Filament dashboard (existing at http://localhost:80)
 
 ### Webhooks (Future)
 

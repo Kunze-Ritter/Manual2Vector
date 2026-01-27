@@ -352,7 +352,7 @@ Last Occurrence: {alert_data.get('last_occurrence', '')}
 Message:
 {alert_data.get('message', '')}
 
-{f'Error Details:\n{error_details}' if error_details else ''}
+{f'Error Details:{chr(10)}{error_details}' if error_details else ''}
 
 ---
 This is an automated alert from KRAI Pipeline Monitoring System
