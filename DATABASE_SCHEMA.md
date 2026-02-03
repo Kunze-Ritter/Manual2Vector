@@ -774,8 +774,19 @@
 | `resolved_at` | timestamp | YES | - |
 | `resolved_by` | uuid | YES | - |
 | `resolution_notes` | text | YES | - |
+| `stage_status` | jsonb | YES | - |
+| `error_details` | jsonb | YES | - |
 
 **Unique Constraint:** `error_id`
+
+**Indexes:**
+- `idx_pipeline_errors_document_id` on `document_id`
+- `idx_pipeline_errors_stage_name` on `stage_name`
+- `idx_pipeline_errors_status` on `status`
+- `idx_pipeline_errors_severity` on `severity`
+- `idx_pipeline_errors_created_at` on `created_at`
+- `idx_pipeline_errors_correlation` on `correlation_id`
+- `idx_pipeline_errors_resolved_by` on `resolved_by`
 
 ### krai_system.alert_queue
 
@@ -929,6 +940,20 @@ Alle Views nutzen `vw_` Prefix und zeigen auf Tabellen in krai_* Schemas:
 | `vw_video_products` | `krai_content.video_products` | - |
 | `vw_videos` | `krai_content.videos` | - |
 | `vw_webhook_logs` | `krai_integrations.webhook_logs` | - |
+
+---
+
+## Table Relationships
+
+| From Table | To Table | Relationship | Purpose |
+|------------|----------|--------------|---------|
+| `pipeline_errors` | `krai_core.documents` | Many-to-One (FK: document_id) | Track errors per document |
+| `pipeline_errors` | `krai_users.users` | Many-to-One (FK: resolved_by) | Track who resolves errors |
+| `alert_queue` | `alert_configurations` | Logical (via aggregation_key) | Match alerts to rules through aggregation_key pattern matching |
+| `alert_configurations` | `krai_users.users` | Many-to-One (FK: created_by) | Track rule creators |
+| `stage_completion_markers` | `krai_core.documents` | Many-to-One (implicit) | Track stage completion per document |
+| `retry_policies` | N/A | Standalone | Service configuration |
+| `performance_baselines` | N/A | Standalone | Performance tracking |
 
 ---
 
