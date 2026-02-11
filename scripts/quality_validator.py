@@ -1,6 +1,16 @@
-"""Quality validation module for production pipeline test runs."""
+"""Quality validation module for production pipeline test runs.
 
+This validator checks completeness, correctness, relationship integrity,
+embedding coverage, and stage tracking status for a document batch. It uses
+schema-aligned joins for product relationships and a resilient parts counting
+strategy with safe fallback behavior.
+"""
+
+import logging
 from typing import Any, Dict, List
+
+
+logger = logging.getLogger(__name__)
 
 
 class QualityValidator:
@@ -9,6 +19,7 @@ class QualityValidator:
         self.thresholds = thresholds
 
     async def validate(self, document_ids: List[str]) -> Dict[str, Any]:
+        """Run all quality checks and return a combined PASS/FAIL result."""
         completeness = await self._check_completeness(document_ids)
         correctness = await self._check_correctness(document_ids)
         embeddings = await self._check_embeddings(document_ids)
@@ -30,22 +41,72 @@ class QualityValidator:
         }
 
     async def _check_completeness(self, document_ids: List[str]) -> Dict[str, Any]:
-        chunks_row = await self.database_adapter.fetch_one(
-            "SELECT COUNT(*) as count FROM krai_intelligence.chunks WHERE document_id = ANY($1)",
-            [document_ids],
-        )
-        images_row = await self.database_adapter.fetch_one(
-            "SELECT COUNT(*) as count FROM krai_content.images WHERE document_id = ANY($1)",
-            [document_ids],
-        )
-        error_codes_row = await self.database_adapter.fetch_one(
-            "SELECT COUNT(*) as count FROM krai_intelligence.error_codes WHERE document_id = ANY($1)",
-            [document_ids],
-        )
-        parts_row = await self.database_adapter.fetch_one(
-            "SELECT COUNT(*) as count FROM krai_parts.parts_catalog WHERE document_id = ANY($1)",
-            [document_ids],
-        )
+        """Validate extraction completeness across chunks, images, codes, and parts.
+
+        Uses document-scoped counts for chunks/images/error codes. For parts, this
+        uses manufacturer-based linking via document_products -> products and falls
+        back to zero on non-critical query failures.
+        """
+        try:
+            chunks_row = await self.database_adapter.fetch_one(
+                "SELECT COUNT(*) as count FROM krai_intelligence.chunks WHERE document_id = ANY($1)",
+                [document_ids],
+            )
+            logger.debug("Completeness chunks query result for %s: %s", document_ids, chunks_row)
+        except Exception:
+            logger.exception("Completeness chunks query failed for document_ids=%s", document_ids)
+            raise
+
+        try:
+            images_row = await self.database_adapter.fetch_one(
+                "SELECT COUNT(*) as count FROM krai_content.images WHERE document_id = ANY($1)",
+                [document_ids],
+            )
+            logger.debug("Completeness images query result for %s: %s", document_ids, images_row)
+        except Exception:
+            logger.exception("Completeness images query failed for document_ids=%s", document_ids)
+            raise
+
+        try:
+            error_codes_row = await self.database_adapter.fetch_one(
+                "SELECT COUNT(*) as count FROM krai_intelligence.error_codes WHERE document_id = ANY($1)",
+                [document_ids],
+            )
+            logger.debug("Completeness error_codes query result for %s: %s", document_ids, error_codes_row)
+        except Exception:
+            logger.exception("Completeness error_codes query failed for document_ids=%s", document_ids)
+            raise
+
+        parts_query_method = "manufacturer_based"
+        try:
+            # Count parts by manufacturers linked to products associated with input documents.
+            parts_row = await self.database_adapter.fetch_one(
+                """
+                SELECT COUNT(*) as count
+                FROM krai_parts.parts_catalog pc
+                WHERE pc.manufacturer_id IN (
+                    SELECT DISTINCT p.manufacturer_id
+                    FROM krai_core.document_products dp
+                    JOIN krai_core.products p ON dp.product_id = p.id
+                    WHERE dp.document_id = ANY($1)
+                    AND p.manufacturer_id IS NOT NULL
+                )
+                """,
+                [document_ids],
+            )
+            logger.debug(
+                "Completeness parts manufacturer query result for %s: %s",
+                document_ids,
+                parts_row,
+            )
+        except Exception:
+            logger.warning(
+                "Completeness parts query failed, using fallback_zero for document_ids=%s",
+                document_ids,
+                exc_info=True,
+            )
+            parts_row = {"count": 0}
+            parts_query_method = "fallback_zero"
 
         chunks_count = self._row_value(chunks_row, "count")
         images_count = self._row_value(images_row, "count")
@@ -76,21 +137,33 @@ class QualityValidator:
             "parts": {
                 "count": parts_count,
                 "threshold": self.thresholds.get("min_parts", 0),
+                "parts_query_method": parts_query_method,
                 "status": "PASS" if parts_pass else "FAIL",
             },
             "status": "PASS" if all([chunk_pass, image_pass, error_code_pass, parts_pass]) else "FAIL",
         }
 
     async def _check_correctness(self, document_ids: List[str]) -> Dict[str, Any]:
-        rows = await self.database_adapter.fetch_all(
-            """
-            SELECT p.model_number, m.name as manufacturer
-            FROM krai_core.products p
-            JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
-            WHERE p.document_id = ANY($1)
-            """,
-            [document_ids],
-        )
+        """Validate product extraction correctness.
+
+        Checks extracted products by joining document_products to products and
+        manufacturers, then validating expected model/manufacturer presence.
+        """
+        try:
+            rows = await self.database_adapter.fetch_all(
+                """
+                SELECT p.model_number, m.name as manufacturer
+                FROM krai_core.document_products dp
+                JOIN krai_core.products p ON dp.product_id = p.id
+                JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
+                WHERE dp.document_id = ANY($1)
+                """,
+                [document_ids],
+            )
+            logger.debug("Correctness query returned %s rows for %s", len(rows or []), document_ids)
+        except Exception:
+            logger.exception("Correctness query failed for document_ids=%s", document_ids)
+            raise
 
         model_detected = False
         manufacturer_detected = False
@@ -120,18 +193,34 @@ class QualityValidator:
         }
 
     async def _check_embeddings(self, document_ids: List[str]) -> Dict[str, Any]:
-        total_chunks_row = await self.database_adapter.fetch_one(
-            "SELECT COUNT(*) as count FROM krai_intelligence.chunks WHERE document_id = ANY($1)",
-            [document_ids],
-        )
-        embedded_chunks_row = await self.database_adapter.fetch_one(
-            """
-            SELECT COUNT(*) as count
-            FROM krai_intelligence.chunks
-            WHERE document_id = ANY($1) AND embedding IS NOT NULL
-            """,
-            [document_ids],
-        )
+        """Validate embedding coverage against configured threshold."""
+        try:
+            total_chunks_row = await self.database_adapter.fetch_one(
+                "SELECT COUNT(*) as count FROM krai_intelligence.chunks WHERE document_id = ANY($1)",
+                [document_ids],
+            )
+            logger.debug("Embeddings total_chunks query result for %s: %s", document_ids, total_chunks_row)
+        except Exception:
+            logger.exception("Embeddings total_chunks query failed for document_ids=%s", document_ids)
+            raise
+
+        try:
+            embedded_chunks_row = await self.database_adapter.fetch_one(
+                """
+                SELECT COUNT(*) as count
+                FROM krai_intelligence.chunks
+                WHERE document_id = ANY($1) AND embedding IS NOT NULL
+                """,
+                [document_ids],
+            )
+            logger.debug(
+                "Embeddings embedded_chunks query result for %s: %s",
+                document_ids,
+                embedded_chunks_row,
+            )
+        except Exception:
+            logger.exception("Embeddings embedded_chunks query failed for document_ids=%s", document_ids)
+            raise
 
         total_chunks = self._row_value(total_chunks_row, "count")
         chunks_with_embeddings = self._row_value(embedded_chunks_row, "count")
@@ -149,16 +238,22 @@ class QualityValidator:
         }
 
     async def _check_relationships(self, document_ids: List[str]) -> Dict[str, Any]:
-        row = await self.database_adapter.fetch_one(
-            """
-            SELECT
-                COUNT(DISTINCT document_id) as doc_count,
-                COUNT(DISTINCT id) as product_count
-            FROM krai_core.products
-            WHERE document_id = ANY($1)
-            """,
-            [document_ids],
-        )
+        """Validate document-to-product relationships from junction table links."""
+        try:
+            row = await self.database_adapter.fetch_one(
+                """
+                SELECT
+                    COUNT(DISTINCT dp.document_id) as doc_count,
+                    COUNT(DISTINCT dp.product_id) as product_count
+                FROM krai_core.document_products dp
+                WHERE dp.document_id = ANY($1)
+                """,
+                [document_ids],
+            )
+            logger.debug("Relationships query result for %s: %s", document_ids, row)
+        except Exception:
+            logger.exception("Relationships query failed for document_ids=%s", document_ids)
+            raise
 
         doc_count = self._row_value(row, "doc_count")
         product_count = self._row_value(row, "product_count")
@@ -171,14 +266,20 @@ class QualityValidator:
         }
 
     async def _check_stage_status(self, document_ids: List[str]) -> Dict[str, Any]:
-        rows = await self.database_adapter.fetch_all(
-            """
-            SELECT document_id, stage_number, stage_name, status
-            FROM krai_system.stage_tracking
-            WHERE document_id = ANY($1)
-            """,
-            [document_ids],
-        )
+        """Validate that all expected stage records exist and are completed."""
+        try:
+            rows = await self.database_adapter.fetch_all(
+                """
+                SELECT document_id, stage_number, stage_name, status
+                FROM krai_system.stage_tracking
+                WHERE document_id = ANY($1)
+                """,
+                [document_ids],
+            )
+            logger.debug("Stage status query returned %s rows for %s", len(rows or []), document_ids)
+        except Exception:
+            logger.exception("Stage status query failed for document_ids=%s", document_ids)
+            raise
 
         total_records = len(rows or [])
         completed_stages = 0
@@ -200,6 +301,7 @@ class QualityValidator:
 
     @staticmethod
     def _row_value(row: Any, key: str) -> int:
+        """Safely extract an integer value from a DB row mapping."""
         if row is None:
             return 0
         row_dict = dict(row) if not isinstance(row, dict) else row
