@@ -22,7 +22,7 @@ Diese konsolidierten Migrationen sind für:
 
 ## 📋 Migration Files
 
-Diese 3 konsolidierten Migrationen ersetzen die alten 130+ fragmentierten Migrationen:
+Diese 4 konsolidierten Migrationen ersetzen die alten 130+ fragmentierten Migrationen:
 
 ### 1. `001_core_schema.sql`
 **Erstellt:**
@@ -51,6 +51,30 @@ Diese 3 konsolidierten Migrationen ersetzen die alten 130+ fragmentierten Migrat
 
 **Dauer:** ~10 Sekunden
 
+### 4. `004_stage_tracking.sql`
+**Erstellt:**
+- Tabelle `krai_system.stage_tracking` inklusive `stage_number`
+- Unique Constraint auf `(document_id, stage_number)`
+- Indizes auf `document_id` und `status`
+- Migration Tracking Eintrag in `krai_system.migrations`
+
+**Dauer:** ~5 Sekunden
+
+### 5. `009_add_stage_metrics_table.sql` (optional)
+**Erstellt:**
+- Tabelle `krai_system.stage_metrics` für Echtzeit-Metriken pro Dokument/Stage
+- Indizes auf document_id, stage_name, created_at
+
+**Anwenden (wenn gewünscht):**
+```bash
+# Mit Python (POSTGRES_URL aus .env muss gesetzt sein)
+python scripts/apply_migration_009_stage_metrics.py
+```
+Oder mit psql:
+```bash
+psql "$POSTGRES_URL" -f database/migrations_postgresql/009_add_stage_metrics_table.sql
+```
+
 ---
 
 ## 🚀 Installation
@@ -72,6 +96,7 @@ docker-compose up -d krai-postgres-prod
 docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/001_core_schema.sql
 docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/002_views.sql
 docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/003_functions.sql
+docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/004_stage_tracking.sql
 
 # 3. Verifizierung
 docker exec -it krai-postgres-prod psql -U postgres -d krai_db -c "SELECT * FROM krai_system.migrations;"

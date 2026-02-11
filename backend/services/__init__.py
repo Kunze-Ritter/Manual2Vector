@@ -1,9 +1,8 @@
 """
 KR-AI-Engine Services Module
-Core services for database, storage, and AI operations
+Core services for storage, and AI operations
 """
 
-from .database_service import DatabaseService
 from .object_storage_service import ObjectStorageService
 from .ai_service import AIService, create_ai_service
 from .config_service import ConfigService
@@ -23,7 +22,6 @@ from .manufacturer_verification_service import ManufacturerVerificationService
 __all__ = [
     "AIService",
     "ConfigService",
-    "DatabaseService",
     "ObjectStorageService",
     "StorageFactory",
     "WebScrapingService",

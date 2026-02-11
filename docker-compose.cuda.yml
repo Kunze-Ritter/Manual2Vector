@@ -1,0 +1,322 @@
+version: '3.8'
+
+services:
+  # KRAI Engine API - FastAPI Backend with CUDA Support
+  krai-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+    container_name: krai-engine-cuda
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://krai-redis:6379}
+      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://krai-firecrawl-api:3002}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+    networks:
+      - krai-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      krai-postgres:
+        condition: service_healthy
+      krai-minio:
+        condition: service_healthy
+      krai-ollama:
+        condition: service_healthy
+      krai-redis:
+        condition: service_healthy
+      krai-firecrawl-api:
+        condition: service_started
+
+  # Laravel Admin Panel - Laravel 12 + Filament 4
+  laravel-admin:
+    build:
+      context: ./laravel-admin
+      dockerfile: Dockerfile
+    image: krai-minimal-laravel-admin:latest
+    container_name: krai-laravel-admin
+    restart: unless-stopped
+    environment:
+      - KRAI_ROOT_ENV_PATH=/var/www/html/.env.root
+      - REDIS_CLIENT=phpredis
+      - REDIS_HOST=krai-redis
+    volumes:
+      - ./.env:/var/www/html/.env.root
+      - ./laravel-admin/app:/var/www/html/app
+      - ./laravel-admin/config:/var/www/html/config
+      - ./laravel-admin/database:/var/www/html/database
+      - ./laravel-admin/resources:/var/www/html/resources
+      - ./laravel-admin/routes:/var/www/html/routes
+      - ./laravel-admin/storage:/var/www/html/storage
+      - ./laravel-admin/public:/var/www/html/public
+      - ./laravel-admin/.env.example:/var/www/html/.env.example
+      - laravel_vendor:/var/www/html/vendor
+      - laravel_node_modules:/var/www/html/node_modules
+    networks:
+      - krai-network
+    depends_on:
+      krai-postgres:
+        condition: service_healthy
+      krai-redis:
+        condition: service_healthy
+
+  # Nginx Web Server for Laravel
+  laravel-nginx:
+    image: nginx:alpine
+    container_name: krai-laravel-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/laravel.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./laravel-admin/public:/var/www/html/public:ro
+    networks:
+      - krai-network
+    depends_on:
+      - laravel-admin
+
+  # PostgreSQL Database with pgvector
+  krai-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: krai-postgres-prod
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "5432:5432"
+    command: >
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c maintenance_work_mem=256MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=32MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=8MB
+      -c min_wal_size=2GB
+      -c max_wal_size=8GB
+      -c max_connections=200
+      -c max_prepared_transactions=100
+    environment:
+      - POSTGRES_DB=${DATABASE_NAME:-krai}
+      - POSTGRES_USER=${DATABASE_USER:-krai_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
+    volumes:
+      - krai_postgres_data:/var/lib/postgresql/data
+      - ./database/initdb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Object Storage
+  krai-minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: krai-minio-prod
+    env_file:
+      - .env
+    restart: always
+    environment:
+      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY:-minioadmin123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - krai-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Ollama AI Service with GPU Support
+  krai-ollama:
+    image: ollama/ollama:latest
+    container_name: krai-ollama-cuda
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - krai-network
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/11434' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis Cache Service
+  krai-redis:
+    image: redis:7-alpine
+    container_name: krai-redis-prod
+    env_file:
+      - .env
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - krai_redis_data:/data
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+  # Playwright Service for Firecrawl
+  krai-playwright:
+    image: ghcr.io/firecrawl/playwright-service:latest
+    container_name: krai-playwright-prod
+    env_file:
+      - .env
+    restart: always
+    environment:
+      - PORT=3000
+      - PROXY_SERVER=${FIRECRAWL_PROXY_SERVER}
+      - PROXY_USERNAME=${FIRECRAWL_PROXY_USERNAME}
+      - PROXY_PASSWORD=${FIRECRAWL_PROXY_PASSWORD}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+      - MAX_CONCURRENT_PAGES=${FIRECRAWL_MAX_CONCURRENCY:-10}
+    expose:
+      - "3000"
+    shm_size: "2g"
+    networks:
+      - krai-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',res=>process.exit(res.statusCode && res.statusCode < 500 ? 0 : 1)).on('error',()=>process.exit(1));"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # Firecrawl API
+  krai-firecrawl-api:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: krai-firecrawl-api-prod
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "9004:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://krai-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000/scrape}
+      - USE_DB_AUTHENTICATION=false
+      - NUQ_DATABASE_URL=postgresql://krai_user:Krai_Secure_Pass123!@krai-postgres:5432/krai
+      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - NUM_WORKERS=2
+      - SCRAPE_TIMEOUT=60000
+      - PAGE_TIMEOUT=30000
+    command: ["node", "--import", "./dist/src/otel.js", "dist/src/index.js"]
+    networks:
+      - krai-network
+    depends_on:
+      krai-redis:
+        condition: service_healthy
+      krai-playwright:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3002/health || curl -f http://localhost:3002/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Firecrawl NUQ Worker
+  krai-firecrawl-nuq-worker:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: krai-firecrawl-nuq-worker-prod
+    env_file:
+      - .env
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://krai-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000/scrape}
+      - USE_DB_AUTHENTICATION=false
+      - NUQ_DATABASE_URL=postgresql://krai_user:Krai_Secure_Pass123!@krai-postgres:5432/krai
+      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+      - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
+      - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
+      - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - NUQ_WORKER_PORT=3003
+    command: ["node", "--import", "./dist/src/otel.js", "dist/src/services/worker/nuq-worker.js"]
+    networks:
+      - krai-network
+    depends_on:
+      krai-postgres:
+        condition: service_healthy
+      krai-redis:
+        condition: service_healthy
+      krai-playwright:
+        condition: service_healthy
+
+networks:
+  krai-network:
+    driver: bridge
+
+volumes:
+  krai_postgres_data:
+  krai_redis_data:
+  minio_data:
+  ollama_data:
+  laravel_vendor:
+  laravel_node_modules:

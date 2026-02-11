@@ -511,18 +511,18 @@ export OLLAMA_NUM_PARALLEL=4
 1. **Vector Search Optimization**
 ```sql
 -- Create optimized vector indexes
-CREATE INDEX CONCURRENTLY embeddings_vector_idx 
-ON krai_intelligence.embeddings_v2 
+CREATE INDEX CONCURRENTLY chunks_embedding_vector_idx 
+ON krai_intelligence.chunks 
 USING ivfflat (embedding vector_cosine_ops) 
 WITH (lists = 100);
 
 -- Create composite indexes for multimodal search
-CREATE INDEX CONCURRENTLY embeddings_source_idx 
-ON krai_intelligence.embeddings_v2 (source_type, source_id);
+CREATE INDEX CONCURRENTLY chunks_source_idx 
+ON krai_intelligence.chunks (source_type, source_id);
 
 -- Analyze tables for better query planning
-ANALYZE krai_intelligence.embeddings_v2;
 ANALYZE krai_intelligence.chunks;
+ANALYZE krai_intelligence.structured_tables;
 ANALYZE krai_content.images;
 ```
 
@@ -546,8 +546,9 @@ BEGIN
         e.content,
         e.source_type,
         1 - (e.embedding <=> query_embedding) as similarity
-    FROM krai_intelligence.embeddings_v2 e
-    WHERE 1 - (e.embedding <=> query_embedding) > match_threshold
+    FROM krai_intelligence.chunks e
+    WHERE e.embedding IS NOT NULL
+      AND 1 - (e.embedding <=> query_embedding) > match_threshold
     ORDER BY similarity DESC
     LIMIT match_count;
 END;

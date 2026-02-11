@@ -30,9 +30,9 @@ class PipelineConfig:
         self.enable_link_extraction = self._get_bool('ENABLE_LINK_EXTRACTION', True)
         self.enable_embeddings = self._get_bool('ENABLE_EMBEDDINGS', True)
         
-        # Storage settings
-        self.upload_images_to_r2 = self._get_bool('UPLOAD_IMAGES_TO_R2', False)
-        self.upload_documents_to_r2 = self._get_bool('UPLOAD_DOCUMENTS_TO_R2', False)
+        # Storage settings (MinIO/object-storage only)
+        self.upload_images_to_storage = self._get_bool('UPLOAD_IMAGES_TO_STORAGE', False)
+        self.upload_documents_to_storage = self._get_bool('UPLOAD_DOCUMENTS_TO_STORAGE', False)
     
     def _get_bool(self, key: str, default: bool = False) -> bool:
         """Get boolean value from environment"""
@@ -56,8 +56,8 @@ class PipelineConfig:
                 'embeddings': self.enable_embeddings,
             },
             'storage': {
-                'images_to_r2': self.upload_images_to_r2,
-                'documents_to_r2': self.upload_documents_to_r2,
+                'images_to_storage': self.upload_images_to_storage,
+                'documents_to_storage': self.upload_documents_to_storage,
             }
         }
 

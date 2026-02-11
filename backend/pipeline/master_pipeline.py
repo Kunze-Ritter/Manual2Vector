@@ -28,9 +28,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend.processors.env_loader import load_all_env_files
 
 # Import services
-from backend.services.database_service import DatabaseService
+# TODO: Replace with direct PostgreSQL connection
+# from backend.services.database_service import DatabaseService
 from backend.services.object_storage_service import ObjectStorageService
 from backend.services.storage_factory import create_storage_service
+from backend.services.database_factory import create_database_adapter
 from backend.services.ai_service import AIService
 from backend.services.config_service import ConfigService
 from backend.services.features_service import FeaturesService
@@ -55,6 +57,8 @@ from backend.processors.search_processor import SearchProcessor
 from backend.processors.visual_embedding_processor import VisualEmbeddingProcessor
 from backend.processors.table_processor import TableProcessor
 from backend.processors.thumbnail_processor import ThumbnailProcessor
+from backend.processors.parts_processor import PartsProcessor
+from backend.processors.series_processor import SeriesProcessor
 
 from backend.core.base_processor import ProcessingContext
 
@@ -211,16 +215,24 @@ class KRMasterPipeline:
             or os.getenv('DATABASE_URL')
         )
         if postgres_url:
-            self.logger.info("✅ POSTGRES_URL: %s... (asyncpg fallback enabled)", postgres_url[:40])
+            self.logger.info("✅ POSTGRES_URL: %s... (direct PostgreSQL connection)", postgres_url[:40])
         else:
-            self.logger.warning("POSTGRES_URL not found - using PostgREST only")
+            self.logger.warning("POSTGRES_URL not found - using direct PostgreSQL parameters")
         
-        # Initialize database service with PostgreSQL adapter
-        self.database_service = DatabaseService(
-            postgres_url=postgres_url,
-            database_type='postgresql'  # Explicitly use PostgreSQL
-        )
-        await self.database_service.connect()
+        # Ensure a concrete DatabaseAdapter exists before wiring processors
+        if self.database_adapter is None:
+            if not postgres_url:
+                raise RuntimeError(
+                    "Database adapter is required but none was provided and POSTGRES_URL (or DATABASE_CONNECTION_URL/DATABASE_URL) is not set. "
+                    "Either pass a DatabaseAdapter to KRMasterPipeline(...) or set the database URL in the environment."
+                )
+            adapter = create_database_adapter()
+            await adapter.connect()
+            self.database_adapter = adapter
+            self.logger.info("✅ Database adapter created and connected (PostgreSQL)")
+        self.database_service = self.database_adapter
+        if self.database_service is None:
+            raise RuntimeError("initialize_services() cannot proceed with database_service being None.")
         
         # Initialize object storage service
         self.storage_service = create_storage_service()
@@ -283,6 +295,8 @@ class KRMasterPipeline:
             'chunk_prep': ChunkPreprocessor(self.database_service),
             'links': LinkExtractionProcessorAI(self.database_service, self.ai_service),
             'metadata': MetadataProcessorAI(self.database_service, self.ai_service, self.config_service),
+            'parts': PartsProcessor(self.database_service),
+            'series': SeriesProcessor(self.database_service),
             'storage': StorageProcessor(self.database_service, self.storage_service),
             'search': SearchProcessor(self.database_service, self.ai_service),
             'thumbnail': ThumbnailProcessor(self.database_service, self.storage_service)
@@ -576,32 +590,40 @@ class KRMasterPipeline:
                 context.document_type = doc_info.document_type or ''
 
             stage_sequence = [
-                ("text", "[2/10] Text Processing:", 'text'),
-                ("svg", "[3a/10] SVG Processing:", 'svg'),
-                ("image", "[3/10] Image Processing:", 'image'),
-                ("classification", "[4/10] Classification:", 'classification'),
-                ("chunk_prep", "[5/10] Chunk Preprocessing:", 'chunk_prep'),
-                ("links", "[6/10] Links:", 'links'),
-                ("metadata", "[7/10] Metadata (Error Codes):", 'metadata'),
-                ("storage", "[8/10] Storage:", 'storage'),
-                ("embedding", "[9/10] Embeddings:", 'embedding'),
-                ("search", "[10/10] Search:", 'search'),
+                ("text_extraction", "[2/15] Text Processing:", 'text'),
+                ("table_extraction", "[3/15] Table Extraction:", 'table'),
+                ("svg_processing", "[4/15] SVG Processing:", 'svg'),
+                ("image_processing", "[5/15] Image Processing:", 'image'),
+                ("visual_embedding", "[6/15] Visual Embedding:", 'visual_embedding'),
+                ("classification", "[7/15] Classification:", 'classification'),
+                ("chunk_preprocessing", "[8/15] Chunk Preprocessing:", 'chunk_prep'),
+                ("link_extraction", "[9/15] Links:", 'links'),
+                ("metadata_extraction", "[10/15] Metadata (Error Codes):", 'metadata'),
+                ("parts_extraction", "[11/15] Parts Extraction:", 'parts'),
+                ("series_detection", "[12/15] Series Detection:", 'series'),
+                ("storage", "[13/15] Storage:", 'storage'),
+                ("embedding", "[14/15] Embeddings:", 'embedding'),
+                ("search_indexing", "[15/15] Search:", 'search'),
             ]
 
             success_messages = {
-                'text': lambda res: "Text processing completed",
-                'svg': lambda res: f"SVG processing completed: {res.data.get('svgs_extracted', 0)} SVGs, {res.data.get('images_queued', 0)} images queued",
-                'image': lambda res: f"Image processing completed: {res.data.get('images_processed', 0)} images",
-                'chunk_prep': lambda res: f"Chunk preprocessing completed: {res.data.get('chunks_preprocessed', 0)} chunks",
-                'links': lambda res: (
+                'text_extraction': lambda res: "Text processing completed",
+                'table_extraction': lambda res: f"Table extraction completed: {res.data.get('tables_extracted', 0)} tables",
+                'svg_processing': lambda res: f"SVG processing completed: {res.data.get('svgs_extracted', 0)} SVGs, {res.data.get('images_queued', 0)} images queued",
+                'image_processing': lambda res: f"Image processing completed: {res.data.get('images_processed', 0)} images",
+                'visual_embedding': lambda res: f"Visual embedding completed: {res.data.get('visual_embeddings_created', 0) or res.data.get('embeddings_created', 0)} image embeddings",
+                'chunk_preprocessing': lambda res: f"Chunk preprocessing completed: {res.data.get('chunks_preprocessed', 0)} chunks",
+                'link_extraction': lambda res: (
                     "Link extraction completed: "
                     f"{res.data.get('links_extracted', 0)} links "
                     f"({res.data.get('video_links_created', 0)} videos)"
                 ),
-                'metadata': lambda res: "Metadata processing completed",
+                'metadata_extraction': lambda res: "Metadata processing completed",
+                'parts_extraction': lambda res: f"Parts extraction completed: {res.data.get('parts_created', 0) or res.data.get('parts_found', 0)} parts",
+                'series_detection': lambda res: f"Series detection completed: {res.data.get('series_detected', 0) or res.data.get('product_linked', 0)} products linked",
                 'storage': lambda res: "Storage processing completed",
                 'embedding': lambda res: f"Embedding processing completed: {res.data.get('embeddings_created', 0)} embeddings",
-                'search': lambda res: "Search processing completed",
+                'search_indexing': lambda res: "Search processing completed",
             }
 
             completed_stages: List[str] = []
@@ -612,13 +634,21 @@ class KRMasterPipeline:
                     continue
 
                 # SVG stage gating with feature flag
-                if stage_name == 'svg':
+                if stage_name == 'svg_processing':
                     if os.getenv('ENABLE_SVG_EXTRACTION', 'false').lower() != 'true':
                         self.logger.info("  %s %s (SKIPPED: SVG extraction disabled)", label, filename)
                         continue
                     if self.processors.get('svg') is None:
                         self.logger.info("  %s %s (SKIPPED: SVG processor not available)", label, filename)
                         continue
+
+                # Skip table_extraction or visual_embedding if processor not wired
+                if stage_name == 'table_extraction' and self.processors.get('table') is None:
+                    self.logger.info("  %s %s (SKIPPED: Table processor not available)", label, filename)
+                    continue
+                if stage_name == 'visual_embedding' and self.processors.get('visual_embedding') is None:
+                    self.logger.info("  %s %s (SKIPPED: Visual embedding processor not available)", label, filename)
+                    continue
 
                 self.logger.info("  %s %s", label, filename)
                 try:
@@ -1568,7 +1598,7 @@ class KRMasterPipeline:
             Stage.CLASSIFICATION: 'classification',
             Stage.METADATA_EXTRACTION: 'metadata',
             Stage.PARTS_EXTRACTION: 'parts',
-            Stage.SERIES_DETECTION: 'parts',  # Uses parts processor
+            Stage.SERIES_DETECTION: 'series',
             Stage.STORAGE: 'storage',
             Stage.EMBEDDING: 'embedding',
             Stage.SEARCH_INDEXING: 'search'
@@ -1590,29 +1620,112 @@ class KRMasterPipeline:
             document = await self.database_service.get_document(document_id)
             if not document:
                 return {'success': False, 'error': f'Document not found: {document_id}'}
+
+            # Enforce stage dependencies for single-stage runs
+            stage_status = await self.get_document_stage_status(document_id)
+            stage_name = stage.value
+
+            # Upload must be completed (and storage_path must exist) before text/table stages
+            if stage in [Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION]:
+                if not stage_status.get('upload'):
+                    return {
+                        'success': False,
+                        'error': (
+                            f"Cannot run stage '{stage_name}' for document {document_id}: "
+                            "upload stage has not completed yet"
+                        ),
+                    }
+
+                storage_path = getattr(document, 'storage_path', None) or getattr(document, 'resolved_path', None)
+                if not storage_path or not os.path.exists(storage_path):
+                    return {
+                        'success': False,
+                        'error': (
+                            f"Cannot run stage '{stage_name}' for document {document_id}: "
+                            "no valid storage_path/resolved_path found on disk"
+                        ),
+                    }
+
+            # Text extraction must be completed before table extraction
+            if stage == Stage.TABLE_EXTRACTION and not stage_status.get('text_extraction'):
+                return {
+                    'success': False,
+                    'error': (
+                        f"Cannot run stage '{stage_name}' for document {document_id}: "
+                        "text_extraction stage must be completed first"
+                    ),
+                }
+
+            # IMAGE_PROCESSING must be completed before VISUAL_EMBEDDING
+            if stage == Stage.VISUAL_EMBEDDING and not stage_status.get('image_processing'):
+                return {
+                    'success': False,
+                    'error': (
+                        f"Cannot run stage '{stage_name}' for document {document_id}: "
+                        "image_processing stage must be completed first"
+                    ),
+                }
+
+            # CLASSIFICATION must be completed before PARTS_EXTRACTION and SERIES_DETECTION
+            if stage in [Stage.PARTS_EXTRACTION, Stage.SERIES_DETECTION] and not stage_status.get('classification'):
+                return {
+                    'success': False,
+                    'error': (
+                        f"Cannot run stage '{stage_name}' for document {document_id}: "
+                        "classification stage must be completed first"
+                    ),
+                }
             
             # Build context based on stage requirements
             context_data = {
                 'document_id': document_id,
+                'document_type': getattr(document, 'document_type', 'service_manual'),
                 'file_hash': '',  # Will be derived if needed
-                'document_type': getattr(document, 'document_type', 'service_manual')
             }
             
             # Add file path for stages that need it
-            if stage in [Stage.UPLOAD, Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION, Stage.IMAGE_PROCESSING]:
+            if stage in [Stage.UPLOAD, Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION, Stage.SVG_PROCESSING, Stage.IMAGE_PROCESSING]:
                 file_path = getattr(document, 'storage_path', None) or getattr(document, 'resolved_path', None)
                 if file_path and os.path.exists(file_path):
                     context_data['file_path'] = file_path
                     context_data['pdf_path'] = file_path
             
-            # Add images for visual embedding
+            # Add images for visual embedding (from krai_content.images)
             if stage == Stage.VISUAL_EMBEDDING:
-                # Get images from database
-                images = await self.database_service.execute_query(
-                    "SELECT * FROM kai_intelligence.media WHERE document_id = $1",
-                    [document_id]
-                )
-                context_data['images'] = images or []
+                images = await self.database_service.get_images_by_document(document_id)
+                # Map DB fields to format expected by VisualEmbeddingProcessor
+                # (id, page_number, image_type, width, height, file_size, ai_description/ocr_text, temp_path)
+                mapped = []
+                for row in (images or []):
+                    row_dict = dict(row) if not isinstance(row, dict) else row
+                    storage_path = row_dict.get('storage_path')
+                    if storage_path and os.path.exists(storage_path):
+                        mapped.append({
+                            'id': row_dict.get('id'),
+                            'page_number': row_dict.get('page_number', 1),
+                            'image_type': row_dict.get('image_type', 'diagram'),
+                            'width': row_dict.get('width_px') or row_dict.get('width'),
+                            'height': row_dict.get('height_px') or row_dict.get('height'),
+                            'file_size': row_dict.get('file_size', 0),
+                            'ai_description': row_dict.get('ai_description'),
+                            'ocr_text': row_dict.get('ocr_text'),
+                            'temp_path': storage_path,
+                        })
+                    elif storage_path and storage_path.startswith('file://'):
+                        local_path = storage_path[7:]  # strip file://
+                        if os.path.exists(local_path):
+                            mapped.append({
+                                'id': row_dict.get('id'),
+                                'page_number': row_dict.get('page_number', 1),
+                                'image_type': row_dict.get('image_type', 'diagram'),
+                                'width': row_dict.get('width_px') or row_dict.get('width'),
+                                'height': row_dict.get('height_px') or row_dict.get('height'),
+                                'file_size': row_dict.get('file_size', 0),
+                                'ai_description': row_dict.get('ai_description'),
+                                'ocr_text': row_dict.get('ocr_text'),
+                                'temp_path': local_path,
+                            })
+                context_data['images'] = mapped
             
             # Add chunks for embedding
             if stage == Stage.EMBEDDING:

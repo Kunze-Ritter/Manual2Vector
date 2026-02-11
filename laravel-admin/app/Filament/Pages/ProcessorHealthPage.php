@@ -97,7 +97,7 @@ class ProcessorHealthPage extends Page
 
     protected function getViewData(): array
     {
-        self::$pollingInterval = (string) config('krai.monitoring.polling_intervals.metrics', '30s');
+        self::$pollingInterval = (string) config('krai.monitoring.polling_intervals.processor', '30s');
 
         return [
             'processorData' => $this->getProcessorData(),

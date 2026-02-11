@@ -12,7 +12,7 @@ import asyncio
 import logging
 
 from backend.core.base_processor import Stage
-import asyncpg
+from backend.services.database_adapter import DatabaseAdapter
 
 
 class StageTracker:
@@ -39,9 +39,9 @@ class StageTracker:
     
     STAGES = [stage.value for stage in Stage]
     
-    def __init__(self, pool: asyncpg.Pool, websocket_callback: Optional[Callable] = None):
+    def __init__(self, database_adapter: DatabaseAdapter, websocket_callback: Optional[Callable] = None):
         """Initialize tracker with optional WebSocket callback."""
-        self.pool = pool
+        self.adapter = database_adapter
         self.logger = logging.getLogger("krai.stage_tracker")
         self.websocket_callback = websocket_callback
         self._rpc_enabled = True

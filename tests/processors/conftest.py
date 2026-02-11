@@ -94,6 +94,79 @@ async def mock_database_adapter() -> AsyncGenerator[DatabaseAdapter, None]:
             """Mock test connection - always returns True."""
             return True
         
+        async def disconnect(self) -> None:
+            """Mock disconnect - does nothing."""
+            pass
+        
+        async def fetch_one(self, query: str, params: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+            """Mock fetch_one - returns first row from execute_query-style result or None."""
+            rows = await self.fetch_all(query, params)
+            return rows[0] if rows else None
+        
+        async def fetch_all(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+            """Mock fetch_all - returns list of dicts (mock execute_query returns list in practice)."""
+            result = await self.execute_query(query, list(params.values()) if isinstance(params, dict) else (params or []))
+            return result if isinstance(result, list) else []
+        
+        async def insert_chunk(self, chunk_data: Dict[str, Any]) -> str:
+            """Mock insert_chunk - insert chunk from dict."""
+            return await self.create_chunk_async(chunk_data)
+        
+        async def insert_table(self, table_data: Dict[str, Any]) -> str:
+            """Mock insert_table - insert structured table."""
+            return await self.create_structured_table(table_data)
+        
+        async def create_unified_embedding(
+            self,
+            source_id: str,
+            source_type: str,
+            embedding: List[float],
+            model_name: str,
+            embedding_context: Optional[str] = None,
+            metadata: Optional[Dict[str, Any]] = None,
+        ) -> str:
+            """Mock create_unified_embedding - delegates to create_embedding_v2."""
+            return await self.create_embedding_v2(
+                source_id=source_id,
+                source_type=source_type,
+                embedding=embedding,
+                model_name=model_name,
+                embedding_context=embedding_context or "",
+                metadata=metadata or {},
+            )
+        
+        async def insert_link(self, link_data: Dict[str, Any]) -> str:
+            """Mock insert_link - insert link record."""
+            return await self.create_link(link_data)
+        
+        async def insert_part(self, part_data: Dict[str, Any]) -> str:
+            """Mock insert_part - insert part record."""
+            return await self.create_part(part_data)
+        
+        async def start_stage(self, document_id: str, stage: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+            """Mock start_stage - always success."""
+            self.logger.info(f"Mock start_stage: doc={document_id}, stage={stage}")
+            return True
+        
+        async def complete_stage(self, document_id: str, stage: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+            """Mock complete_stage - always success."""
+            self.logger.info(f"Mock complete_stage: doc={document_id}, stage={stage}")
+            return True
+        
+        async def fail_stage(self, document_id: str, stage: str, error: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+            """Mock fail_stage - always success."""
+            self.logger.info(f"Mock fail_stage: doc={document_id}, stage={stage}, error={error}")
+            return True
+        
+        async def skip_stage(self, document_id: str, stage: str, reason: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+            """Mock skip_stage - always success."""
+            self.logger.info(f"Mock skip_stage: doc={document_id}, stage={stage}, reason={reason}")
+            return True
+        
+        async def get_stage_status(self, document_id: str, stage: str) -> Optional[Dict[str, Any]]:
+            """Mock get_stage_status - returns completed for known stages."""
+            return {"document_id": document_id, "stage": stage, "status": "completed", "progress": 100.0}
+        
         async def create_document(self, document: DocumentModel) -> str:
             """Mock create document with deduplication."""
             doc_id = str(uuid4())

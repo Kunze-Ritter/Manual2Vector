@@ -39,8 +39,6 @@ import httpx
 from cachetools import TTLCache
 from collections import defaultdict
 
-from backend.services.database_factory import create_database_adapter
-
 logger = logging.getLogger(__name__)
 
 # ============================================================================
@@ -325,7 +323,12 @@ class RetryPolicyManager:
     _fetch_locks: Dict[str, asyncio.Lock] = {}  # Per-key locks for single-flight pattern
     _fetch_locks_lock: asyncio.Lock = asyncio.Lock()  # Lock for managing fetch_locks dict
     _db_adapter = None
-    
+
+    @classmethod
+    def set_db_adapter(cls, db_adapter) -> None:
+        """Set the database adapter for loading policies from krai_system.retry_policies."""
+        cls._db_adapter = db_adapter
+
     @classmethod
     async def get_policy(cls, service_name: str, stage_name: Optional[str] = None) -> RetryPolicy:
         """
@@ -392,6 +395,10 @@ class RetryPolicyManager:
         """
         Load retry policy from database.
         
+        Queries krai_system.retry_policies for the given service_name and optional stage_name,
+        ordered with stage-specific row first, then service-level (stage_name IS NULL).
+        Returns None when adapter is not set, query fails, or no rows found (caller uses code default).
+        
         Args:
             service_name: Name of the service
             stage_name: Optional processing stage name
@@ -399,40 +406,48 @@ class RetryPolicyManager:
         Returns:
             RetryPolicy if found, None otherwise
         """
-        try:
-            # Lazy initialize database adapter
-            if cls._db_adapter is None:
-                cls._db_adapter = create_database_adapter()
-            
-            # Query database with priority: stage-specific > service-level
-            query = """
-                SELECT * FROM krai_system.retry_policies 
-                WHERE service_name = $1 
-                  AND (stage_name = $2 OR stage_name IS NULL)
-                ORDER BY stage_name DESC NULLS LAST
-                LIMIT 1
-            """
-            
-            result = await cls._db_adapter.fetch_one(query, (service_name, stage_name))
-            
-            if result:
-                # Convert database row to RetryPolicy
-                return RetryPolicy(
-                    policy_name=result['policy_name'],
-                    service_name=result['service_name'],
-                    stage_name=result.get('stage_name'),
-                    max_retries=result['max_retries'],
-                    base_delay_seconds=float(result['base_delay_seconds']),
-                    max_delay_seconds=float(result['max_delay_seconds']),
-                    exponential_base=float(result['exponential_base']),
-                    jitter_enabled=result['jitter_enabled'],
-                    circuit_breaker_enabled=result.get('circuit_breaker_enabled', False),
-                    circuit_breaker_threshold=result.get('circuit_breaker_threshold', 5),
-                    circuit_breaker_timeout_seconds=result.get('circuit_breaker_timeout_seconds', 60),
-                )
-            
+        if cls._db_adapter is None:
             return None
-            
+        try:
+            if stage_name is not None:
+                query = """
+                    SELECT policy_name, service_name, stage_name, max_retries,
+                           base_delay_seconds, max_delay_seconds, exponential_base,
+                           jitter_enabled, circuit_breaker_enabled, circuit_breaker_threshold,
+                           circuit_breaker_timeout_seconds
+                    FROM krai_system.retry_policies
+                    WHERE service_name = $1 AND (stage_name = $2 OR stage_name IS NULL)
+                    ORDER BY (stage_name IS NOT NULL AND stage_name = $2) DESC NULLS LAST
+                    LIMIT 1
+                """
+                params = (service_name, stage_name)
+            else:
+                query = """
+                    SELECT policy_name, service_name, stage_name, max_retries,
+                           base_delay_seconds, max_delay_seconds, exponential_base,
+                           jitter_enabled, circuit_breaker_enabled, circuit_breaker_threshold,
+                           circuit_breaker_timeout_seconds
+                    FROM krai_system.retry_policies
+                    WHERE service_name = $1 AND stage_name IS NULL
+                    LIMIT 1
+                """
+                params = (service_name,)
+            row = await cls._db_adapter.fetch_one(query, params)
+            if not row:
+                return None
+            return RetryPolicy(
+                policy_name=row['policy_name'],
+                service_name=row['service_name'],
+                stage_name=row['stage_name'],
+                max_retries=int(row['max_retries']),
+                base_delay_seconds=float(row['base_delay_seconds']),
+                max_delay_seconds=float(row['max_delay_seconds']),
+                exponential_base=float(row['exponential_base']),
+                jitter_enabled=bool(row['jitter_enabled']),
+                circuit_breaker_enabled=bool(row.get('circuit_breaker_enabled', False)),
+                circuit_breaker_threshold=int(row.get('circuit_breaker_threshold', 5)),
+                circuit_breaker_timeout_seconds=int(row.get('circuit_breaker_timeout_seconds', 60)),
+            )
         except Exception as e:
             logger.error(f"Error loading policy from database: {e}", exc_info=True)
             return None
@@ -983,7 +998,7 @@ class RetryOrchestrator:
             """
             
             resolution_notes = f"Max retries exceeded. Final error: {str(final_error)}"
-            await self.db_adapter.execute(query, (error_id, resolution_notes))
+            await self.db_adapter.execute_query(query, (error_id, resolution_notes))
             
             self.logger.info(f"Marked error {error_id} as retry exhausted")
             return True

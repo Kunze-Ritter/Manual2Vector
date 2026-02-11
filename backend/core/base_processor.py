@@ -363,12 +363,18 @@ class BaseProcessor(ABC):
                     # Log end
                     self.log_processing_end(result)
                     
-                    # Collect performance metrics
-                    if result.success and self._performance_collector:
+                    # Collect performance metrics (success path)
+                    if self._performance_collector:
                         try:
                             await self._performance_collector.collect_stage_metrics(
-                                self.name,
-                                result
+                                self.name, result, success=True
+                            )
+                            await self._performance_collector.store_stage_metric(
+                                document_id=str(context.document_id),
+                                stage_name=self.name,
+                                processing_time=processing_time,
+                                success=True,
+                                correlation_id=correlation_id,
                             )
                         except Exception as metrics_error:
                             self.logger.debug(
@@ -470,11 +476,33 @@ class BaseProcessor(ABC):
                                 'correlation_id': correlation_id,
                                 'error_id': error_id,
                                 'retry_attempt': attempt,
-                                'error_category': classification.error_category
+                                'error_category': classification.error_category,
+                                'document_id': str(context.document_id),
                             }
                         )
                         result.processing_time = processing_time
                         self.log_processing_end(result)
+                        
+                        # Collect performance metrics (failure path)
+                        if self._performance_collector:
+                            try:
+                                await self._performance_collector.collect_stage_metrics(
+                                    self.name, result, success=False,
+                                    error_message=str(error)
+                                )
+                                await self._performance_collector.store_stage_metric(
+                                    document_id=str(context.document_id),
+                                    stage_name=self.name,
+                                    processing_time=processing_time,
+                                    success=False,
+                                    error_message=str(error),
+                                    correlation_id=correlation_id,
+                                )
+                            except Exception as metrics_error:
+                                self.logger.debug(
+                                    f"Failed to collect failure metrics: {metrics_error}"
+                                )
+                        
                         return result
             
             finally:
@@ -492,8 +520,26 @@ class BaseProcessor(ABC):
             self.name,
             "MAX_RETRIES_EXCEEDED"
         )
-        result = self.create_error_result(error)
+        result = self.create_error_result(
+            error,
+            metadata={'document_id': str(context.document_id)}
+        )
         result.processing_time = processing_time
+        if self._performance_collector:
+            try:
+                await self._performance_collector.collect_stage_metrics(
+                    self.name, result, success=False, error_message=str(error)
+                )
+                await self._performance_collector.store_stage_metric(
+                    document_id=str(context.document_id),
+                    stage_name=self.name,
+                    processing_time=processing_time,
+                    success=False,
+                    error_message=str(error),
+                    correlation_id=getattr(context, 'correlation_id', None),
+                )
+            except Exception as metrics_error:
+                self.logger.debug(f"Failed to collect failure metrics: {metrics_error}")
         return result
     
     def get_resource_requirements(self) -> Dict[str, Any]:

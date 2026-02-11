@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 from .ai_service import AIService
-from .database_service import DatabaseService
+from .database_factory import create_database_adapter
 
 class FeaturesService:
     """
@@ -21,7 +21,7 @@ class FeaturesService:
     - Features-based search
     """
     
-    def __init__(self, ai_service: AIService, database_service: DatabaseService):
+    def __init__(self, ai_service: AIService, database_service):
         self.ai_service = ai_service
         self.database_service = database_service
         self.logger = logging.getLogger("krai.features")

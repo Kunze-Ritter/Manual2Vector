@@ -25,7 +25,7 @@ class CrawlRequest(BaseModel):
 
 class ExtractRequest(BaseModel):
     url: str
-    schema: Dict[str, Any]
+    extraction_schema: Dict[str, Any]
     options: Optional[Dict[str, Any]] = None
 
 
@@ -84,7 +84,7 @@ async def crawl_site(request: CrawlRequest):
 @router.post("/extract")
 async def extract_structured(request: ExtractRequest):
     service = _create_service()
-    result = await service.extract_structured_data(request.url, request.schema, request.options)
+    result = await service.extract_structured_data(request.url, request.extraction_schema, request.options)
     _add_activity_log("extract", request.url, result.get("backend"))
     return result
 

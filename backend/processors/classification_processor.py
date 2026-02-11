@@ -523,27 +523,52 @@ If uncertain, respond with "Unknown"."""
         return document_type, version
     
     async def _get_content_statistics(self, document_id: str) -> Dict:
-        """Get content statistics for document"""
+        """Get content statistics for document via DatabaseAdapter or Supabase client. Logs and returns zeros when stats cannot be gathered."""
         stats = {
             'total_error_codes': 0,
             'parts_count': 0
         }
-        
+
         if not self.database_service:
+            self.logger.warning("Cannot get content statistics: no database_service available")
             return stats
-        
+
+        has_adapter = hasattr(self.database_service, 'fetch_one') or hasattr(self.database_service, 'fetch_all')
+        has_client = hasattr(self.database_service, 'client') and self.database_service.client is not None
+
+        if not has_adapter and not has_client:
+            self.logger.warning(
+                "Cannot get content statistics: neither DatabaseAdapter (fetch_one/fetch_all) nor Supabase client available"
+            )
+            return stats
+
         try:
-            # Count error codes
-            if hasattr(self.database_service, 'client'):
+            if has_adapter and hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
+                intel_schema = getattr(self.database_service, '_intelligence_schema', 'krai_intelligence')
+                parts_schema = getattr(self.database_service, '_parts_schema', 'krai_parts')
+                async with self.database_service.pg_pool.acquire() as conn:
+                    ec_row = await conn.fetchrow(
+                        f"SELECT COUNT(*) as c FROM {intel_schema}.error_codes WHERE document_id = $1",
+                        document_id
+                    )
+                    stats['total_error_codes'] = int(ec_row['c']) if ec_row else 0
+
+                    parts_row = await conn.fetchrow(
+                        f"SELECT COUNT(*) as c FROM {parts_schema}.parts_catalog WHERE document_id = $1",
+                        document_id
+                    )
+                    stats['parts_count'] = int(parts_row['c']) if parts_row else 0
+            elif has_client:
                 error_codes = self.database_service.client.table('error_codes').select('id').eq('document_id', document_id).execute()
                 stats['total_error_codes'] = len(error_codes.data) if error_codes.data else 0
-                
-                # Count parts
+
                 parts = self.database_service.client.table('parts_catalog').select('id').eq('document_id', document_id).execute()
                 stats['parts_count'] = len(parts.data) if parts.data else 0
+            else:
+                self.logger.warning("Content statistics fallback: adapter has no pg_pool, cannot gather stats")
         except Exception as e:
-            self.logger.warning(f"Could not get content statistics: {e}")
-        
+            self.logger.warning("Could not get content statistics: %s", e)
+
         return stats
     
     async def _get_document_chunks(self, document_id: str, limit: int = 5) -> list:

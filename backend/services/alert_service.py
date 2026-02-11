@@ -197,7 +197,7 @@ class AlertService:
                 # Check for existing alert in aggregation window
                 aggregation_window = rule_config.get('aggregation_window_minutes', 5)
                 check_query = """
-                    SELECT id, aggregation_count FROM krai_system.alert_queue
+                    SELECT id, aggregation_count FROM krai_system.alerts
                     WHERE aggregation_key = $1 
                       AND status = 'pending'
                       AND created_at > NOW() - INTERVAL '{} minutes'
@@ -210,7 +210,7 @@ class AlertService:
                     # Update existing alert
                     alert_id = existing_alert[0].get('id')
                     update_query = """
-                        UPDATE krai_system.alert_queue
+                        UPDATE krai_system.alerts
                         SET aggregation_count = aggregation_count + 1,
                             last_occurrence = CURRENT_TIMESTAMP
                         WHERE id = $1
@@ -226,7 +226,7 @@ class AlertService:
                     severity = error_data.get('severity', 'medium')
                     
                     insert_query = """
-                        INSERT INTO krai_system.alert_queue 
+                        INSERT INTO krai_system.alerts 
                           (alert_type, severity, message, details, aggregation_key, status)
                         VALUES ($1, $2, $3, $4, $5, 'pending')
                         RETURNING id
@@ -260,7 +260,7 @@ class AlertService:
         """Send email alert notification.
         
         Args:
-            alert_data: Dictionary containing alert information from alert_queue
+            alert_data: Dictionary containing alert information from alerts table
             recipients: List of email addresses to send to
             rule_config: Alert configuration from alert_configurations table
             
@@ -422,7 +422,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
         """Send Slack alert notification using Block Kit API.
         
         Args:
-            alert_data: Dictionary containing alert information from alert_queue
+            alert_data: Dictionary containing alert information from alerts table
             webhook_urls: List of Slack webhook URLs to send to
             rule_config: Alert configuration from alert_configurations table
             
@@ -790,7 +790,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
                 SELECT id, alert_type, severity, message, details, aggregation_key, 
                        aggregation_count, first_occurrence, last_occurrence, status, sent_at,
                        created_at
-                FROM krai_system.alert_queue 
+                FROM krai_system.alerts 
                 {where_clause}
                 ORDER BY last_occurrence DESC 
                 LIMIT ${param_count + 1}
@@ -832,7 +832,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
             ]
 
             # Count pending alerts
-            pending_query = "SELECT COUNT(*) as count FROM krai_system.alert_queue WHERE status = 'pending'"
+            pending_query = "SELECT COUNT(*) as count FROM krai_system.alerts WHERE status = 'pending'"
             pending_result = await self.adapter.execute_query(pending_query)
             unacknowledged_count = pending_result[0].get("count", 0) if pending_result else 0
 
@@ -850,7 +850,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
         """Acknowledge an alert (mark as sent)."""
         try:
             query = """
-                UPDATE krai_system.alert_queue 
+                UPDATE krai_system.alerts 
                 SET status = 'sent', sent_at = CURRENT_TIMESTAMP
                 WHERE id = $1
             """
@@ -870,7 +870,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
     async def dismiss_alert(self, alert_id: str) -> bool:
         """Dismiss (delete) an alert from queue."""
         try:
-            query = "DELETE FROM krai_system.alert_queue WHERE id = $1"
+            query = "DELETE FROM krai_system.alerts WHERE id = $1"
             result = await self.adapter.execute_query(query, [alert_id])
             
             if result and hasattr(result, 'rowcount') and result.rowcount > 0:
@@ -927,7 +927,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
                                MAX(message) as message,
                                MAX(details) as details,
                                ARRAY_AGG(id) as alert_ids
-                        FROM krai_system.alert_queue
+                        FROM krai_system.alerts
                         WHERE status = 'pending'
                           AND created_at <= NOW() - INTERVAL '5 minutes'
                         GROUP BY aggregation_key, alert_type, severity
@@ -995,7 +995,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
                                 if notification_success:
                                     # Mark alerts as sent
                                     update_query = """
-                                        UPDATE krai_system.alert_queue
+                                        UPDATE krai_system.alerts
                                         SET status = 'sent', sent_at = CURRENT_TIMESTAMP
                                         WHERE id = ANY($1)
                                     """
@@ -1016,7 +1016,7 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
                         self.logger.info("Cleaning up alerts older than 7 days")
                         
                         cleanup_query = """
-                            DELETE FROM krai_system.alert_queue
+                            DELETE FROM krai_system.alerts
                             WHERE created_at < NOW() - INTERVAL '7 days'
                         """
                         
@@ -1112,3 +1112,9 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
         asyncio.create_task(self.alert_aggregation_worker(interval_seconds))
         
         self.logger.info("Alert monitoring started: configurations loaded, aggregation worker running")
+
+    async def start_background_workers(self):
+        """Start background alert processing workers."""
+        if not self._background_tasks or self._background_tasks.done():
+            self._background_tasks = asyncio.create_task(self.alert_aggregation_worker())
+            self.logger.info("Alert aggregation worker started")

@@ -468,13 +468,28 @@ class SVGProcessor(BaseProcessor):
                     "payload": payload
                 }
                 
-                # Use adapter method if available, otherwise skip queuing
+                # Use adapter method if available. Run in new event loop because
+                # _queue_svg_images runs in a worker thread (via run_in_executor)
+                # and has no access to the main event loop.
                 if hasattr(self.database_service, 'create_svg_queue_entry'):
                     import asyncio
-                    loop = asyncio.get_event_loop()
-                    loop.run_until_complete(self.database_service.create_svg_queue_entry(stage_payload))
-                    queued_count += 1
-                    self.logger.debug(f"Queued SVG image: {svg_data['filename']}")
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            loop.run_until_complete(
+                                self.database_service.create_svg_queue_entry(stage_payload)
+                            )
+                            queued_count += 1
+                            self.logger.debug(f"Queued SVG image: {svg_data['filename']}")
+                        finally:
+                            loop.close()
+                    except Exception as loop_exc:
+                        self.logger.error(
+                            "Failed to enqueue SVG image %s: %s",
+                            svg_data['filename'],
+                            loop_exc,
+                        )
                 else:
                     self.logger.warning("Database service does not support SVG queuing")
                 

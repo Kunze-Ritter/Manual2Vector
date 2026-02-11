@@ -519,7 +519,7 @@ ENABLE_IMAGE_OPTIMIZATION=true
 - **User**: krai_user
 - **Password**: krai_secure_password
 - **Schemas**: krai_core, krai_content, krai_intelligence, krai_system, krai_parts, krai_config, krai_ml, krai_service, krai_users, krai_integrations (10 total)
-- **Phase 6 Tables**: embeddings_v2, structured_tables, enhanced chunks with hierarchical structure
+- **Phase 6 Tables**: structured_tables, enhanced chunks with hierarchical structure (embeddings stored in `krai_intelligence.chunks.embedding` vector column)
 
 #### PostgreSQL Performance Tuning
 

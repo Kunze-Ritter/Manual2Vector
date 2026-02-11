@@ -61,55 +61,65 @@ class PerformanceCollector:
         self.db_adapter = db_adapter
         self.logger = logger or logging.getLogger(__name__)
         self._metrics_buffer: Dict[str, List[float]] = {}
+        self._outcomes_buffer: Dict[str, List[bool]] = {}  # success/failure for rate calculation
         self._db_buffer: Dict[str, List[float]] = {}
         self._api_buffer: Dict[str, List[float]] = {}
     
     async def collect_stage_metrics(
         self,
         stage_name: str,
-        processing_result: ProcessingResult
+        processing_result: ProcessingResult,
+        success: Optional[bool] = None,
+        error_message: Optional[str] = None,
+        resource_metrics: Optional[Dict[str, float]] = None
     ) -> None:
         """
         Extract timing data from ProcessingResult and buffer it for aggregation.
         
-        This method is designed to be called after each pipeline stage completes.
-        It extracts the processing time and stores it in an in-memory buffer for
-        later aggregation. Errors in metrics collection will not break the pipeline.
+        Records both success and failure paths so success/error rates can be derived.
+        Call this after each pipeline stage completes (success or failure).
         
         Args:
             stage_name: Name of the pipeline stage (e.g., "classification", "chunking")
             processing_result: Result object containing processing time and metadata
+            success: Whether the stage completed successfully. Defaults to processing_result.success
+            error_message: Optional error message if failed
+            resource_metrics: Optional dict with cpu_percent, ram_mb, gpu_mb for resource usage
         
         Returns:
             None
-        
-        Example:
-            ```python
-            result = await classification_processor.process(document)
-            await collector.collect_stage_metrics("classification", result)
-            ```
         """
         try:
-            processing_time = processing_result.processing_time
+            processing_time = processing_result.processing_time or 0.0
+            is_success = success if success is not None else getattr(
+                processing_result, 'success', True
+            )
+            err_msg = error_message or (
+                str(processing_result.error) if getattr(processing_result, 'error', None) else None
+            )
             
-            if processing_time is None or processing_time <= 0:
-                self.logger.warning(
-                    f"Invalid processing time for stage '{stage_name}': {processing_time}"
-                )
-                return
-            
+            # Buffer processing time (including failures - time spent before failure)
             if stage_name not in self._metrics_buffer:
                 self._metrics_buffer[stage_name] = []
-            
             self._metrics_buffer[stage_name].append(processing_time)
+            
+            # Buffer success/failure for rate calculation
+            if stage_name not in self._outcomes_buffer:
+                self._outcomes_buffer[stage_name] = []
+            self._outcomes_buffer[stage_name].append(is_success)
             
             document_id = processing_result.metadata.get('document_id', 'unknown')
             correlation_id = processing_result.metadata.get('correlation_id', 'N/A')
             
             self.logger.debug(
                 f"Collected metric for stage '{stage_name}': {processing_time:.3f}s "
-                f"(document_id={document_id}, correlation_id={correlation_id})"
+                f"success={is_success} (document_id={document_id}, correlation_id={correlation_id})"
             )
+            
+            if resource_metrics:
+                self.logger.debug(
+                    f"Resource metrics for stage '{stage_name}': {resource_metrics}"
+                )
             
         except Exception as e:
             self.logger.error(
@@ -751,12 +761,11 @@ class PerformanceCollector:
     async def flush_metrics_buffer(
         self,
         stage_name: Optional[str] = None
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Aggregate buffered metrics and optionally store them.
         
-        This method processes the in-memory metrics buffer, calculates aggregates,
-        and clears the buffer. It can process a single stage or all buffered stages.
+        Includes success_count and failure_count for success/error rate derivation.
         
         Args:
             stage_name: Optional stage name to flush. If None, flushes all stages.
@@ -768,39 +777,45 @@ class PerformanceCollector:
                     'avg_seconds': float,
                     'p50_seconds': float,
                     'p95_seconds': float,
-                    'p99_seconds': float
+                    'p99_seconds': float,
+                    'success_count': int,
+                    'failure_count': int,
+                    'success_rate': float
                 }
             }
-        
-        Example:
-            ```python
-            # Flush all stages
-            all_metrics = await collector.flush_metrics_buffer()
-            
-            # Flush specific stage
-            classification_metrics = await collector.flush_metrics_buffer("classification")
-            ```
         """
         try:
             aggregated = {}
             
+            async def flush_one(sname: str) -> None:
+                durations = self._metrics_buffer.get(sname, [])
+                outcomes = self._outcomes_buffer.get(sname, [])
+                metrics = await self.aggregate_metrics(sname, durations)
+                success_count = sum(1 for o in outcomes if o)
+                failure_count = len(outcomes) - success_count
+                total = len(outcomes)
+                metrics['success_count'] = success_count
+                metrics['failure_count'] = failure_count
+                metrics['success_rate'] = success_count / total if total else 0.0
+                aggregated[sname] = metrics
+                if sname in self._metrics_buffer:
+                    del self._metrics_buffer[sname]
+                if sname in self._outcomes_buffer:
+                    del self._outcomes_buffer[sname]
+                self.logger.info(
+                    f"Flushed {len(durations)} metrics for stage '{sname}' "
+                    f"(success={success_count}, failure={failure_count})"
+                )
+            
             if stage_name:
-                if stage_name in self._metrics_buffer:
-                    durations = self._metrics_buffer[stage_name]
-                    aggregated[stage_name] = await self.aggregate_metrics(stage_name, durations)
-                    del self._metrics_buffer[stage_name]
-                    self.logger.info(
-                        f"Flushed {len(durations)} metrics for stage '{stage_name}'"
-                    )
+                if stage_name in self._metrics_buffer or stage_name in self._outcomes_buffer:
+                    await flush_one(stage_name)
                 else:
                     self.logger.warning(f"No buffered metrics for stage '{stage_name}'")
             else:
-                for stage, durations in list(self._metrics_buffer.items()):
-                    aggregated[stage] = await self.aggregate_metrics(stage, durations)
-                    self.logger.info(
-                        f"Flushed {len(durations)} metrics for stage '{stage}'"
-                    )
-                self._metrics_buffer.clear()
+                stages = set(self._metrics_buffer.keys()) | set(self._outcomes_buffer.keys())
+                for sname in list(stages):
+                    await flush_one(sname)
             
             return aggregated
             
@@ -972,24 +987,78 @@ class PerformanceCollector:
     
     def clear_buffer(self) -> None:
         """
-        Clear all metrics buffers (stage, DB, and API).
-        
-        This is useful for testing or when you want to discard buffered metrics
-        without aggregating them.
-        
+        Clear all metrics buffers (stage, DB, API, outcomes).
+
         Example:
             ```python
             collector.clear_buffer()
             ```
         """
         stage_count = sum(len(durations) for durations in self._metrics_buffer.values())
+        outcome_count = sum(len(o) for o in self._outcomes_buffer.values())
         db_count = sum(len(durations) for durations in self._db_buffer.values())
         api_count = sum(len(durations) for durations in self._api_buffer.values())
-        
+
         self._metrics_buffer.clear()
+        self._outcomes_buffer.clear()
         self._db_buffer.clear()
         self._api_buffer.clear()
-        
+
         self.logger.info(
-            f"Cleared all buffers (stage: {stage_count}, DB: {db_count}, API: {api_count} samples)"
+            f"Cleared all buffers (stage: {stage_count}, outcomes: {outcome_count}, "
+            f"DB: {db_count}, API: {api_count} samples)"
         )
+
+    async def store_stage_metric(
+        self,
+        document_id: str,
+        stage_name: str,
+        processing_time: float,
+        success: bool,
+        error_message: Optional[str] = None,
+        correlation_id: Optional[str] = None
+    ) -> bool:
+        """
+        Store individual stage metric to krai_system.stage_metrics table.
+
+        Use this when the optional stage_metrics table is created via migration
+        009_add_stage_metrics_table.sql. Does nothing if the table does not exist.
+
+        Args:
+            document_id: Document UUID
+            stage_name: Pipeline stage name
+            processing_time: Duration in seconds
+            success: Whether the stage completed successfully
+            error_message: Optional error message if failed
+            correlation_id: Optional correlation ID
+
+        Returns:
+            True if stored successfully, False on error or missing table
+        """
+        try:
+            query = """
+                INSERT INTO krai_system.stage_metrics (
+                    document_id, stage_name, processing_time, success,
+                    error_message, correlation_id
+                ) VALUES ($1, $2, $3, $4, $5, $6)
+            """
+            await self.db_adapter.execute_query(
+                query,
+                [
+                    document_id,
+                    stage_name,
+                    round(processing_time, 3),
+                    success,
+                    error_message,
+                    correlation_id,
+                ]
+            )
+            self.logger.debug(
+                f"Stored stage_metric: {stage_name} doc={document_id} time={processing_time:.3f}s"
+            )
+            return True
+        except Exception as e:
+            self.logger.debug(
+                f"Could not store stage_metric (table may not exist): {e}"
+            )
+            return False

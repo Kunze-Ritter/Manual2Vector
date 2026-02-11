@@ -33,11 +33,19 @@ checks = {
         ("DATABASE_URL", True),
         ("DATABASE_SERVICE_KEY", False),
     ],
-    "R2 Storage (Optional)": [
-        ("R2_ACCESS_KEY_ID", False),
-        ("R2_SECRET_ACCESS_KEY", False),
-        ("R2_BUCKET_NAME_DOCUMENTS", False),
-        ("R2_ENDPOINT_URL", False),
+    "Object Storage (MinIO/S3-compatible)": [
+        ("OBJECT_STORAGE_TYPE", False),
+        ("OBJECT_STORAGE_ENDPOINT", True),
+        ("OBJECT_STORAGE_ACCESS_KEY", True),
+        ("OBJECT_STORAGE_SECRET_KEY", True),
+        ("OBJECT_STORAGE_BUCKET_DOCUMENTS", True),
+        ("OBJECT_STORAGE_BUCKET_ERROR", False),
+        ("OBJECT_STORAGE_BUCKET_PARTS", False),
+        ("OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS", False),
+        ("OBJECT_STORAGE_PUBLIC_URL_ERROR", False),
+        ("OBJECT_STORAGE_PUBLIC_URL_PARTS", False),
+        ("OBJECT_STORAGE_USE_SSL", False),
+        ("OBJECT_STORAGE_REGION", False),
     ],
     "Ollama": [
         ("OLLAMA_URL", True),
@@ -47,14 +55,14 @@ checks = {
     "External APIs (Optional)": [
         ("YOUTUBE_API_KEY", False),
     ],
-    "Upload Settings": [
-        ("UPLOAD_IMAGES_TO_R2", False),
-        ("UPLOAD_DOCUMENTS_TO_R2", False),
-    ]
 }
 
 all_ok = True
 warnings = []
+deprecated_upload_vars = [
+    "UPLOAD_IMAGES_TO_R2",
+    "UPLOAD_DOCUMENTS_TO_R2",
+]
 
 for category, vars_list in checks.items():
     print(f"\n📋 {category}")
@@ -63,7 +71,14 @@ for category, vars_list in checks.items():
     for var_name, required in vars_list:
         value = os.getenv(var_name)
         
-        if value and value not in ["", "your_key_here", "your_youtube_api_key_here"]:
+        if value and value not in [
+            "",
+            "your_key_here",
+            "your_youtube_api_key_here",
+            "your_access_key",
+            "your_secret_key",
+            "your_endpoint",
+        ]:
             # Mask sensitive values
             if "KEY" in var_name or "SECRET" in var_name or "TOKEN" in var_name:
                 display_value = value[:8] + "..." if len(value) > 8 else "***"
@@ -78,6 +93,24 @@ for category, vars_list in checks.items():
             else:
                 print(f"  ⚠️  {var_name}: NOT SET (optional)")
                 warnings.append(var_name)
+
+print("\n🚫 Deprecated R2 Variables")
+print("-" * 60)
+found_deprecated = [
+    name for name in os.environ.keys()
+    if name.startswith("R2_")
+]
+found_deprecated.extend([name for name in deprecated_upload_vars if os.getenv(name)])
+found_deprecated = sorted(set(found_deprecated))
+if found_deprecated:
+    print("  ❌ Legacy R2 variables detected:")
+    for name in found_deprecated:
+        print(f"     - {name}")
+    print("  ❌ Startup will fail while any R2_* variables are present.")
+    print("  💡 Migrate to OBJECT_STORAGE_* keys (see docs/MIGRATION_R2_TO_MINIO.md).")
+    all_ok = False
+else:
+    print("  ✅ No deprecated R2_* variables found")
 
 # Check Ollama availability
 print("\n🤖 Ollama Status")

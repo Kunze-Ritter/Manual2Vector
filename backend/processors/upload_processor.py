@@ -15,6 +15,7 @@ from backend.core.base_processor import BaseProcessor, ProcessingContext, Proces
 from backend.core.data_models import DocumentModel, ProcessingQueueModel, ProcessingStatus, DocumentType
 import asyncpg
 from backend.processors.logger import get_logger
+from backend.services.database_adapter import DatabaseAdapter
 from .stage_tracker import StageTracker
 
 
@@ -31,7 +32,7 @@ class UploadProcessor(BaseProcessor):
     
     def __init__(
         self,
-        pool: asyncpg.Pool,
+        database_adapter: DatabaseAdapter,
         max_file_size_mb: int = 500,
         allowed_extensions: list = None
     ):
@@ -148,6 +149,15 @@ class UploadProcessor(BaseProcessor):
             document_id = str(existing_doc.get('id') or existing_doc.get('document_id'))
             with self.logger_context(stage=self.stage, document_id=document_id) as adapter:
                 adapter.info("Duplicate found - skipping reprocess")
+            
+            # Mark upload stage as skipped for duplicates
+            if self.stage_tracker is not None:
+                await self.stage_tracker.skip_stage(
+                    document_id=document_id,
+                    stage_name=self.stage,
+                    reason="Duplicate document detected"
+                )
+            
             return {
                 'success': True,
                 'document_id': document_id,
@@ -208,7 +218,7 @@ class UploadProcessor(BaseProcessor):
         try:
             queue_item = ProcessingQueueModel(
                 document_id=document_id,
-                processor_name=self.name,
+                processor_name=self.name,  # This will be mapped to task_type
                 status=ProcessingStatus.PENDING,
                 priority=5,
             )
@@ -340,9 +350,9 @@ class UploadProcessor(BaseProcessor):
 class BatchUploadProcessor:
     """Process multiple documents in batch"""
     
-    def __init__(self, pool: asyncpg.Pool, max_file_size_mb: int = 500):
+    def __init__(self, database_adapter: DatabaseAdapter, max_file_size_mb: int = 500):
         """Initialize batch processor"""
-        self.upload_processor = UploadProcessor(pool, max_file_size_mb)
+        self.upload_processor = UploadProcessor(database_adapter, max_file_size_mb)
         self.logger = get_logger()
 
     async def process_batch(

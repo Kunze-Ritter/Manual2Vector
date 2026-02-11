@@ -70,8 +70,7 @@ class ObjectStorageService:
         images_bucket_override = bucket_images or os.getenv('OBJECT_STORAGE_BUCKET_IMAGES')
         documents_bucket_name = (
             bucket_documents
-            or os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS')
-            or os.getenv('R2_BUCKET_NAME_DOCUMENTS', 'documents')
+            or os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS', 'documents')
         )
 
         if not images_bucket_override:
@@ -83,12 +82,10 @@ class ObjectStorageService:
         error_bucket = (
             bucket_error
             or os.getenv('OBJECT_STORAGE_BUCKET_ERROR')
-            or os.getenv('R2_BUCKET_NAME_ERROR')
         )
         parts_bucket = (
             bucket_parts
             or os.getenv('OBJECT_STORAGE_BUCKET_PARTS')
-            or os.getenv('R2_BUCKET_NAME_PARTS')
         )
 
         # Bucket configurations (only configure optional buckets when explicitly provided)
@@ -259,12 +256,13 @@ class ObjectStorageService:
                     'storage_path': storage_path,
                     'public_url': public_url,
                     'url': public_url,
+                    'presigned_url': None,
                     'file_hash': file_hash,
                     'size': len(content),
                     'content_type': self._get_content_type(filename),
                     'metadata': metadata or {}
                 }
-                
+
                 self.logger.info(f"Uploaded image {filename} to {bucket_type}/{storage_path} (mock)")
                 return result
             
@@ -280,7 +278,7 @@ class ObjectStorageService:
             duplicate = await self.check_duplicate(file_hash, bucket_type)
             if duplicate:
                 self.logger.info(f"Duplicate file found with hash {file_hash[:16]}...: {duplicate['key']}")
-                return {
+                dup_result = {
                     'success': True,
                     'file_hash': file_hash,
                     'storage_path': duplicate['key'],
@@ -288,6 +286,19 @@ class ObjectStorageService:
                     'bucket': duplicate['bucket'],
                     'is_duplicate': True
                 }
+                if self.client:
+                    try:
+                        presigned_expiry = int(os.getenv('OBJECT_STORAGE_PRESIGNED_EXPIRY_SECONDS', '3600'))
+                        dup_result['presigned_url'] = self.client.generate_presigned_url(
+                            'get_object',
+                            Params={'Bucket': duplicate['bucket'], 'Key': duplicate['key']},
+                            ExpiresIn=presigned_expiry
+                        )
+                    except Exception:
+                        dup_result['presigned_url'] = None
+                else:
+                    dup_result['presigned_url'] = None
+                return dup_result
             
             # Generate storage path
             storage_path = self._generate_storage_path(file_hash=file_hash, bucket_type=bucket_type)
@@ -318,6 +329,18 @@ class ObjectStorageService:
                 ContentType=self._get_content_type(filename),
                 Metadata=file_metadata
             )
+
+            # Generate presigned URL for download (MinIO, private buckets)
+            presigned_url = None
+            try:
+                presigned_expiry = int(os.getenv('OBJECT_STORAGE_PRESIGNED_EXPIRY_SECONDS', '3600'))
+                presigned_url = self.client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket_name, 'Key': storage_path},
+                    ExpiresIn=presigned_expiry
+                )
+            except Exception as presign_err:
+                self.logger.debug("Failed to generate presigned URL: %s", presign_err)
             
             # Generate public URL based on bucket type
             if bucket_type == 'document_images':
@@ -345,6 +368,7 @@ class ObjectStorageService:
                 'public_url': public_url,
                 'url': public_url,
                 'storage_url': public_url,
+                'presigned_url': presigned_url,
                 'file_hash': file_hash,
                 'is_duplicate': False,
                 'size': len(content),
@@ -681,50 +705,3 @@ class ObjectStorageService:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
-    @staticmethod
-    def from_env_vars() -> 'ObjectStorageService':
-        """
-        Create ObjectStorageService from environment variables with backward compatibility.
-        
-        Checks new OBJECT_STORAGE_* variables first, falls back to R2_* variables.
-        Logs deprecation warning if old variables are used.
-        
-        Returns:
-            Configured ObjectStorageService instance
-        """
-        logger = logging.getLogger("krai.storage")
-        
-        # Helper function to get env var with fallback and deprecation warning
-        def get_env_var(new_var: str, old_var: str, default: str = None) -> str:
-            value = os.getenv(new_var) or os.getenv(old_var) or default
-            if not os.getenv(new_var) and os.getenv(old_var):
-                logger.warning(f"Environment variable {old_var} is deprecated. Use {new_var} instead.")
-            return value
-        
-        # Get configuration with fallback
-        access_key = get_env_var('OBJECT_STORAGE_ACCESS_KEY', 'R2_ACCESS_KEY_ID')
-        secret_key = get_env_var('OBJECT_STORAGE_SECRET_KEY', 'R2_SECRET_ACCESS_KEY')
-        endpoint = get_env_var('OBJECT_STORAGE_ENDPOINT', 'R2_ENDPOINT_URL')
-        public_url_documents = get_env_var('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS', 'R2_PUBLIC_URL_DOCUMENTS', '')
-        public_url_error = get_env_var('OBJECT_STORAGE_PUBLIC_URL_ERROR', 'R2_PUBLIC_URL_ERROR', '')
-        public_url_parts = get_env_var('OBJECT_STORAGE_PUBLIC_URL_PARTS', 'R2_PUBLIC_URL_PARTS', '')
-        
-        use_ssl = get_env_var('OBJECT_STORAGE_USE_SSL', 'R2_USE_SSL', 'true').lower() == 'true'
-        region = get_env_var('OBJECT_STORAGE_REGION', 'R2_REGION', 'auto')
-        
-        if not all([access_key, secret_key, endpoint]):
-            raise ValueError(
-                "Missing required storage configuration. "
-                "Set OBJECT_STORAGE_ACCESS_KEY, OBJECT_STORAGE_SECRET_KEY, and OBJECT_STORAGE_ENDPOINT."
-            )
-        
-        return ObjectStorageService(
-            access_key_id=access_key,
-            secret_access_key=secret_key,
-            endpoint_url=endpoint,
-            public_url_documents=public_url_documents,
-            public_url_error=public_url_error,
-            public_url_parts=public_url_parts,
-            use_ssl=use_ssl,
-            region=region
-        )

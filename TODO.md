@@ -158,18 +158,18 @@
   - Removed forced DB-driven smart processing after Hardware Waker
 
 - [x] **Staging Snapshot Scripts: Add Missing Table Exports** ✅ (08:26)
-  - Added `krai_content.chunks` and `krai_intelligence.embeddings_v2` exports to `create_staging_snapshot.sh`
+  - Added `krai_content.chunks` and `krai_intelligence.embeddings_v2` (deprecated; actual storage: `krai_intelligence.chunks.embedding`) exports to `create_staging_snapshot.sh`
   - Updated `restore_staging_snapshot.sh` to restore new tables and update their sequences
   - Added foreign key validation for new tables in `validate_snapshot.py`
   - Updated manifest generation to include new table counts
   - **Files:** `scripts/create_staging_snapshot.sh`, `scripts/restore_staging_snapshot.sh`, `scripts/validate_snapshot.py`
-  - **Result:** Staging snapshots now include complete data (chunks and embeddings_v2)
+  - **Result:** Staging snapshots now include complete data (chunks and embeddings_v2, deprecated; actual storage in `krai_intelligence.chunks.embedding`)
 
 - [x] **PII Anonymization: Refactor to Work with Snapshot Files** ✅ (08:26)
   - Refactored `anonymize_pii.py` to load/anonymize CSV files instead of updating live database
   - Changed to in-memory processing: load from `--snapshot-dir`, anonymize, write to `--output-dir`
   - Removed all direct database UPDATE queries
-  - Added CSV-based anonymization for all table configs (documents, chunks, images, videos, links, embeddings_v2)
+  - Added CSV-based anonymization for all table configs (documents, chunks, images, videos, links, embeddings_v2; deprecated, actual storage in `krai_intelligence.chunks.embedding`)
   - **File:** `scripts/anonymize_pii.py`
   - **Result:** PII anonymization now works on snapshot files, not production database
 
@@ -3709,7 +3709,7 @@ Das **DatabaseAdapter-Removal-Projekt ist zu 100% erfolgreich abgeschlossen**! A
 **Features Added:** 2 (complete snapshot export, file-based PII anonymization)
 
 **Key Achievements:**
-1. ✅ Added missing table exports (krai_content.chunks, krai_intelligence.embeddings_v2) to snapshot scripts
+1. ✅ Added missing table exports (krai_content.chunks, krai_intelligence.embeddings_v2; deprecated, actual storage in `krai_intelligence.chunks.embedding`) to snapshot scripts
 2. ✅ Refactored PII anonymization to work with snapshot files instead of live database
 3. ✅ Added benchmark_documents table insert tracking for selected documents
 4. ✅ Standardized environment loading via scripts_env.py entry point

@@ -323,10 +323,12 @@ class TestRetryPolicyManager:
     @pytest.mark.asyncio
     async def test_get_policy_from_database_exact_match(self, mock_db_adapter, sample_retry_policy):
         """Test stage-specific policy retrieval from database"""
-        mock_db_adapter.fetch_one.return_value = sample_retry_policy
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=sample_retry_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             policy = await RetryPolicyManager.get_policy('firecrawl', 'image_processing')
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         assert policy.policy_name == 'test_policy'
         assert policy.service_name == 'firecrawl'
@@ -340,10 +342,12 @@ class TestRetryPolicyManager:
     @pytest.mark.asyncio
     async def test_get_policy_from_database_service_level(self, mock_db_adapter, service_level_policy):
         """Test service-level policy (stage=NULL) retrieval"""
-        mock_db_adapter.fetch_one.return_value = service_level_policy
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=service_level_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             policy = await RetryPolicyManager.get_policy('firecrawl', 'unknown_stage')
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         assert policy.policy_name == 'firecrawl_service_policy'
         assert policy.service_name == 'firecrawl'
@@ -353,10 +357,12 @@ class TestRetryPolicyManager:
     @pytest.mark.asyncio
     async def test_get_policy_fallback_to_default(self, mock_db_adapter):
         """Test fallback to code-level default when no database policy exists"""
-        mock_db_adapter.fetch_one.return_value = None
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=None)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             policy = await RetryPolicyManager.get_policy('firecrawl', 'unknown_stage')
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         # Should return firecrawl default
         assert policy.policy_name == 'firecrawl_default'
@@ -368,9 +374,9 @@ class TestRetryPolicyManager:
     @pytest.mark.asyncio
     async def test_get_policy_cache_expiration(self, mock_db_adapter, sample_retry_policy):
         """Test that cache expires after TTL"""
-        mock_db_adapter.fetch_one.return_value = sample_retry_policy
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=sample_retry_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             # First call - should query database
             policy1 = await RetryPolicyManager.get_policy('firecrawl', 'image_processing')
             assert mock_db_adapter.fetch_one.call_count == 1
@@ -385,14 +391,18 @@ class TestRetryPolicyManager:
             # Third call - should query database again
             policy3 = await RetryPolicyManager.get_policy('firecrawl', 'image_processing')
             assert mock_db_adapter.fetch_one.call_count == 2
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
     
     @pytest.mark.asyncio
     async def test_get_policy_database_error_fallback(self, mock_db_adapter):
         """Test graceful fallback when database is unavailable"""
-        mock_db_adapter.fetch_one.side_effect = Exception("Database connection failed")
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(side_effect=Exception("Database connection failed"))
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             policy = await RetryPolicyManager.get_policy('firecrawl')
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         # Should fallback to code-level default
         assert policy.policy_name == 'firecrawl_default'
@@ -407,8 +417,8 @@ class TestRetryPolicyManager:
             return sample_retry_policy
         
         mock_db_adapter.fetch_one = AsyncMock(side_effect=slow_fetch)
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             # Make concurrent requests for the same policy
             tasks = [
                 RetryPolicyManager.get_policy('firecrawl', 'image_processing')
@@ -416,6 +426,8 @@ class TestRetryPolicyManager:
             ]
             
             policies = await asyncio.gather(*tasks)
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         # All should return the same policy
         assert all(p.policy_name == 'test_policy' for p in policies)
@@ -432,15 +444,16 @@ class TestRetryPolicyManager:
         # Return different policies based on stage_name
         async def fetch_by_stage(*args, **kwargs):
             await asyncio.sleep(0.05)
-            stage = args[0][1] if len(args) > 0 else None
+            params = args[1] if len(args) > 1 else ()
+            stage = params[1] if len(params) > 1 else None
             if stage == 'image_processing':
                 return sample_retry_policy
             else:
                 return service_level_policy
         
         mock_db_adapter.fetch_one = AsyncMock(side_effect=fetch_by_stage)
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             # Make concurrent requests for different policies
             tasks = [
                 RetryPolicyManager.get_policy('firecrawl', 'image_processing'),
@@ -450,6 +463,8 @@ class TestRetryPolicyManager:
             ]
             
             policies = await asyncio.gather(*tasks)
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         # First two should be the same (image_processing)
         assert policies[0].policy_name == 'test_policy'
@@ -505,32 +520,31 @@ class TestRetryPolicyManager:
         assert len(RetryPolicyManager._cache) == 0
     
     @pytest.mark.asyncio
-    async def test_lazy_database_initialization(self, mock_db_adapter, sample_retry_policy):
-        """Test that database adapter is created on first use"""
-        # Ensure adapter is None initially
+    async def test_db_adapter_used_when_set(self, mock_db_adapter, sample_retry_policy):
+        """Test that get_policy uses db_adapter when set via set_db_adapter"""
         RetryPolicyManager._db_adapter = None
-        
-        mock_db_adapter.fetch_one.return_value = sample_retry_policy
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter) as mock_create:
-            # First call should initialize adapter
+        mock_db_adapter.fetch_one = AsyncMock(return_value=sample_retry_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
+            # First call should query database
             await RetryPolicyManager.get_policy('firecrawl')
-            assert mock_create.call_count == 1
-            
-            # Clear cache but keep adapter
+            assert mock_db_adapter.fetch_one.call_count == 1
             RetryPolicyManager.clear_cache()
-            
-            # Second call should reuse adapter
+            # Second call should query again (different service)
             await RetryPolicyManager.get_policy('database')
-            assert mock_create.call_count == 1  # No additional call
+            assert mock_db_adapter.fetch_one.call_count == 2
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
     
     @pytest.mark.asyncio
     async def test_get_policy_without_stage(self, mock_db_adapter, service_level_policy):
         """Test getting policy without specifying stage"""
-        mock_db_adapter.fetch_one.return_value = service_level_policy
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=service_level_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             policy = await RetryPolicyManager.get_policy('firecrawl')
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         assert policy.service_name == 'firecrawl'
         assert policy.stage_name is None
@@ -555,10 +569,12 @@ class TestRetryPolicyManager:
     @pytest.mark.asyncio
     async def test_database_query_parameters(self, mock_db_adapter, sample_retry_policy):
         """Test that database query receives correct parameters"""
-        mock_db_adapter.fetch_one.return_value = sample_retry_policy
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=sample_retry_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             await RetryPolicyManager.get_policy('firecrawl', 'image_processing')
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
         
         # Verify query parameters
         call_args = mock_db_adapter.fetch_one.call_args
@@ -567,9 +583,9 @@ class TestRetryPolicyManager:
     @pytest.mark.asyncio
     async def test_cache_key_format(self, mock_db_adapter, sample_retry_policy):
         """Test cache key format for different scenarios"""
-        mock_db_adapter.fetch_one.return_value = sample_retry_policy
-        
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=sample_retry_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
             # With stage
             await RetryPolicyManager.get_policy('firecrawl', 'image_processing')
             assert 'firecrawl:image_processing' in RetryPolicyManager._cache
@@ -578,6 +594,8 @@ class TestRetryPolicyManager:
             RetryPolicyManager.clear_cache()
             await RetryPolicyManager.get_policy('database')
             assert 'database:*' in RetryPolicyManager._cache
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
 
 
 # ============================================================================
@@ -590,21 +608,23 @@ class TestRetryEngineIntegration:
     @pytest.mark.asyncio
     async def test_error_classification_with_policy_lookup(self, mock_db_adapter, sample_retry_policy):
         """Test using error classification to determine retry behavior"""
-        mock_db_adapter.fetch_one.return_value = sample_retry_policy
-        
-        # Simulate a transient error
-        exception = httpx.TimeoutException("Request timed out")
-        classification = ErrorClassifier.classify(exception)
-        
-        assert classification.is_transient is True
-        
-        # Get retry policy for the service
-        with patch('backend.core.retry_engine.create_database_adapter', return_value=mock_db_adapter):
+        mock_db_adapter.fetch_one = AsyncMock(return_value=sample_retry_policy)
+        RetryPolicyManager.set_db_adapter(mock_db_adapter)
+        try:
+            # Simulate a transient error
+            exception = httpx.TimeoutException("Request timed out")
+            classification = ErrorClassifier.classify(exception)
+            
+            assert classification.is_transient is True
+            
+            # Get retry policy for the service
             policy = await RetryPolicyManager.get_policy('firecrawl', 'image_processing')
-        
-        # Should retry based on policy
-        assert policy.max_retries > 0
-        assert classification.is_transient is True
+            
+            # Should retry based on policy
+            assert policy.max_retries > 0
+            assert classification.is_transient is True
+        finally:
+            RetryPolicyManager.set_db_adapter(None)
     
     @pytest.mark.asyncio
     async def test_permanent_error_no_retry(self):
@@ -975,21 +995,27 @@ class TestRetryOrchestratorIntegration:
         mock_db_adapter,
         mock_error_logger
     ):
-        """Test mark_retry_exhausted updates database with resolution notes"""
-        mock_db_adapter.execute = AsyncMock()
+        """Test mark_retry_exhausted updates database with resolution notes via execute_query."""
+        mock_db_adapter.execute_query = AsyncMock()
         
         final_error = Exception("Final error message")
         result = await retry_orchestrator.mark_retry_exhausted('error_123', final_error)
         
         assert result is True
         
-        # Verify error status was updated to 'failed'
-        mock_error_logger.update_error_status.assert_called_with('error_123', 'failed')
+        # Verify error status was updated to 'failed' (next_retry_at=None)
+        mock_error_logger.update_error_status.assert_called_with('error_123', 'failed', None)
         
-        # Verify resolution notes were added
-        mock_db_adapter.execute.assert_called_once()
-        call_args = mock_db_adapter.execute.call_args
-        assert 'Max retries exceeded' in call_args[0][1]
+        # Verify resolution notes were persisted via adapter's execute_query (not execute)
+        mock_db_adapter.execute_query.assert_called_once()
+        call_args = mock_db_adapter.execute_query.call_args
+        query = call_args[0][0]
+        params = call_args[0][1]
+        assert 'UPDATE krai_system.pipeline_errors' in query
+        assert 'resolution_notes' in query
+        assert params[0] == 'error_123'
+        assert 'Max retries exceeded' in params[1]
+        assert 'Final error message' in params[1]
     
     @pytest.mark.asyncio
     async def test_update_error_status_delegates_to_error_logger(

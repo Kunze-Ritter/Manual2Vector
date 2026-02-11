@@ -126,6 +126,10 @@ class AuthService:
         self.max_login_attempts = 5
         self.lockout_duration = timedelta(minutes=15)
     
+    async def initialize(self):
+        """Initialize database connection"""
+        await self.db.connect()
+    
     def hash_password(self, password: str) -> str:
         """Hash password securely"""
         return self.pwd_context.hash(password)

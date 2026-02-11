@@ -75,7 +75,7 @@ def create_storage_service(
         OBJECT_STORAGE_BUCKET_ERROR: Error bucket name
         OBJECT_STORAGE_BUCKET_PARTS: Parts bucket name
         
-        # Note: R2 variables are no longer supported. Use OBJECT_STORAGE_* variables.
+        # Note: Only OBJECT_STORAGE_* variables are supported.
     """
     
     # Determine storage type from parameter or environment
@@ -132,9 +132,9 @@ def create_storage_service(
     bucket_images = (bucket_images or
                      get_env_var('OBJECT_STORAGE_BUCKET_IMAGES', 'images'))
     bucket_error = (bucket_error or 
-                    get_env_var('OBJECT_STORAGE_BUCKET_ERROR') or get_env_var('R2_BUCKET_NAME_ERROR'))
+                    get_env_var('OBJECT_STORAGE_BUCKET_ERROR'))
     bucket_parts = (bucket_parts or 
-                    get_env_var('OBJECT_STORAGE_BUCKET_PARTS') or get_env_var('R2_BUCKET_NAME_PARTS'))
+                    get_env_var('OBJECT_STORAGE_BUCKET_PARTS'))
 
     public_url_base = get_env_var('OBJECT_STORAGE_PUBLIC_URL', '').rstrip('/')
 

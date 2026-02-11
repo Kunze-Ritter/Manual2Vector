@@ -36,17 +36,38 @@ class PostgreSQLAdapter(DatabaseAdapter):
     """
     
     def __init__(self, postgres_url: str, schema_prefix: str = "krai"):
+        """Initialize PostgreSQL adapter with connection string."""
         super().__init__()
         self.postgres_url = postgres_url
         self.schema_prefix = schema_prefix
         self.pg_pool: Optional[asyncpg.Pool] = None
+        
+        # Schema names
+        self._core_schema = f"{schema_prefix}_core"
+        self._content_schema = f"{schema_prefix}_content"
+        self._intelligence_schema = f"{schema_prefix}_intelligence"
+        self._parts_schema = f"{schema_prefix}_parts"
+        self._system_schema = f"{schema_prefix}_system"
+        self._users_schema = f"{schema_prefix}_users"
+        
         self.logger = logging.getLogger("krai.database.postgresql")
-        self._core_schema = f"{self.schema_prefix}_core"
-        self._content_schema = f"{self.schema_prefix}_content"
-        self._intelligence_schema = f"{self.schema_prefix}_intelligence"
-        self._system_schema = f"{self.schema_prefix}_system"
-        self._parts_schema = f"{self.schema_prefix}_parts"
-
+        self.logger.info(f"PostgreSQLAdapter initialized with schema prefix: {schema_prefix}")
+    
+    async def initialize(self):
+        """Initialize database connection pool."""
+        try:
+            self.pg_pool = await asyncpg.create_pool(
+                self.postgres_url,
+                min_size=2,
+                max_size=10,
+                command_timeout=60
+            )
+            self.logger.info("PostgreSQL connection pool initialized")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to initialize PostgreSQL pool: {e}")
+            raise
+    
     def _ensure_pool(self) -> asyncpg.Pool:
         if self.pg_pool is None:
             raise RuntimeError("PostgreSQL connection pool is not initialized. Call connect() first.")
@@ -312,6 +333,37 @@ class PostgreSQLAdapter(DatabaseAdapter):
                 document_id
             )
             return [dict(row) for row in rows]
+
+    async def update_chunk(
+        self, chunk_id: str, content: str = None, metadata: Dict[str, Any] = None, char_count: int = None
+    ) -> bool:
+        """Update chunk content and/or metadata. Uses text_chunk or chunk_text depending on schema."""
+        if content is None and metadata is None:
+            return False
+        pool = self._ensure_pool()
+        set_parts = []
+        params = []
+        idx = 1
+        if content is not None:
+            set_parts.append(f"chunk_text = ${idx}")
+            params.append(content)
+            idx += 1
+        if metadata is not None:
+            set_parts.append(f"metadata = ${idx}::jsonb")
+            params.append(json.dumps(metadata, ensure_ascii=False))
+            idx += 1
+        set_parts.append("updated_at = NOW()")
+        params.append(chunk_id)
+        sql = (
+            f"UPDATE {self._intelligence_schema}.chunks "
+            f"SET {', '.join(set_parts)} WHERE id = ${idx}::uuid"
+        )
+        async with pool.acquire() as conn:
+            result = await conn.execute(sql, *params)
+            updated = result.upper().startswith("UPDATE")
+            if updated:
+                self.logger.info(f"Updated chunk {chunk_id}")
+            return updated
 
     async def insert_chunk(self, chunk_data: Dict[str, Any]) -> str:
         """Insert a text chunk into krai_intelligence.chunks.
@@ -851,6 +903,10 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.info(f"Created unified embedding {embedding_id} (type={source_type})")
             return str(embedding_id)
 
+    async def insert_table(self, table_data: Dict[str, Any]) -> str:
+        """Insert a table record."""
+        return await self.create_structured_table(table_data)
+
     async def create_structured_table(
         self,
         table_data: Dict[str, Any]
@@ -966,6 +1022,11 @@ class PostgreSQLAdapter(DatabaseAdapter):
     async def create_processing_queue_item(self, item: ProcessingQueueModel) -> str:
         pool = self._ensure_pool()
         item_data = item.model_dump(mode='python', exclude_none=True)
+        
+        # Map processor_name to task_type for database compatibility
+        if 'processor_name' in item_data:
+            item_data['task_type'] = item_data.pop('processor_name')
+        
         columns, placeholders, values = self._prepare_insert(item_data)
         sql = (
             f"INSERT INTO {self._system_schema}.processing_queue "
@@ -1104,6 +1165,71 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.info(f"Created link {link_id} ({link_data.get('link_type')})")
             return str(link_id)
 
+    async def insert_link(self, link_data: Dict[str, Any]) -> str:
+        """Insert a link record (alias for create_link)."""
+        return await self.create_link(link_data)
+
+    # Parts operations (krai_parts.parts_catalog)
+    async def insert_part(self, part_data: Dict[str, Any]) -> str:
+        """Insert a part record into krai_parts.parts_catalog."""
+        pool = self._ensure_pool()
+        record = {k: v for k, v in part_data.items() if v is not None and k in (
+            'manufacturer_id', 'part_number', 'part_name', 'part_description', 'part_category'
+        )}
+        columns, placeholders, values = self._prepare_insert(record)
+        sql = (
+            f"INSERT INTO {self._parts_schema}.parts_catalog "
+            f"({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING id"
+        )
+        async with pool.acquire() as conn:
+            part_id = await conn.fetchval(sql, *values)
+            self.logger.info(f"Inserted part {part_id} ({part_data.get('part_number')})")
+            return str(part_id)
+
+    async def create_part(self, part_data: Dict[str, Any]) -> str:
+        """Create a part record (alias for insert_part)."""
+        return await self.insert_part(part_data)
+
+    async def get_part_by_number(self, part_number: str) -> Optional[Dict[str, Any]]:
+        """Get a part by part number (any manufacturer)."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"SELECT * FROM {self._parts_schema}.parts_catalog WHERE part_number = $1 LIMIT 1",
+                part_number
+            )
+            return dict(row) if row else None
+
+    async def get_part_by_number_and_manufacturer(
+        self, part_number: str, manufacturer_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get a part by part number and manufacturer."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"SELECT * FROM {self._parts_schema}.parts_catalog "
+                f"WHERE part_number = $1 AND manufacturer_id = $2 LIMIT 1",
+                part_number, manufacturer_id
+            )
+            return dict(row) if row else None
+
+    async def update_part(self, part_id: str, part_data: Dict[str, Any]) -> bool:
+        """Update an existing part."""
+        pool = self._ensure_pool()
+        allowed = ('part_name', 'part_description', 'part_category')
+        updates = {k: v for k, v in part_data.items() if k in allowed and v is not None}
+        if not updates:
+            return True
+        n = len(updates)
+        set_clause = ', '.join(f"{k} = ${i+1}" for i, k in enumerate(updates))
+        values = list(updates.values()) + [part_id]
+        async with pool.acquire() as conn:
+            await conn.execute(
+                f"UPDATE {self._parts_schema}.parts_catalog SET {set_clause} WHERE id = ${n + 1}::uuid",
+                *values
+            )
+            return True
+
     async def create_video(self, video_data: Dict[str, Any]) -> str:
         pool = self._ensure_pool()
         columns = list(video_data.keys())
@@ -1175,7 +1301,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.error(f"Failed to execute RPC function {function_name}: {e}")
             return []
     
-    async def execute_rpc(self, function_name: str, params: Dict[str, Any] = None) -> None:
+    async def execute_rpc(self, function_name: str, params: Dict[str, Any] = None) -> Any:
         """Execute a PostgreSQL function for side effects (VOID-returning).
 
         Supports both fully-qualified names (e.g. "krai_core.start_stage") and
@@ -1458,9 +1584,8 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Start processing stage for a document"""
         try:
             result = await self.rpc('krai_core.start_stage', {
-                'document_id': document_id,
-                'stage': stage,
-                'metadata': metadata or {}
+                'p_document_id': document_id,
+                'p_stage_name': stage,
             })
             return result or {'success': True}
         except Exception as e:
@@ -1477,10 +1602,10 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Update progress for a processing stage"""
         try:
             result = await self.rpc('krai_core.update_stage_progress', {
-                'document_id': document_id,
-                'stage': stage,
-                'progress': progress,
-                'metadata': metadata or {}
+                'p_document_id': document_id,
+                'p_stage_name': stage,
+                'p_progress': progress,
+                'p_metadata': metadata or {}
             })
             return result or {'success': True}
         except Exception as e:
@@ -1496,9 +1621,9 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Mark a processing stage as completed"""
         try:
             result = await self.rpc('krai_core.complete_stage', {
-                'document_id': document_id,
-                'stage': stage,
-                'metadata': metadata or {}
+                'p_document_id': document_id,
+                'p_stage_name': stage,
+                'p_metadata': metadata or {}
             })
             return result or {'success': True}
         except Exception as e:
@@ -1515,10 +1640,10 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Mark a processing stage as failed"""
         try:
             result = await self.rpc('krai_core.fail_stage', {
-                'document_id': document_id,
-                'stage': stage,
-                'error': error,
-                'metadata': metadata or {}
+                'p_document_id': document_id,
+                'p_stage_name': stage,
+                'p_error': error,
+                'p_metadata': metadata or {}
             })
             return result or {'success': True}
         except Exception as e:
@@ -1535,10 +1660,9 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Skip a processing stage"""
         try:
             result = await self.rpc('krai_core.skip_stage', {
-                'document_id': document_id,
-                'stage': stage,
-                'reason': reason,
-                'metadata': metadata or {}
+                'p_document_id': document_id,
+                'p_stage_name': stage,
+                'p_reason': reason or '',
             })
             return result or {'success': True}
         except Exception as e:
@@ -1580,13 +1704,21 @@ class PostgreSQLAdapter(DatabaseAdapter):
             return False
     
     async def get_stage_status(self, document_id: str, stage: str) -> Dict[str, Any]:
-        """Get status for a specific stage"""
+        """Get status for a specific stage (from document stage_status JSON; no dedicated RPC)."""
         try:
-            result = await self.rpc('krai_core.get_stage_status', {
-                'document_id': document_id,
-                'stage': stage
-            })
-            return result or {}
+            row = await self.fetch_one(
+                f"SELECT stage_status FROM {self._core_schema}.documents WHERE id = :id",
+                {"id": document_id}
+            )
+            if row is None:
+                return {}
+            row_dict = dict(row)
+            stage_status = row_dict.get('stage_status')
+            if stage_status is None:
+                return {}
+            st = stage_status if isinstance(stage_status, dict) else {}
+            stage_data = st.get(stage)
+            return dict(stage_data) if isinstance(stage_data, dict) else {}
         except Exception as e:
             self.logger.error(f"Failed to get stage status: {e}")
             return {}

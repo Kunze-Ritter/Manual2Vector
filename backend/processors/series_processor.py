@@ -5,9 +5,10 @@ Detects and creates product series, links products to series.
 
 from typing import Dict, Optional
 
-from core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage
+from backend.utils.series_detector import detect_series
+
 from .imports import get_database_adapter
-from utils.series_detector import detect_series
 
 
 class SeriesProcessor(BaseProcessor):
@@ -157,10 +158,15 @@ class SeriesProcessor(BaseProcessor):
         }
     
     async def process(self, context) -> Dict:
-        """Async wrapper for BaseProcessor interface to process a single product."""
+        """Async wrapper for BaseProcessor interface to process a single product. No-ops when product_id is missing (e.g. document-level pipeline)."""
         product_id = getattr(context, "product_id", None)
         if not product_id:
-            raise ValueError("Processing context must include 'product_id'")
+            with self.logger_context(stage=self.stage) as adapter:
+                adapter.debug("Skipping series detection: no product_id in context (document-level pipeline)")
+            return self.create_success_result(
+                {"series_detected": False, "series_created": False, "product_linked": False},
+                metadata={"stage": self.stage.value, "skipped": "no product_id"}
+            )
 
         with self.logger_context(stage=self.stage, product_id=product_id) as adapter:
             result = await self.process_product(product_id)

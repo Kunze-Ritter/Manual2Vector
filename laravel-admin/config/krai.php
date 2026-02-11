@@ -206,6 +206,7 @@ return [
             'processor' => env('MONITORING_PROCESSOR_POLLING_INTERVAL', 30),
             'metrics' => env('MONITORING_METRICS_POLLING_INTERVAL', 60),
             'performance' => env('MONITORING_PERFORMANCE_POLLING_INTERVAL', 60),
+            'pipeline' => env('MONITORING_PIPELINE_POLLING_INTERVAL', 15),
         ],
     ],
 

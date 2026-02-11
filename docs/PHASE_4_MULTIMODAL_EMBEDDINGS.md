@@ -11,14 +11,14 @@ Phase 4 transforms the KRAI Engine from a text-only embedding system into a comp
 The new architecture introduces:
 - **Visual Embeddings**: ColQwen2.5-v0.2 for image understanding
 - **Table Extraction**: PyMuPDF for structured table detection
-- **Unified Storage**: `embeddings_v2` table for all content types
+- **Unified Storage**: `krai_intelligence.chunks.embedding` vector column for all content types
 - **Backward Compatibility**: Maintains `vw_chunks` table for existing systems
 
 ### Database Schema Changes
 
 #### New Tables
 
-1. **`krai_intelligence.embeddings_v2`** - Unified embedding storage
+1. **`krai_intelligence.chunks` with `embedding` column** - Unified embedding storage
    - `source_id`: References chunk_id, image_id, or table_id
    - `source_type`: 'text', 'image', or 'table'
    - `embedding`: pgvector (768-dim)
@@ -92,7 +92,7 @@ configs = {
   - Mean pooling to 768-dim for storage
   - GPU acceleration with CPU fallback
   - Batch processing for performance
-  - Integration with embeddings_v2 table
+  - Integration with the `krai_intelligence.chunks.embedding` column
 
 #### TableProcessor
 
@@ -110,10 +110,10 @@ configs = {
 ```python
 # backend/processors/embedding_processor.py
 class EmbeddingProcessor(BaseProcessor):
-    def __init__(self, ..., enable_embeddings_v2: bool = None):
+    def __init__(self, ..., enable_chunk_embeddings: bool = None):
         # ... existing init ...
-        self.enable_embeddings_v2 = (
-            enable_embeddings_v2 if enable_embeddings_v2 is not None 
+        self.enable_chunk_embeddings = (
+            enable_chunk_embeddings if enable_chunk_embeddings is not None 
             else os.getenv('ENABLE_EMBEDDINGS_V2', 'false').lower() == 'true'
         )
     
@@ -121,7 +121,7 @@ class EmbeddingProcessor(BaseProcessor):
         # ... existing text processing ...
         
         # NEW: Handle image and table embeddings
-        if self.enable_embeddings_v2:
+        if self.enable_chunk_embeddings:
             if hasattr(context, 'image_embeddings') and context.image_embeddings:
                 image_result = await self.store_embeddings_batch(context.image_embeddings)
             
@@ -129,7 +129,7 @@ class EmbeddingProcessor(BaseProcessor):
                 table_result = await self.store_embeddings_batch(context.table_embeddings)
     
     def _store_embedding_v2(self, source_id, source_type, embedding, ...):
-        # Store in embeddings_v2 table for unified search
+        # Store in the chunks.embedding column for unified search
 ```
 
 ### 5. Database Adapters Enhanced
@@ -142,12 +142,12 @@ async def create_embedding_v2(
     self, source_id: str, source_type: str, 
     embedding: List[float], model_name: str, ...
 ) -> str:
-    """Create embedding in embeddings_v2 table"""
+    """Create embedding in krai_intelligence.chunks.embedding column"""
 
-async def create_embeddings_v2_batch(
+async def create_chunk_embedding_batch(
     self, embeddings: List[Dict[str, Any]]
 ) -> List[str]:
-    """Batch create embeddings in embeddings_v2"""
+    """Batch create embeddings in krai_intelligence.chunks.embedding column"""
 
 async def create_structured_table(
     self, table_data: Dict[str, Any]
@@ -161,7 +161,7 @@ async def create_structured_table(
 async def create_embedding_v2(self, ...):
     """Create embedding via Supabase REST API"""
 
-async def create_embeddings_v2_batch(self, ...):
+async def create_chunk_embedding_batch(self, ...):
     """Batch create embeddings via Supabase"""
 
 async def create_structured_table(self, ...):
@@ -225,7 +225,7 @@ ENABLE_VISUAL_EMBEDDINGS=true
 ENABLE_TABLE_EXTRACTION=true
 TABLE_EXTRACTION_STRATEGY=lines
 
-# Multi-modal embeddings v2 table (unified storage)
+# Unified chunk embedding column storage (krai_intelligence.chunks.embedding)
 ENABLE_EMBEDDINGS_V2=false
 ```
 
@@ -237,7 +237,7 @@ ENABLE_EMBEDDINGS_V2=false
     'visual_embedding_model': os.getenv('AI_VISUAL_EMBEDDING_MODEL', 'Not set'),
     'visual_embeddings_enabled': os.getenv('ENABLE_VISUAL_EMBEDDINGS', 'false'),
     'table_extraction_enabled': os.getenv('ENABLE_TABLE_EXTRACTION', 'false'),
-    'embeddings_v2_enabled': os.getenv('ENABLE_EMBEDDINGS_V2', 'false'),
+    'chunk_embeddings_enabled': os.getenv('ENABLE_EMBEDDINGS_V2', 'false'),
 },
 ```
 
@@ -259,9 +259,9 @@ ENABLE_EMBEDDINGS_V2=false
 
 ### Phase 3: Production Rollout
 
-- Gradual enablement of embeddings_v2
+- Gradual enablement of writes to the chunks.embedding column
 - Monitor performance impact
-- Update search APIs to use embeddings_v2
+- Update search APIs to use the chunks.embedding column
 - Eventually deprecate vw_chunks for new embeddings
 
 ## Performance Considerations
@@ -270,7 +270,7 @@ ENABLE_EMBEDDINGS_V2=false
 
 - **GPU**: 4GB+ VRAM for ColQwen2.5
 - **RAM**: 16GB+ recommended for multi-modal processing
-- **Storage**: Additional space for embeddings_v2 table
+- **Storage**: Additional space for the chunks.embedding vector column
 
 ### Optimization Features
 
@@ -293,10 +293,10 @@ ENABLE_TABLE_EXTRACTION=true
 ### Search Across Content Types
 
 ```python
-# Query embeddings_v2 table for unified search
+# Query krai_intelligence.chunks table (embedding column) for unified search
 query = """
 SELECT e.*, d.filename 
-FROM krai_intelligence.embeddings_v2 e
+FROM krai_intelligence.chunks e
 JOIN krai_core.documents d ON e.metadata->>'document_id' = d.id
 WHERE e.source_type = ANY($1)
 ORDER BY e.embedding <=> $2::vector
@@ -330,7 +330,7 @@ ORDER BY page_number, table_index
    - Check PDF is not image-only
    - Try different `TABLE_EXTRACTION_STRATEGY` options
 
-3. **Embeddings_v2 Table Not Populated**
+3. **Chunk Embeddings Not Populated**
    - Verify `ENABLE_EMBEDDINGS_V2=true`
    - Check database permissions
    - Review processor logs for errors
@@ -340,13 +340,13 @@ ORDER BY page_number, table_index
 ```python
 # Check processor configuration
 status = embedding_processor.get_configuration_status()
-print(f"Embeddings v2 enabled: {status['embeddings_v2_enabled']}")
+print(f"Chunk embeddings enabled: {status['chunk_embeddings_enabled']}")
 
 # Verify database tables
 tables = await conn.fetch("""
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'krai_intelligence'
-AND table_name IN ('embeddings_v2', 'structured_tables')
+AND table_name IN ('chunks', 'structured_tables')
 """)
 ```
 

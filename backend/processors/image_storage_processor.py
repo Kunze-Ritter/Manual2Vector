@@ -68,24 +68,13 @@ class ImageStorageProcessor:
         self.db_client = database_adapter
         
         # Object Storage Configuration
-        self.access_key = (os.getenv('OBJECT_STORAGE_ACCESS_KEY') or 
-                          os.getenv('R2_ACCESS_KEY_ID'))
-        self.secret_key = (os.getenv('OBJECT_STORAGE_SECRET_KEY') or 
-                          os.getenv('R2_SECRET_ACCESS_KEY'))
-        self.endpoint_url = (os.getenv('OBJECT_STORAGE_ENDPOINT') or 
-                           os.getenv('R2_ENDPOINT_URL'))
-        self.bucket_name = (os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS') or 
-                           os.getenv('R2_BUCKET_NAME_DOCUMENTS'))
-        self.public_url = (os.getenv('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS') or 
-                         os.getenv('R2_PUBLIC_URL_DOCUMENTS'))
-        
-        # Log deprecation warnings if old variables are used
-        if not os.getenv('OBJECT_STORAGE_ACCESS_KEY') and os.getenv('R2_ACCESS_KEY_ID'):
-            self.logger.warning("R2_ACCESS_KEY_ID is deprecated. Use OBJECT_STORAGE_ACCESS_KEY instead.")
-        if not os.getenv('OBJECT_STORAGE_SECRET_KEY') and os.getenv('R2_SECRET_ACCESS_KEY'):
-            self.logger.warning("R2_SECRET_ACCESS_KEY is deprecated. Use OBJECT_STORAGE_SECRET_KEY instead.")
-        if not os.getenv('OBJECT_STORAGE_ENDPOINT') and os.getenv('R2_ENDPOINT_URL'):
-            self.logger.warning("R2_ENDPOINT_URL is deprecated. Use OBJECT_STORAGE_ENDPOINT instead.")
+        self.access_key = os.getenv('OBJECT_STORAGE_ACCESS_KEY')
+        self.secret_key = os.getenv('OBJECT_STORAGE_SECRET_KEY')
+        self.endpoint_url = os.getenv('OBJECT_STORAGE_ENDPOINT')
+        if not self.endpoint_url:
+            raise ValueError("OBJECT_STORAGE_ENDPOINT must be set in .env")
+        self.bucket_name = os.getenv('OBJECT_STORAGE_BUCKET_DOCUMENTS')
+        self.public_url = os.getenv('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS')
         
         # Initialize S3-compatible client
         self.storage_client = None

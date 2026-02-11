@@ -11,6 +11,7 @@ import sys
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from uuid import uuid4
 
 # Add backend to path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -249,9 +250,11 @@ async def upload_file(pipeline: KRMasterPipeline, file_path: str, document_type:
         upload_processor = UploadProcessor(database_adapter)
         
         # Create processing context
-        context = ProcessingContext()
-        context.file_path = file_path
-        context.document_type = document_type
+        context = ProcessingContext(
+            document_id=str(uuid4()),
+            file_path=file_path,
+            document_type=document_type
+        )
         
         # Process upload
         result = await upload_processor.process(context)
@@ -367,8 +370,12 @@ Examples:
     
     args = parser.parse_args()
     
-    # Initialize pipeline
-    pipeline = KRMasterPipeline()
+    # Initialize pipeline with database adapter
+    from backend.services.database_factory import create_database_adapter
+    database_adapter = create_database_adapter()
+    await database_adapter.initialize()
+    
+    pipeline = KRMasterPipeline(database_adapter=database_adapter)
     await pipeline.initialize_services()
     
     try:

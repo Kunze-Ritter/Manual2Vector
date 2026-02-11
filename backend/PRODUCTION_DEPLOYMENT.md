@@ -9,11 +9,19 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
-# Cloudflare R2 (Image Storage)
-R2_ACCESS_KEY_ID=your_r2_access_key
-R2_SECRET_ACCESS_KEY=your_r2_secret_key
-R2_ENDPOINT_URL=https://your-account.r2.cloudflarestorage.com
-R2_PUBLIC_URL_DOCUMENTS=https://your-r2-bucket.domain.com
+# Object Storage (MinIO / S3-compatible)
+OBJECT_STORAGE_TYPE=s3
+OBJECT_STORAGE_ENDPOINT=http://minio:9000
+OBJECT_STORAGE_ACCESS_KEY=minioadmin
+OBJECT_STORAGE_SECRET_KEY=minioadmin
+OBJECT_STORAGE_USE_SSL=false
+OBJECT_STORAGE_REGION=auto
+OBJECT_STORAGE_BUCKET_DOCUMENTS=documents
+OBJECT_STORAGE_BUCKET_ERROR=error-images
+OBJECT_STORAGE_BUCKET_PARTS=parts-images
+OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS=http://minio:9000/documents
+OBJECT_STORAGE_PUBLIC_URL_ERROR=http://minio:9000/error-images
+OBJECT_STORAGE_PUBLIC_URL_PARTS=http://minio:9000/parts-images
 
 # Ollama (AI Models)
 OLLAMA_URL=http://localhost:11434
@@ -28,6 +36,8 @@ API_PORT=8000
 API_WORKERS=4
 LOG_LEVEL=INFO
 ```
+
+> Migration note: legacy `R2_*` variables are no longer supported. The backend now fails startup if any `R2_*` or `UPLOAD_*_TO_R2` variables are present. Use only `OBJECT_STORAGE_*` keys and follow `docs/MIGRATION_R2_TO_MINIO.md`.
 
 ### **2. Database Migrations**
 ✅ **Run ALL migrations 01-34 in Supabase:**
@@ -51,10 +61,10 @@ LOG_LEVEL=INFO
 - ✅ Row Level Security (RLS) configured
 - ✅ Service role permissions granted
 
-**Cloudflare R2 (Object Storage):**
+**MinIO / S3-compatible Object Storage:**
 - ✅ Bucket created
 - ✅ Access keys generated
-- ✅ Public access configured (for images)
+- ✅ Endpoint reachable from backend
 
 **Ollama (AI Models):**
 - ✅ Ollama server running
@@ -290,10 +300,10 @@ curl -X POST http://localhost:8000/content/links/check/sync \
 - Point-in-time recovery
 - Export: Settings → Database → Backup
 
-### **R2 Storage Backups**
+### **Object Storage Backups (MinIO)**
 ```bash
-# Sync R2 to local backup
-rclone sync r2:your-bucket /backup/r2
+# Sync MinIO bucket to local backup
+rclone sync minio:documents /backup/minio-documents
 ```
 
 ---
@@ -344,10 +354,10 @@ ollama pull embeddinggemma
 - Verify IP whitelist in Supabase settings
 - Check RLS policies allow service_role access
 
-**3. R2 Upload Failed**
-- Verify R2 credentials
-- Check bucket permissions
-- Test with: `scripts/test_r2_connection.py`
+**3. Object Storage Upload Failed**
+- Verify `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY`
+- Check bucket names and access policy (`OBJECT_STORAGE_BUCKET_*`)
+- Remove any legacy `R2_*`/`UPLOAD_*_TO_R2` variables (backend startup fails if present)
 
 ---
 
@@ -356,7 +366,7 @@ ollama pull embeddinggemma
 - [ ] All migrations applied (01-34)
 - [ ] Environment variables configured
 - [ ] Supabase service_role permissions granted
-- [ ] R2 bucket created and accessible
+- [ ] Object storage buckets created and accessible
 - [ ] Ollama models pulled and running
 - [ ] HTTPS/SSL configured
 - [ ] Rate limiting enabled

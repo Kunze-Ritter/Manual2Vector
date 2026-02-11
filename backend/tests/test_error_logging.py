@@ -21,7 +21,7 @@ from typing import Dict, Any
 from backend.services.structured_logger import StructuredLogger
 from backend.services.error_logging_service import ErrorLogger
 from backend.core.base_processor import ProcessingContext
-from backend.core.retry_engine import ErrorClassification, ErrorCategory, RetryPolicy
+from backend.core.retry_engine import ErrorClassification
 
 
 # ============================================================================
@@ -125,13 +125,12 @@ def sample_processing_context():
 
 @pytest.fixture
 def sample_error_classification():
-    """Create a sample ErrorClassification for testing."""
+    """Create a sample ErrorClassification for testing (current API: is_transient, error_type, error_category, optional http_status_code)."""
     return ErrorClassification(
-        category=ErrorCategory.TRANSIENT,
         is_transient=True,
-        retry_policy=RetryPolicy.EXPONENTIAL_BACKOFF,
-        recommended_action="Retry with exponential backoff",
-        context={"reason": "Network timeout"}
+        error_type="ValueError",
+        error_category="transient",
+        http_status_code=None
     )
 
 
@@ -587,11 +586,10 @@ class TestErrorLogger:
     ):
         """Test logging error with transient classification."""
         classification = ErrorClassification(
-            category=ErrorCategory.TRANSIENT,
             is_transient=True,
-            retry_policy=RetryPolicy.EXPONENTIAL_BACKOFF,
-            recommended_action="Retry",
-            context={}
+            error_type="ValueError",
+            error_category="transient",
+            http_status_code=None
         )
         
         await error_logger.log_error(
@@ -621,11 +619,10 @@ class TestErrorLogger:
     ):
         """Test logging error with permanent classification."""
         classification = ErrorClassification(
-            category=ErrorCategory.PERMANENT,
             is_transient=False,
-            retry_policy=None,
-            recommended_action="Manual intervention required",
-            context={}
+            error_type="ValueError",
+            error_category="permanent",
+            http_status_code=None
         )
         
         await error_logger.log_error(
@@ -644,6 +641,30 @@ class TestErrorLogger:
         assert params[11] is False
         # error_category should be "permanent"
         assert params[4] == "permanent"
+
+    @pytest.mark.asyncio
+    async def test_stage_name_normalized_from_correlation_id(
+        self,
+        error_logger,
+        mock_db_adapter,
+        sample_processing_context,
+        sample_error,
+        sample_error_classification
+    ):
+        """Regression: stage_name becomes 'embedding' for correlation_id req_x.stage_embedding.retry_1 (strip 'stage_' prefix)."""
+        await error_logger.log_error(
+            context=sample_processing_context,
+            error=sample_error,
+            classification=sample_error_classification,
+            retry_count=1,
+            max_retries=3,
+            correlation_id="req_x.stage_embedding.retry_1",
+            stage_name=None
+        )
+        call_args = mock_db_adapter.execute_query.call_args
+        params = call_args[0][1]
+        # stage_name is 3rd column (index 2) in INSERT
+        assert params[2] == "embedding"
     
     @pytest.mark.asyncio
     async def test_concurrent_error_logging(
@@ -778,14 +799,11 @@ class TestErrorLoggingIntegration:
         sample_processing_context,
         sample_error
     ):
-        """Test integration with ErrorClassifier."""
+        """Test integration with ErrorClassifier (classify(exception) API)."""
         from backend.core.retry_engine import ErrorClassifier
         
-        # Create classifier
-        classifier = ErrorClassifier()
-        
-        # Classify the error
-        classification = classifier.classify_error(sample_error, "embedding")
+        # Classify the error using current API
+        classification = ErrorClassifier.classify(sample_error)
         
         # Create error logger
         mock_db = AsyncMock()

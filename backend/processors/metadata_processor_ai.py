@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 from pathlib import Path
 
 from backend.core.base_processor import BaseProcessor, Stage, ProcessingError
+from backend.core.data_models import ErrorCodeModel
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
 
@@ -170,64 +171,88 @@ class MetadataProcessorAI(BaseProcessor):
         manufacturer: str,
         adapter
     ) -> int:
-        """Save error codes to database"""
+        """Save error codes to database via DatabaseAdapter or Supabase client. Fails or logs when neither is available."""
         if not self.database_service:
+            adapter.error("Cannot save error codes: no database_service available")
             return 0
-        
+
+        has_adapter = hasattr(self.database_service, 'create_error_code')
+        has_client = hasattr(self.database_service, 'client') and self.database_service.client is not None
+
+        if not has_adapter and not has_client:
+            adapter.error(
+                "Cannot save error codes: neither DatabaseAdapter (create_error_code) nor Supabase client available"
+            )
+            return 0
+
         saved_count = 0
-        
         for error_code in error_codes:
             try:
-                # Prepare error code data
-                code_value = getattr(error_code, 'error_code', None)
+                code_value = getattr(error_code, 'error_code', None) or ''
+                page_num = getattr(error_code, 'page_number', None)
+                page_num = page_num if page_num is not None else 1
 
-                error_data = {
-                    # Core identifiers
-                    'document_id': str(document_id),
-                    'error_code': code_value,
-                    'error_description': getattr(error_code, 'error_description', None),
-                    'solution_text': getattr(error_code, 'solution_text', None),
-                    'page_number': getattr(error_code, 'page_number', None),
-                    # Quality and extraction metadata
-                    'confidence_score': getattr(error_code, 'confidence', None),
-                    'extraction_method': getattr(error_code, 'extraction_method', None),
-                    'requires_technician': getattr(error_code, 'requires_technician', False),
-                    'requires_parts': getattr(error_code, 'requires_parts', False),
-                    'severity_level': getattr(error_code, 'severity_level', None),
-                    'context_text': getattr(error_code, 'context_text', None),
-                    # Optional relational fields aligned with krai_intelligence.error_codes
-                    'chunk_id': getattr(error_code, 'chunk_id', None),
-                    'product_id': getattr(error_code, 'product_id', None),
-                    'video_id': getattr(error_code, 'video_id', None),
-                }
-                
-                # Insert into database
-                if hasattr(self.database_service, 'client'):
+                if has_adapter:
+                    model = ErrorCodeModel(
+                        document_id=str(document_id),
+                        error_code=str(code_value),
+                        error_description=getattr(error_code, 'error_description', None) or 'No description available',
+                        solution_text=getattr(error_code, 'solution_text', None) or 'Refer to service manual',
+                        page_number=int(page_num),
+                        confidence_score=float(getattr(error_code, 'confidence', 0) or 0),
+                        extraction_method=getattr(error_code, 'extraction_method', None) or 'pattern',
+                        requires_technician=bool(getattr(error_code, 'requires_technician', False)),
+                        requires_parts=bool(getattr(error_code, 'requires_parts', False)),
+                        severity_level=str(getattr(error_code, 'severity_level', None) or 'low'),
+                    )
+                    await self.database_service.create_error_code(model)
+                    saved_count += 1
+                elif has_client:
+                    error_data = {
+                        'document_id': str(document_id),
+                        'error_code': code_value,
+                        'error_description': getattr(error_code, 'error_description', None),
+                        'solution_text': getattr(error_code, 'solution_text', None),
+                        'page_number': page_num,
+                        'confidence_score': getattr(error_code, 'confidence', None),
+                        'extraction_method': getattr(error_code, 'extraction_method', None),
+                        'requires_technician': getattr(error_code, 'requires_technician', False),
+                        'requires_parts': getattr(error_code, 'requires_parts', False),
+                        'severity_level': getattr(error_code, 'severity_level', None),
+                        'chunk_id': getattr(error_code, 'chunk_id', None),
+                        'product_id': getattr(error_code, 'product_id', None),
+                        'video_id': getattr(error_code, 'video_id', None),
+                    }
                     result = self.database_service.client.table('error_codes').insert(error_data).execute()
                     if result.data:
                         saved_count += 1
-                        
             except Exception as e:
                 adapter.warning("Failed to save error code %s: %s", getattr(error_code, 'error_code', None), e)
-        
+
         return saved_count
     
     async def _update_document_version(self, document_id: str, version_info: str, adapter):
-        """Update document with version information"""
+        """Update document with version information via DatabaseAdapter or Supabase client. Fails or logs when neither is available."""
         if not self.database_service:
+            adapter.error("Cannot update document version: no database_service available")
             return
-        
+
+        has_adapter = hasattr(self.database_service, 'update_document')
+        has_client = hasattr(self.database_service, 'client') and self.database_service.client is not None
+
+        if not has_adapter and not has_client:
+            adapter.error(
+                "Cannot update document version: neither DatabaseAdapter (update_document) nor Supabase client available"
+            )
+            return
+
         try:
-            if hasattr(self.database_service, 'update_document'):
-                await self.database_service.update_document(
-                    document_id,
+            if has_adapter:
+                await self.database_service.update_document(document_id, {'version': version_info})
+            else:
+                self.database_service.client.table('documents').update(
                     {'version': version_info}
-                )
-            elif hasattr(self.database_service, 'client'):
-                self.database_service.client.table('documents').update({
-                    'version': version_info
-                }).eq('id', document_id).execute()
-            
+                ).eq('id', document_id).execute()
             adapter.info("Updated document version: %s", version_info)
         except Exception as e:
             adapter.warning("Failed to update document version: %s", e)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import time
 
 from backend.core.base_processor import BaseProcessor, Stage
@@ -106,27 +106,22 @@ class SearchProcessor(BaseProcessor):
     async def _update_document_flags(self, document_id: str, embeddings_ready: bool, adapter=None) -> None:
         """Update document level flags to signal search readiness."""
         try:
-            update_payload: Dict[str, Any] = {
-                "search_ready": embeddings_ready,
-                "search_ready_at": "now()" if embeddings_ready else None
-            }
+            # search_ready: bound parameter
+            # search_ready_at: use SQL NOW() when embeddings exist (not a bound string literal)
+            set_clauses: List[str] = []
+            params: List[Any] = []
+            param_index = 1
 
-            # Remove None values to avoid overwriting with NULL
-            update_payload = {k: v for k, v in update_payload.items() if v is not None}
+            set_clauses.append(f"search_ready = ${param_index}")
+            params.append(embeddings_ready)
+            param_index += 1
 
-            if update_payload:
-                # Build UPDATE query
-                set_clauses = []
-                params = []
-                param_index = 1
-                
-                for key, value in update_payload.items():
-                    set_clauses.append(f"{key} = ${param_index}")
-                    params.append(value)
-                    param_index += 1
-                
-                params.append(document_id)  # WHERE clause parameter
-                
+            if embeddings_ready:
+                # Use SQL function NOW() in SET clause - no bound parameter
+                set_clauses.append("search_ready_at = NOW()")
+
+            if set_clauses:
+                params.append(document_id)
                 query = f"UPDATE vw_documents SET {', '.join(set_clauses)} WHERE id = ${param_index}"
                 await self.database_adapter.execute_query(query, params)
                 

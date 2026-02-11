@@ -55,14 +55,10 @@ ALLOWED_BUCKETS = {
 
 
 def _infer_bucket_type_from_url(storage_url: Optional[str]) -> str:
-    """Helper function to get public URL with backward compatibility."""
+    """Helper function to get public URL."""
     def get_public_url(bucket_type: str) -> str:
-        new_var = f"OBJECT_STORAGE_PUBLIC_URL_{bucket_type.upper()}"
-        old_var = f"R2_PUBLIC_URL_{bucket_type.upper()}"
-        url = os.getenv(new_var) or os.getenv(old_var, "")
-        if not os.getenv(new_var) and os.getenv(old_var):
-            LOGGER.warning(f"{old_var} is deprecated. Use {new_var}.")
-        return url
+        var_name = f"OBJECT_STORAGE_PUBLIC_URL_{bucket_type.upper()}"
+        return os.getenv(var_name, "")
     
     public_documents = get_public_url("documents")
     public_error = get_public_url("error")
@@ -455,7 +451,6 @@ async def update_image(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Image not found", "IMAGE_NOT_FOUND"),
             )
-
         existing_dict = dict(existing)
         update_payload = payload.model_dump(exclude_unset=True, exclude_none=True)
         if not update_payload:
@@ -532,6 +527,7 @@ async def delete_image(
                 status.HTTP_404_NOT_FOUND,
                 detail=_error_response("Not Found", "Image not found", "IMAGE_NOT_FOUND"),
             )
+        existing_dict = dict(existing)
 
         storage_deleted = False
         async with pool.acquire() as conn:
@@ -545,7 +541,7 @@ async def delete_image(
             record_id=image_id,
             operation="DELETE",
             changed_by=current_user.get("id"),
-            old_values=dict(existing),
+            old_values=existing_dict,
         )
 
         if delete_from_storage:
@@ -553,18 +549,9 @@ async def delete_image(
 
             try:
                 await storage_service.connect()
-                storage_url = (existing[0].get("storage_url") or "") if existing else ""
-                storage_path = existing[0].get("storage_path") if existing else None
-
-                bucket_type = "document_images"
-
-                public_error = os.getenv("OBJECT_STORAGE_PUBLIC_URL_ERROR") or os.getenv("R2_PUBLIC_URL_ERROR", "")
-                public_parts = os.getenv("OBJECT_STORAGE_PUBLIC_URL_PARTS") or os.getenv("R2_PUBLIC_URL_PARTS", "")
-
-                if storage_url and public_error and storage_url.startswith(public_error):
-                    bucket_type = "error_images"
-                elif storage_url and public_parts and storage_url.startswith(public_parts):
-                    bucket_type = "parts_images"
+                storage_url = existing_dict.get("storage_url", "") or ""
+                storage_path = existing_dict.get("storage_path")
+                bucket_type = _infer_bucket_type_from_url(storage_url)
 
                 if storage_path:
                     try:
@@ -765,9 +752,9 @@ async def download_image(
         bucket_type = _infer_bucket_type_from_url(storage_url)
 
         if not storage_path and storage_url:
-            public_documents = os.getenv("OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS") or os.getenv("R2_PUBLIC_URL_DOCUMENTS", "")
-            public_error = os.getenv("OBJECT_STORAGE_PUBLIC_URL_ERROR") or os.getenv("R2_PUBLIC_URL_ERROR", "")
-            public_parts = os.getenv("OBJECT_STORAGE_PUBLIC_URL_PARTS") or os.getenv("R2_PUBLIC_URL_PARTS", "")
+            public_documents = os.getenv("OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS", "")
+            public_error = os.getenv("OBJECT_STORAGE_PUBLIC_URL_ERROR", "")
+            public_parts = os.getenv("OBJECT_STORAGE_PUBLIC_URL_PARTS", "")
 
             prefix = ""
             if public_documents and storage_url.startswith(public_documents):

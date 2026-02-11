@@ -56,6 +56,7 @@ class PipelineErrorResource extends Resource
     {
         return [
             'index' => Pages\ListPipelineErrors::route('/'),
+            'view' => Pages\ViewPipelineError::route('/{record}'),
         ];
     }
 

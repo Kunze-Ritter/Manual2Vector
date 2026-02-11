@@ -4,7 +4,7 @@ Comprehensive tests for the semantic search stages:
 
 - **EmbeddingProcessor** – generates 768‑dimensional embeddings via an
   Ollama‑style interface, writes to legacy `vw_chunks` and
-  `embeddings_v2`, supports adaptive batching and similarity search.
+  `krai_intelligence.chunks.embedding`, supports adaptive batching and similarity search.
 - **SearchProcessor** – finalises search indexing by counting records in
   `vw_chunks`, `vw_embeddings`, `vw_links`, `vw_videos`, updating
   document flags, and logging analytics.
@@ -27,7 +27,7 @@ Ollama or PostgreSQL connection is required**.
   test‑only subclass that writes directly into `MockDatabaseAdapter`
   stores instead of Supabase. Verifies that:
   - all chunks in a small batch get embedded,
-  - adapter‑side counts (`chunks`, `embeddings_v2`, `legacy_embeddings`)
+  - adapter‑side counts (`chunks`, `krai_intelligence.chunks.embedding`, `legacy_embeddings`)
     line up with the reported `embeddings_created`,
   - partial failures are surfaced via `partial_success` and
     `failed_chunks`.
@@ -68,7 +68,7 @@ Ollama or PostgreSQL connection is required**.
 - **`test_embedding_storage_integration.py`**  
   Integration-style tests that ensure consistency between legacy
   chunk-based embeddings (`chunks`/`legacy_embeddings`) and the new
-  `embeddings_v2` storage, including similarity-search behaviour via
+  `krai_intelligence.chunks.embedding` storage, including similarity-search behaviour via
   the `MockDatabaseAdapter` helpers.
 
 > **Legacy manual tests**: The file
@@ -146,7 +146,7 @@ Wichtige Fixtures aus `tests/processors/conftest.py` für diese Suite:
 - **`mock_database_adapter`**  
   In‑Memory‑Implementierung von `DatabaseAdapter` mit Stores für
   `documents`, `chunks`, `links`, `videos`, `structured_tables`,
-  `embeddings_v2`, `legacy_embeddings` u.a. Bietet Helper wie
+  `krai_intelligence.chunks.embedding`, `legacy_embeddings` u.a. Bietet Helper wie
   `count_chunks_by_document`, `count_embeddings_by_document` und
   `get_document_search_status`.
 

@@ -70,11 +70,11 @@ def get_env_summary() -> dict:
             'has_service_key': bool(os.getenv('DATABASE_SERVICE_KEY')),
         },
         'storage': {
-            'configured': bool(os.getenv('OBJECT_STORAGE_ACCESS_KEY') or os.getenv('R2_ACCESS_KEY_ID')),
-            'type': os.getenv('OBJECT_STORAGE_TYPE', 'r2'),
-            'endpoint': os.getenv('OBJECT_STORAGE_ENDPOINT') or os.getenv('R2_ENDPOINT_URL', 'Not set'),
-            'upload_images': os.getenv('UPLOAD_IMAGES_TO_STORAGE') or os.getenv('UPLOAD_IMAGES_TO_R2', 'false'),
-            'upload_documents': os.getenv('UPLOAD_DOCUMENTS_TO_STORAGE') or os.getenv('UPLOAD_DOCUMENTS_TO_R2', 'false'),
+            'configured': bool(os.getenv('OBJECT_STORAGE_ACCESS_KEY')),
+            'type': os.getenv('OBJECT_STORAGE_TYPE', 's3'),
+            'endpoint': os.getenv('OBJECT_STORAGE_ENDPOINT', 'Not set'),
+            'upload_images': os.getenv('UPLOAD_IMAGES_TO_STORAGE', 'false'),
+            'upload_documents': os.getenv('UPLOAD_DOCUMENTS_TO_STORAGE', 'false'),
         },
         'ai': {
             'ollama_url': os.getenv('OLLAMA_URL', 'Not set'),

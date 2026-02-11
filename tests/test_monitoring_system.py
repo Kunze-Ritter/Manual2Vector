@@ -612,15 +612,15 @@ def mock_database_adapter():
             self.queries_executed.append((query, params))
             if "alert_configurations" in query and "SELECT" in query:
                 return self.query_results.get("alert_configurations", [])
-            elif "alert_queue" in query and "SELECT" in query and "aggregation_key" in query:
+            elif "alerts" in query and "SELECT" in query and "aggregation_key" in query:
                 return self.query_results.get("existing_alert", [])
-            elif "alert_queue" in query and "INSERT" in query:
+            elif "alerts" in query and "INSERT" in query:
                 return self.query_results.get("insert_alert", [{"id": "alert-123"}])
-            elif "alert_queue" in query and "UPDATE" in query:
+            elif "alerts" in query and "UPDATE" in query:
                 result = Mock()
                 result.rowcount = 1
                 return result
-            elif "alert_queue" in query and "COUNT" in query:
+            elif "alerts" in query and "COUNT" in query:
                 return self.query_results.get("count_result", [{"count": 0}])
             return []
         

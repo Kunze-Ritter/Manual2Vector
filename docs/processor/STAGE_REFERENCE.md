@@ -397,14 +397,14 @@ Generate vector embeddings for extracted images to enable visual similarity sear
 
 ### Database Operations
 ```sql
-INSERT INTO krai_intelligence.embeddings_v2 (
-    id, document_id, content_type, content_id,
-    embedding_vector, embedding_model,
-    embedding_dimensions, created_at
+INSERT INTO krai_intelligence.chunks (
+    id, document_id, source_type, source_id,
+    embedding, model_name,
+    created_at
 ) VALUES (
     uuid, document_id, 'image', image_id,
     embedding_vector, 'clip-vit-base-patch32',
-    512, now()
+    now()
 );
 ```
 
@@ -936,14 +936,14 @@ Generate vector embeddings for text chunks to enable semantic search and similar
 
 ### Database Operations
 ```sql
-INSERT INTO krai_intelligence.embeddings_v2 (
-    id, document_id, content_type, content_id,
-    embedding_vector, embedding_model,
-    embedding_dimensions, created_at
+INSERT INTO krai_intelligence.chunks (
+    id, document_id, source_type, source_id,
+    embedding, model_name,
+    created_at
 ) VALUES (
-    uuid, document_id, 'chunk', chunk_id,
+    uuid, document_id, 'text', chunk_id,
     embedding_vector, 'nomic-embed-text',
-    768, now()
+    now()
 );
 ```
 
@@ -1007,9 +1007,9 @@ UPDATE krai_intelligence.chunks SET
 WHERE document_id = document_id;
 
 -- Update pgvector indexes
-CREATE INDEX IF NOT EXISTS idx_embeddings_v2_vector 
-ON krai_intelligence.embeddings_v2 
-USING ivfflat (embedding_vector vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_chunks_embedding_vector 
+ON krai_intelligence.chunks 
+USING ivfflat (embedding vector_cosine_ops);
 
 -- Mark document as fully processed
 UPDATE krai_core.documents SET

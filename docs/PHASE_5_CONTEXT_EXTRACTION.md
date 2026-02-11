@@ -158,7 +158,7 @@ Context embeddings are generated after main embeddings:
 
 ```python
 # In embedding_processor.py
-if self.enable_context_embeddings and self.enable_embeddings_v2:
+if self.enable_context_embeddings and self.enable_chunk_embeddings:
     context_embeddings_created = self._generate_context_embeddings(
         document_id=document_id,
         adapter=adapter
@@ -253,7 +253,7 @@ def _generate_context_embeddings(self, document_id: UUID, adapter) -> int:
 
 ### Embedding Storage
 
-Context embeddings are stored in the `embeddings_v2` table with `source_type='context'`:
+Context embeddings are stored in the `embedding` column of the `krai_intelligence.chunks` table with `source_type='context'`:
 
 ```python
 embedding_data = {

@@ -9,11 +9,26 @@
 - 20GB+ free disk space
 
 ### One-Command Deployment
+
+#### CPU-Only Deployment
 ```bash
 git clone <repository-url>
 cd KRAI-minimal
 docker-compose -f docker-compose.production.yml up -d --build
 ```
+
+#### GPU-Accelerated Deployment (Recommended)
+```bash
+git clone <repository-url>
+cd KRAI-minimal
+docker-compose -f docker-compose.cuda.yml up -d --build
+```
+
+**GPU Benefits:**
+- 3-5x faster text processing
+- 10x faster embeddings generation
+- Real-time vision model processing
+- Support for larger models with 8GB+ VRAM
 
 ## 📋 Services Overview
 
@@ -54,7 +69,18 @@ LOG_LEVEL=INFO
 
 > **⚠️ IMPORTANT - PostgreSQL-Only Architecture:** This deployment uses PostgreSQL + MinIO for local-first architecture. **Migration from Supabase completed in November 2024 (KRAI-002).** Legacy Supabase and Cloudflare R2 configurations are deprecated and no longer supported. For legacy users migrating from Supabase, see `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` for complete migration guidance.
 
-> **Dashboard Interface:** KRAI uses **Laravel/Filament** as the sole dashboard interface, accessible at http://localhost:80. The dashboard provides visual pipeline management, document processing control, and real-time monitoring capabilities.
+> **Dashboard Interface:** KRAI uses **Laravel/Filament** as the sole dashboard interface, accessible at http://localhost:80. The dashboard provides visual pipeline management, document processing control, and real-time monitoring capabilities. See [Laravel Dashboard Deployment](#laravel-dashboard-deployment) and [docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md](docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md) for operations and troubleshooting.
+
+### Laravel Dashboard Deployment
+
+- **URL:** http://localhost:80 (or your configured host/port).
+- **Environment variables** (in Laravel `.env`, often via root `.env` or `laravel-admin/.env`):
+  - `KRAI_ENGINE_URL` – Backend API base URL (e.g. `http://krai-engine:8000`).
+  - `KRAI_SERVICE_JWT` or `KRAI_ENGINE_SERVICE_JWT` – JWT for authenticated API calls; optional if auto-login is used.
+  - `KRAI_ENGINE_ADMIN_USERNAME` / `KRAI_ENGINE_ADMIN_PASSWORD` – Optional; used for JWT auto-login when no service JWT is set.
+  - `MONITORING_BASE_URL` – Optional override for monitoring API base URL (defaults to engine URL).
+- **Health check:** Ensure Laravel container is up and the dashboard is reachable: `curl -s -o NUL -w "%{http_code}" http://localhost:80` (expect 200 or 302). Login and pipeline/processor/error pages should load without backend connection errors when the engine is running.
+- **Verification and operations:** See [VERIFICATION_REPORT_LARAVEL_DASHBOARD.md](VERIFICATION_REPORT_LARAVEL_DASHBOARD.md) and [docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md](docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md).
 
 ### Default Credentials
 - **MinIO Console:** See `OBJECT_STORAGE_ACCESS_KEY` / `OBJECT_STORAGE_SECRET_KEY` in `.env`

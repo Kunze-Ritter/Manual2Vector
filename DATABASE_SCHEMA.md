@@ -438,18 +438,10 @@
 | `page_label_start` | character varying(20) | YES | - |
 | `page_label_end` | character varying(20) | YES | - |
 
-### krai_intelligence.embeddings_v2
+### Embeddings Storage (Kein separates Embeddings-Table)
 
-| Spalte | Typ | Nullable | Default |
-|--------|-----|----------|---------|
-| `id` | uuid | NO | extensions.uuid_generate_v4() |
-| `source_id` | uuid | NO | - |
-| `source_type` | character varying(20) | NO | - |
-| `embedding` | vector | NO | - |
-| `model_name` | character varying(100) | NO | - |
-| `embedding_context` | text | YES | - |
-| `metadata` | jsonb | YES | '{}'::jsonb |
-| `created_at` | timestamptz | YES | now() |
+Embeddings werden in `krai_intelligence.chunks.embedding` gespeichert.
+Ein geplantes separates Embeddings-Table wurde nie implementiert.
 
 ### krai_intelligence.error_code_images
 

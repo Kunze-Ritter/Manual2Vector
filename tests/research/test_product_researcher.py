@@ -203,7 +203,7 @@ def test_research_integration_stats(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setenv("SCRAPING_BACKEND", "firecrawl")
 
-    integration = ResearchIntegration(supabase=MagicMock(), enabled=True, config_service=MagicMock())
+    integration = ResearchIntegration(enabled=True, config_service=MagicMock())
 
     stats = integration.get_scraping_stats()
 
@@ -213,7 +213,7 @@ def test_research_integration_stats(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_research_integration_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    integration = ResearchIntegration(supabase=MagicMock(), enabled=False, config_service=MagicMock())
+    integration = ResearchIntegration(enabled=False, config_service=MagicMock())
 
     stats = integration.get_scraping_stats()
 

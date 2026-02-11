@@ -122,6 +122,9 @@ class EmbeddingProcessor(BaseProcessor):
         default_state_dir.mkdir(parents=True, exist_ok=True)
         self.batch_state_path = Path(state_path_env) if state_path_env else default_state_dir / 'embedding_batch_state.json'
         self._batch_latency_window: deque = deque(maxlen=50)
+        self._consecutive_error_batches = 0
+        self._consecutive_successful_batches = 0
+        self._error_recovery_threshold = int(os.getenv('EMBEDDING_ERROR_RECOVERY_THRESHOLD', '5'))
         self._load_persisted_batch_size()
 
         prompt_state_path_env = os.getenv('EMBEDDING_PROMPT_LIMIT_STATE_PATH')
@@ -303,6 +306,52 @@ class EmbeddingProcessor(BaseProcessor):
                 )
                 self.batch_size = new_size
                 self._persist_batch_size()
+
+    def _adjust_batch_size_on_errors(self, failed_count: int) -> None:
+        """Decrease batch size when embedding failures occur; persists new size."""
+        if failed_count <= 0 or self.batch_size <= self.min_batch_size:
+            return
+        # Scale down more aggressively with higher failure counts
+        step = min(
+            self.batch_adjust_step * max(1, (failed_count + 1) // 2),
+            self.batch_size - self.min_batch_size
+        )
+        new_size = max(self.min_batch_size, self.batch_size - step)
+        if new_size != self.batch_size:
+            self.logger.info(
+                "Decreasing batch size from %s to %s (embedding failures=%d)",
+                self.batch_size,
+                new_size,
+                failed_count,
+            )
+            self.batch_size = new_size
+            self._persist_batch_size()
+
+    def _on_batch_success(self) -> None:
+        """Track successful batch; optionally recover batch size after consecutive successes."""
+        self._consecutive_error_batches = 0
+        self._consecutive_successful_batches += 1
+        if (
+            self._consecutive_successful_batches >= self._error_recovery_threshold
+            and self.batch_size < self.max_batch_size
+        ):
+            new_size = min(self.max_batch_size, self.batch_size + self.batch_adjust_step)
+            if new_size != self.batch_size:
+                self.logger.info(
+                    "Recovering batch size from %s to %s (%d consecutive successful batches)",
+                    self.batch_size,
+                    new_size,
+                    self._consecutive_successful_batches,
+                )
+                self.batch_size = new_size
+                self._persist_batch_size()
+                self._consecutive_successful_batches = 0
+
+    def _on_batch_errors(self, failed_count: int) -> None:
+        """Track batch errors and reduce batch size."""
+        self._consecutive_successful_batches = 0
+        self._consecutive_error_batches += 1
+        self._adjust_batch_size_on_errors(failed_count)
 
     def _check_ollama(self) -> bool:
         """Check if Ollama is available and has the embedding model"""
@@ -496,6 +545,12 @@ class EmbeddingProcessor(BaseProcessor):
                     if batch_latency > 0:
                         self._record_batch_latency(batch_latency)
                         self._adjust_batch_size(batch_latency)
+
+                    failed_count = len(batch_result['failed_chunks'])
+                    if failed_count > 0:
+                        self._on_batch_errors(failed_count)
+                    else:
+                        self._on_batch_success()
 
                     total_embedded += batch_result['success_count']
                     failed_chunks.extend(batch_result['failed_chunks'])

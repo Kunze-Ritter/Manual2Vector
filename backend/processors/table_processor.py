@@ -31,6 +31,7 @@ class TableProcessor(BaseProcessor):
         self,
         database_service,
         embedding_service,
+        stage_tracker=None,
         strategy: str = 'lines',
         fallback_strategy: str = 'text',
         min_rows: int = 1,
@@ -40,7 +41,7 @@ class TableProcessor(BaseProcessor):
         self.stage = Stage.TABLE_EXTRACTION
         self.database_service = database_service
         self.embedding_service = embedding_service
-        self.stage_tracker = None
+        self.stage_tracker = stage_tracker
         self._structured_table_storage_enabled = True
         self.strategy = strategy
         self.fallback_strategy = fallback_strategy
@@ -560,18 +561,19 @@ class TableProcessor(BaseProcessor):
                         # Store embedding if available
                         if 'embedding' in table and table['embedding']:
                             try:
+                                metadata = {
+                                    'table_type': table['table_type'],
+                                    'page_number': table['page_number'],
+                                    'row_count': table['row_count'],
+                                    'column_count': table['column_count']
+                                }
                                 await self.database_service.create_unified_embedding(
-                                    source_id=table['id'],
-                                    source_type='table',
-                                    embedding=table['embedding'],
-                                    model_name='nomic-embed-text:latest',
-                                    embedding_context=table['table_markdown'][:500],
-                                    metadata={
-                                        'table_type': table['table_type'],
-                                        'page_number': table['page_number'],
-                                        'row_count': table['row_count'],
-                                        'column_count': table['column_count']
-                                    }
+                                    table['id'],
+                                    'table',
+                                    table['embedding'],
+                                    'nomic-embed-text:latest',
+                                    table['table_markdown'][:500],
+                                    metadata,
                                 )
                                 embedding_count += 1
                             except Exception as e:

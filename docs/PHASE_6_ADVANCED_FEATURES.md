@@ -80,7 +80,7 @@ SVG_MAX_DIMENSION=2048
 **Key Components**:
 - `backend/services/multimodal_search_service.py` - Core search logic
 - RPC functions: `match_multimodal`, `match_images_by_context`
-- `krai_intelligence.embeddings_v2` table - Unified embedding storage
+- `krai_intelligence.chunks` table (`embedding` column) - Unified embedding storage
 
 **Search Types**:
 - **Unified Search**: Search across text, images, videos, tables, and links
@@ -138,7 +138,7 @@ CONTEXT_EMBEDDING_MODEL=nomic-embed-text
 ### Database Schema Changes
 
 **New Tables**:
-- `krai_intelligence.embeddings_v2` - Unified multimodal embeddings
+- `krai_intelligence.chunks.embedding` column - Unified multimodal embeddings
 - `krai_intelligence.structured_tables` - Table structure and context
 - Enhanced `krai_content.images` - Vector graphics support
 - Enhanced `krai_intelligence.chunks` - Hierarchical metadata
@@ -157,7 +157,7 @@ image_type VARCHAR(50) DEFAULT 'raster',
 svg_content TEXT,
 vector_graphic BOOLEAN DEFAULT false
 
--- krai_intelligence.embeddings_v2
+-- krai_intelligence.chunks (embedding column)
 source_type VARCHAR(20) NOT NULL,
 source_id UUID,
 context_text TEXT,
@@ -402,7 +402,7 @@ embedding = await context_service.generate_context_embedding(
 **Database Changes**:
 - Run migrations 116-119 for Phase 6 features
 - Update existing chunks with hierarchical metadata
-- Migrate embeddings to unified `embeddings_v2` table
+- Migrate embeddings to unified `chunks.embedding` column
 
 **Configuration Updates**:
 - Enable new feature flags in environment variables

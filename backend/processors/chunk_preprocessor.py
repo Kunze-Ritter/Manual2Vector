@@ -79,7 +79,12 @@ class ChunkPreprocessor(BaseProcessor):
                 preprocessed_count = 0
                 for chunk in chunks:
                     try:
-                        original_content = chunk.get('content', '')
+                        original_content = (
+                            chunk.get('content')
+                            or chunk.get('text_chunk')
+                            or chunk.get('chunk_text')
+                            or ''
+                        )
                         cleaned_content = self._clean_chunk(original_content)
 
                         chunk_type = self._detect_chunk_type(cleaned_content)
@@ -90,14 +95,16 @@ class ChunkPreprocessor(BaseProcessor):
                         metadata['original_length'] = len(original_content)
                         metadata['cleaned_length'] = len(cleaned_content)
 
-                        if self.database_service:
-                            await self._update_chunk(
-                                chunk['id'],
+                        chunk_id = chunk.get('id')
+                        if chunk_id and self.database_service:
+                            updated = await self._update_chunk(
+                                chunk_id,
                                 cleaned_content,
                                 metadata,
                                 adapter
                             )
-                            preprocessed_count += 1
+                            if updated:
+                                preprocessed_count += 1
 
                     except Exception as e:
                         adapter.warning("Failed to preprocess chunk %s: %s", chunk.get('id'), e)
@@ -222,31 +229,61 @@ class ChunkPreprocessor(BaseProcessor):
         return 'text'
     
     async def _get_document_chunks(self, document_id: str, adapter) -> List[Dict]:
-        """Get all chunks for document"""
-        if not self.database_service or not getattr(self.database_service, 'client', None):
+        """Get all chunks for document via DatabaseAdapter or Supabase client. Fails or warns when neither is available."""
+        if not self.database_service:
+            adapter.warning("Cannot get chunks: no database_service available")
             return []
-        
+
+        has_adapter = hasattr(self.database_service, 'get_chunks_by_document')
+        has_client = hasattr(self.database_service, 'client') and self.database_service.client is not None
+
+        if not has_adapter and not has_client:
+            adapter.warning(
+                "Cannot get chunks: neither DatabaseAdapter (get_chunks_by_document) nor Supabase client available"
+            )
+            return []
+
         try:
-            result = self.database_service.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
-            return result.data if result.data else []
+            if has_adapter:
+                chunks = await self.database_service.get_chunks_by_document(document_id)
+            else:
+                result = self.database_service.client.table('chunks').select('*').eq('document_id', document_id).order('chunk_index').execute()
+                chunks = result.data if result.data else []
+            return chunks or []
         except Exception as e:
             adapter.warning("Could not get chunks: %s", e)
-        
-        return []
+            return []
     
-    async def _update_chunk(self, chunk_id: str, content: str, metadata: Dict, adapter):
-        """Update chunk with cleaned content and metadata"""
-        if not self.database_service or not getattr(self.database_service, 'client', None):
-            return
-        
+    async def _update_chunk(self, chunk_id: str, content: str, metadata: Dict, adapter) -> bool:
+        """Update chunk with cleaned content and metadata via DatabaseAdapter or Supabase client. Returns True if updated."""
+        if not self.database_service:
+            adapter.warning("Cannot update chunk: no database_service available")
+            return False
+
+        has_adapter = hasattr(self.database_service, 'update_chunk')
+        has_client = hasattr(self.database_service, 'client') and self.database_service.client is not None
+
+        if not has_adapter and not has_client:
+            adapter.warning(
+                "Cannot update chunk: neither DatabaseAdapter (update_chunk) nor Supabase client available"
+            )
+            return False
+
         try:
-            self.database_service.client.table('chunks').update({
-                'content': content,
-                'metadata': metadata,
-                'char_count': len(content)
-            }).eq('id', chunk_id).execute()
+            if has_adapter:
+                return await self.database_service.update_chunk(
+                    chunk_id, content=content, metadata=metadata, char_count=len(content)
+                )
+            else:
+                self.database_service.client.table('chunks').update({
+                    'content': content,
+                    'metadata': metadata,
+                    'char_count': len(content)
+                }).eq('id', chunk_id).execute()
+                return True
         except Exception as e:
             adapter.warning("Failed to update chunk %s: %s", chunk_id, e)
+            return False
     
     def _create_result(self, success: bool, message: str, data: Dict) -> Any:
         """Create a processing result object"""

@@ -24,7 +24,7 @@ and AI services.
 - **`test_table_processor_e2e.py`**  
   End-to-end tests for `TableProcessor`: extraction from PDFs, storage into
   `krai_intelligence.structured_tables` via `MockDatabaseAdapter`, and
-  embedding creation in `embeddings_v2`.
+  embedding creation in `krai_intelligence.chunks.embedding`.
 
 - **`test_svg_processor_e2e.py`**  
   E2E tests for `SVGProcessor`: SVG extraction from PDFs, conversion to PNG
@@ -118,7 +118,7 @@ Key fixtures defined in `tests/processors/conftest.py` that support these tests:
 
 - **`mock_database_adapter`**  
   Mock `DatabaseAdapter` with in-memory stores for documents, chunks,
-  structured tables (`structured_tables`) and `embeddings_v2`. Provides
+  structured tables (`structured_tables`) and `krai_intelligence.chunks.embedding`. Provides
   helper methods like `create_structured_table` and
   `create_embedding_v2` used by the processors.
 
@@ -191,7 +191,7 @@ Common patterns used across the structured data test suite:
 
 - **Database assertions**  
   E2E tests verify that processors actually write to the mock adapter’s
-  in‑memory stores (e.g. `structured_tables`, `embeddings_v2`) and that
+  in‑memory stores (e.g. `structured_tables`, `krai_intelligence.chunks.embedding`) and that
   record counts line up with the `ProcessingResult` metadata.
 
 - **Error handling paths**  

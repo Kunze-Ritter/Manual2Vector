@@ -292,7 +292,7 @@ GET /api/v1/documents/{document_id}
         "next_chunk_id": "chunk_002",
         "error_code": null,
         "chunk_type": "text",
-        "embeddings_v2_id": "emb_001"
+        "chunk_id": "chunk_001"
       },
       {
         "id": "chunk_002",
@@ -303,7 +303,7 @@ GET /api/v1/documents/{document_id}
         "next_chunk_id": "chunk_003",
         "error_code": "001",
         "chunk_type": "error_code",
-        "embeddings_v2_id": "emb_002"
+        "chunk_id": "chunk_002"
       }
     ],
     "images": [
@@ -319,7 +319,7 @@ GET /api/v1/documents/{document_id}
           "confidence": 0.92
         },
         "context": "Diagram showing the internal components of the laser printer including the toner cartridge position and paper feeding mechanism.",
-        "embeddings_v2_id": "emb_img_001"
+        "chunk_id": "img_001"
       }
     ],
     "contexts": [
@@ -328,12 +328,13 @@ GET /api/v1/documents/{document_id}
         "media_type": "image",
         "media_id": "img_001",
         "context": "Technical diagram showing printer components with labels for toner cartridge, fuser unit, and paper path.",
-        "embeddings_v2_id": "emb_ctx_001"
+        "chunk_id": "ctx_001"
       }
     ]
   }
 }
 ```
+**Note:** Embedding IDs map to chunk IDs because embeddings are stored in `krai_intelligence.chunks.embedding`.
 
 ## Multimodal Search APIs
 

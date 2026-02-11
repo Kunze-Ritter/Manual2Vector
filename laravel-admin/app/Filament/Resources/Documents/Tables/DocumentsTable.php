@@ -173,6 +173,40 @@ class DocumentsTable
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                     
+                    BulkAction::make('smartProcessBulk')
+                        ->label('Smart verarbeiten')
+                        ->icon('heroicon-o-sparkles')
+                        ->action(function (Collection $records) {
+                            $service = app(KraiEngineService::class);
+                            $stages = config('krai.default_stages', []);
+                            $success = 0;
+                            $failed = 0;
+
+                            foreach ($records as $record) {
+                                $result = $service->processMultipleStages($record->id, $stages, true);
+                                if ($result['success'] && ($result['failed'] ?? 0) === 0) {
+                                    $success++;
+                                } else {
+                                    $failed++;
+                                }
+                            }
+
+                            $notification = Notification::make()
+                                ->title('Smart-Verarbeitung abgeschlossen')
+                                ->body(sprintf('%d erfolgreich, %d fehlgeschlagen', $success, $failed));
+
+                            if ($failed === 0) {
+                                $notification->success();
+                            } elseif ($success === 0) {
+                                $notification->danger();
+                            } else {
+                                $notification->warning();
+                            }
+
+                            $notification->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
                     BulkAction::make('processStageBulk')
                         ->label('Stage verarbeiten')
                         ->icon('heroicon-o-play')

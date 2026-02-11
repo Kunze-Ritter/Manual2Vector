@@ -13,14 +13,14 @@ The database is organized into **5 core schemas** with Phase 6 enhancements:
 ```sql
 krai_core          - Documents, manufacturers, products, product_series
 krai_content       - Chunks, images, videos, links, structured tables  
-krai_intelligence  - Embeddings v2, error_codes, search_analytics, context data
+krai_intelligence  - Chunk embeddings (`chunks.embedding`), error_codes, search_analytics, context data
 krai_system        - Processing_queue, audit_log, system_metrics
 krai_parts         - Parts catalog and accessories
 ```
 
 ### Phase 6 Enhanced Features
 
-- ✅ **Multimodal Embeddings** - Unified `embeddings_v2` table
+- ✅ **Multimodal Embeddings** - Embeddings in `krai_intelligence.chunks.embedding` (a planned separate embeddings table was never implemented)
 - ✅ **Hierarchical Chunking** - Section structure and cross-chunk linking
 - ✅ **SVG Vector Graphics** - Vector graphics extraction and PNG conversion
 - ✅ **Context Extraction** - AI-powered context for all media types
@@ -61,7 +61,7 @@ docker-compose exec postgresql psql -U krai_user -d krai_db
 
 # 3. Apply Phase 6 migrations (116-119)
 \ir database/migrations/116_add_context_aware_media.sql
-\ir database/migrations/117_add_multi_vector_embeddings.sql
+\ir database/migrations/117_add_multi_vector_embeddings.sql  -- updates chunks.embedding support; no separate embeddings table was implemented
 \ir database/migrations/118_add_structured_tables.sql
 \ir database/migrations/119_add_hierarchical_chunk_indexes.sql
 ```
@@ -85,8 +85,8 @@ docker-compose exec postgresql psql -U krai_user -d krai_db
 | File | Description | Dependencies |
 |------|-------------|--------------|
 | `116_add_context_aware_media.sql` | Context extraction for media | Base schemas |
-| `117_add_multi_vector_embeddings.sql` | Unified multimodal embeddings | Context tables |
-| `118_add_structured_tables.sql` | Enhanced table processing | Embeddings v2 |
+| `117_add_multi_vector_embeddings.sql` | Chunk embedding support (`krai_intelligence.chunks.embedding`; planned separate table not implemented) | Context tables |
+| `118_add_structured_tables.sql` | Enhanced table processing | chunks.embedding |
 | `119_add_hierarchical_chunk_indexes.sql` | Hierarchical chunking optimization | All Phase 6 |
 
 ### Additional Feature Migrations
@@ -172,8 +172,8 @@ GROUP BY schemaname;
 -- Context extraction support
 \ir database/migrations/116_add_context_aware_media.sql
 
--- Multimodal embeddings
-\ir database/migrations/117_add_multi_vector_embeddings.sql
+-- Multimodal embeddings (stored in krai_intelligence.chunks.embedding)
+\ir database/migrations/117_add_multi_vector_embeddings.sql  -- updates chunks.embedding support; no separate embeddings table was implemented
 
 -- Structured tables
 \ir database/migrations/118_add_structured_tables.sql
@@ -208,12 +208,12 @@ ORDER BY schemaname;
 ### Phase 6 Feature Verification
 
 ```sql
--- 1. Check multimodal embeddings table
+-- 1. Check chunk embedding column
 SELECT column_name, data_type, is_nullable
 FROM information_schema.columns 
-WHERE table_name = 'embeddings_v2' 
+WHERE table_name = 'chunks' 
 AND table_schema = 'krai_intelligence'
-ORDER BY ordinal_position;
+AND column_name = 'embedding';
 
 -- 2. Check hierarchical chunking columns
 SELECT column_name, data_type 
@@ -278,8 +278,8 @@ For manual rollback control:
 
 ```sql
 -- Disable Phase 6 features (if needed)
-DROP TABLE IF EXISTS krai_intelligence.embeddings_v2 CASCADE;
 DROP TABLE IF EXISTS krai_intelligence.structured_tables CASCADE;
+-- Embeddings remain in krai_intelligence.chunks.embedding
 
 -- Note: Core schema rollback requires manual table drops
 -- Use with caution and ensure proper backups
@@ -363,7 +363,7 @@ The system tracks applied migrations:
 
 ```sql
 -- Check migration status
-SELECT * FROM krai_system.schema_migrations 
+SELECT * FROM krai_system.migrations 
 ORDER BY applied_at DESC;
 
 -- Check pending migrations
@@ -469,7 +469,7 @@ Before proceeding with application deployment:
 
 ### Phase 6 Features  
 - [ ] Migration 116: Context-aware media support
-- [ ] Migration 117: Multimodal embeddings v2 table
+- [ ] Migration 117: chunks.embedding support (planned separate embeddings table was never implemented)
 - [ ] Migration 118: Structured tables enhancement
 - [ ] Migration 119: Hierarchical chunking indexes
 

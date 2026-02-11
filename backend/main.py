@@ -50,7 +50,6 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 
 # Import services
-from services.database_service import DatabaseService
 from services.object_storage_service import ObjectStorageService
 from services.database_factory import create_database_adapter
 from services.storage_factory import create_storage_service
@@ -88,6 +87,33 @@ features_api = None
 content_management_api = None
 openai_api = None
 
+def validate_no_r2_variables():
+    """Fail startup if deprecated R2 variables are detected."""
+    r2_vars = [
+        'R2_ACCESS_KEY_ID',
+        'R2_SECRET_ACCESS_KEY',
+        'R2_ENDPOINT_URL',
+        'R2_BUCKET_NAME_DOCUMENTS',
+        'R2_BUCKET_NAME_ERROR',
+        'R2_BUCKET_NAME_PARTS',
+        'R2_PUBLIC_URL_DOCUMENTS',
+        'R2_PUBLIC_URL_ERROR',
+        'R2_PUBLIC_URL_PARTS',
+        'UPLOAD_IMAGES_TO_R2',
+        'UPLOAD_DOCUMENTS_TO_R2',
+        'R2_USE_SSL',
+        'R2_REGION'
+    ]
+
+    found_r2_vars = [var for var in r2_vars if os.getenv(var)]
+
+    if found_r2_vars:
+        raise ValueError(
+            f"❌ R2 variables detected: {', '.join(found_r2_vars)}\n"
+            f"R2 support has been removed. Please use OBJECT_STORAGE_* variables instead.\n"
+            f"See .env.example and docs/MIGRATION_R2_TO_MINIO.md for migration guide."
+        )
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup event handler"""
@@ -97,6 +123,9 @@ async def lifespan(app: FastAPI):
     
     # Startup
     logger.info("🚀 Starting KR-AI-Engine…")
+
+    # Validate no R2 variables are present
+    validate_no_r2_variables()
     
     try:
         # Initialize configuration service
@@ -415,3 +444,4 @@ if __name__ == "__main__":
         uvicorn_kwargs.update(ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile)
 
     uvicorn.run(**uvicorn_kwargs)
+

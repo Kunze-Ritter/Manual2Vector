@@ -121,17 +121,7 @@ class PipelineErrorsTable
 
                 SelectFilter::make('stage_name')
                     ->label('Stage')
-                    ->options([
-                        'classification' => 'Classification',
-                        'chunking' => 'Chunking',
-                        'embedding' => 'Embedding',
-                        'link_enrichment' => 'Link Enrichment',
-                        'image_extraction' => 'Image Extraction',
-                        'table_extraction' => 'Table Extraction',
-                        'video_extraction' => 'Video Extraction',
-                        'error_code_extraction' => 'Error Code Extraction',
-                        'solution_extraction' => 'Solution Extraction',
-                    ])
+                    ->options(krai_stage_options())
                     ->searchable(),
 
                 SelectFilter::make('error_type')

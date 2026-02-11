@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional
 import logging
 
 from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult
-from backend.services.database_service import DatabaseService
+from backend.services.database_factory import create_database_adapter
 from backend.services.object_storage_service import ObjectStorageService
 
 
@@ -27,7 +27,7 @@ class ThumbnailProcessor(BaseProcessor):
     
     def __init__(
         self,
-        database_service: DatabaseService,
+        database_service,
         storage_service: ObjectStorageService,
         default_size: tuple = (300, 400),
         default_page: int = 0

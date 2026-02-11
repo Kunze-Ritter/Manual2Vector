@@ -38,7 +38,7 @@ class ViewPipelineError extends ViewRecord
                                     ->label('Dokument-ID')
                                     ->copyable()
                                     ->copyMessage('Dokument-ID kopiert')
-                                    ->url(fn ($record) => $record->document_id 
+                                    ->url(fn ($record) => $record->document_id
                                         ? route('filament.kradmin.resources.documents.documents.edit', $record->document_id)
                                         : null
                                     )
@@ -109,7 +109,7 @@ class ViewPipelineError extends ViewRecord
                                     $timestamp = e($retry['timestamp'] ?? 'N/A');
                                     $status = e($retry['status'] ?? 'unknown');
                                     $message = e($retry['message'] ?? 'Keine Nachricht');
-                                    
+
                                     $icon = match($retry['status'] ?? 'unknown') {
                                         'success' => '✅',
                                         'failed' => '❌',
@@ -159,7 +159,7 @@ class ViewPipelineError extends ViewRecord
                     ->schema([
                         TextEntry::make('context')
                             ->label('')
-                            ->formatStateUsing(fn ($state) => $state 
+                            ->formatStateUsing(fn ($state) => $state
                                 ? "<pre class='text-xs overflow-x-auto'><code>" . json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "</code></pre>"
                                 : 'Kein Context verfügbar'
                             )
@@ -241,14 +241,14 @@ class ViewPipelineError extends ViewRecord
                         ->success()
                         ->send();
                 })
-                ->extraAttributes([
+                ->extraAttributes(fn () => [
                     'x-on:click' => 'navigator.clipboard.writeText("' . e($this->record->error_id) . '")',
                 ]),
 
             Actions\Action::make('viewDocument')
                 ->label('Dokument anzeigen')
                 ->icon('heroicon-o-document-text')
-                ->url(fn () => $this->record->document_id 
+                ->url(fn () => $this->record->document_id
                     ? route('filament.kradmin.resources.documents.documents.edit', $this->record->document_id)
                     : null
                 )

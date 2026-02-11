@@ -53,7 +53,7 @@ Health check for all services
     "api": {"status": "healthy", "message": "API is running"},
     "database": {"status": "healthy", "message": "Database connected"},
     "ollama": {"status": "healthy", "message": "3 models available"},
-    "storage": {"status": "configured", "message": "R2 credentials present"}
+    "storage": {"status": "configured", "message": "OBJECT_STORAGE credentials present"}
   }
 }
 ```
@@ -261,11 +261,22 @@ OLLAMA_BASE_URL=http://localhost:11434
 # Upload limits
 MAX_FILE_SIZE_MB=500
 
-# R2 Storage
-R2_ACCESS_KEY_ID=your_access_key
-R2_SECRET_ACCESS_KEY=your_secret_key
-R2_ENDPOINT_URL=your_r2_endpoint
+# Object Storage (MinIO / S3-compatible)
+OBJECT_STORAGE_TYPE=s3
+OBJECT_STORAGE_ENDPOINT=http://localhost:9000
+OBJECT_STORAGE_ACCESS_KEY=minioadmin
+OBJECT_STORAGE_SECRET_KEY=minioadmin
+OBJECT_STORAGE_USE_SSL=false
+OBJECT_STORAGE_REGION=auto
+OBJECT_STORAGE_BUCKET_DOCUMENTS=documents
+OBJECT_STORAGE_BUCKET_ERROR=error-images
+OBJECT_STORAGE_BUCKET_PARTS=parts-images
+OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS=http://localhost:9000/documents
+OBJECT_STORAGE_PUBLIC_URL_ERROR=http://localhost:9000/error-images
+OBJECT_STORAGE_PUBLIC_URL_PARTS=http://localhost:9000/parts-images
 ```
+
+Legacy migration note: `R2_*` and `UPLOAD_*_TO_R2` variables are rejected at backend startup. Use only `OBJECT_STORAGE_*` variables. See `docs/MIGRATION_R2_TO_MINIO.md`.
 
 ## 📊 Monitoring
 

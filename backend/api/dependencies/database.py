@@ -1,13 +1,11 @@
 """Database dependency injection for FastAPI routes"""
 from services.db_pool import get_pool
-from services.database_adapter import DatabaseAdapter
-from services.database_service import DatabaseService
+from services.database_factory import create_database_adapter
 from services.batch_task_service import BatchTaskService
 from services.transaction_manager import TransactionManager
 
 # Global instances
 _database_adapter = None
-_database_service = None
 _batch_task_service = None
 _transaction_manager = None
 
@@ -19,17 +17,9 @@ async def get_database_adapter():
     """Get database adapter instance"""
     global _database_adapter
     if _database_adapter is None:
-        pool = await get_pool()
-        _database_adapter = DatabaseAdapter(pool)
+        _database_adapter = create_database_adapter()
+        await _database_adapter.connect()
     return _database_adapter
-
-async def get_database():
-    """Get database service instance"""
-    global _database_service
-    if _database_service is None:
-        pool = await get_pool()
-        _database_service = DatabaseService(pool)
-    return _database_service
 
 async def get_batch_task_service():
     """Get batch task service instance"""

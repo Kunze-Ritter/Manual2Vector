@@ -132,7 +132,7 @@ For a comprehensive setup that includes clean environment reset, health checks, 
 
 ---
 
-> **Dashboard Interface:** KRAI uses **Laravel/Filament** as the sole dashboard interface at http://localhost:80. This provides visual pipeline management, document processing control, and real-time monitoring capabilities.
+> **Dashboard Interface:** KRAI uses **Laravel/Filament** as the sole dashboard interface at http://localhost:80. This provides visual pipeline management, document processing control, and real-time monitoring capabilities. See [Laravel Dashboard](#-laravel-dashboard) below for verification report and operations runbook.
 
 **Access your services:**
 
@@ -226,6 +226,41 @@ The project provides 4 production-ready Docker Compose configurations:
 
 > **Note**: 7 deprecated Docker Compose files have been archived to reduce confusion. See `archive/docker/README.md` for details.
 
+## Performance Monitoring
+
+The KRAI pipeline includes comprehensive performance monitoring:
+
+### Metrics Collection
+- Automatic collection via `BaseProcessor.safe_process()`
+- Stage processing times (avg, p50, p95, p99)
+- Database query timing
+- API response timing
+
+### Hardware Monitoring
+- Real-time CPU, RAM, GPU tracking
+- Pipeline progress visualization
+- Activity indicators
+- PowerShell-optimized display
+
+### Alerting
+- Configurable alert rules
+- Email and Slack notifications
+- Alert aggregation to prevent spam
+- Background worker for processing
+
+### Querying Metrics
+```sql
+-- Get latest metrics per stage
+SELECT DISTINCT ON (stage_name)
+    stage_name,
+    baseline_avg_seconds,
+    current_avg_seconds,
+    improvement_percentage,
+    measurement_date
+FROM krai_system.performance_baselines
+ORDER BY stage_name, measurement_date DESC;
+```
+
 ## 📖 Documentation
 
 ### Core Documentation
@@ -233,6 +268,20 @@ The project provides 4 production-ready Docker Compose configurations:
 - 🐳 **[Docker Setup Guide](DOCKER_SETUP.md)** - Complete installation instructions
 - 🗄️ **[Database Schema](DATABASE_SCHEMA.md)** - Database structure and migrations
 - 🔐 **[Security Reference](docs/SECURITY.md)** - Hardening checklist and best practices
+- 📊 **[Laravel Dashboard Verification Report](VERIFICATION_REPORT_LARAVEL_DASHBOARD.md)** - Dashboard integration verification and test results
+- 📘 **[Laravel Dashboard Operations Runbook](docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md)** - Common tasks, troubleshooting, configuration, and maintenance
+ - ✅ **[Verification Report Stages 1–3](VERIFICATION_REPORT_STAGES_1-3.md)** - DatabaseAdapter & core pipeline verification
+ - ✅ **[Verification Report Stages 1–5](VERIFICATION_REPORT_STAGES_1-5.md)** - Upload, text, table & initial image pipeline verification
+
+### Laravel Dashboard
+
+The Laravel Filament dashboard at **http://localhost:80** provides document management (DocumentResource), pipeline and processor monitoring (PipelineStatusPage, ProcessorHealthPage), pipeline error handling with retry and resolution (PipelineErrorResource), and dashboard widgets (PipelineStatusWidget, PerformanceMetricsWidget, RecentFailuresWidget). Real-time updates use Livewire polling; all 15 pipeline stages are configured in `laravel-admin/config/krai.php` with German labels.
+
+- **[Verification Report](VERIFICATION_REPORT_LARAVEL_DASHBOARD.md)** – Backend API, service layer, UI, configuration, and E2E verification results.
+- **[Operations Runbook](docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md)** – Common tasks (pipeline status, retry, resolve errors, processor health), troubleshooting, configuration, and maintenance.
+ - ✅ **[Verification Report Stages 4–6](VERIFICATION_REPORT_STAGES_4-6.md)** - Visual pipeline (SVG, images, visual embeddings, link extraction)
+ - ✅ **[Verification Report Error Handling](VERIFICATION_REPORT_ERROR_HANDLING.md)** - Retry engine, error logging, idempotency, advisory locks
+ - 📘 **[Operational Runbook: Error Handling](docs/OPERATIONAL_RUNBOOK_ERROR_HANDLING.md)** - Queries and procedures for pipeline errors and retries
 
 ### Pipeline Documentation
 - 🏗️ **[Pipeline Architecture](docs/processor/PIPELINE_ARCHITECTURE.md)** - 15-stage modular pipeline design
@@ -287,6 +336,16 @@ KRAI is a comprehensive multimodal AI system that automatically extracts, analyz
 - **Real-time Status Tracking** - Monitor progress of each stage independently
 - **Error Isolation** - One stage failure doesn't stop the entire pipeline
 - **Reference**: `docs/processor/PIPELINE_ARCHITECTURE.md` for detailed architecture
+
+### 🔁 Error Handling and Resilience
+
+- **Retry engine** – Hybrid sync/async retries with exponential backoff; transient vs permanent error classification (HTTP 5xx/408/429, connection/timeout → retry; 4xx/validation/auth → no retry).
+- **Dual-target error logging** – Errors written to `krai_system.pipeline_errors` and structured JSON logs; correlation IDs for retry chains.
+- **Idempotency** – SHA-256 completion markers in `krai_system.stage_completion_markers` to avoid duplicate work when re-running stages.
+- **Advisory locks** – PostgreSQL advisory locks prevent concurrent retries for the same document/stage.
+- **Correlation ID format** – `{request_id}.stage_{stage_name}.retry_{retry_attempt}` (e.g. `req_a3f2e8d1.stage_image_processing.retry_1`) for tracing retries.
+- **Retry policy configuration** – Per-service policies in `krai_system.retry_policies` (firecrawl, database, ollama, minio); code-level defaults if DB unavailable.
+- **Verification:** [Verification Report Error Handling](VERIFICATION_REPORT_ERROR_HANDLING.md) · **Operations:** [Operational Runbook: Error Handling](docs/OPERATIONAL_RUNBOOK_ERROR_HANDLING.md)
 
 ### 🤖 Advanced AI-Powered Processing
 

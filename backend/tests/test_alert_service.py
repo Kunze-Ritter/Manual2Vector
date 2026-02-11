@@ -41,17 +41,17 @@ class MockDatabaseAdapter(DatabaseAdapter):
         # Return mocked results based on query pattern
         if "alert_configurations" in query and "SELECT" in query:
             return self.query_results.get("alert_configurations", [])
-        elif "alert_queue" in query and "SELECT" in query and "aggregation_key" in query:
+        elif "alerts" in query and "SELECT" in query and "aggregation_key" in query:
             return self.query_results.get("existing_alert", [])
-        elif "alert_queue" in query and "INSERT" in query:
+        elif "alerts" in query and "INSERT" in query:
             return self.query_results.get("insert_alert", [{"id": "alert-123"}])
-        elif "alert_queue" in query and "UPDATE" in query:
+        elif "alerts" in query and "UPDATE" in query:
             result = Mock()
             result.rowcount = 1
             return result
-        elif "alert_queue" in query and "SELECT" in query and "status = 'pending'" in query:
+        elif "alerts" in query and "SELECT" in query and "status = 'pending'" in query:
             return self.query_results.get("pending_alerts", [])
-        elif "alert_queue" in query and "COUNT" in query:
+        elif "alerts" in query and "COUNT" in query:
             return self.query_results.get("count_result", [{"count": 0}])
         
         return []
@@ -742,7 +742,7 @@ class TestAlertServiceIntegration:
         
         assert result is True
         # Verify UPDATE query was executed
-        update_queries = [q for q in mock_adapter.queries_executed if "UPDATE" in q[0] and "alert_queue" in q[0]]
+        update_queries = [q for q in mock_adapter.queries_executed if "UPDATE" in q[0] and "alerts" in q[0]]
         assert len(update_queries) > 0
     
     @pytest.mark.asyncio

@@ -239,12 +239,14 @@ class ErrorLogger:
         # Sanitize context
         sanitized_context = self._sanitize_context(error_context)
         
-        # Extract stage name from correlation_id if not provided
+        # Extract and normalize stage name from correlation_id if not provided.
+        # Format: {request_id}.stage_{stage}.retry_{n} -> persist stage_name as "{stage}" (strip "stage_" prefix).
+        # Callers can still override by passing stage_name explicitly.
         if not stage_name and correlation_id:
-            # Format: req_id.stage_name.retry_N
             parts = correlation_id.split('.')
             if len(parts) >= 2:
-                stage_name = parts[1]
+                raw = parts[1]
+                stage_name = raw[6:] if raw.startswith('stage_') else raw
         
         # Write to database
         try:

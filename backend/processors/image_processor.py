@@ -19,6 +19,7 @@ import random
 import threading
 import statistics
 import sys
+import hashlib
 from collections import deque
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Deque
@@ -506,6 +507,15 @@ class ImageProcessor(BaseProcessor):
                     context.images = classified_images
                     context.output_dir = output_dir
 
+                # Persist images to krai_content.images and propagate IDs
+                if self.database_service and classified_images:
+                    storage_task_count = await self._queue_storage_tasks(
+                        document_id,
+                        classified_images,
+                        adapter,
+                    )
+                    adapter.info("Persisted %d images to krai_content.images", storage_task_count)
+
                 # Complete stage tracking
                 if self.stage_tracker:
                     await self.stage_tracker.complete_stage(
@@ -693,13 +703,88 @@ class ImageProcessor(BaseProcessor):
             self.logger.debug(f"Failed to compute image bbox for index {img_index}: {e}")
             return None
 
-    def _queue_storage_tasks(
+    async def _queue_storage_tasks(
         self,
         document_id: UUID,
         images: List[Dict[str, Any]],
         adapter
     ) -> int:
-        return 0
+        """
+        Persist each processed image to krai_content.images via the database adapter.
+        Propagate generated image IDs back into in-memory image dicts.
+        Returns the count of successfully written images.
+        """
+        if not self.database_service or not hasattr(self.database_service, 'create_image'):
+            adapter.warning("Database service does not support create_image - skipping persistence")
+            return 0
+
+        from backend.core.data_models import ImageModel, ImageType
+
+        def _map_image_type(val: Any) -> str:
+            if not val:
+                return ImageType.DIAGRAM.value
+            s = str(val).lower()
+            if s in ('diagram', 'screenshot', 'photo', 'chart', 'schematic', 'flowchart'):
+                return s
+            if s == 'table':
+                return ImageType.DIAGRAM.value
+            return ImageType.DIAGRAM.value
+
+        def _compute_file_hash(img: Dict[str, Any]) -> str:
+            path = img.get('temp_path') or img.get('path') or ''
+            size = img.get('size_bytes', 0)
+            page = img.get('page_number', 0)
+            return hashlib.sha256(
+                f"{path}|{size}|{page}".encode()
+            ).hexdigest()
+
+        success_count = 0
+        for idx, img in enumerate(images):
+            temp_path = img.get('temp_path') or img.get('path')
+            if not temp_path or not os.path.exists(temp_path):
+                adapter.debug("Skipping image without valid temp_path: %s", img.get('filename'))
+                continue
+
+            try:
+                file_hash = _compute_file_hash(img)
+                storage_path = temp_path
+                storage_url = f"file://{temp_path}"
+
+                image_model = ImageModel(
+                    document_id=str(document_id),
+                    filename=img.get('filename', f'img_{idx}.png'),
+                    original_filename=img.get('filename', f'img_{idx}.png'),
+                    storage_path=storage_path,
+                    storage_url=storage_url,
+                    file_size=img.get('size_bytes', 0),
+                    image_format=(img.get('format') or 'png').upper()[:10],
+                    width_px=img.get('width', 0),
+                    height_px=img.get('height', 0),
+                    page_number=int(img.get('page_number', 1)),
+                    image_index=idx,
+                    image_type=_map_image_type(img.get('type') or img.get('image_type')),
+                    ai_description=img.get('ai_description') or None,
+                    ai_confidence=float(img.get('ai_confidence', 0.5)),
+                    contains_text=bool(img.get('contains_text', False)),
+                    ocr_text=img.get('ocr_text') or None,
+                    ocr_confidence=float(img.get('ocr_confidence', 0.0)),
+                    file_hash=file_hash,
+                    context_caption=img.get('context_caption'),
+                    page_header=img.get('page_header'),
+                    figure_reference=img.get('figure_reference'),
+                    related_error_codes=img.get('related_error_codes') or [],
+                    related_products=img.get('related_products') or [],
+                    surrounding_paragraphs=img.get('surrounding_paragraphs') or [],
+                )
+
+                db_id = await self.database_service.create_image(image_model)
+                img['id'] = db_id
+                success_count += 1
+                adapter.debug("Persisted image %s -> id=%s", img.get('filename'), db_id)
+            except Exception as e:
+                adapter.warning("Failed to persist image %s: %s", img.get('filename'), e)
+
+        return success_count
 
     def _cleanup_output_dir(self, output_dir: Path, adapter) -> None:
         try:

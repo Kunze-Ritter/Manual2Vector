@@ -59,6 +59,10 @@ langchain-community>=0.1.0
 colpali-engine>=0.3.7  # ColQwen2.5 for visual document retrieval
 pdf2image>=1.17.0  # PDF to PIL Image conversion (optional for ColQwen)
 
+# CUDA SUPPORT NOTE:
+# When using Dockerfile.cuda, PyTorch will be installed with CUDA support:
+# torch==2.2.0+cu121 and torchvision==0.17.0+cu121
+
 # ================================
 # HTTP & API CLIENTS
 # ================================
@@ -121,6 +125,11 @@ multiprocessing-logging>=0.3.0
 slowapi>=0.1.9
 limits>=3.6.0
 # concurrent-futures>=3.1.1  # DEPRECATED: Not needed in Python 3.7+ (built into concurrent.futures)
+
+# ================================
+# MONITORING & METRICS
+# ================================
+prometheus-client>=0.19.0
 
 # ================================
 # DEVELOPMENT & TESTING

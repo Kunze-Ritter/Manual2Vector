@@ -192,6 +192,7 @@ class StructuredLogger:
             **kwargs: Additional fields to include
         """
         stack_trace = "".join(traceback.format_exception(type(error), error, error.__traceback__)) if error else None
+        stage = kwargs.pop("stage", context.get("stage"))
         
         log_entry = self._format_json(
             level="ERROR",
@@ -199,7 +200,7 @@ class StructuredLogger:
             error_id=error_id,
             correlation_id=correlation_id,
             request_id=context.get("request_id"),
-            stage=context.get("stage"),
+            stage=stage,
             document_id=context.get("document_id"),
             error_type=type(error).__name__,
             error_category=error_category,

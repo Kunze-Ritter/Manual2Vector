@@ -97,7 +97,14 @@ class StorageProcessor(BaseProcessor):
             if not result.get('success'):
                 continue
 
-            storage_url = result.get('url') or result.get('public_url') or result.get('storage_url')
+            # Use presigned URL when configured (MinIO private buckets); else public URL
+            use_presigned = os.getenv('OBJECT_STORAGE_USE_PRESIGNED_URLS', 'false').lower() == 'true'
+            presigned_url = result.get('presigned_url')
+            storage_url = (
+                presigned_url
+                if use_presigned and presigned_url
+                else result.get('url') or result.get('public_url') or result.get('storage_url')
+            )
             storage_path = result.get('storage_path') or result.get('key')
             file_hash = result.get('file_hash')
 
@@ -106,6 +113,8 @@ class StorageProcessor(BaseProcessor):
             image['storage_url'] = storage_url
             image['storage_path'] = storage_path
             image['file_hash'] = file_hash
+            if presigned_url:
+                image['presigned_url'] = presigned_url
 
             if self.database_service:
                 if not storage_url:

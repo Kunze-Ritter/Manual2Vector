@@ -83,9 +83,10 @@ flowchart TD
 - **VISUAL_EMBEDDING**: Generate embeddings for extracted images
 - **EMBEDDING**: Generate text embeddings for semantic search
 
-### Finalization (2 stages)
-- **STORAGE**: Upload processed files to object storage
-- **SEARCH_INDEXING**: Update search index for full-text search
+### Finalization (3 stages)
+- **STORAGE**: Upload processed images to MinIO (S3-compatible object storage)
+- **EMBEDDING**: Generate 768-dimensional vector embeddings via Ollama (nomic-embed-text)
+- **SEARCH_INDEXING**: Update search readiness flags and log analytics
 
 ## Stage Dependencies
 
@@ -145,6 +146,64 @@ graph TD
 - **CLASSIFICATION** required for: PARTS_EXTRACTION, SERIES_DETECTION
 - **EMBEDDING** requires: METADATA_EXTRACTION, VISUAL_EMBEDDING
 - **SEARCH_INDEXING** is final - requires all other stages
+
+### Final Stage Flow (Storage → Embedding → Search)
+
+```mermaid
+sequenceDiagram
+    participant MP as Master Pipeline
+    participant SP as StorageProcessor
+    participant EP as EmbeddingProcessor
+    participant SRP as SearchProcessor
+    participant MinIO as MinIO Storage
+    participant Ollama as Ollama API
+    participant DB as PostgreSQL
+
+    MP->>SP: process(context)
+    SP->>MinIO: upload_image(content, metadata)
+    MinIO-->>SP: storage_url, file_hash
+    SP->>DB: INSERT INTO krai_content.images
+    SP-->>MP: success
+
+    MP->>EP: process(context)
+    EP->>DB: SELECT chunks WHERE document_id
+    DB-->>EP: chunks[]
+    loop For each batch (100 chunks)
+        EP->>Ollama: POST /api/embeddings
+        Ollama-->>EP: embedding[768]
+        EP->>DB: INSERT INTO unified_embeddings
+    end
+    EP-->>MP: success
+
+    MP->>SRP: process(context)
+    SRP->>DB: COUNT chunks, embeddings, links
+    DB-->>SRP: counts
+    SRP->>DB: UPDATE documents SET search_ready=true
+    SRP-->>MP: success
+```
+
+### Unified Embeddings Schema (pgvector)
+
+Embeddings are stored in `krai_intelligence.unified_embeddings`:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| source_id | uuid | Chunk/image/table ID |
+| source_type | varchar(20) | 'text', 'image', 'table', 'context', 'caption' |
+| embedding | vector(768) | pgvector 768-dimensional embedding |
+| model_name | varchar(100) | e.g. nomic-embed-text |
+| embedding_context | text | Truncated context for display |
+| metadata | jsonb | document_id, page_number, etc. |
+| created_at | timestamp | Creation time |
+
+Similarity search uses cosine distance: `embedding <=> '[0.1,...]'::vector`
+
+### MinIO Integration
+
+- **Bucket:** `document_images` (configurable via OBJECT_STORAGE_BUCKET_IMAGES)
+- **Presigned URLs:** Generated in `_generate_storage_path()`
+- **Deduplication:** File hash checked via `check_duplicate()` before upload
 
 ## Stage Execution Modes
 
@@ -336,6 +395,14 @@ async def get_stage_status(document_id: str):
 | STORAGE | 2-8 seconds | IMAGE_PROCESSING | Medium (Network, Disk I/O) |
 | EMBEDDING | 3-8 seconds | CHUNK_PREP | High (GPU) |
 | SEARCH_INDEXING | 1-3 seconds | EMBEDDING | Medium (CPU, Disk I/O) |
+
+### Final Stage Performance Targets (Verification)
+
+| Stage | Target | Notes |
+|-------|--------|-------|
+| STORAGE | < 5 seconds for 100 images | MinIO upload with deduplication |
+| EMBEDDING | < 30 seconds for 100 chunks | Adaptive batching (default 100/batch) |
+| SEARCH_INDEXING | < 2 seconds | Metadata updates only |
 
 ### Concurrency Limits
 
