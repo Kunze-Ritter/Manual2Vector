@@ -1,4 +1,4 @@
-# Archived n8n Workflows - Supabase Legacy
+﻿# Archived n8n Workflows - Supabase Legacy
 
 ## Status: DEPRECATED & ARCHIVED
 
@@ -90,7 +90,7 @@ Für neue n8n-Integration mit PostgreSQL-only Setup:
 Diese Workflows wurden entwickelt für:
 - Supabase Database mit Vector Store
 - PostgREST Views für Datenzugriff
-- Cloudflare R2 Object Storage
+- MinIO Object Storage
 - Legacy API Endpoints
 
 Die Migration zu PostgreSQL-only (KRAI-002) und Stage-based Pipeline (KRAI-003) machte diese Workflows inkompatibel.
@@ -101,3 +101,4 @@ Für moderne Integration:
 - **API Dokumentation**: `docs/processor/QUICK_START.md` 
 - **Pipeline Architektur**: `docs/processor/PIPELINE_ARCHITECTURE.md` 
 - **Laravel Dashboard**: `docs/LARAVEL_DASHBOARD_INTEGRATION.md` 
+

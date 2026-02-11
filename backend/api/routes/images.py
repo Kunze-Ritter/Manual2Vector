@@ -1,4 +1,4 @@
-"""Image CRUD and storage API routes."""
+﻿"""Image CRUD and storage API routes."""
 from __future__ import annotations
 
 import io
@@ -511,7 +511,7 @@ async def update_image(
 async def delete_image(
     image_id: str,
     delete_from_storage: bool = Query(
-        False, description="Also delete the backing object from Cloudflare R2 storage."
+        False, description="Also delete the backing object from object storage."
     ),
     current_user: Dict[str, Any] = Depends(require_permission("images:delete")),
     pool: asyncpg.Pool = Depends(get_database_pool),
@@ -904,3 +904,4 @@ async def get_image_stats(
         raise
     except Exception as exc:  # pragma: no cover
         _log_and_raise(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
+

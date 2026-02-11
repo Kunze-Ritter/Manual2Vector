@@ -1,4 +1,4 @@
-# 🖥️ Setup auf neuem Computer
+﻿# 🖥️ Setup auf neuem Computer
 
 ## Schnellstart (5 Minuten)
 
@@ -76,13 +76,13 @@ dir .git\hooks\commit-msg*    # Windows
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
 
-### Cloudflare R2 (optional)
+### MinIO Object Storage
 1. Cloudflare Dashboard → R2
 2. Manage R2 API Tokens
 3. Create API Token
 4. Kopiere:
-   - `R2_ACCESS_KEY_ID`
-   - `R2_SECRET_ACCESS_KEY`
+   - `OBJECT_STORAGE_ACCESS_KEY`
+   - `OBJECT_STORAGE_SECRET_KEY`
 
 ### YouTube API (optional)
 1. https://console.cloud.google.com/apis/credentials
@@ -159,3 +159,4 @@ python backend/scripts/test_supabase_connection.py
 - [Configuration Setup](docs/setup/CONFIGURATION_SETUP.md)
 - [Version Management](../development/VERSION_MANAGEMENT.md)
 - [Troubleshooting](docs/troubleshooting/)
+

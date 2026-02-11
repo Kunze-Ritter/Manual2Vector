@@ -1,8 +1,8 @@
-# Storage Processor - Cloudflare R2 Integration
+﻿# Storage Processor - MinIO Object Storage Integration
 
 ## 🎯 Overview
 
-Stage 6 of the processing pipeline handles document storage in Cloudflare R2 (S3-compatible object storage).
+Stage 6 of the processing pipeline handles document storage in MinIO (S3-compatible object storage).
 
 ---
 
@@ -39,22 +39,19 @@ Examples:
 ### Environment Variables (.env):
 
 ```env
-# R2 Storage
-R2_ENDPOINT_URL=https://xxxxx.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=your_access_key
-R2_SECRET_ACCESS_KEY=your_secret_key
-R2_BUCKET_NAME=krai-documents  # Optional, defaults to krai-documents-images
-
-# Or for backward compatibility:
-R2_BUCKET_NAME_DOCUMENTS=krai-documents-images
+# Object Storage (MinIO)
+OBJECT_STORAGE_ENDPOINT=http://localhost:9000
+OBJECT_STORAGE_ACCESS_KEY=minioadmin
+OBJECT_STORAGE_SECRET_KEY=your_secret_key
+OBJECT_STORAGE_BUCKET_DOCUMENTS=krai-documents-images
 ```
 
-### Getting R2 Credentials:
+### Getting MinIO Credentials:
 
-1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. Navigate to R2 → Manage R2 API Tokens
-3. Create API Token with "Object Read & Write" permissions
-4. Copy Access Key ID and Secret Access Key
+1. Open your MinIO Console
+2. Create or use an existing access key
+3. Ensure bucket access allows required read/write operations
+4. Copy access key and secret key
 5. Note your R2 endpoint URL (Account ID-based)
 6. Create a bucket (e.g., "krai-documents")
 
@@ -316,13 +313,13 @@ Upload time depends on:
 
 ## 🐛 Troubleshooting
 
-### "R2 not configured"
+### "Object storage not configured"
 
 ✅ **Solution:** Set environment variables in `.env`:
 ```env
-R2_ENDPOINT_URL=https://xxxxx.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=your_key
-R2_SECRET_ACCESS_KEY=your_secret
+OBJECT_STORAGE_ENDPOINT=http://localhost:9000
+OBJECT_STORAGE_ACCESS_KEY=your_key
+OBJECT_STORAGE_SECRET_KEY=your_secret
 ```
 
 ### "Access Denied" errors
@@ -334,7 +331,7 @@ R2_SECRET_ACCESS_KEY=your_secret
 
 ### "Bucket does not exist"
 
-✅ **Solution:** Create bucket in Cloudflare R2 dashboard
+✅ **Solution:** Create bucket in MinIO
 
 ### Slow uploads
 
@@ -452,7 +449,7 @@ stats = storage.get_storage_statistics() -> Dict[str, Any]
 Before deploying to production:
 
 - [ ] R2 credentials configured in `.env`
-- [ ] Bucket created in Cloudflare R2
+- [ ] Bucket created in MinIO
 - [ ] API token has correct permissions
 - [ ] Test upload/download works
 - [ ] Presigned URLs generate correctly
@@ -465,3 +462,4 @@ Before deploying to production:
 ---
 
 **Stage 6: Storage Processor - Ready for Production! 🚀**
+

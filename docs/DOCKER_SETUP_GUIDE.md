@@ -1,4 +1,4 @@
-# Docker Setup Guide for KRAI Phase 6
+﻿# Docker Setup Guide for KRAI Phase 6
 
 ## Table of Contents
 
@@ -954,16 +954,7 @@ DATABASE_URL="postgresql://postgres:[PASSWORD]@db.project.supabase.co:5432/postg
 DATABASE_URL="postgresql://krai_user:krai_secure_password@localhost:5432/krai"
 ```
 
-### Cloudflare R2 → MinIO
-
-#### Download Files from R2
-
-```bash
-# Using AWS CLI configured for R2
-aws s3 sync s3://krai-documents-images/ ./downloads/documents/
-aws s3 sync s3://krai-error-images/ ./downloads/errors/
-aws s3 sync s3://krai-parts-images/ ./downloads/parts/
-```
+### Object Storage Migration to MinIO
 
 #### Upload to MinIO
 
@@ -992,9 +983,7 @@ SET storage_url = REPLACE(
 |--------------|--------------|-------|
 | `SUPABASE_URL` | `DATABASE_URL` | Use PostgreSQL connection string |
 | `SUPABASE_ANON_KEY` | Not needed | Local setup doesn't use auth keys |
-| `R2_ACCESS_KEY_ID` | `OBJECT_STORAGE_ACCESS_KEY` | Same value, different name |
-| `R2_SECRET_ACCESS_KEY` | `OBJECT_STORAGE_SECRET_KEY` | Same value, new name |
-| `R2_ENDPOINT_URL` | `OBJECT_STORAGE_ENDPOINT` | Use MinIO endpoint |
+| Legacy `R2_*` variables | `OBJECT_STORAGE_*` | See `docs/MIGRATION_R2_TO_MINIO.md` |
 | `OLLAMA_URL` | `AI_SERVICE_URL` | Same value, different name |
 
 ### Migration Script
@@ -1009,12 +998,7 @@ echo "🔄 Starting migration from cloud to local..."
 echo "📤 Exporting data from Supabase..."
 pg_dump "$SUPABASE_CONNECTION_STRING" > supabase_backup.sql
 
-# 2. Download R2 files
-echo "📥 Downloading files from R2..."
-aws s3 sync "s3://$R2_BUCKET_NAME_DOCUMENTS/" ./r2_downloads/documents/
-aws s3 sync "s3://$R2_BUCKET_NAME_PARTS/" ./r2_downloads/parts/
-
-# 3. Start local services
+# 2. Start local services
 echo "🚀 Starting local services..."
 docker-compose up -d
 
@@ -1085,3 +1069,5 @@ echo "🔍 Verify setup: python scripts/verify_local_setup.py"
 ### Archived Docker Compose Files
 
 > **Note**: 7 deprecated Docker Compose files have been archived to reduce confusion. The project now maintains 3 active configurations: `docker-compose.simple.yml`, `docker-compose.with-firecrawl.yml`, and `docker-compose.production.yml`. See `archive/docker/README.md` for details about archived files and migration guidance.
+
+

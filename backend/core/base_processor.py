@@ -37,12 +37,12 @@ class BaseProcessor(ABC):
     2b. Table Processor → krai_intelligence.structured_tables
     3a. SVG Processor → Convert vector graphics to PNG for Vision AI
     3. Image Processor → krai_content.images (Object Storage)
-    3b. Visual Embedding Processor → krai_intelligence.embeddings_v2 (images)
+    3b. Visual Embedding Processor → krai_intelligence.unified_embeddings (source_type='image')
     4. Classification Processor → krai_core.manufacturers, products, product_series
     5. Metadata Processor → krai_intelligence.error_codes
-    6. Storage Processor → Cloudflare R2 (NUR Bilder)
+    6. Storage Processor → MinIO Object Storage (images only)
     7. Text Chunking → krai_intelligence.chunks
-    8. Embedding Processor → krai_intelligence.chunks (legacy) + embeddings_v2 (new)
+    8. Embedding Processor → krai_intelligence.chunks (with embedding column) + unified_embeddings (source_type='text')
     9. Finalization → krai_system.processing_queue
     """
     

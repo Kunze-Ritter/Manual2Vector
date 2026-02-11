@@ -224,18 +224,6 @@ validate_env_file() {
         errors=$((errors + 1))
     fi
 
-    local upload_images_to_r2 r2_secret_access_key r2_access_key_id r2_endpoint_url upload_images_to_r2_lower
-    upload_images_to_r2=$(get_env_value "UPLOAD_IMAGES_TO_R2")
-    r2_secret_access_key=$(get_env_value "R2_SECRET_ACCESS_KEY")
-    r2_access_key_id=$(get_env_value "R2_ACCESS_KEY_ID")
-    r2_endpoint_url=$(get_env_value "R2_ENDPOINT_URL")
-    upload_images_to_r2_lower=$(printf '%s' "$upload_images_to_r2" | tr '[:upper:]' '[:lower:]')
-
-    if { [ "$upload_images_to_r2_lower" = "true" ] || [ -n "$r2_access_key_id" ] || [ -n "$r2_endpoint_url" ]; } && [ -z "$r2_secret_access_key" ]; then
-        echo "❌ Error: R2_SECRET_ACCESS_KEY is required when Cloudflare R2 uploads are enabled." >&2
-        errors=$((errors + 1))
-    fi
-
     local n8n_db_password pgadmin_default_password firecrawl_bull_auth_key
     n8n_db_password=$(get_env_value "N8N_DATABASE_PASSWORD")
     pgadmin_default_password=$(get_env_value "PGADMIN_DEFAULT_PASSWORD")
@@ -287,7 +275,6 @@ DB_PASSWORD=$(generate_secure_password 32)
 
 # Object storage credentials
 MINIO_SECRET_KEY=$(generate_secure_password 32)
-R2_SECRET_KEY=$(generate_secure_password 32)
 
 # Authentication & Security
 echo "   Generating RSA keypair for JWT..."
@@ -396,10 +383,10 @@ DATABASE_CONNECTION_URL=postgresql://postgres:your-password@db.your-project.supa
 # ==========================================
 # OBJECT STORAGE CONFIGURATION
 # ==========================================
-# Choose MinIO OR Cloudflare R2 depending on your deployment target.
+# MinIO S3-compatible storage for your deployment target.
 
 # --- MinIO (Docker/Local) ---
-# Object storage implementation (s3-compatible for both MinIO & R2)
+# Object storage implementation (S3-compatible (MinIO))
 OBJECT_STORAGE_TYPE=s3
 
 # Internal endpoint for MinIO service in Docker
@@ -423,37 +410,10 @@ OBJECT_STORAGE_USE_SSL=false
 # Public URL used by the frontend to access stored files
 OBJECT_STORAGE_PUBLIC_URL=http://localhost:9000
 
-# --- Cloudflare R2 (Cloud) ---
-# Cloudflare R2 access key ID
-R2_ACCESS_KEY_ID=your-r2-access-key-id
-
-# Cloudflare R2 secret access key
-R2_SECRET_ACCESS_KEY=${R2_SECRET_KEY}
-
-# Bucket name for processed documents (documents/manuals)
-R2_BUCKET_NAME_DOCUMENTS=your-bucket-name
-
-# R2 S3-compatible API endpoint URL
-R2_ENDPOINT_URL=https://your-account-id.eu.r2.cloudflarestorage.com
-
-# R2 selected region (use `auto` unless you have a specific requirement)
-R2_REGION=auto
-
-# Public CDN URL for shared documents bucket
-R2_PUBLIC_URL_DOCUMENTS=https://pub-your-documents-bucket.r2.dev
-
-# Public CDN URL for error screenshots or diagnostic assets
-R2_PUBLIC_URL_ERROR=https://pub-your-error-bucket.r2.dev
-
-# Public CDN URL for spare parts assets
-R2_PUBLIC_URL_PARTS=https://pub-your-parts-bucket.r2.dev
-
-# Upload extracted images to R2 (recommended true for cloud deployments)
-UPLOAD_IMAGES_TO_R2=true
-
-# Upload original source documents to R2 (enable for cloud backup)
-UPLOAD_DOCUMENTS_TO_R2=false
-
+# Per-bucket public URLs used by image download/delete bucket inference
+OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS=http://localhost:9000/documents
+OBJECT_STORAGE_PUBLIC_URL_ERROR=http://localhost:9000/error-images
+OBJECT_STORAGE_PUBLIC_URL_PARTS=http://localhost:9000/parts-images
 
 # ==========================================
 # AI SERVICE CONFIGURATION
@@ -803,7 +763,6 @@ echo "   Test Database Password:  ${TEST_DB_PASSWORD}"
 echo ""
 echo "💾 OBJECT STORAGE:"
 echo "   MinIO Secret Key:        ${MINIO_SECRET_KEY}"
-echo "   R2 Secret Key:           ${R2_SECRET_KEY}"
 echo "   Test Storage Key:        ${TEST_STORAGE_KEY}"
 echo ""
 echo "🔐 AUTHENTICATION:"

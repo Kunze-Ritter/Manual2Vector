@@ -1,4 +1,4 @@
-# KRAI Pipeline - Modular Document Processing System
+﻿# KRAI Pipeline - Modular Document Processing System
 
 ## Overview
 
@@ -103,7 +103,7 @@ The KRAI Pipeline is a modular document processing system that orchestrates all 
 - **Output:** Text chunks
 
 ### Stage 8: Image Storage (Optional)
-- Upload images to Cloudflare R2
+- Upload images to object storage (MinIO)
 - Generate presigned URLs
 - File organization by document
 - **Output:** R2 URLs
@@ -238,7 +238,7 @@ pipeline = MasterPipeline(
 ### External Services
 - **Supabase**: Database + pgvector
 - **Ollama**: embeddinggemma model (optional)
-- **Cloudflare R2**: Image storage (optional)
+- **MinIO Object Storage**: Image storage (optional)
 
 ### Python Dependencies
 ```
@@ -277,11 +277,11 @@ SUPABASE_KEY=your-service-role-key
 # Ollama (for embeddings)
 OLLAMA_URL=http://localhost:11434
 
-# Cloudflare R2 (optional)
-R2_ENDPOINT=https://your-account.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=your-access-key
-R2_SECRET_ACCESS_KEY=your-secret-key
-R2_BUCKET_NAME=your-bucket
+# MinIO (optional)
+OBJECT_STORAGE_ENDPOINT=http://localhost:9000
+OBJECT_STORAGE_ACCESS_KEY=minioadmin
+OBJECT_STORAGE_SECRET_KEY=your-secret-key
+OBJECT_STORAGE_BUCKET_DOCUMENTS=your-bucket
 ```
 
 ### Ollama Setup
@@ -564,3 +564,4 @@ For issues or questions:
 ## License
 
 Internal use only - Kunze-Ritter AI Project
+

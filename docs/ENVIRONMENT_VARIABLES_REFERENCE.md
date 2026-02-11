@@ -1,4 +1,4 @@
-# Environment Variables Reference
+﻿# Environment Variables Reference
 
 ## Overview
 
@@ -157,7 +157,7 @@ Variables are organized by functional area matching the structure in `.env.examp
 - **Example:** `OBJECT_STORAGE_REGION=us-east-1`
 - **Description:** AWS region identifier (MinIO accepts any string)
 - **Used by:** S3 client configuration
-- **Notes:** Use 'auto' for Cloudflare R2
+- **Notes:** Use 'auto' for S3-compatible storage or specific region for AWS S3
 ### OBJECT_STORAGE_USE_SSL
 - **Required:** False
 - **Default:** `false`
@@ -603,17 +603,7 @@ For complete deprecation information, migration instructions, and variable mappi
 
 ### Deprecated Storage Variables
 
-| Variable | Replaced By | Notes |
-|----------|-------------|-------|
-| `R2_ACCESS_KEY_ID` | `OBJECT_STORAGE_ACCESS_KEY` | MinIO access key |
-| `R2_SECRET_ACCESS_KEY` | `OBJECT_STORAGE_SECRET_KEY` | MinIO secret key |
-| `R2_ENDPOINT_URL` | `OBJECT_STORAGE_ENDPOINT` | MinIO S3-compatible endpoint |
-| `R2_BUCKET_NAME_DOCUMENTS` | *(managed by MinIO)* | Buckets created automatically |
-| `R2_REGION` | `OBJECT_STORAGE_REGION` | AWS region identifier |
-| `R2_PUBLIC_URL_*` | `OBJECT_STORAGE_PUBLIC_URL` | Single public URL for all buckets |
-| `MINIO_ENDPOINT` | `OBJECT_STORAGE_ENDPOINT` | Renamed for consistency |
-| `MINIO_ACCESS_KEY` | `OBJECT_STORAGE_ACCESS_KEY` | Renamed for consistency |
-| `MINIO_SECRET_KEY` | `OBJECT_STORAGE_SECRET_KEY` | Renamed for consistency |
+Legacy R2 variable mappings were removed from this reference. See docs/MIGRATION_R2_TO_MINIO.md for migration details.
 
 ### Deprecated AI Service Variables
 
@@ -740,3 +730,5 @@ curl http://localhost:11434/api/tags
 **Last Updated:** 2024-11-19  
 **Configuration Approach:** Consolidated single `.env` file  
 **Deprecated:** Legacy modular `.env.*` files
+
+

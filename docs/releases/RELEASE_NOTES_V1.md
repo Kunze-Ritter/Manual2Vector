@@ -1,4 +1,4 @@
-# 🎯 KRAI Engine - Version 1.0.0
+﻿# 🎯 KRAI Engine - Version 1.0.0
 
 **Release Date:** 2025-10-04  
 **Codename:** Foundation  
@@ -35,7 +35,7 @@ Initial stable release of the KRAI (Kunze-Ritter AI) Engine - a comprehensive do
 ### **Database & Storage**
 - ✅ Supabase PostgreSQL integration
 - ✅ pgvector for semantic search
-- ✅ Cloudflare R2 object storage
+- ✅ MinIO object storage
 - ✅ Comprehensive data models
 - ✅ 28+ database migrations
 
@@ -59,7 +59,7 @@ Initial stable release of the KRAI (Kunze-Ritter AI) Engine - a comprehensive do
 - **Language:** Python 3.11+
 - **Framework:** FastAPI
 - **Database:** Supabase (PostgreSQL 15 + pgvector)
-- **Storage:** Cloudflare R2
+- **Storage:** MinIO
 - **AI:** Ollama (local LLM inference)
 - **OCR:** Tesseract
 - **PDF:** PyMuPDF, pdfplumber
@@ -152,3 +152,4 @@ Proprietary - Kunze-Ritter GmbH
 ---
 
 **For support and questions, contact the development team.**
+

@@ -1,4 +1,4 @@
-# KRAI Complete Pipeline Refactor - TODO List
+﻿# KRAI Complete Pipeline Refactor - TODO List
 
 > **Note:** For consolidated project-wide TODOs, see `/MASTER-TODO.md`.
 > This file focuses on pipeline-specific implementation details.
@@ -302,7 +302,7 @@
 - [x] **Stage 3: Image Processor** (587 lines) - OCR, AI vision (SVG support)
 - [x] **Stage 4: Product Extraction** - Manufacturer/product detection
 - [x] **Stage 5: Metadata Processor** - Error codes & version extraction
-- [x] **Stage 6: Storage Processor** (429 lines) - Cloudflare R2 object storage
+- [x] **Stage 6: Storage Processor** (429 lines) - MinIO object storage
 - [x] **Stage 7: Embedding Processor** (470 lines) - Vector embeddings for search
 - [x] **Stage 8: Search Analytics** (250 lines) - Search analytics & indexing
 - [x] **Master Pipeline Integration** (1116 lines) - Complete orchestration
@@ -451,3 +451,4 @@
 **Last Updated:** 2025-01-27 (11:30)
 **Current Focus:** E2E Processor Test Suite implementation completed
 **Next Session:** Review all test implementations and commit the comprehensive test suite
+

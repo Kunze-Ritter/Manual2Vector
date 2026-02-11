@@ -28,7 +28,7 @@ class Stage(Enum):
     TABLE_EXTRACTION = "table_extraction"  # Stage 2b: Table Processor → krai_intelligence.structured_tables
     SVG_PROCESSING = "svg_processing"  # Stage 3a: SVG Processor → Convert vector graphics to PNG
     IMAGE_PROCESSING = "image_processing"
-    VISUAL_EMBEDDING = "visual_embedding"  # Stage 3b: Visual Embedding Processor → krai_intelligence.embeddings_v2 (images)
+    VISUAL_EMBEDDING = "visual_embedding"  # Stage 3b: Visual Embedding Processor → krai_intelligence.unified_embeddings (source_type='image')
     LINK_EXTRACTION = "link_extraction"
     CHUNK_PREPROCESSING = "chunk_prep"
     CLASSIFICATION = "classification"
@@ -36,7 +36,7 @@ class Stage(Enum):
     PARTS_EXTRACTION = "parts_extraction"
     SERIES_DETECTION = "series_detection"
     STORAGE = "storage"
-    EMBEDDING = "embedding"  # Stage 7: Embedding Processor → krai_intelligence.chunks (legacy) + embeddings_v2 (new)
+    EMBEDDING = "embedding"  # Stage 7: Embedding Processor → krai_intelligence.chunks (with embedding column) + unified_embeddings (source_type='text')
     SEARCH_INDEXING = "search_indexing"
 
 

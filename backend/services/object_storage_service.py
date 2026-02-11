@@ -1,7 +1,7 @@
-"""
+﻿"""
 Object Storage Service for KR-AI-Engine
 Generic S3-compatible object storage service
-Supports MinIO, AWS S3, Cloudflare R2, Wasabi, Backblaze B2
+Supports MinIO and S3-compatible storage (AWS S3, Wasabi, Backblaze B2)
 Configurable via environment variables for vendor-agnostic storage
 """
 
@@ -705,3 +705,4 @@ class ObjectStorageService:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
+

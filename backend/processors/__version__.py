@@ -3,8 +3,8 @@ Version Information for KRAI Processing Pipeline
 Auto-updated with each significant release
 """
 
-__version__ = "2.1.3"
-__commit__ = "0012875"
+__version__ = "2.1.5"
+__commit__ = "38a9087"
 __date__ = "2026-02-11"
 
 # Version History:

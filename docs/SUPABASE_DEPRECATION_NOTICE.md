@@ -6,7 +6,7 @@ The KRAI project completed its migration from Supabase to PostgreSQL in **Novemb
 
 ### What Changed
 - **Database**: Supabase → PostgreSQL with pgvector
-- **Storage**: Cloudflare R2 → MinIO (S3-compatible)
+- **Storage**: MinIO (S3-compatible) - See `docs/MIGRATION_R2_TO_MINIO.md` for migration details
 - **Architecture**: Cloud-first → Local-first
 
 ### For New Users

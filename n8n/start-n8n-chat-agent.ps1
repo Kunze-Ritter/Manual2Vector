@@ -29,8 +29,6 @@ if (-not (Test-Path "backend/.env")) {
     Write-Host "Required variables:" -ForegroundColor Yellow
     Write-Host "  - SUPABASE_URL" -ForegroundColor Yellow
     Write-Host "  - SUPABASE_KEY" -ForegroundColor Yellow
-    Write-Host "  - R2_ACCOUNT_ID" -ForegroundColor Yellow
-    Write-Host "  - R2_ACCESS_KEY_ID" -ForegroundColor Yellow
     Write-Host "  - R2_SECRET_ACCESS_KEY" -ForegroundColor Yellow
 }
 

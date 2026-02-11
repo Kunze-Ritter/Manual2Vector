@@ -1,8 +1,8 @@
-"""
-Image Storage Processor - Cloudflare R2 Integration
+﻿"""
+Image Storage Processor - Object Storage Integration (Archived)
 
 Handles EXTRACTED IMAGE storage (not full PDFs!) on R2.
-Cloudflare R2 is S3-compatible, so we use boto3.
+Uses S3-compatible object storage via boto3 (archived implementation).
 
 Why only images?
 - PDFs stay local (no need to store after processing)
@@ -45,7 +45,7 @@ class ImageStorageProcessor:
     """
     Stage 6: Image Storage Processor
     
-    Handles extracted image storage in Cloudflare R2.
+    Handles extracted image storage in MinIO object storage (archived).
     PDFs stay local - we only upload extracted images!
     """
     
@@ -656,3 +656,4 @@ if __name__ == "__main__":
         print("  R2_ACCESS_KEY_ID")
         print("  R2_SECRET_ACCESS_KEY")
         print("  R2_BUCKET_NAME (optional)")
+

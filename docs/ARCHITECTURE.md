@@ -1,4 +1,4 @@
-# KRAI System Architecture
+﻿# KRAI System Architecture
 
 ## System Architecture Overview
 
@@ -186,6 +186,7 @@ MinIO is the sole object storage solution, providing S3-compatible local storage
 - **Completed November 2024 (KRAI-002)**
 - **All R2 dependencies removed** from codebase
 - **MinIO as default storage** for all new deployments
+- **See docs/MIGRATION_R2_TO_MINIO.md for migration details**
 
 ### 4. Data Layer
 
@@ -731,3 +732,5 @@ Key architectural principles:
 - **Observability**: Comprehensive monitoring and debugging capabilities
 
 This architecture supports the current Phase 6 advanced features while providing a solid foundation for future enhancements and scale requirements.
+
+

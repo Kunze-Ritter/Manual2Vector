@@ -1,4 +1,4 @@
-# 🔧 KR-AI-Engine - Specific Environment Configuration
+﻿# 🔧 KR-AI-Engine - Specific Environment Configuration
 
 ## 📋 **Übersicht**
 
@@ -54,27 +54,17 @@ DB_CONNECTION_TIMEOUT=30
 
 ## ☁️ **env.storage** - Storage Configuration
 
-**Zweck:** Cloudflare R2 Object Storage Einstellungen
+**Zweck:** MinIO Object Storage Einstellungen
 
 ```bash
-# CLOUDFLARE R2 CONFIGURATION
-R2_ACCESS_KEY_ID=your-r2-access-key-id
-R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
-R2_BUCKET_NAME_DOCUMENTS=krai-documents
-R2_BUCKET_NAME_ERROR=krai-error-images
-R2_BUCKET_NAME_PARTS=krai-parts-images
-R2_ENDPOINT_URL=https://your-account-id.r2.cloudflarestorage.com
-R2_REGION=auto
-
-# R2 PUBLIC URLS
-R2_PUBLIC_URL_DOCUMENTS=https://pub-your-domain.r2.dev
-R2_PUBLIC_URL_ERROR=https://pub-your-domain.r2.dev
-R2_PUBLIC_URL_PARTS=https://pub-your-domain.r2.dev
-
-# R2 PERFORMANCE SETTINGS
-R2_MAX_CONNECTIONS=50
-R2_RETRY_ATTEMPTS=3
-R2_TIMEOUT_SECONDS=30
+# MINIO OBJECT STORAGE CONFIGURATION
+OBJECT_STORAGE_TYPE=s3
+OBJECT_STORAGE_ENDPOINT=http://localhost:9000
+OBJECT_STORAGE_ACCESS_KEY=minioadmin
+OBJECT_STORAGE_SECRET_KEY=your-minio-secret-key
+OBJECT_STORAGE_REGION=us-east-1
+OBJECT_STORAGE_USE_SSL=false
+OBJECT_STORAGE_PUBLIC_URL=http://localhost:9000
 ```
 
 ---
@@ -300,11 +290,11 @@ copy env.template .env
 type env.database | findstr SUPABASE_URL
 ```
 
-### **Problem: "R2 credentials missing"**
+### **Problem: "Object storage credentials missing"**
 
 **Lösung:** Prüfe env.storage:
 ```bash
-type env.storage | findstr R2_ACCESS_KEY_ID
+type env.storage | findstr OBJECT_STORAGE_ACCESS_KEY
 ```
 
 ---
@@ -315,7 +305,7 @@ type env.storage | findstr R2_ACCESS_KEY_ID
 ```bash
 # Eine große .env Datei
 SUPABASE_URL=...
-R2_ACCESS_KEY_ID=...
+OBJECT_STORAGE_ACCESS_KEY=...
 OLLAMA_URL=...
 LOG_LEVEL=...
 # ... alles gemischt
@@ -328,8 +318,8 @@ SUPABASE_URL=...
 DATABASE_PASSWORD=...
 
 # env.storage  
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
+OBJECT_STORAGE_ACCESS_KEY=...
+OBJECT_STORAGE_SECRET_KEY=...
 
 # env.ai
 OLLAMA_URL=...
@@ -354,3 +344,4 @@ MAX_WORKERS=...
 
 **Bei Fragen:** Siehe KRAI Development Team Lead  
 **Version:** 1.0 Specific Environment (Oktober 2025)
+

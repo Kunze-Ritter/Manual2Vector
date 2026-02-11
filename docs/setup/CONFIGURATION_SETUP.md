@@ -1,4 +1,4 @@
-# 🚀 KR-AI-Engine - Single Source of Truth Configuration
+﻿# 🚀 KR-AI-Engine - Single Source of Truth Configuration
 
 ## 📋 **Übersicht**
 
@@ -121,13 +121,13 @@ load_dotenv()
 
 # Test key variables
 print("SUPABASE_URL:", os.getenv('SUPABASE_URL'))
-print("R2_ACCESS_KEY_ID:", os.getenv('R2_ACCESS_KEY_ID')[:10] + "...")
+print("OBJECT_STORAGE_ACCESS_KEY:", os.getenv('OBJECT_STORAGE_ACCESS_KEY')[:10] + "...")
 ```
 
 ### **Erwartete Ausgabe:**
 ```
 SUPABASE_URL: https://crujfdpqdjzcfqeyhang.supabase.co
-R2_ACCESS_KEY_ID: 9c594739...
+OBJECT_STORAGE_ACCESS_KEY: minioadmin...
 ```
 
 ---
@@ -160,11 +160,11 @@ load_dotenv('../.env')  # Expliziter Pfad
 type .env | findstr SUPABASE_URL
 ```
 
-### **Problem: "R2 credentials missing"**
+### **Problem: "Object storage credentials missing"**
 
 **Lösung:** Prüfe R2-Variablen:
 ```bash
-type .env | findstr R2_
+type .env | findstr OBJECT_STORAGE_
 ```
 
 ---
@@ -192,3 +192,7 @@ type .env | findstr R2_
 
 **Bei Fragen:** Siehe KRAI Development Team Lead  
 **Version:** 1.0 (Oktober 2025)
+
+
+
+

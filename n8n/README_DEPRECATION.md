@@ -1,4 +1,4 @@
-# ⚠️ n8n Integration Deprecated
+﻿# ⚠️ n8n Integration Deprecated
 
 **Letzte Aktualisierung**: Januar 2025  
 **Aktion**: Alle Workflows archiviert in `workflows/archive/`
@@ -94,7 +94,7 @@ If you need n8n integration with the current architecture, you would need to:
 These n8n workflows were originally designed for:
 - **Supabase database** with Vector Store integration
 - **PostgREST views** for data access
-- **Cloudflare R2** for object storage
+- **MinIO** for object storage
 - **Legacy API endpoints** that have been refactored
 
 The migration to PostgreSQL-only architecture (KRAI-002) and stage-based pipeline (KRAI-003) made these workflows incompatible.
@@ -121,3 +121,4 @@ For questions about modern integration options:
 **Last Updated**: 2024-11-29  
 **Status**: Deprecated  
 **Alternative**: Use Laravel Dashboard or FastAPI endpoints
+

@@ -398,7 +398,6 @@ function Test-EnvFile {
     $requiredKeys = @(
         'DATABASE_PASSWORD',
         'OBJECT_STORAGE_SECRET_KEY',
-        'R2_SECRET_ACCESS_KEY',
         'DEFAULT_ADMIN_PASSWORD',
         'JWT_PRIVATE_KEY',
         'JWT_PUBLIC_KEY',
@@ -476,7 +475,6 @@ try {
     $secrets = [ordered]@{}
     $secrets.DatabasePassword = New-RandomSecret 32
     $secrets.MinioSecret = New-RandomSecret 32
-    $secrets.R2Secret = New-RandomSecret 32
     $secrets.AdminPassword = New-RandomSecret 32
     $secrets.N8nPassword = New-RandomSecret 32
     $secrets.N8nDbPassword = New-RandomSecret 32
@@ -500,7 +498,6 @@ try {
     $replacements = @{
         "DATABASE_PASSWORD"              = $secrets.DatabasePassword
         "OBJECT_STORAGE_SECRET_KEY"      = $secrets.MinioSecret
-        "R2_SECRET_ACCESS_KEY"           = $secrets.R2Secret
         "DEFAULT_ADMIN_PASSWORD"         = $secrets.AdminPassword
         "JWT_PRIVATE_KEY"                = $rsaKeys.Private
         "JWT_PUBLIC_KEY"                 = $rsaKeys.Public
@@ -524,6 +521,26 @@ try {
     for ($i = 0; $i -lt $lines.Length; $i++) {
         if ($lines[$i] -match "^\s*TEST_DATABASE_URL\s*=") {
             $lines[$i] = "TEST_DATABASE_URL=postgresql://krai_test:$($secrets.TestDatabasePasswordUrl)@postgresql-test:5432/krai_test"
+        }
+    }
+
+    $requiredPublicUrls = [ordered]@{
+        'OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS' = 'http://localhost:9000/documents'
+        'OBJECT_STORAGE_PUBLIC_URL_ERROR'     = 'http://localhost:9000/error-images'
+        'OBJECT_STORAGE_PUBLIC_URL_PARTS'     = 'http://localhost:9000/parts-images'
+    }
+
+    foreach ($publicUrlKey in $requiredPublicUrls.Keys) {
+        $present = $false
+        foreach ($line in $lines) {
+            if ($line -match "^\s*$publicUrlKey\s*=") {
+                $present = $true
+                break
+            }
+        }
+
+        if (-not $present) {
+            $lines += "{0}={1}" -f $publicUrlKey, $requiredPublicUrls[$publicUrlKey]
         }
     }
 
@@ -554,7 +571,6 @@ try {
     Write-Host ""
     Write-Host "💾 OBJECT STORAGE:" -ForegroundColor Green
     Write-Host ("   MinIO Secret Key:        {0}" -f $secrets.MinioSecret)
-    Write-Host ("   R2 Secret Key:           {0}" -f $secrets.R2Secret)
     Write-Host ("   Test Storage Key:        {0}" -f $secrets.TestStorageSecret)
     Write-Host ""
     Write-Host "🔐 AUTHENTICATION:" -ForegroundColor Green

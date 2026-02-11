@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Generate Environment Variables Reference Documentation
 
@@ -158,7 +158,7 @@ VARIABLES = {
             "example": "OBJECT_STORAGE_REGION=us-east-1",
             "description": "AWS region identifier (MinIO accepts any string)",
             "used_by": "S3 client configuration",
-            "notes": "Use 'auto' for Cloudflare R2"
+            "notes": "Use 'auto' for S3-compatible storage"
         },
         {
             "name": "OBJECT_STORAGE_USE_SSL",
@@ -404,3 +404,4 @@ if __name__ == "__main__":
     output_path.write_text(content, encoding="utf-8")
     print(f"✅ Generated: {output_path}")
     print(f"📄 Total length: {len(content)} characters")
+

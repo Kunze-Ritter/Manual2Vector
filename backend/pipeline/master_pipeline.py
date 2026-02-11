@@ -442,8 +442,10 @@ class KRMasterPipeline:
             # Use direct PostgreSQL connection for cross-schema queries
             if hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
                 try:
+                    current_check = "initialization"
                     async with self.database_service.pg_pool.acquire() as conn:
                         # Check text extraction - krai_intelligence.chunks
+                        current_check = "text_extraction:krai_intelligence.chunks"
                         chunks_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_intelligence.chunks WHERE document_id = $1",
                             document_id
@@ -453,6 +455,7 @@ class KRMasterPipeline:
                             stage_status['chunk_preprocessing'] = True  # Chunks imply preprocessing done
                         
                         # Check table extraction - krai_intelligence.structured_tables
+                        current_check = "table_extraction:krai_intelligence.structured_tables"
                         tables_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_intelligence.structured_tables WHERE document_id = $1",
                             document_id
@@ -461,6 +464,7 @@ class KRMasterPipeline:
                             stage_status['table_extraction'] = True
                         
                         # Check SVG processing - krai_content.images with image_type='vector_graphic'
+                        current_check = "svg_processing:krai_content.images"
                         svg_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_content.images WHERE document_id = $1 AND image_type = 'vector_graphic'",
                             document_id
@@ -469,6 +473,7 @@ class KRMasterPipeline:
                             stage_status['svg_processing'] = True
                         
                         # Check image processing - krai_content.images
+                        current_check = "image_processing:krai_content.images"
                         images_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_content.images WHERE document_id = $1",
                             document_id
@@ -477,15 +482,24 @@ class KRMasterPipeline:
                             stage_status['image_processing'] = True
                             stage_status['storage'] = True  # Images stored implies storage done
                         
-                        # Check visual embeddings - krai_intelligence.embeddings_v2 with embedding_type='image'
+                        # Check visual embeddings - unified embeddings for image sources
+                        current_check = "visual_embedding:krai_intelligence.unified_embeddings"
                         visual_embeddings_count = await conn.fetchval(
-                            "SELECT COUNT(*) FROM krai_intelligence.embeddings_v2 WHERE document_id = $1 AND embedding_type = 'image'",
+                            """
+                            SELECT COUNT(*)
+                            FROM krai_intelligence.unified_embeddings
+                            WHERE source_id IN (
+                              SELECT id FROM krai_content.images WHERE document_id = $1
+                            )
+                            AND source_type = 'image'
+                            """,
                             document_id
                         )
                         if visual_embeddings_count > 0:
                             stage_status['visual_embedding'] = True
                         
                         # Check link extraction - krai_content.links
+                        current_check = "link_extraction:krai_content.links"
                         links_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_content.links WHERE document_id = $1",
                             document_id
@@ -494,6 +508,7 @@ class KRMasterPipeline:
                             stage_status['link_extraction'] = True
                         
                         # Check metadata extraction - krai_intelligence.error_codes
+                        current_check = "metadata_extraction:krai_intelligence.error_codes"
                         error_codes_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_intelligence.error_codes WHERE document_id = $1",
                             document_id
@@ -501,15 +516,61 @@ class KRMasterPipeline:
                         if error_codes_count > 0:
                             stage_status['metadata_extraction'] = True
                         
-                        # Check parts extraction - krai_intelligence.parts
-                        parts_count = await conn.fetchval(
-                            "SELECT COUNT(*) FROM krai_intelligence.parts WHERE document_id = $1",
+                        # Check parts extraction - first via product_id, then fallback to manufacturer_id
+                        current_check = "parts_extraction:krai_parts.parts_catalog"
+                        product_parts_count = await conn.fetchval(
+                            """
+                            SELECT COUNT(pc.id)
+                            FROM krai_parts.parts_catalog pc
+                            WHERE pc.product_id IN (
+                              SELECT DISTINCT dp.product_id
+                              FROM krai_core.document_products dp
+                              WHERE dp.document_id = $1
+                              AND dp.product_id IS NOT NULL
+                            )
+                            """,
                             document_id
                         )
-                        if parts_count > 0:
+                        if product_parts_count > 0:
                             stage_status['parts_extraction'] = True
+                        else:
+                            parts_count = await conn.fetchval(
+                            """
+                            SELECT COUNT(*)
+                            FROM krai_parts.parts_catalog pc
+                            WHERE pc.manufacturer_id IN (
+                              SELECT DISTINCT p.manufacturer_id
+                              FROM krai_core.document_products dp
+                              JOIN krai_core.products p ON dp.product_id = p.id
+                              WHERE dp.document_id = $1
+                              AND p.manufacturer_id IS NOT NULL
+                            )
+                            """,
+                            document_id
+                            )
+                            if parts_count > 0:
+                                stage_status['parts_extraction'] = True
+                            else:
+                                current_check = "parts_extraction:document_products_for_warning"
+                                document_product_count = await conn.fetchval(
+                                    """
+                                    SELECT COUNT(*)
+                                    FROM krai_core.document_products dp
+                                    JOIN krai_core.products p ON dp.product_id = p.id
+                                    WHERE dp.document_id = $1
+                                    AND p.manufacturer_id IS NOT NULL
+                                    """,
+                                    document_id
+                                )
+                                if document_product_count > 0:
+                                    self.logger.warning(
+                                        "Stage status check: no parts catalog entries found for document %s manufacturers (products_with_manufacturer=%s)",
+                                        document_id,
+                                        document_product_count,
+                                    )
                         
                         # Check series detection - krai_core.product_series linked to document
+                        current_check = "series_detection:krai_core.product_series"
                         series_count = await conn.fetchval(
                             """
                             SELECT COUNT(DISTINCT ps.id)
@@ -523,6 +584,7 @@ class KRMasterPipeline:
                             stage_status['series_detection'] = True
                         
                         # Check embeddings - krai_intelligence.chunks with embedding IS NOT NULL
+                        current_check = "embedding:krai_intelligence.chunks"
                         embeddings_count = await conn.fetchval(
                             "SELECT COUNT(*) FROM krai_intelligence.chunks WHERE document_id = $1 AND embedding IS NOT NULL",
                             document_id
@@ -532,7 +594,12 @@ class KRMasterPipeline:
                             stage_status['search_indexing'] = True  # Embeddings imply search indexing done
                         
                 except Exception as e:
-                    self.logger.error(f"Error checking stage status via pg_pool: {e}", exc_info=True)
+                    self.logger.error(
+                        "Error checking stage status via pg_pool (%s): %s",
+                        current_check,
+                        e,
+                        exc_info=True,
+                    )
             
         except Exception:
             self.logger.error("Error checking stage status", exc_info=True)

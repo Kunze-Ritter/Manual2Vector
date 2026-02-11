@@ -1,4 +1,4 @@
-"""
+﻿"""
 Processor Test Configuration and Fixtures
 
 Comprehensive pytest fixtures for processor testing including:
@@ -3225,7 +3225,8 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "metadata: Tests for MetadataProcessorAI and error code/version extraction")
     config.addinivalue_line("markers", "parts: Tests for PartsProcessor and parts extraction")
     config.addinivalue_line("markers", "series: Tests for SeriesProcessor and series detection")
-    config.addinivalue_line("markers", "storage: Tests for StorageProcessor and R2 storage integration")
+    config.addinivalue_line("markers", "storage: Tests for StorageProcessor and object storage integration")
     config.addinivalue_line("markers", "error_codes: Tests for error code extraction functionality")
     config.addinivalue_line("markers", "versions: Tests for version extraction functionality")
-    config.addinivalue_line("markers", "r2: Tests requiring Cloudflare R2 storage")
+    config.addinivalue_line("markers", "storage: Tests requiring object storage")
+

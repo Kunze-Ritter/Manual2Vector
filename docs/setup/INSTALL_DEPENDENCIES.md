@@ -1,4 +1,4 @@
-# 📦 KR-AI-Engine Dependencies Installation
+﻿# 📦 KR-AI-Engine Dependencies Installation
 
 ## 🚀 Schnelle Installation (Empfohlen):
 
@@ -39,7 +39,7 @@ sentence-transformers>=2.2.0  # Embeddings
 
 ### **☁️ Cloud Storage:**
 ```bash
-boto3>=1.34.0        # AWS S3 / Cloudflare R2
+boto3>=1.34.0        # AWS S3 / S3-compatible storage
 ```
 
 ### **⚡ System & Performance:**
@@ -182,3 +182,4 @@ python krai_master_pipeline.py
 ---
 
 **🎯 Empfehlung: Starte mit `requirements-minimal.txt` für schnelle Installation!**
+

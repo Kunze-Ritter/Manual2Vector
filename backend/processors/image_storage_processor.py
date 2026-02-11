@@ -1,4 +1,4 @@
-"""
+﻿"""
 Image Storage Processor V2 - WITH HASH DEDUPLICATION
 
 Handles EXTRACTED IMAGE storage on S3-compatible storage with:
@@ -7,7 +7,7 @@ Handles EXTRACTED IMAGE storage on S3-compatible storage with:
 - Database tracking in krai_content.images
 - Automatic metadata extraction
 - Integration with database adapter
-- Supports MinIO, AWS S3, Cloudflare R2, Wasabi, Backblaze B2
+- Supports MinIO and S3-compatible storage (AWS S3, Wasabi, Backblaze B2)
 
 Storage Structure:
     OLD: documents/{doc_id}/images/page_0001_diagram_img.png
@@ -416,3 +416,4 @@ async def upload_images_to_storage(
     """
     processor = ImageStorageProcessor(database_adapter=database_adapter)
     return await processor.upload_images(document_id, images)
+

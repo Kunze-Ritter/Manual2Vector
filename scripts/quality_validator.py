@@ -44,8 +44,8 @@ class QualityValidator:
         """Validate extraction completeness across chunks, images, codes, and parts.
 
         Uses document-scoped counts for chunks/images/error codes. For parts, this
-        uses manufacturer-based linking via document_products -> products and falls
-        back to zero on non-critical query failures.
+        applies schema-driven fallback logic and marks parts as SKIPPED when no
+        valid relationship path exists.
         """
         try:
             chunks_row = await self.database_adapter.fetch_one(
@@ -77,41 +77,51 @@ class QualityValidator:
             logger.exception("Completeness error_codes query failed for document_ids=%s", document_ids)
             raise
 
-        parts_query_method = "manufacturer_based"
-        try:
-            # Count parts by manufacturers linked to products associated with input documents.
-            parts_row = await self.database_adapter.fetch_one(
-                """
-                SELECT COUNT(*) as count
-                FROM krai_parts.parts_catalog pc
-                WHERE pc.manufacturer_id IN (
-                    SELECT DISTINCT p.manufacturer_id
-                    FROM krai_core.document_products dp
-                    JOIN krai_core.products p ON dp.product_id = p.id
-                    WHERE dp.document_id = ANY($1)
-                    AND p.manufacturer_id IS NOT NULL
-                )
-                """,
-                [document_ids],
-            )
-            logger.debug(
-                "Completeness parts manufacturer query result for %s: %s",
-                document_ids,
-                parts_row,
-            )
-        except Exception:
-            logger.warning(
-                "Completeness parts query failed, using fallback_zero for document_ids=%s",
-                document_ids,
-                exc_info=True,
-            )
-            parts_row = {"count": 0}
-            parts_query_method = "fallback_zero"
-
         chunks_count = self._row_value(chunks_row, "count")
         images_count = self._row_value(images_row, "count")
         error_codes_count = self._row_value(error_codes_row, "count")
-        parts_count = self._row_value(parts_row, "count")
+        # Detect parts_catalog schema capabilities
+        parts_schema = await self._detect_parts_catalog_schema()
+
+        parts_count = 0
+        parts_status = "PASS"
+
+        if parts_schema["has_document_id"]:
+            # Direct relationship via document_id
+            parts_row = await self.database_adapter.fetch_one(
+                "SELECT COUNT(*) as count FROM krai_parts.parts_catalog WHERE document_id = ANY($1)",
+                [document_ids],
+            )
+            parts_count = self._row_value(parts_row, "count")
+        elif parts_schema["has_product_id"]:
+            # Indirect relationship via product_id through document_products
+            parts_row = await self.database_adapter.fetch_one(
+                """
+                SELECT COUNT(DISTINCT pc.id) as count
+                FROM krai_parts.parts_catalog pc
+                JOIN krai_core.document_products dp ON pc.product_id = dp.product_id
+                WHERE dp.document_id = ANY($1)
+                """,
+                [document_ids],
+            )
+            parts_count = self._row_value(parts_row, "count")
+        elif parts_schema["has_manufacturer_id"]:
+            # Indirect relationship via manufacturer_id through products
+            parts_row = await self.database_adapter.fetch_one(
+                """
+                SELECT COUNT(DISTINCT pc.id) as count
+                FROM krai_parts.parts_catalog pc
+                JOIN krai_core.products p ON p.manufacturer_id = pc.manufacturer_id
+                JOIN krai_core.document_products dp ON dp.product_id = p.id
+                WHERE dp.document_id = ANY($1)
+                """,
+                [document_ids],
+            )
+            parts_count = self._row_value(parts_row, "count")
+        else:
+            # No valid relationship path - mark as SKIPPED
+            parts_status = "SKIPPED"
+            parts_count = 0
 
         chunk_pass = chunks_count >= self.thresholds.get("min_chunks", 100)
         image_pass = images_count >= self.thresholds.get("min_images", 10)
@@ -137,10 +147,29 @@ class QualityValidator:
             "parts": {
                 "count": parts_count,
                 "threshold": self.thresholds.get("min_parts", 0),
-                "parts_query_method": parts_query_method,
-                "status": "PASS" if parts_pass else "FAIL",
+                "status": parts_status if parts_status == "SKIPPED" else ("PASS" if parts_pass else "FAIL"),
             },
-            "status": "PASS" if all([chunk_pass, image_pass, error_code_pass, parts_pass]) else "FAIL",
+            "status": "PASS"
+            if all([chunk_pass, image_pass, error_code_pass, parts_pass or parts_status == "SKIPPED"])
+            else "FAIL",
+        }
+
+    async def _detect_parts_catalog_schema(self) -> Dict[str, bool]:
+        """Detect which relationship columns exist in parts_catalog table."""
+        schema_query = """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'krai_parts'
+        AND table_name = 'parts_catalog'
+        AND column_name IN ('document_id', 'product_id', 'manufacturer_id')
+        """
+        rows = await self.database_adapter.fetch_all(schema_query, [])
+        available_columns = {row["column_name"] for row in (rows or [])}
+
+        return {
+            "has_document_id": "document_id" in available_columns,
+            "has_product_id": "product_id" in available_columns,
+            "has_manufacturer_id": "manufacturer_id" in available_columns,
         }
 
     async def _check_correctness(self, document_ids: List[str]) -> Dict[str, Any]:

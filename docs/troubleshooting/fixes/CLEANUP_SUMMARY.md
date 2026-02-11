@@ -1,4 +1,4 @@
-# 🧹 KR-AI-Engine - Cleanup Summary
+﻿# 🧹 KR-AI-Engine - Cleanup Summary
 
 ## ✅ Completed Tasks
 
@@ -83,7 +83,7 @@ KRAI-minimal/
 
 ### **Environment Setup Required:**
 - Supabase database with proper schemas
-- Cloudflare R2 buckets configured
+- Object storage buckets configured
 - Ollama with required models
 - Tesseract OCR installed
 
@@ -110,3 +110,4 @@ KRAI-minimal/
 ---
 
 **🎉 The KR-AI-Engine is now clean, organized, and ready for production deployment!**
+

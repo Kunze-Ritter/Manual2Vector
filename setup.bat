@@ -90,7 +90,6 @@ for /f "delims=" %%i in ('!PWGEN_CMD!') do set "DB_PASSWORD=%%i"
 
 REM Object Storage credentials
 for /f "delims=" %%i in ('!PWGEN_CMD!') do set "MINIO_SECRET_KEY=%%i"
-for /f "delims=" %%i in ('!PWGEN_CMD!') do set "R2_SECRET_KEY=%%i"
 
 REM Authentication & Security
 echo    Generating RSA keypair for JWT...
@@ -202,10 +201,10 @@ del .env 2>nul
 >> .env echo # ==========================================
 >> .env echo # OBJECT STORAGE CONFIGURATION
 >> .env echo # ==========================================
->> .env echo # Choose MinIO OR Cloudflare R2 depending on your deployment target.
+>> .env echo # MinIO S3-compatible storage for your deployment target.
 >> .env echo.
 >> .env echo # --- MinIO (Docker/Local) ---
->> .env echo # Object storage implementation (s3-compatible for both MinIO & R2)
+>> .env echo # Object storage implementation (S3-compatible (MinIO))
 >> .env echo OBJECT_STORAGE_TYPE=s3
 >> .env echo.
 >> .env echo # Internal endpoint for MinIO service in Docker
@@ -229,36 +228,11 @@ del .env 2>nul
 >> .env echo # Public URL used by the frontend to access stored files
 >> .env echo OBJECT_STORAGE_PUBLIC_URL=http://localhost:9000
 >> .env echo.
->> .env echo # --- Cloudflare R2 (Cloud) ---
->> .env echo # Cloudflare R2 access key ID
->> .env echo R2_ACCESS_KEY_ID=your-r2-access-key-id
+>> .env echo # Per-bucket public URLs used by image download/delete bucket inference
+>> .env echo OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS=http://localhost:9000/documents
+>> .env echo OBJECT_STORAGE_PUBLIC_URL_ERROR=http://localhost:9000/error-images
+>> .env echo OBJECT_STORAGE_PUBLIC_URL_PARTS=http://localhost:9000/parts-images
 >> .env echo.
->> .env echo # Cloudflare R2 secret access key
->> .env echo R2_SECRET_ACCESS_KEY=!R2_SECRET_KEY!
->> .env echo.
->> .env echo # Bucket name for processed documents (documents/manuals)
->> .env echo R2_BUCKET_NAME_DOCUMENTS=your-bucket-name
->> .env echo.
->> .env echo # R2 S3-compatible API endpoint URL
->> .env echo R2_ENDPOINT_URL=https://your-account-id.eu.r2.cloudflarestorage.com
->> .env echo.
->> .env echo # R2 selected region (use `auto` unless you have a specific requirement)
->> .env echo R2_REGION=auto
->> .env echo.
->> .env echo # Public CDN URL for shared documents bucket
->> .env echo R2_PUBLIC_URL_DOCUMENTS=https://pub-your-documents-bucket.r2.dev
->> .env echo.
->> .env echo # Public CDN URL for error screenshots or diagnostic assets
->> .env echo R2_PUBLIC_URL_ERROR=https://pub-your-error-bucket.r2.dev
->> .env echo.
->> .env echo # Public CDN URL for spare parts assets
->> .env echo R2_PUBLIC_URL_PARTS=https://pub-your-parts-bucket.r2.dev
->> .env echo.
->> .env echo # Upload extracted images to R2 (recommended true for cloud deployments)
->> .env echo UPLOAD_IMAGES_TO_R2=true
->> .env echo.
->> .env echo # Upload original source documents to R2 (enable for cloud backup)
->> .env echo UPLOAD_DOCUMENTS_TO_R2=false
 >> .env echo.
 >> .env echo.
 >> .env echo # ==========================================
@@ -606,7 +580,6 @@ echo    Test Database Password:  !TEST_DB_PASSWORD!
 echo.
 echo 💾 OBJECT STORAGE:
 echo    MinIO Secret Key:        !MINIO_SECRET_KEY!
-echo    R2 Secret Key:           !R2_SECRET_KEY!
 echo    Test Storage Key:        !TEST_STORAGE_KEY!
 echo.
 echo 🔐 AUTHENTICATION:

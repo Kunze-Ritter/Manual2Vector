@@ -44,9 +44,6 @@ class DeduplicationVerifier:
         self.database_service = DatabaseService(supabase_url, supabase_key)
         
         # R2 credentials
-        r2_access_key = os.getenv('R2_ACCESS_KEY_ID')
-        r2_secret_key = os.getenv('R2_SECRET_ACCESS_KEY')
-        r2_endpoint_url = os.getenv('R2_ENDPOINT_URL')
         
         if all([r2_access_key, r2_secret_key, r2_endpoint_url]):
             self.s3_client = boto3.client(

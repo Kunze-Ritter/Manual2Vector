@@ -1,4 +1,4 @@
-"""
+﻿"""
 PRODUCTION MODE - Process Document with ALL Features
 
 This script processes a document in FULL PRODUCTION MODE:
@@ -157,24 +157,6 @@ def main():
     
     supabase = create_client(supabase_url, supabase_key)
     print("✅ Supabase connected")
-    
-    # Check R2 Configuration
-    print("\n📊 Step 2/4: Checking R2 Storage...")
-    r2_access_key = os.getenv('R2_ACCESS_KEY_ID')
-    r2_secret_key = os.getenv('R2_SECRET_ACCESS_KEY')
-    r2_bucket = os.getenv('R2_BUCKET_NAME_DOCUMENTS')
-    r2_endpoint = os.getenv('R2_ENDPOINT_URL')
-    
-    if not all([r2_access_key, r2_secret_key, r2_bucket, r2_endpoint]):
-        print("⚠️  Warning: R2 credentials incomplete")
-        print("    R2 Storage will be DISABLED")
-        enable_r2 = False
-    else:
-        print("✅ R2 Storage configured")
-        print(f"   Bucket: {r2_bucket}")
-        print(f"   Endpoint: {r2_endpoint}")
-        enable_r2 = True
-    
     # Check Ollama
     print("\n📊 Step 3/4: Checking Ollama...")
     ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
@@ -244,9 +226,9 @@ def main():
     print("   2. Extract all text, products, error codes, versions, links")
     print("   3. Process all images with OCR + Vision AI")
     if enable_r2:
-        print("   4. Upload images to Cloudflare R2 (costs money!)")
+        print("   4. Upload images to object storage")
     else:
-        print("   4. Skip R2 upload (disabled)")
+        print("   4. Skip object storage upload (disabled)")
     print("   5. Generate 768-dim embeddings for all chunks")
     print("   6. Store everything in Supabase")
     print("   7. Move processed PDFs to processed/ folder")
@@ -260,8 +242,8 @@ def main():
     print_section("🚀 STARTING PRODUCTION PROCESSING")
     
     # Read R2 upload settings from .env
-    upload_images = os.getenv('UPLOAD_IMAGES_TO_R2', 'false').lower() == 'true'
-    upload_documents = os.getenv('UPLOAD_DOCUMENTS_TO_R2', 'false').lower() == 'true'
+    upload_images = os.getenv('UPLOAD_IMAGES_TO_STORAGE', 'false').lower() == 'true'
+    upload_documents = os.getenv('UPLOAD_DOCUMENTS_TO_STORAGE', 'false').lower() == 'true'
     youtube_api_key = os.getenv('YOUTUBE_API_KEY')  # Load YouTube API key from .env.external
     
     pipeline = MasterPipeline(
@@ -270,8 +252,8 @@ def main():
         enable_images=True,          # Extract images
         enable_ocr=True,              # OCR on images
         enable_vision=True,           # Vision AI analysis
-        upload_images_to_r2=upload_images,      # Upload images to R2 (from .env)
-        upload_documents_to_r2=upload_documents,  # Upload PDFs to R2 (from .env)
+        upload_images_to_r2=upload_images,      # Upload images to object storage (from .env)
+        upload_documents_to_r2=upload_documents,  # Upload PDFs to object storage (from .env)
         enable_embeddings=True,       # Generate embeddings
         max_retries=2,
         youtube_api_key=youtube_api_key  # Pass YouTube API key for video metadata
@@ -418,3 +400,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

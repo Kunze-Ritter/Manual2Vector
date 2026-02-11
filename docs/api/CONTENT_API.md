@@ -1,4 +1,4 @@
-# Content Management API
+﻿# Content Management API
 
 The Content Management API provides structured access to service knowledge assets including error codes, instructional videos, and document images. All endpoints are exposed under the `/api/v1` prefix and require authentication.
 
@@ -210,7 +210,7 @@ Returns `SuccessResponse<ImageWithRelationsResponse>` including document and chu
 GET /api/v1/images/{image_id}/download
 ```
 
-Streams the binary image from Cloudflare R2. Optional query `download=true` is implied; response headers include `Content-Disposition` with the stored filename.
+Streams the binary image from object storage. Optional query `download=true` is implied; response headers include `Content-Disposition` with the stored filename.
 
 ### Create Image Metadata
 
@@ -234,14 +234,14 @@ Body: `ImageUpdateRequest`
 DELETE /api/v1/images/{image_id}
 ```
 
-Optional query: `delete_from_storage=true` removes the backing object from Cloudflare R2 in addition to the database record.
+Optional query: `delete_from_storage=true` removes the backing object from object storage in addition to the database record.
 
 Returns `SuccessResponse<MessagePayload>` with fields:
 
 - `message`: confirmation text
 - `deleted_from_storage`: boolean reflecting object-store deletion outcome (false when skipped or unavailable)
 
-### Upload Image to R2
+### Upload Image to Object Storage
 
 ```http
 POST /api/v1/images/upload
@@ -254,7 +254,7 @@ Parameters:
 - `bucket`: optional bucket selector (`document_images`, `error_images`, `parts_images`).
 - `document_id`, `chunk_id`: optional associations validated prior to persistence.
 
-The endpoint uploads to Cloudflare R2 via `ObjectStorageService`, deduplicates by SHA-256 hash, and persists metadata when unique. Returns `SuccessResponse<ImageUploadResponse>`.
+The endpoint uploads to object storage via `ObjectStorageService`, deduplicates by SHA-256 hash, and persists metadata when unique. Returns `SuccessResponse<ImageUploadResponse>`.
 
 ### Images by Document
 
@@ -304,13 +304,11 @@ Ensure the following environment variables are configured:
 VIDEO_ENRICHMENT_API_URL=
 VIDEO_ENRICHMENT_API_KEY=
 
-# Cloudflare R2 storage for image uploads
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_ENDPOINT_URL=
-R2_PUBLIC_URL_DOCUMENTS=
-R2_PUBLIC_URL_ERROR=
-R2_PUBLIC_URL_PARTS=
+# Object storage for image uploads
+OBJECT_STORAGE_ENDPOINT=
+OBJECT_STORAGE_ACCESS_KEY=
+OBJECT_STORAGE_SECRET_KEY=
+OBJECT_STORAGE_PUBLIC_URL=
 ```
 
 The enrichment service is optional; when disabled or unavailable, `/videos/enrich` will respond with an error payload.
@@ -320,3 +318,5 @@ The enrichment service is optional; when disabled or unavailable, `/videos/enric
 ## Changelog
 
 - **2025-11-01** — Initial publication of Content API documentation covering error codes, videos, and images with enrichment and R2 upload workflows.
+
+

@@ -1,4 +1,4 @@
-"""
+﻿"""
 KR-AI-Engine Main Application
 FastAPI application with all endpoints and services
 """
@@ -143,7 +143,7 @@ async def lifespan(app: FastAPI):
         
         # Initialize object storage service
         storage_service = create_storage_service()
-        # Factory supports MinIO, AWS S3, Cloudflare R2, and any S3-compatible storage
+        # Factory supports MinIO and S3-compatible storage
         await storage_service.connect()
         storage_type = os.getenv('OBJECT_STORAGE_TYPE', 's3')
         logger.info(f"✅ Object storage service connected ({storage_type})")
@@ -444,4 +444,5 @@ if __name__ == "__main__":
         uvicorn_kwargs.update(ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile)
 
     uvicorn.run(**uvicorn_kwargs)
+
 

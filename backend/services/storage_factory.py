@@ -1,8 +1,8 @@
-"""
+﻿"""
 Object Storage Factory
 
 Factory pattern for creating object storage services based on configuration.
-Supports multiple S3-compatible backends: MinIO, AWS S3, Cloudflare R2, Wasabi, Backblaze B2.
+Supports MinIO and S3-compatible storage (AWS S3, Wasabi, Backblaze B2).
 """
 
 import os
@@ -208,3 +208,4 @@ class StorageFactory:
         This is a static wrapper around the create_storage_service function.
         """
         return create_storage_service(**kwargs)
+

@@ -61,7 +61,7 @@ python test_processor.py manual.pdf --output results.json
 5. `chunk_preprocessor.py` – ChunkPreprocessor (Chunk preparation)
 6. `link_extraction_processor_ai.py` – LinkExtractionProcessorAI (Link extraction)
 7. `metadata_processor_ai.py` – MetadataProcessorAI (Error codes, version extraction)
-8. `storage_processor.py` – StorageProcessor (Cloudflare R2 storage)
+8. `storage_processor.py` – StorageProcessor (MinIO object storage)
 9. `embedding_processor.py` – EmbeddingProcessor (Vector embeddings)
 10. `search_processor.py` – SearchProcessor (Search analytics)
 

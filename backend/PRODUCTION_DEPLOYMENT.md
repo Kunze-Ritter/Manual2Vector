@@ -1,4 +1,4 @@
-# 🚀 Production Deployment Guide
+﻿# 🚀 Production Deployment Guide
 
 ## ✅ **Pre-Deployment Checklist**
 
@@ -37,7 +37,7 @@ API_WORKERS=4
 LOG_LEVEL=INFO
 ```
 
-> Migration note: legacy `R2_*` variables are no longer supported. The backend now fails startup if any `R2_*` or `UPLOAD_*_TO_R2` variables are present. Use only `OBJECT_STORAGE_*` keys and follow `docs/MIGRATION_R2_TO_MINIO.md`.
+> Migration note: legacy `R2_*` variables are no longer supported. The backend now fails startup if any `R2_*` or `UPLOAD_*_TO_R2` variables are present. Use only `OBJECT_STORAGE_*` keys and follow `docs/MIGRATION_R2_TO_MINIO.md` for migration details.
 
 ### **2. Database Migrations**
 ✅ **Run ALL migrations 01-34 in Supabase:**
@@ -403,3 +403,4 @@ curl https://your-domain.com/info
 - **Logs:** `logs/app.log`
 - **Health:** `/health`
 - **Metrics:** `/metrics` (if Prometheus enabled)
+
