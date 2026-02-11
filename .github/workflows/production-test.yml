@@ -1,0 +1,148 @@
+name: Production Pipeline Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+  push:
+    branches: [main]
+
+jobs:
+  production-test:
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Playwright on host
+        shell: pwsh
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Verify PDF files exist
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:\Firmwares\HP\HP_E877_SM.pdf')) {
+            Write-Error 'Missing required PDF: C:\Firmwares\HP\HP_E877_SM.pdf'
+            exit 1
+          }
+
+          if (-not (Test-Path 'C:\Firmwares\HP\HP_E877_CPMD.pdf')) {
+            Write-Error 'Missing required PDF: C:\Firmwares\HP\HP_E877_CPMD.pdf'
+            exit 1
+          }
+
+      - name: Create CI docker compose override
+        shell: pwsh
+        run: |
+          $override = @'
+          services:
+            krai-engine:
+              volumes:
+                - C:\\Firmwares:/firmwares:ro
+              environment:
+                - DATABASE_CONNECTION_URL=postgresql://krai_user:${POSTGRES_PASSWORD}@krai-postgres-prod:5432/krai_test
+                - UPLOAD_IMAGES_TO_STORAGE=true
+            laravel-admin:
+              environment:
+                - DB_DATABASE=krai_test
+          '@
+          Set-Content -Path docker-compose.ci.override.yml -Value $override
+
+      - name: Start GPU Docker stack
+        shell: pwsh
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          docker-compose -f docker-compose.cuda.yml -f docker-compose.ci.override.yml up -d --build
+
+      - name: Wait for services to be ready
+        shell: pwsh
+        run: |
+          Start-Sleep -Seconds 30
+          docker exec krai-postgres-prod pg_isready -U krai_user
+
+      - name: Prepare test database
+        shell: pwsh
+        run: |
+          docker exec krai-postgres-prod psql -U krai_user -d postgres -c "DROP DATABASE IF EXISTS krai_test;"
+          docker exec krai-postgres-prod psql -U krai_user -d postgres -c "CREATE DATABASE krai_test;"
+          Get-Content database/migrations_postgresql/001_core_schema.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/002_views.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/003_functions.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/004_manufacturer_verification_cache.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/005_firecrawl_queue_tables_fixed.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/006_add_product_discovery_columns.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/007_fix_firecrawl_nuq_schema.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/008_pipeline_resilience_schema.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/009_add_stage_metrics_table.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/010_benchmark_documents_table.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/011_rename_alert_queue_to_alerts.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+          Get-Content database/migrations_postgresql/012_stage_tracking.sql | docker exec -i krai-postgres-prod psql -U krai_user -d krai_test
+
+      - name: Seed Laravel admin user
+        shell: pwsh
+        run: |
+          docker exec krai-laravel-admin php artisan migrate --force
+          docker exec krai-laravel-admin php artisan db:seed --force --class=AdminUserSeeder
+
+      - name: Run production test in container
+        shell: pwsh
+        run: |
+          docker exec `
+            -e DATABASE_CONNECTION_URL="postgresql://krai_user:${{ secrets.POSTGRES_PASSWORD }}@krai-postgres-prod:5432/krai_test" `
+            -e UPLOAD_IMAGES_TO_STORAGE=true `
+            krai-engine-cuda python /app/scripts/pipeline_processor.py `
+              --production-test `
+              --thresholds /app/config/production_test_thresholds.json `
+              --pdf-dir /firmwares `
+              --output-dir /app/test_results
+
+      - name: Copy test results from container
+        shell: pwsh
+        run: |
+          docker cp krai-engine-cuda:/app/test_results ./test_results
+
+      - name: Run dashboard validation on host
+        shell: pwsh
+        run: |
+          $reportPath = Get-ChildItem -Path test_results -Filter "production_test_*.json" | Select-Object -First 1
+          $report = Get-Content $reportPath.FullName | ConvertFrom-Json
+          $docIds = $report.documents | ForEach-Object { $_.document_id }
+
+          python tests/e2e/dashboard_production_test.py `
+            --base-url http://localhost:8080 `
+            --document-ids $docIds `
+            --output-dir test_results
+
+      - name: Upload test results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-test-results
+          path: test_results/
+          retention-days: 30
+
+      - name: Upload screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-screenshots
+          path: test_results/*.png
+          retention-days: 30
+
+      - name: Stop Docker services
+        if: always()
+        shell: pwsh
+        run: |
+          docker-compose -f docker-compose.cuda.yml down
+

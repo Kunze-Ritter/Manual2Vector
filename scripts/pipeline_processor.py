@@ -367,6 +367,61 @@ Examples:
         action='store_true',
         help='Verbose output'
     )
+
+    parser.add_argument(
+        '--production-test',
+        action='store_true',
+        help='Run production pipeline test with HP E877 PDFs'
+    )
+
+    parser.add_argument(
+        '--validate-dashboard',
+        action='store_true',
+        help='Run dashboard validation after production test (Playwright required)'
+    )
+
+    parser.add_argument(
+        '--thresholds',
+        type=str,
+        default='config/production_test_thresholds.json',
+        help='Path to threshold configuration JSON file'
+    )
+
+    parser.add_argument(
+        '--min-chunks',
+        type=int,
+        help='Override min chunks threshold'
+    )
+
+    parser.add_argument(
+        '--min-images',
+        type=int,
+        help='Override min images threshold'
+    )
+
+    parser.add_argument(
+        '--min-error-codes',
+        type=int,
+        help='Override min error codes threshold'
+    )
+
+    parser.add_argument(
+        '--min-embedding-coverage',
+        type=float,
+        help='Override min embedding coverage (0.0-1.0)'
+    )
+
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        help='Output directory for test results (auto-detected if not specified)'
+    )
+
+    parser.add_argument(
+        '--pdf-dir',
+        type=str,
+        help='Directory containing HP E877 PDFs (auto-detected if not specified)'
+    )
     
     args = parser.parse_args()
     
@@ -377,6 +432,35 @@ Examples:
     
     pipeline = KRMasterPipeline(database_adapter=database_adapter)
     await pipeline.initialize_services()
+
+    # Handle production test mode
+    if args.production_test:
+        from scripts.production_test import ProductionTestOrchestrator
+
+        # Build threshold overrides from CLI arguments
+        threshold_overrides = {}
+        if args.min_chunks is not None:
+            threshold_overrides['min_chunks'] = args.min_chunks
+        if args.min_images is not None:
+            threshold_overrides['min_images'] = args.min_images
+        if args.min_error_codes is not None:
+            threshold_overrides['min_error_codes'] = args.min_error_codes
+        if args.min_embedding_coverage is not None:
+            threshold_overrides['min_embedding_coverage'] = args.min_embedding_coverage
+
+        # Create orchestrator
+        orchestrator = ProductionTestOrchestrator(
+            pipeline=pipeline,
+            thresholds_path=args.thresholds,
+            threshold_overrides=threshold_overrides,
+            output_dir=args.output_dir,
+            pdf_dir=args.pdf_dir,
+            validate_dashboard=args.validate_dashboard
+        )
+
+        # Run test and exit with appropriate code
+        exit_code = await orchestrator.run()
+        sys.exit(exit_code)
     
     try:
         # Handle upload-first flow

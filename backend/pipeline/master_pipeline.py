@@ -1565,6 +1565,86 @@ class KRMasterPipeline:
             )
         self.logger.info("%s", "=" * 80)
 
+    @staticmethod
+    def _stage_number(stage) -> int:
+        """Resolve canonical stage number (1..15) from Stage enum."""
+        from backend.core.base_processor import Stage
+
+        try:
+            return list(Stage).index(stage) + 1
+        except ValueError:
+            return -1
+
+    async def track_stage_status(
+        self,
+        document_id: str,
+        stage,
+        status: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        error_message: Optional[str] = None,
+    ) -> None:
+        """
+        Persist stage execution status to krai_system.stage_tracking.
+        Uses upsert so each document/stage has exactly one record.
+        """
+        if not document_id or self.database_service is None:
+            return
+
+        stage_number = self._stage_number(stage)
+        if stage_number < 1:
+            return
+
+        stage_name = stage.value if hasattr(stage, "value") else str(stage)
+        safe_metadata = metadata or {}
+
+        try:
+            await self.database_service.execute_query(
+                """
+                INSERT INTO krai_system.stage_tracking
+                    (document_id, stage_number, stage_name, status, started_at, completed_at, error_message, metadata, created_at, updated_at)
+                VALUES
+                    (
+                        $1::uuid,
+                        $2,
+                        $3,
+                        $4,
+                        CASE WHEN $4 = 'running' THEN NOW() ELSE NOW() END,
+                        CASE WHEN $4 IN ('completed', 'failed') THEN NOW() ELSE NULL END,
+                        $5,
+                        $6::jsonb,
+                        NOW(),
+                        NOW()
+                    )
+                ON CONFLICT (document_id, stage_number)
+                DO UPDATE SET
+                    stage_name = EXCLUDED.stage_name,
+                    status = EXCLUDED.status,
+                    started_at = CASE
+                        WHEN EXCLUDED.status = 'running' THEN NOW()
+                        ELSE COALESCE(krai_system.stage_tracking.started_at, NOW())
+                    END,
+                    completed_at = CASE
+                        WHEN EXCLUDED.status IN ('completed', 'failed') THEN NOW()
+                        ELSE NULL
+                    END,
+                    error_message = CASE
+                        WHEN EXCLUDED.status = 'failed' THEN EXCLUDED.error_message
+                        ELSE NULL
+                    END,
+                    metadata = COALESCE(krai_system.stage_tracking.metadata, '{}'::jsonb) || EXCLUDED.metadata,
+                    updated_at = NOW()
+                """,
+                [document_id, stage_number, stage_name, status, error_message, json.dumps(safe_metadata)],
+            )
+        except Exception as tracking_error:
+            self.logger.warning(
+                "Failed to persist stage_tracking row (document=%s, stage=%s, status=%s): %s",
+                document_id,
+                stage_name,
+                status,
+                tracking_error,
+            )
+
     async def run_single_stage(self, document_id: str, stage) -> Dict[str, Any]:
         """
         Run a single processing stage for a document
@@ -1611,15 +1691,32 @@ class KRMasterPipeline:
         processor = self.processors[processor_key]
         if not processor:
             return {'success': False, 'error': f'Processor not available for stage: {stage.value}'}
-        
+
         try:
+            async def _tracked_failure(error_message: str) -> Dict[str, Any]:
+                await self.track_stage_status(
+                    document_id=document_id,
+                    stage=stage,
+                    status='failed',
+                    metadata={'processor': processor_key},
+                    error_message=error_message,
+                )
+                return {'success': False, 'error': error_message, 'stage': stage.value}
+
             # Create processing context
             from backend.core.base_processor import ProcessingContext
             
             # Get document info for context
             document = await self.database_service.get_document(document_id)
             if not document:
-                return {'success': False, 'error': f'Document not found: {document_id}'}
+                return await _tracked_failure(f'Document not found: {document_id}')
+
+            await self.track_stage_status(
+                document_id=document_id,
+                stage=stage,
+                status='running',
+                metadata={'processor': processor_key},
+            )
 
             # Enforce stage dependencies for single-stage runs
             stage_status = await self.get_document_stage_status(document_id)
@@ -1628,53 +1725,38 @@ class KRMasterPipeline:
             # Upload must be completed (and storage_path must exist) before text/table stages
             if stage in [Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION]:
                 if not stage_status.get('upload'):
-                    return {
-                        'success': False,
-                        'error': (
-                            f"Cannot run stage '{stage_name}' for document {document_id}: "
-                            "upload stage has not completed yet"
-                        ),
-                    }
+                    return await _tracked_failure(
+                        f"Cannot run stage '{stage_name}' for document {document_id}: "
+                        "upload stage has not completed yet"
+                    )
 
                 storage_path = getattr(document, 'storage_path', None) or getattr(document, 'resolved_path', None)
                 if not storage_path or not os.path.exists(storage_path):
-                    return {
-                        'success': False,
-                        'error': (
-                            f"Cannot run stage '{stage_name}' for document {document_id}: "
-                            "no valid storage_path/resolved_path found on disk"
-                        ),
-                    }
+                    return await _tracked_failure(
+                        f"Cannot run stage '{stage_name}' for document {document_id}: "
+                        "no valid storage_path/resolved_path found on disk"
+                    )
 
             # Text extraction must be completed before table extraction
             if stage == Stage.TABLE_EXTRACTION and not stage_status.get('text_extraction'):
-                return {
-                    'success': False,
-                    'error': (
-                        f"Cannot run stage '{stage_name}' for document {document_id}: "
-                        "text_extraction stage must be completed first"
-                    ),
-                }
+                return await _tracked_failure(
+                    f"Cannot run stage '{stage_name}' for document {document_id}: "
+                    "text_extraction stage must be completed first"
+                )
 
             # IMAGE_PROCESSING must be completed before VISUAL_EMBEDDING
             if stage == Stage.VISUAL_EMBEDDING and not stage_status.get('image_processing'):
-                return {
-                    'success': False,
-                    'error': (
-                        f"Cannot run stage '{stage_name}' for document {document_id}: "
-                        "image_processing stage must be completed first"
-                    ),
-                }
+                return await _tracked_failure(
+                    f"Cannot run stage '{stage_name}' for document {document_id}: "
+                    "image_processing stage must be completed first"
+                )
 
             # CLASSIFICATION must be completed before PARTS_EXTRACTION and SERIES_DETECTION
             if stage in [Stage.PARTS_EXTRACTION, Stage.SERIES_DETECTION] and not stage_status.get('classification'):
-                return {
-                    'success': False,
-                    'error': (
-                        f"Cannot run stage '{stage_name}' for document {document_id}: "
-                        "classification stage must be completed first"
-                    ),
-                }
+                return await _tracked_failure(
+                    f"Cannot run stage '{stage_name}' for document {document_id}: "
+                    "classification stage must be completed first"
+                )
             
             # Build context based on stage requirements
             context_data = {
@@ -1760,8 +1842,26 @@ class KRMasterPipeline:
                             f"Failed to collect performance metrics for {processor_key}: {metrics_error}"
                         )
             
+            success = result.success if hasattr(result, 'success') else True
+            if success:
+                await self.track_stage_status(
+                    document_id=document_id,
+                    stage=stage,
+                    status='completed',
+                    metadata={'processor': processor_key},
+                )
+            else:
+                error_message = str(getattr(result, 'error', '') or 'Stage failed.')
+                await self.track_stage_status(
+                    document_id=document_id,
+                    stage=stage,
+                    status='failed',
+                    metadata={'processor': processor_key},
+                    error_message=error_message,
+                )
+
             return {
-                'success': result.success if hasattr(result, 'success') else True,
+                'success': success,
                 'data': result.data if hasattr(result, 'data') else result,
                 'stage': stage.value,
                 'processor': processor_key
@@ -1769,6 +1869,13 @@ class KRMasterPipeline:
             
         except Exception as e:
             self.logger.error(f"Error running stage {stage.value} for document {document_id}: {e}")
+            await self.track_stage_status(
+                document_id=document_id,
+                stage=stage,
+                status='failed',
+                metadata={'processor': processor_key if 'processor_key' in locals() else None},
+                error_message=str(e),
+            )
             return {
                 'success': False,
                 'error': str(e),
