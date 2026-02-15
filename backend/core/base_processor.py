@@ -156,33 +156,94 @@ class BaseProcessor(ABC):
             )
             adapter.debug("Context: %s", context)
     
-    def log_processing_end(self, result: ProcessingResult):
+    def log_processing_end(self, result: Union[ProcessingResult, Dict[str, Any]]):
         """Log the end of processing"""
         document_id = None
         stage = None
-        if result.metadata:
-            document_id = result.metadata.get("document_id") or result.metadata.get("document")
-            stage = result.metadata.get("stage")
+        if isinstance(result, dict):
+            result_metadata = result.get("metadata")
+            if isinstance(result_metadata, dict):
+                document_id = result_metadata.get("document_id") or result_metadata.get("document")
+                stage = result_metadata.get("stage")
+            success = bool(result.get("success"))
+            processing_time = float(result.get("processing_time") or 0.0)
+            error_value = result.get("error")
+        else:
+            if result.metadata:
+                document_id = result.metadata.get("document_id") or result.metadata.get("document")
+                stage = result.metadata.get("stage")
+            success = result.success
+            processing_time = result.processing_time
+            error_value = result.error
 
         with self.logger_context(document_id=document_id, stage=stage) as adapter:
-            if result.success:
+            if success:
                 adapter.info(
                     "Completed %s processing in %.2fs",
                     self.name,
-                    result.processing_time,
+                    processing_time,
                 )
                 self.logger.success(
-                    f"{self.name} completed in {result.processing_time:.2f}s"
+                    f"{self.name} completed in {processing_time:.2f}s"
                 )
             else:
                 adapter.error(
                     "Failed %s processing: %s",
                     self.name,
-                    result.error,
+                    error_value,
                 )
                 self.logger.error(
-                    f"{self.name} failed: {result.error}"
+                    f"{self.name} failed: {error_value}"
                 )
+
+    def _normalize_process_result(
+        self,
+        result: Union[ProcessingResult, Dict[str, Any]],
+        context: ProcessingContext,
+        correlation_id: str,
+        attempt: int,
+    ) -> ProcessingResult:
+        """Normalize processor outputs to ProcessingResult for safe_process downstream logic."""
+        if isinstance(result, ProcessingResult):
+            if not result.metadata:
+                result.metadata = {}
+            result.metadata.setdefault("document_id", str(context.document_id))
+            result.metadata.setdefault("correlation_id", correlation_id)
+            result.metadata.setdefault("retry_attempt", attempt)
+            return result
+
+        if isinstance(result, dict):
+            metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+            metadata = dict(metadata)
+            metadata.setdefault("document_id", str(context.document_id))
+            metadata.setdefault("correlation_id", correlation_id)
+            metadata.setdefault("retry_attempt", attempt)
+
+            success = bool(result.get("success", True))
+            error_value = result.get("error")
+            normalized_error: Optional[ProcessingError] = None
+            if not success and error_value:
+                if isinstance(error_value, ProcessingError):
+                    normalized_error = error_value
+                else:
+                    normalized_error = ProcessingError(
+                        str(error_value),
+                        self.name,
+                        "PROCESSING_ERROR"
+                    )
+
+            return ProcessingResult(
+                success=success,
+                processor=self.name,
+                status=ProcessingStatus.COMPLETED if success else ProcessingStatus.FAILED,
+                data=result,
+                metadata=metadata,
+                error=normalized_error
+            )
+
+        raise TypeError(
+            f"{self.name}.process() must return ProcessingResult or dict, got {type(result).__name__}"
+        )
     
     def create_success_result(self, data: Dict[str, Any], metadata: Dict[str, Any] = None) -> ProcessingResult:
         """Create a successful processing result"""
@@ -277,6 +338,11 @@ class BaseProcessor(ABC):
         if not hasattr(context, 'request_id') or not context.request_id:
             context.request_id = f"req_{uuid4().hex[:8]}"
         
+        # Ensure RetryPolicyManager can load policies from DB when adapter is available.
+        adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+        if adapter is not None:
+            RetryPolicyManager.set_db_adapter(adapter)
+
         # Load retry policy
         retry_policy = await RetryPolicyManager.get_policy(self.service_name, self.name)
         
@@ -345,10 +411,14 @@ class BaseProcessor(ABC):
                     
                     # Execute processing
                     result = await self.process(context)
+                    result = self._normalize_process_result(result, context, correlation_id, attempt)
                     
                     # Calculate processing time
                     processing_time = (datetime.utcnow() - start_time).total_seconds()
-                    result.processing_time = processing_time
+                    if isinstance(result, dict):
+                        result['processing_time'] = processing_time
+                    else:
+                        result.processing_time = processing_time
                     
                     # Set completion marker
                     await self._set_completion_marker(
@@ -394,9 +464,9 @@ class BaseProcessor(ABC):
                         try:
                             error_id = await error_logger.log_error(
                                 context=context,
-                                exception=e,
+                                error=e,
                                 classification=classification,
-                                retry_attempt=attempt,
+                                retry_count=attempt,
                                 max_retries=retry_policy.max_retries,
                                 correlation_id=correlation_id,
                                 stage_name=self.name
@@ -480,7 +550,10 @@ class BaseProcessor(ABC):
                                 'document_id': str(context.document_id),
                             }
                         )
-                        result.processing_time = processing_time
+                        if isinstance(result, dict):
+                            result['processing_time'] = processing_time
+                        else:
+                            result.processing_time = processing_time
                         self.log_processing_end(result)
                         
                         # Collect performance metrics (failure path)
@@ -524,7 +597,10 @@ class BaseProcessor(ABC):
             error,
             metadata={'document_id': str(context.document_id)}
         )
-        result.processing_time = processing_time
+        if isinstance(result, dict):
+            result['processing_time'] = processing_time
+        else:
+            result.processing_time = processing_time
         if self._performance_collector:
             try:
                 await self._performance_collector.collect_stage_metrics(
@@ -594,11 +670,12 @@ class BaseProcessor(ABC):
         """
         if self._idempotency_checker is None:
             # Lazy initialization - requires database adapter
-            # Subclasses should set db_adapter attribute if they want idempotency support
-            if hasattr(self, 'db_adapter') and self.db_adapter is not None:
+            # Subclasses may set db_adapter or database_service (pipeline passes database_service)
+            adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+            if adapter is not None:
                 # Lazy import to break circular dependency
                 from backend.core.idempotency import IdempotencyChecker
-                self._idempotency_checker = IdempotencyChecker(self.db_adapter)
+                self._idempotency_checker = IdempotencyChecker(adapter)
         return self._idempotency_checker
     
     def _get_error_logger(self) -> Optional["ErrorLogger"]:
@@ -609,10 +686,11 @@ class BaseProcessor(ABC):
             ErrorLogger instance if database adapter is available, None otherwise
         """
         if self._error_logger is None:
-            if hasattr(self, 'db_adapter') and self.db_adapter is not None:
+            adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+            if adapter is not None:
                 try:
                     from backend.services.error_logging_service import ErrorLogger
-                    self._error_logger = ErrorLogger(self.db_adapter)
+                    self._error_logger = ErrorLogger(adapter)
                 except Exception as e:
                     self.logger.warning(
                         f"Failed to initialize ErrorLogger: {e}"
@@ -628,10 +706,11 @@ class BaseProcessor(ABC):
         """
         if self._retry_orchestrator is None:
             error_logger = self._get_error_logger()
-            if hasattr(self, 'db_adapter') and self.db_adapter is not None and error_logger:
+            adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+            if adapter is not None and error_logger:
                 try:
                     self._retry_orchestrator = RetryOrchestrator(
-                        self.db_adapter,
+                        adapter,
                         error_logger
                     )
                 except Exception as e:

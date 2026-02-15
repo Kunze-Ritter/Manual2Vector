@@ -1014,6 +1014,13 @@ class ImageProcessor(BaseProcessor):
             processed_count = 0
 
             for img in images_to_process:
+                if img.get('has_png_derivative') is False:
+                    self.logger.info(
+                        "Skipping Vision AI for %s because PNG derivative is unavailable",
+                        img.get('filename'),
+                    )
+                    continue
+
                 if not self._vision_guard_allows(img, processed_count):
                     continue
 

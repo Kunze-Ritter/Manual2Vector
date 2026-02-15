@@ -2,7 +2,7 @@
 
 ## Overview
 
-The KRAI document processing system uses a **15-stage modular pipeline** that provides granular control, parallel processing capabilities, failure isolation, and comprehensive progress tracking. Each stage performs a specific transformation on the document, allowing for selective processing, debugging, and optimization.
+The KRAI document processing system uses a **16-stage modular pipeline** that provides granular control, parallel processing capabilities, failure isolation, and comprehensive progress tracking. Each stage performs a specific transformation on the document, allowing for selective processing, debugging, and optimization.
 
 ### Key Benefits
 
@@ -23,6 +23,7 @@ flowchart TD
     A --> E[IMAGE_PROCESSING]
     
     B --> F[LINK_EXTRACTION]
+    F --> F2[VIDEO_ENRICHMENT]
     B --> G[CHUNK_PREP]
     C --> H[STORAGE]
     D --> H
@@ -31,7 +32,7 @@ flowchart TD
     
     G --> J[CLASSIFICATION]
     G --> K[METADATA_EXTRACTION]
-    F --> K
+    F2 --> K
     
     J --> L[PARTS_EXTRACTION]
     J --> M[SERIES_DETECTION]
@@ -49,6 +50,7 @@ flowchart TD
     style D fill:#f3e5f5
     style E fill:#f3e5f5
     style F fill:#e8f5e8
+    style F2 fill:#e8f5e8
     style G fill:#e8f5e8
     style H fill:#fff3e0
     style I fill:#fff3e0
@@ -65,12 +67,13 @@ flowchart TD
 ### Initialization (1 stage)
 - **UPLOAD**: File upload, validation, hash calculation, initial database record
 
-### Extraction (5 stages)
+### Extraction (6 stages)
 - **TEXT_EXTRACTION**: Extract text content from PDF pages
 - **TABLE_EXTRACTION**: Extract structured tables from documents
 - **SVG_PROCESSING**: Convert vector graphics to PNG for Vision AI
 - **IMAGE_PROCESSING**: Extract images from PDF, analyze with Vision AI
 - **LINK_EXTRACTION**: Extract hyperlinks and references
+- **VIDEO_ENRICHMENT**: Optional Brightcove API enrichment for extracted videos
 
 ### Processing (5 stages)
 - **CHUNK_PREP**: Split text into semantic chunks for search
@@ -98,6 +101,7 @@ graph TD
     UPLOAD --> IMAGE_PROCESSING
     
     TEXT_EXTRACTION --> LINK_EXTRACTION
+    LINK_EXTRACTION --> VIDEO_ENRICHMENT
     TEXT_EXTRACTION --> CHUNK_PREP
     
     IMAGE_PROCESSING --> VISUAL_EMBEDDING
@@ -108,6 +112,7 @@ graph TD
     
     CHUNK_PREP --> CLASSIFICATION
     CHUNK_PREP --> METADATA_EXTRACTION
+    VIDEO_ENRICHMENT --> METADATA_EXTRACTION
     
     CLASSIFICATION --> PARTS_EXTRACTION
     CLASSIFICATION --> SERIES_DETECTION
@@ -126,6 +131,7 @@ graph TD
     style SVG_PROCESSING fill:#f3e5f5
     style IMAGE_PROCESSING fill:#f3e5f5
     style LINK_EXTRACTION fill:#e8f5e8
+    style VIDEO_ENRICHMENT fill:#e8f5e8
     style CHUNK_PREP fill:#e8f5e8
     style STORAGE fill:#fff3e0
     style VISUAL_EMBEDDING fill:#fff3e0
@@ -141,6 +147,7 @@ graph TD
 
 - **UPLOAD** is the entry point - no dependencies
 - **TEXT_EXTRACTION** required for: LINK_EXTRACTION, CHUNK_PREP
+- **LINK_EXTRACTION** required for: VIDEO_ENRICHMENT
 - **IMAGE_PROCESSING** required for: VISUAL_EMBEDDING
 - **CHUNK_PREP** required for: CLASSIFICATION, METADATA_EXTRACTION
 - **CLASSIFICATION** required for: PARTS_EXTRACTION, SERIES_DETECTION
@@ -208,7 +215,7 @@ Similarity search uses cosine distance: `embedding <=> '[0.1,...]'::vector`
 ## Stage Execution Modes
 
 ### Full Pipeline
-Execute all 15 stages sequentially (default for document uploads):
+Execute all 16 stages sequentially (default for document uploads):
 ```bash
 python scripts/pipeline_processor.py --file /path/to/document.pdf
 ```
@@ -307,7 +314,7 @@ class Stage(str, Enum):
     UPLOAD = "upload"
     TEXT_EXTRACTION = "text_extraction"
     TABLE_EXTRACTION = "table_extraction"
-    # ... all 15 stages
+    # ... all 16 stages
 
 class BaseProcessor:
     async def process(self, document_id: str, **kwargs) -> ProcessResult:
@@ -319,7 +326,7 @@ Orchestrates stage execution:
 ```python
 class KRMasterPipeline:
     async def run_full_pipeline(self, document_id: str) -> ProcessResult:
-        # Execute all 15 stages
+        # Execute all 16 stages
     
     async def run_single_stage(self, document_id: str, stage_name: str) -> ProcessResult:
         # Execute specific stage
@@ -340,6 +347,7 @@ Individual stage processors (15 files):
 - `image_processor.py` - IMAGE_PROCESSING stage
 - `visual_embedding_processor.py` - VISUAL_EMBEDDING stage
 - `link_processor.py` - LINK_EXTRACTION stage
+- `video_enrichment_processor.py` - VIDEO_ENRICHMENT stage (optional)
 - `chunk_preprocessor.py` - CHUNK_PREP stage
 - `classification_processor.py` - CLASSIFICATION stage
 - `metadata_processor.py` - METADATA_EXTRACTION stage
@@ -387,6 +395,7 @@ async def get_stage_status(document_id: str):
 | IMAGE_PROCESSING | 5-15 seconds | UPLOAD | High (CPU, GPU) |
 | VISUAL_EMBEDDING | 3-10 seconds | IMAGE_PROCESSING | High (GPU) |
 | LINK_EXTRACTION | 1-3 seconds | TEXT_EXTRACTION | Low (CPU) |
+| VIDEO_ENRICHMENT | 1-6 seconds | LINK_EXTRACTION | Low (CPU, Network I/O) |
 | CHUNK_PREP | 2-5 seconds | TEXT_EXTRACTION | Medium (CPU, Memory) |
 | CLASSIFICATION | 3-8 seconds | TEXT_EXTRACTION | Medium (CPU, Memory) |
 | METADATA_EXTRACTION | 4-10 seconds | TEXT_EXTRACTION, CHUNK_PREP | Medium (CPU, Memory) |
@@ -526,7 +535,7 @@ async def process_single_stage(
 
 ### New Architecture (Current)
 
-- **Files**: 15 specialized processors in `backend/processors/`
+- **Files**: 16 specialized processors in `backend/processors/`
 - **Approach**: Modular stage-based processing
 - **Status**: Detailed `stage_status` JSONB tracking
 - **Error Handling**: Stage-level isolation and recovery

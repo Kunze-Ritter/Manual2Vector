@@ -17,7 +17,7 @@ import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -115,6 +115,23 @@ class FirecrawlBackend(WebScraperBackend):
         self.proxy = proxy or {}
         self.openai_api_key = openai_api_key
         self.logger = logging.getLogger("krai.scraping.firecrawl")
+
+        # Normalize Firecrawl URL when running outside Docker and targeting Docker-internal host.
+        try:
+            parsed = urlparse(self.api_url)
+            running_in_docker = os.path.exists("/.dockerenv") or os.getenv("KRAI_IN_DOCKER") == "1"
+            if parsed.hostname in ("krai-firecrawl-api", "firecrawl", "krai-firecrawl") and not running_in_docker:
+                # Host-side access uses mapped port 9004 -> container 3002.
+                original_url = self.api_url
+                self.api_url = urlunparse(parsed._replace(netloc="127.0.0.1:9004"))
+                self.logger.info(
+                    "Overriding Firecrawl URL for local execution: %r -> %r",
+                    original_url,
+                    self.api_url,
+                )
+        except Exception:
+            # Best-effort normalization only; fall back silently on errors
+            pass
 
         if AsyncFirecrawl is None and not self.mock_mode:
             raise FirecrawlUnavailableError(

@@ -1,0 +1,1122 @@
+{
+  "document_ids": [
+    "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+    "b557ec67-52db-4863-9e3a-b0d48e330b2e"
+  ],
+  "original_query_results": {
+    "q1": {
+      "status": "ok",
+      "row_count": 2,
+      "rows": [
+        {
+          "id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "filename": "HP_E877_CPMD.pdf",
+          "document_type": "service_manual",
+          "manufacturer": "HP Inc.",
+          "manufacturer_id": null,
+          "series": null,
+          "models": null,
+          "page_count": null,
+          "processing_status": "failed",
+          "extracted_metadata": "{}",
+          "manufacturer_name": null,
+          "short_name": null
+        },
+        {
+          "id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "filename": "HP_E877_SM.pdf",
+          "document_type": "service_manual",
+          "manufacturer": "HP Inc.",
+          "manufacturer_id": null,
+          "series": null,
+          "models": null,
+          "page_count": null,
+          "processing_status": "pending",
+          "extracted_metadata": "{}",
+          "manufacturer_name": null,
+          "short_name": null
+        }
+      ]
+    },
+    "q2": {
+      "status": "error",
+      "error": "column dp.confidence_score does not exist"
+    },
+    "q3": {
+      "status": "error",
+      "error": "column ec.manufacturer_name does not exist"
+    },
+    "q4": {
+      "status": "error",
+      "error": "column pc.manufacturer_name does not exist"
+    },
+    "q5": {
+      "status": "ok",
+      "row_count": 19,
+      "rows": [
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 1,
+          "text_chunk": "Control Panel Messages Document (CPMD)",
+          "chunk_length": 38,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 2,
+          "text_chunk": "SUMMARY\nThis guide provides theory of operation, troubleshooting, and repair information.",
+          "chunk_length": 89,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 2,
+          "text_chunk": "SUMMARY\nThis document provides error-code troubleshooting information",
+          "chunk_length": 69,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 3,
+          "text_chunk": "© Copyright 2025 HP Development\nCompany, L.P.\nReproduction, adaptation, or translation\nwithout prior written permission is\nprohibited, except as allowed under the\ncopyright laws.\nThe information contained herein is subject\nto change without notice.\nThe only warranties for HP products and\nservices are set forth in the express\nwarranty statements accompanying such\nproducts and services. Nothing herein\nshould be construed as constituting an\nadditional warranty. HP shall not be liable\nfor technical or editorial errors or omissions\ncontained herein.\nEdition 14, 3/2025",
+          "chunk_length": 569,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 3,
+          "text_chunk": "© Copyright 2025 HP Development\nCompany, L.P.\nReproduction, adaptation, or translation\nwithout prior written permission is\nprohibited, except as allowed under the\ncopyright laws.\nThe information contained herein is subject\nto change without notice.\nThe only warranties for HP products and\nservices are set forth in the express\nwarranty statements accompanying such\nproducts and services. Nothing herein\nshould be construed as constituting an\nadditional warranty. HP shall not be liable\nfor technical or editorial errors or omissions\ncontained herein.\nEdition 11, 3/2025\nTrademark Credits\nAdobe®, Adobe Photoshop®, Acrobat®, and\nPostScript® are trademarks of Adobe\nSystems Incorporated.\nApple and the Apple logo are trademarks of\nApple Inc., registered in the U.S. and other\ncountries.\nmacOS is a trademark of Apple Inc.,\nregistered in the U.S. and other countries.\nAirPrint is a trademark of Apple Inc.,\nregistered in the U.S. and other countries.\nGoogle™ is a trademark of Google Inc.\nMicrosoft®, Windows®, and Windows Server®\nare U.S. registered trademarks of Microsoft\nCorporation.\nUNIX® is a registered trademark of The Open\nGroup.",
+          "chunk_length": 1135,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 4,
+          "text_chunk": "The information contained herein is subject to change without notice. The only warranties for HP\nproducts and services are set forth in the express warranty statements accompanying such products\nand services. Nothing herein should be construed as constituting an additional warranty. HP shall not be\nliable for technical or editorial errors or omissions contained herein.\nTable Revision History\nRevision\nNumber\nRevision Date\nRevision Notes\n14\nMarch 2025\nCorrected part description and part numbers for Keyboard\nKeyboard PCA on page 165\n14\nFebruary 2025\nAdded step #7 (with instructions to remove the Keyboard lower bracket)\nto the Integrated Scanner for Flow models (z bundle) with drawer type\nkeyboard on page 1675 section.\n13\nDecember 2024\nChanged part number for photo sensor 0604-001393 to 3SJ00-60110 in\n579 places\n12\nNovember 2024\nUpdated paper specifications for trays. See Paper handling\nspecifications on page 17\nUpdated part numbers in Image scanner assembly (ISA), see Parts and\ndiagrams: Image scanner assembly (ISA) on page 3469.\nUpdated Integrated Scanner (ISA) for Flow models, see Removal and\nreplacement: Integrated scanner for Flow z bundle (5QK39A for Flex-\nbuild) on page 1669.\n10\nOctober 2024\nUpdated Eraser Lamp info to add note and correct PN: Eraser PCA on\npage 168\nUpdated optional input devices in table 1-17\nOptional input and output devices configuration on page 24\n9\nAugust 2024\nRemoved Copy speed (Duplex A3) information, see Copy specifications\non page 16.\nAdded Booklet finisher Staple, Fold & Staple, and Fold Stapler with\ncover specifications table. Booklet finisher capacity\n8\nMay 2024\nRemoved information for ADF input tray (Z9Y05-60032), see Parts and\ndiagrams: 300sh flow ADF (2 of 2) on page 3472 and ADF unit on page\n177 .\niii",
+          "chunk_length": 1766,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "1 Document last updated ...................................................................................................................................................................................................................1\n2 About this document........................................................................................................................................................................................................................ 2\n3 Control-panel message types...................................................................................................................................................................................................3\nError-code and control-panel-message troubleshooting overview.........................................................................................................3\nError codes (types and structure).........................................................................................................................................................................3\n4 How to search for printer documentation........................................................................................................................................................................6\nWISE - How to access and use............................................................................................................................................................................................6\nAccessing WISE..................................................................................................................................................................................................................6\nUsing WISE to search for error codes..............................................................................................................................................................10",
+          "chunk_length": 1926,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................10\n\nUsing WISE to access repair and replace videos for FRUs..............................................................................................................12\n5 Printer service information.........................................................................................................................................................................................................17\n6 Numerical control panel messages....................................................................................................................................................................................18\n10.WX.YZ error messages.....................................................................................................................................................................................................18\n10.wx.yz error messages ............................................................................................................................................................................................18\n10.xx.01 Supply memory chip error .....................................................................................................................................................................19\n10.xx.03, cartridge or drum error.........................................................................................................................................................................20\n10.0x.15 Install [supply] .................................................................................................................................................................................................21\n10.0x.35 Incompatible <supply> ..........................................................................................................................................................................25",
+          "chunk_length": 1990,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................25\n\n10.0x.60 Drum unit low .................................................................................................................................................................................................27\n10.00.60, 10.01.60, 10.02.60, 10.03.60 ..................................................................................................................................................................28\n10.0x.69 or 10.0x.70 Toner Empty .........................................................................................................................................................................32\n10.0x.69 or 10.0x.70 Drum unit worn ..................................................................................................................................................................34\n10.00.89, 10.00.90, 10.01.90, 10.02.90, 10.03.90 ............................................................................................................................................35\n10.00.93, 10.01.93, 10.02.93, 10.03.93 ..................................................................................................................................................................38\n10.0x.B1 Supply RPC Timeout Error ...................................................................................................................................................................42\n10.10.60 Transfer Roller Low ....................................................................................................................................................................................43\n10.10.69, 10.10.70 Transfer Roller Worn ..............................................................................................................................................................44",
+          "chunk_length": 1939,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................44\n\n10.22.60 ITB Low ..............................................................................................................................................................................................................45\n10.22.69 / 10.22.70 ITB Worn ....................................................................................................................................................................................46\n10.23.15, 10.26.15 Fuser assembly not installed ..........................................................................................................................................47\n10.23.35, 10.26.35 Incompatible Fuser Assembly ....................................................................................................................................48\n10.23.69, 10.23.79 or 10.26.69, 10.26.70 Fuser assembly worn .........................................................................................................49\n10.31.15 Toner collection unit not installed ....................................................................................................................................................50\n10.31.60, 10.31.69 Toner collection unit full ....................................................................................................................................................56\n10.36.69 / 10.36.70 Image transfer belt (ITB) cleaner worn ................................................................................................................61\n10.38.15 Toner Collection Duct Install Error .................................................................................................................................................62\n11.WX.YZ error messages.....................................................................................................................................................................................................63",
+          "chunk_length": 2062,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................63\n\n11.* errors...............................................................................................................................................................................................................................63\n13.WX.YZ error messages....................................................................................................................................................................................................64\niii",
+          "chunk_length": 564,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 5,
+          "text_chunk": "Number\nRevision Date\nRevision Notes\n7\nApril 2024\nUpdated Echo PCA components, see PCA overview on page 145, Echo\nPCA on page 163, Parts and diagrams: PCA on page 3467, and EMR\ndiagrams: PCA (4 of 15) on page 3589.\nAdded new part number (Kit-Screws c-clips e-clips kit) X3A92-67924 on\npage 3443\nAdded new feature \"Low Volume Print Mode\" in Service Functions, see\nService menu on page 549.\n6\nMarch 2024\nAdded new remove and replace procedures for the following:\n●\nStacker with print quality diagnostics on page 3429\n●\nBridge unit with print quality diagnostics on page 3434\n5.1\nMarch 2024\nUpdated part number in remove and replace procedure to match parts\nlist for HP LaserJet 300ipm 300-sheet Flow DADF high speed scanner (z\nbundle)\n5\nJanuary, 2024\nUpdated the following information:\n●\nILSB Information updated for PQ Diagnostics:\nSee:Optional input and output devices configuration on page 24\n●\nSee:Print Quality Diagnostics output devices on page 3516\n–\nParts and diagrams: Stapler/Stacker finisher or Booklet\nfinisher with Print Quality Diagnostics on page 3516\nUpdated part number on electrical mechanical diagram to correct part\nnumber: JC39-02260A changed to 5QK03-50018\nUpdated Remove and replace chapter.\nAdded: Essential adjustments when replacing or reinstalling the\nsupplies or LLCs on page 617\n2.10\nNovember, 2023\nCorrected part number for Prefeed 4 Sensor S201 on page 3549 to\n0604-001490\n2.9\nSeptember, 2023\nAdd footnote to Booklet Maker speed.\n2.8\nAugust, 2023\nChanged PN and part description of \"Riser for HDD, USB ports\n(4XN67-60001)\" to \"SVC-Internal USB Expansion Kit (4XN67-67001)\" per\nHPPK PR #377.\n2.7\nMay, 2023\nUpdated HCI cassette remove/replace per HPPK PR 348.\nUpdated printer dimension content per HPPK PR 335.\nRemoved invalid video links form ISA WUR topics (300/200-sheet) per\nHPPK PR 328.\n2.6\nApril, 2023\nUpdated drum and developer part numbers (theory) per HPPK PR 321.",
+          "chunk_length": 1899,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 5,
+          "text_chunk": "2.6\nApril, 2023\nUpdated drum and developer part numbers (theory) per HPPK PR 321.\n\nAdded drawer type physical keyboard (5QK47-60002 ) content in\nmultiple topics (theory, remove/replace, EM diagrams, parts) per HPPK\nPR322.\niv\nRevision History",
+          "chunk_length": 241,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": "13.* errors..............................................................................................................................................................................................................................64\n13.A7.A4 (Dual-cassette feeder)............................................................................................................................................................................70\n13.A7.A4 (High-capacity input feeder)...............................................................................................................................................................75\n13.A7.A5 .................................................................................................................................................................................................................................. 79\n13.A7.D4 / 13.A7.D5 (Dual-cassette feeder)...................................................................................................................................................84\n13.A7.D4 (High-capacity input feeder)..............................................................................................................................................................89\n13.A7.FF (Dual-cassette feeder)............................................................................................................................................................................95\n13.A8.A3 ..................................................................................................................................................................................................................................97\n13.A8.A5/13.A8.A6 (sHCI)...........................................................................................................................................................................................99",
+          "chunk_length": 1927,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": "..................................................................................................99\n\n13.A8.D1................................................................................................................................................................................................................................103\n13.A8.D2 ................................................................................................................................................................................................................................113\n13.A8.D3................................................................................................................................................................................................................................118\n13.A8.D4 (Dual-cassette feeder).........................................................................................................................................................................124\n13.A8.D4 (High-capacity input feeder)...........................................................................................................................................................130\n13.A8.D5/13.A8.D6 (Side high-capacity input feeder)..........................................................................................................................137\n13.A8.D5 (Dual-cassette feeder).........................................................................................................................................................................141\n13.A8.FF .................................................................................................................................................................................................................................147\n13.B2.Az ...............................................................................................................................................................................................................................149",
+          "chunk_length": 2065,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": ".................................................................................................149\n\n13.B2.D2 Jam in tray 2 ...............................................................................................................................................................................................153\n13.B2.D3 Jam in tray 3 ...............................................................................................................................................................................................160\n13.B2.D4 (DCF)..................................................................................................................................................................................................................167\n13.B2.D4 (HCI)...................................................................................................................................................................................................................168\n13.B2.D5 (DCF).................................................................................................................................................................................................................169\n13.B2.D5/13.B2.D6 (sHCI) ......................................................................................................................................................................................... 170\n13.B2.DD ...............................................................................................................................................................................................................................175\n13.B2.FF ................................................................................................................................................................................................................................ 179",
+          "chunk_length": 1910,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": "13.B4.Dz ................................................................................................................................................................................................................................181\n13.B4.FF.................................................................................................................................................................................................................................185\n13.B9.Az Fuser Jam ....................................................................................................................................................................................................188\n13.B9.Az Fuser Jam - with inner finisher installed .................................................................................................................................197\n13.B9.Az Fuser Jam - with Stapler stacker or Booklet finisher installed .............................................................................214\n13.B9.Cz...............................................................................................................................................................................................................................229\n13.B9.Dz .............................................................................................................................................................................................................................. 232\n13.B9.FF................................................................................................................................................................................................................................236\n13.D2.Az...............................................................................................................................................................................................................................262",
+          "chunk_length": 1971,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": ".................................................................................................262\n\n13.D2.Dz................................................................................................................................................................................................................................267\n13.D2.FF ...............................................................................................................................................................................................................................274\n13.D3.Az ...............................................................................................................................................................................................................................276\n13.D3.Dz ..............................................................................................................................................................................................................................280\n13.D3.FF ..............................................................................................................................................................................................................................284\n13.E1.A1 ................................................................................................................................................................................................................................288\n13.E1.Dz ................................................................................................................................................................................................................................291\n13.E7.Az ................................................................................................................................................................................................................................297",
+          "chunk_length": 1990,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": ".................................................................................................297\n\n13.E7.Dz ................................................................................................................................................................................................................................301\n13.E7.FF ................................................................................................................................................................................................................................305\n13.59.A3 .............................................................................................................................................................................................................................. 307\n13.59.D3 ...............................................................................................................................................................................................................................313\n13.59.FF ................................................................................................................................................................................................................................318\n13.60.A1, 13.60.A2 or 13.60.A3 ..............................................................................................................................................................................323\niv",
+          "chunk_length": 1496,
+          "has_embedding": true
+        }
+      ]
+    },
+    "q6": {
+      "status": "ok",
+      "row_count": 30,
+      "rows": [
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 1,
+          "stage_name": "upload",
+          "status": "completed",
+          "started_at": "2026-02-13 06:28:00.540369+00:00",
+          "completed_at": "2026-02-13 06:28:00.542910+00:00",
+          "error_message": null,
+          "metadata": "{\"pdf_path\": \"C:\\\\Firmwares\\\\HP\\\\HP_E877_SM.pdf\", \"processor\": \"upload\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 2,
+          "stage_name": "text_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:28:00.546477+00:00",
+          "completed_at": "2026-02-13 06:28:58.611467+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"text\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 3,
+          "stage_name": "table_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:28:58.621605+00:00",
+          "completed_at": "2026-02-13 06:40:55.638403+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"table\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 4,
+          "stage_name": "svg_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:40:55.646238+00:00",
+          "completed_at": "2026-02-13 15:22:19.492380+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"svg\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 5,
+          "stage_name": "image_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 15:22:19.509066+00:00",
+          "completed_at": "2026-02-13 16:20:50.518559+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"image\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 6,
+          "stage_name": "visual_embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 16:20:50.524405+00:00",
+          "completed_at": "2026-02-13 16:20:50.665329+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"visual_embedding\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 7,
+          "stage_name": "link_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 16:20:50.679788+00:00",
+          "completed_at": "2026-02-13 16:20:52.658037+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"links\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 8,
+          "stage_name": "chunk_prep",
+          "status": "completed",
+          "started_at": "2026-02-13 16:20:52.663195+00:00",
+          "completed_at": "2026-02-13 16:21:13.102349+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"chunk_prep\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 9,
+          "stage_name": "classification",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:13.107267+00:00",
+          "completed_at": "2026-02-13 16:21:27.424501+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"classification\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 10,
+          "stage_name": "metadata_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.433353+00:00",
+          "completed_at": "2026-02-13 16:21:27.500137+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"metadata\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 11,
+          "stage_name": "parts_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.505850+00:00",
+          "completed_at": "2026-02-13 16:21:27.558161+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"parts\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 12,
+          "stage_name": "series_detection",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.563867+00:00",
+          "completed_at": "2026-02-13 16:21:27.619277+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"series\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 13,
+          "stage_name": "storage",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.625793+00:00",
+          "completed_at": "2026-02-13 16:21:27.677569+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"storage\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 14,
+          "stage_name": "embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.683002+00:00",
+          "completed_at": "2026-02-13 16:26:56.545574+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"embedding\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 15,
+          "stage_name": "search_indexing",
+          "status": "completed",
+          "started_at": "2026-02-13 16:26:56.559766+00:00",
+          "completed_at": "2026-02-13 16:26:56.678040+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"search\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 1,
+          "stage_name": "upload",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.343501+00:00",
+          "completed_at": "2026-02-13 06:25:33.348743+00:00",
+          "error_message": null,
+          "metadata": "{\"pdf_path\": \"C:\\\\Firmwares\\\\HP\\\\HP_E877_CPMD.pdf\", \"processor\": \"upload\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 2,
+          "stage_name": "text_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.353836+00:00",
+          "completed_at": "2026-02-13 06:25:33.401011+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"text\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 3,
+          "stage_name": "table_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.405355+00:00",
+          "completed_at": "2026-02-13 06:25:33.425082+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"table\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 4,
+          "stage_name": "svg_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.429134+00:00",
+          "completed_at": "2026-02-13 06:25:33.451006+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"svg\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 5,
+          "stage_name": "image_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.454602+00:00",
+          "completed_at": "2026-02-13 06:25:33.473430+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"image\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 6,
+          "stage_name": "visual_embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.477157+00:00",
+          "completed_at": "2026-02-13 06:25:33.675616+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"visual_embedding\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 7,
+          "stage_name": "link_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.682415+00:00",
+          "completed_at": "2026-02-13 06:25:33.702353+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"links\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 8,
+          "stage_name": "chunk_prep",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.705670+00:00",
+          "completed_at": "2026-02-13 06:25:33.724081+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"chunk_prep\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 9,
+          "stage_name": "classification",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.727912+00:00",
+          "completed_at": "2026-02-13 06:25:33.745347+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"classification\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 10,
+          "stage_name": "metadata_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.748783+00:00",
+          "completed_at": "2026-02-13 06:25:33.766482+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"metadata\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 11,
+          "stage_name": "parts_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.771728+00:00",
+          "completed_at": "2026-02-13 06:25:33.788275+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"parts\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 12,
+          "stage_name": "series_detection",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.791512+00:00",
+          "completed_at": "2026-02-13 06:25:33.808712+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"series\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 13,
+          "stage_name": "storage",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.812764+00:00",
+          "completed_at": "2026-02-13 06:25:33.829095+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"storage\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 14,
+          "stage_name": "embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.832440+00:00",
+          "completed_at": "2026-02-13 06:27:58.215346+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"embedding\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 15,
+          "stage_name": "search_indexing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:27:58.221792+00:00",
+          "completed_at": "2026-02-13 06:27:58.285447+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"search\"}"
+        }
+      ]
+    },
+    "q7": {
+      "status": "ok",
+      "row_count": 2,
+      "rows": [
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "image_count": 354,
+          "images_with_ocr": 56,
+          "images_with_ai_desc": 13,
+          "images_with_context_embedding": 0
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "image_count": 1708,
+          "images_with_ocr": 67,
+          "images_with_ai_desc": 43,
+          "images_with_context_embedding": 0
+        }
+      ]
+    },
+    "q8": {
+      "status": "ok",
+      "row_count": 1,
+      "rows": [
+        {
+          "id": "e7680b1c-d4f8-45fb-934a-3be603c29cac",
+          "name": "HP Inc.",
+          "short_name": "HP",
+          "website": "https://www.hp.com",
+          "created_at": "2026-02-12 17:18:02.242305+00:00"
+        }
+      ]
+    }
+  },
+  "adapted_query_results": {
+    "q1": {
+      "status": "ok",
+      "row_count": 2,
+      "rows": [
+        {
+          "id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "filename": "HP_E877_CPMD.pdf",
+          "document_type": "service_manual",
+          "manufacturer": "HP Inc.",
+          "manufacturer_id": null,
+          "series": null,
+          "models": null,
+          "page_count": null,
+          "processing_status": "failed",
+          "extracted_metadata": "{}",
+          "manufacturer_name": null,
+          "short_name": null
+        },
+        {
+          "id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "filename": "HP_E877_SM.pdf",
+          "document_type": "service_manual",
+          "manufacturer": "HP Inc.",
+          "manufacturer_id": null,
+          "series": null,
+          "models": null,
+          "page_count": null,
+          "processing_status": "pending",
+          "extracted_metadata": "{}",
+          "manufacturer_name": null,
+          "short_name": null
+        }
+      ]
+    },
+    "q2": {
+      "status": "ok",
+      "row_count": 0,
+      "rows": []
+    },
+    "q3": {
+      "status": "ok",
+      "row_count": 0,
+      "rows": []
+    },
+    "q4": {
+      "status": "ok",
+      "row_count": 0,
+      "rows": []
+    },
+    "q5": {
+      "status": "ok",
+      "row_count": 19,
+      "rows": [
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 1,
+          "text_chunk": "Control Panel Messages Document (CPMD)",
+          "chunk_length": 38,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 2,
+          "text_chunk": "SUMMARY\nThis guide provides theory of operation, troubleshooting, and repair information.",
+          "chunk_length": 89,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 2,
+          "text_chunk": "SUMMARY\nThis document provides error-code troubleshooting information",
+          "chunk_length": 69,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 3,
+          "text_chunk": "© Copyright 2025 HP Development\nCompany, L.P.\nReproduction, adaptation, or translation\nwithout prior written permission is\nprohibited, except as allowed under the\ncopyright laws.\nThe information contained herein is subject\nto change without notice.\nThe only warranties for HP products and\nservices are set forth in the express\nwarranty statements accompanying such\nproducts and services. Nothing herein\nshould be construed as constituting an\nadditional warranty. HP shall not be liable\nfor technical or editorial errors or omissions\ncontained herein.\nEdition 14, 3/2025",
+          "chunk_length": 569,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 3,
+          "text_chunk": "© Copyright 2025 HP Development\nCompany, L.P.\nReproduction, adaptation, or translation\nwithout prior written permission is\nprohibited, except as allowed under the\ncopyright laws.\nThe information contained herein is subject\nto change without notice.\nThe only warranties for HP products and\nservices are set forth in the express\nwarranty statements accompanying such\nproducts and services. Nothing herein\nshould be construed as constituting an\nadditional warranty. HP shall not be liable\nfor technical or editorial errors or omissions\ncontained herein.\nEdition 11, 3/2025\nTrademark Credits\nAdobe®, Adobe Photoshop®, Acrobat®, and\nPostScript® are trademarks of Adobe\nSystems Incorporated.\nApple and the Apple logo are trademarks of\nApple Inc., registered in the U.S. and other\ncountries.\nmacOS is a trademark of Apple Inc.,\nregistered in the U.S. and other countries.\nAirPrint is a trademark of Apple Inc.,\nregistered in the U.S. and other countries.\nGoogle™ is a trademark of Google Inc.\nMicrosoft®, Windows®, and Windows Server®\nare U.S. registered trademarks of Microsoft\nCorporation.\nUNIX® is a registered trademark of The Open\nGroup.",
+          "chunk_length": 1135,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 4,
+          "text_chunk": "The information contained herein is subject to change without notice. The only warranties for HP\nproducts and services are set forth in the express warranty statements accompanying such products\nand services. Nothing herein should be construed as constituting an additional warranty. HP shall not be\nliable for technical or editorial errors or omissions contained herein.\nTable Revision History\nRevision\nNumber\nRevision Date\nRevision Notes\n14\nMarch 2025\nCorrected part description and part numbers for Keyboard\nKeyboard PCA on page 165\n14\nFebruary 2025\nAdded step #7 (with instructions to remove the Keyboard lower bracket)\nto the Integrated Scanner for Flow models (z bundle) with drawer type\nkeyboard on page 1675 section.\n13\nDecember 2024\nChanged part number for photo sensor 0604-001393 to 3SJ00-60110 in\n579 places\n12\nNovember 2024\nUpdated paper specifications for trays. See Paper handling\nspecifications on page 17\nUpdated part numbers in Image scanner assembly (ISA), see Parts and\ndiagrams: Image scanner assembly (ISA) on page 3469.\nUpdated Integrated Scanner (ISA) for Flow models, see Removal and\nreplacement: Integrated scanner for Flow z bundle (5QK39A for Flex-\nbuild) on page 1669.\n10\nOctober 2024\nUpdated Eraser Lamp info to add note and correct PN: Eraser PCA on\npage 168\nUpdated optional input devices in table 1-17\nOptional input and output devices configuration on page 24\n9\nAugust 2024\nRemoved Copy speed (Duplex A3) information, see Copy specifications\non page 16.\nAdded Booklet finisher Staple, Fold & Staple, and Fold Stapler with\ncover specifications table. Booklet finisher capacity\n8\nMay 2024\nRemoved information for ADF input tray (Z9Y05-60032), see Parts and\ndiagrams: 300sh flow ADF (2 of 2) on page 3472 and ADF unit on page\n177 .\niii",
+          "chunk_length": 1766,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "1 Document last updated ...................................................................................................................................................................................................................1\n2 About this document........................................................................................................................................................................................................................ 2\n3 Control-panel message types...................................................................................................................................................................................................3\nError-code and control-panel-message troubleshooting overview.........................................................................................................3\nError codes (types and structure).........................................................................................................................................................................3\n4 How to search for printer documentation........................................................................................................................................................................6\nWISE - How to access and use............................................................................................................................................................................................6\nAccessing WISE..................................................................................................................................................................................................................6\nUsing WISE to search for error codes..............................................................................................................................................................10",
+          "chunk_length": 1926,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................10\n\nUsing WISE to access repair and replace videos for FRUs..............................................................................................................12\n5 Printer service information.........................................................................................................................................................................................................17\n6 Numerical control panel messages....................................................................................................................................................................................18\n10.WX.YZ error messages.....................................................................................................................................................................................................18\n10.wx.yz error messages ............................................................................................................................................................................................18\n10.xx.01 Supply memory chip error .....................................................................................................................................................................19\n10.xx.03, cartridge or drum error.........................................................................................................................................................................20\n10.0x.15 Install [supply] .................................................................................................................................................................................................21\n10.0x.35 Incompatible <supply> ..........................................................................................................................................................................25",
+          "chunk_length": 1990,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................25\n\n10.0x.60 Drum unit low .................................................................................................................................................................................................27\n10.00.60, 10.01.60, 10.02.60, 10.03.60 ..................................................................................................................................................................28\n10.0x.69 or 10.0x.70 Toner Empty .........................................................................................................................................................................32\n10.0x.69 or 10.0x.70 Drum unit worn ..................................................................................................................................................................34\n10.00.89, 10.00.90, 10.01.90, 10.02.90, 10.03.90 ............................................................................................................................................35\n10.00.93, 10.01.93, 10.02.93, 10.03.93 ..................................................................................................................................................................38\n10.0x.B1 Supply RPC Timeout Error ...................................................................................................................................................................42\n10.10.60 Transfer Roller Low ....................................................................................................................................................................................43\n10.10.69, 10.10.70 Transfer Roller Worn ..............................................................................................................................................................44",
+          "chunk_length": 1939,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................44\n\n10.22.60 ITB Low ..............................................................................................................................................................................................................45\n10.22.69 / 10.22.70 ITB Worn ....................................................................................................................................................................................46\n10.23.15, 10.26.15 Fuser assembly not installed ..........................................................................................................................................47\n10.23.35, 10.26.35 Incompatible Fuser Assembly ....................................................................................................................................48\n10.23.69, 10.23.79 or 10.26.69, 10.26.70 Fuser assembly worn .........................................................................................................49\n10.31.15 Toner collection unit not installed ....................................................................................................................................................50\n10.31.60, 10.31.69 Toner collection unit full ....................................................................................................................................................56\n10.36.69 / 10.36.70 Image transfer belt (ITB) cleaner worn ................................................................................................................61\n10.38.15 Toner Collection Duct Install Error .................................................................................................................................................62\n11.WX.YZ error messages.....................................................................................................................................................................................................63",
+          "chunk_length": 2062,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 4,
+          "text_chunk": "..................................................................................................63\n\n11.* errors...............................................................................................................................................................................................................................63\n13.WX.YZ error messages....................................................................................................................................................................................................64\niii",
+          "chunk_length": 564,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 5,
+          "text_chunk": "Number\nRevision Date\nRevision Notes\n7\nApril 2024\nUpdated Echo PCA components, see PCA overview on page 145, Echo\nPCA on page 163, Parts and diagrams: PCA on page 3467, and EMR\ndiagrams: PCA (4 of 15) on page 3589.\nAdded new part number (Kit-Screws c-clips e-clips kit) X3A92-67924 on\npage 3443\nAdded new feature \"Low Volume Print Mode\" in Service Functions, see\nService menu on page 549.\n6\nMarch 2024\nAdded new remove and replace procedures for the following:\n●\nStacker with print quality diagnostics on page 3429\n●\nBridge unit with print quality diagnostics on page 3434\n5.1\nMarch 2024\nUpdated part number in remove and replace procedure to match parts\nlist for HP LaserJet 300ipm 300-sheet Flow DADF high speed scanner (z\nbundle)\n5\nJanuary, 2024\nUpdated the following information:\n●\nILSB Information updated for PQ Diagnostics:\nSee:Optional input and output devices configuration on page 24\n●\nSee:Print Quality Diagnostics output devices on page 3516\n–\nParts and diagrams: Stapler/Stacker finisher or Booklet\nfinisher with Print Quality Diagnostics on page 3516\nUpdated part number on electrical mechanical diagram to correct part\nnumber: JC39-02260A changed to 5QK03-50018\nUpdated Remove and replace chapter.\nAdded: Essential adjustments when replacing or reinstalling the\nsupplies or LLCs on page 617\n2.10\nNovember, 2023\nCorrected part number for Prefeed 4 Sensor S201 on page 3549 to\n0604-001490\n2.9\nSeptember, 2023\nAdd footnote to Booklet Maker speed.\n2.8\nAugust, 2023\nChanged PN and part description of \"Riser for HDD, USB ports\n(4XN67-60001)\" to \"SVC-Internal USB Expansion Kit (4XN67-67001)\" per\nHPPK PR #377.\n2.7\nMay, 2023\nUpdated HCI cassette remove/replace per HPPK PR 348.\nUpdated printer dimension content per HPPK PR 335.\nRemoved invalid video links form ISA WUR topics (300/200-sheet) per\nHPPK PR 328.\n2.6\nApril, 2023\nUpdated drum and developer part numbers (theory) per HPPK PR 321.",
+          "chunk_length": 1899,
+          "has_embedding": true
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "page_start": 5,
+          "text_chunk": "2.6\nApril, 2023\nUpdated drum and developer part numbers (theory) per HPPK PR 321.\n\nAdded drawer type physical keyboard (5QK47-60002 ) content in\nmultiple topics (theory, remove/replace, EM diagrams, parts) per HPPK\nPR322.\niv\nRevision History",
+          "chunk_length": 241,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": "13.* errors..............................................................................................................................................................................................................................64\n13.A7.A4 (Dual-cassette feeder)............................................................................................................................................................................70\n13.A7.A4 (High-capacity input feeder)...............................................................................................................................................................75\n13.A7.A5 .................................................................................................................................................................................................................................. 79\n13.A7.D4 / 13.A7.D5 (Dual-cassette feeder)...................................................................................................................................................84\n13.A7.D4 (High-capacity input feeder)..............................................................................................................................................................89\n13.A7.FF (Dual-cassette feeder)............................................................................................................................................................................95\n13.A8.A3 ..................................................................................................................................................................................................................................97\n13.A8.A5/13.A8.A6 (sHCI)...........................................................................................................................................................................................99",
+          "chunk_length": 1927,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": "..................................................................................................99\n\n13.A8.D1................................................................................................................................................................................................................................103\n13.A8.D2 ................................................................................................................................................................................................................................113\n13.A8.D3................................................................................................................................................................................................................................118\n13.A8.D4 (Dual-cassette feeder).........................................................................................................................................................................124\n13.A8.D4 (High-capacity input feeder)...........................................................................................................................................................130\n13.A8.D5/13.A8.D6 (Side high-capacity input feeder)..........................................................................................................................137\n13.A8.D5 (Dual-cassette feeder).........................................................................................................................................................................141\n13.A8.FF .................................................................................................................................................................................................................................147\n13.B2.Az ...............................................................................................................................................................................................................................149",
+          "chunk_length": 2065,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": ".................................................................................................149\n\n13.B2.D2 Jam in tray 2 ...............................................................................................................................................................................................153\n13.B2.D3 Jam in tray 3 ...............................................................................................................................................................................................160\n13.B2.D4 (DCF)..................................................................................................................................................................................................................167\n13.B2.D4 (HCI)...................................................................................................................................................................................................................168\n13.B2.D5 (DCF).................................................................................................................................................................................................................169\n13.B2.D5/13.B2.D6 (sHCI) ......................................................................................................................................................................................... 170\n13.B2.DD ...............................................................................................................................................................................................................................175\n13.B2.FF ................................................................................................................................................................................................................................ 179",
+          "chunk_length": 1910,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": "13.B4.Dz ................................................................................................................................................................................................................................181\n13.B4.FF.................................................................................................................................................................................................................................185\n13.B9.Az Fuser Jam ....................................................................................................................................................................................................188\n13.B9.Az Fuser Jam - with inner finisher installed .................................................................................................................................197\n13.B9.Az Fuser Jam - with Stapler stacker or Booklet finisher installed .............................................................................214\n13.B9.Cz...............................................................................................................................................................................................................................229\n13.B9.Dz .............................................................................................................................................................................................................................. 232\n13.B9.FF................................................................................................................................................................................................................................236\n13.D2.Az...............................................................................................................................................................................................................................262",
+          "chunk_length": 1971,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": ".................................................................................................262\n\n13.D2.Dz................................................................................................................................................................................................................................267\n13.D2.FF ...............................................................................................................................................................................................................................274\n13.D3.Az ...............................................................................................................................................................................................................................276\n13.D3.Dz ..............................................................................................................................................................................................................................280\n13.D3.FF ..............................................................................................................................................................................................................................284\n13.E1.A1 ................................................................................................................................................................................................................................288\n13.E1.Dz ................................................................................................................................................................................................................................291\n13.E7.Az ................................................................................................................................................................................................................................297",
+          "chunk_length": 1990,
+          "has_embedding": true
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "page_start": 5,
+          "text_chunk": ".................................................................................................297\n\n13.E7.Dz ................................................................................................................................................................................................................................301\n13.E7.FF ................................................................................................................................................................................................................................305\n13.59.A3 .............................................................................................................................................................................................................................. 307\n13.59.D3 ...............................................................................................................................................................................................................................313\n13.59.FF ................................................................................................................................................................................................................................318\n13.60.A1, 13.60.A2 or 13.60.A3 ..............................................................................................................................................................................323\niv",
+          "chunk_length": 1496,
+          "has_embedding": true
+        }
+      ]
+    },
+    "q6": {
+      "status": "ok",
+      "row_count": 30,
+      "rows": [
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 1,
+          "stage_name": "upload",
+          "status": "completed",
+          "started_at": "2026-02-13 06:28:00.540369+00:00",
+          "completed_at": "2026-02-13 06:28:00.542910+00:00",
+          "error_message": null,
+          "metadata": "{\"pdf_path\": \"C:\\\\Firmwares\\\\HP\\\\HP_E877_SM.pdf\", \"processor\": \"upload\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 2,
+          "stage_name": "text_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:28:00.546477+00:00",
+          "completed_at": "2026-02-13 06:28:58.611467+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"text\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 3,
+          "stage_name": "table_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:28:58.621605+00:00",
+          "completed_at": "2026-02-13 06:40:55.638403+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"table\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 4,
+          "stage_name": "svg_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:40:55.646238+00:00",
+          "completed_at": "2026-02-13 15:22:19.492380+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"svg\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 5,
+          "stage_name": "image_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 15:22:19.509066+00:00",
+          "completed_at": "2026-02-13 16:20:50.518559+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"image\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 6,
+          "stage_name": "visual_embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 16:20:50.524405+00:00",
+          "completed_at": "2026-02-13 16:20:50.665329+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"visual_embedding\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 7,
+          "stage_name": "link_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 16:20:50.679788+00:00",
+          "completed_at": "2026-02-13 16:20:52.658037+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"links\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 8,
+          "stage_name": "chunk_prep",
+          "status": "completed",
+          "started_at": "2026-02-13 16:20:52.663195+00:00",
+          "completed_at": "2026-02-13 16:21:13.102349+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"chunk_prep\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 9,
+          "stage_name": "classification",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:13.107267+00:00",
+          "completed_at": "2026-02-13 16:21:27.424501+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"classification\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 10,
+          "stage_name": "metadata_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.433353+00:00",
+          "completed_at": "2026-02-13 16:21:27.500137+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"metadata\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 11,
+          "stage_name": "parts_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.505850+00:00",
+          "completed_at": "2026-02-13 16:21:27.558161+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"parts\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 12,
+          "stage_name": "series_detection",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.563867+00:00",
+          "completed_at": "2026-02-13 16:21:27.619277+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"series\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 13,
+          "stage_name": "storage",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.625793+00:00",
+          "completed_at": "2026-02-13 16:21:27.677569+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"storage\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 14,
+          "stage_name": "embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 16:21:27.683002+00:00",
+          "completed_at": "2026-02-13 16:26:56.545574+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"embedding\"}"
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "stage_number": 15,
+          "stage_name": "search_indexing",
+          "status": "completed",
+          "started_at": "2026-02-13 16:26:56.559766+00:00",
+          "completed_at": "2026-02-13 16:26:56.678040+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"search\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 1,
+          "stage_name": "upload",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.343501+00:00",
+          "completed_at": "2026-02-13 06:25:33.348743+00:00",
+          "error_message": null,
+          "metadata": "{\"pdf_path\": \"C:\\\\Firmwares\\\\HP\\\\HP_E877_CPMD.pdf\", \"processor\": \"upload\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 2,
+          "stage_name": "text_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.353836+00:00",
+          "completed_at": "2026-02-13 06:25:33.401011+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"text\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 3,
+          "stage_name": "table_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.405355+00:00",
+          "completed_at": "2026-02-13 06:25:33.425082+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"table\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 4,
+          "stage_name": "svg_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.429134+00:00",
+          "completed_at": "2026-02-13 06:25:33.451006+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"svg\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 5,
+          "stage_name": "image_processing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.454602+00:00",
+          "completed_at": "2026-02-13 06:25:33.473430+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"image\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 6,
+          "stage_name": "visual_embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.477157+00:00",
+          "completed_at": "2026-02-13 06:25:33.675616+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"visual_embedding\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 7,
+          "stage_name": "link_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.682415+00:00",
+          "completed_at": "2026-02-13 06:25:33.702353+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"links\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 8,
+          "stage_name": "chunk_prep",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.705670+00:00",
+          "completed_at": "2026-02-13 06:25:33.724081+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"chunk_prep\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 9,
+          "stage_name": "classification",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.727912+00:00",
+          "completed_at": "2026-02-13 06:25:33.745347+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"classification\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 10,
+          "stage_name": "metadata_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.748783+00:00",
+          "completed_at": "2026-02-13 06:25:33.766482+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"metadata\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 11,
+          "stage_name": "parts_extraction",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.771728+00:00",
+          "completed_at": "2026-02-13 06:25:33.788275+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"parts\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 12,
+          "stage_name": "series_detection",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.791512+00:00",
+          "completed_at": "2026-02-13 06:25:33.808712+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"series\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 13,
+          "stage_name": "storage",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.812764+00:00",
+          "completed_at": "2026-02-13 06:25:33.829095+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"storage\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 14,
+          "stage_name": "embedding",
+          "status": "completed",
+          "started_at": "2026-02-13 06:25:33.832440+00:00",
+          "completed_at": "2026-02-13 06:27:58.215346+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"embedding\"}"
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "stage_number": 15,
+          "stage_name": "search_indexing",
+          "status": "completed",
+          "started_at": "2026-02-13 06:27:58.221792+00:00",
+          "completed_at": "2026-02-13 06:27:58.285447+00:00",
+          "error_message": null,
+          "metadata": "{\"processor\": \"search\"}"
+        }
+      ]
+    },
+    "q7": {
+      "status": "ok",
+      "row_count": 2,
+      "rows": [
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "image_count": 354,
+          "images_with_ocr": 56,
+          "images_with_ai_desc": 13,
+          "images_with_context_embedding": 0
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "image_count": 1708,
+          "images_with_ocr": 67,
+          "images_with_ai_desc": 43,
+          "images_with_context_embedding": 0
+        }
+      ]
+    },
+    "q8": {
+      "status": "ok",
+      "row_count": 1,
+      "rows": [
+        {
+          "id": "e7680b1c-d4f8-45fb-934a-3be603c29cac",
+          "name": "HP Inc.",
+          "short_name": "HP",
+          "website": "https://www.hp.com",
+          "created_at": "2026-02-12 17:18:02.242305+00:00"
+        }
+      ]
+    },
+    "summary_counts": {
+      "status": "ok",
+      "row_count": 2,
+      "rows": [
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "filename": "HP_E877_CPMD.pdf",
+          "chunk_count": 1189,
+          "image_count": 1708,
+          "error_code_count": 0,
+          "product_count": 0
+        },
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "filename": "HP_E877_SM.pdf",
+          "chunk_count": 3970,
+          "image_count": 354,
+          "error_code_count": 0,
+          "product_count": 0
+        }
+      ]
+    },
+    "parts_count_by_doc_via_products": {
+      "status": "ok",
+      "row_count": 0,
+      "rows": []
+    },
+    "embedding_coverage": {
+      "status": "ok",
+      "row_count": 2,
+      "rows": [
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "total_chunks": 3970,
+          "embedded_chunks": 3970,
+          "coverage": 1.0
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "total_chunks": 1189,
+          "embedded_chunks": 1189,
+          "coverage": 1.0
+        }
+      ]
+    },
+    "chunk_pattern_probe": {
+      "status": "ok",
+      "row_count": 2,
+      "rows": [
+        {
+          "document_id": "b557ec67-52db-4863-9e3a-b0d48e330b2e",
+          "chunks_with_e877": 30,
+          "chunks_with_hp_error_pattern": 11
+        },
+        {
+          "document_id": "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+          "chunks_with_e877": 15,
+          "chunks_with_hp_error_pattern": 250
+        }
+      ]
+    }
+  }
+}

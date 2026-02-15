@@ -1,0 +1,14 @@
+{
+  "result": "ERROR",
+  "timestamp": "2026-02-12T19:34:51.320741",
+  "error": {
+    "message": "ProcessingContext.__init__() missing 1 required positional argument: 'file_path'",
+    "type": "RuntimeError",
+    "stack_trace": "RuntimeError: ProcessingContext.__init__() missing 1 required positional argument: 'file_path'\n"
+  },
+  "context": {
+    "document_id": "4d0299ed-52ce-4d74-8019-36b8389faa1b",
+    "stage": "visual_embedding",
+    "pdf_path": "C:\\Firmwares\\HP\\HP_E877_CPMD.pdf"
+  }
+}

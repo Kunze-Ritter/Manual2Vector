@@ -152,6 +152,10 @@ class ImageModel(BaseModel):
     original_filename: str
     storage_path: str  # Object Storage path
     storage_url: str   # Object Storage URL
+    svg_storage_url: Optional[str] = None
+    original_svg_content: Optional[str] = None
+    is_vector_graphic: bool = False
+    has_png_derivative: bool = True
     file_size: int
     image_format: str
     width_px: int

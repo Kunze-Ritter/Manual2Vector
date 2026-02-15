@@ -55,6 +55,30 @@ class LinkExtractor:
             re.compile(r'(?:https?://)?(?:www\.)?youtu\.be/([a-zA-Z0-9_-]{11})', re.IGNORECASE),
             re.compile(r'(?:https?://)?(?:www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})', re.IGNORECASE),
         ]
+
+    @staticmethod
+    def _decode_pdf_value(value) -> str:
+        """Best-effort decoder for PDF annotation values that may be bytes."""
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if not isinstance(value, (bytes, bytearray)):
+            return str(value)
+
+        raw = bytes(value)
+        # Avoid UTF-16 truncation errors on odd-length payloads.
+        if len(raw) % 2 == 1:
+            raw = raw[:-1]
+
+        encodings = ["utf-8", "cp1252", "latin-1", "utf-16", "utf-16-le", "utf-16-be"]
+        for encoding in encodings:
+            try:
+                return raw.decode(encoding).strip()
+            except Exception:
+                continue
+
+        return raw.decode("utf-8", errors="ignore").strip()
     
     def extract_from_document(
         self,
@@ -100,7 +124,11 @@ class LinkExtractor:
             # Check for direct video files FIRST (before other checks)
             if self._is_direct_video_url(url):
                 # Direct video file (MP4, WebM, etc.)
-                video_metadata = self._create_direct_video_metadata(url, link['id'])
+                video_metadata = self._create_direct_video_metadata(
+                    url,
+                    link['id'],
+                    page_number=link.get('page_number')
+                )
                 all_videos.append(video_metadata)
                 link['video_id'] = video_metadata['id']
                 link['link_type'] = 'video'
@@ -114,6 +142,8 @@ class LinkExtractor:
                 if video_metadata:
                     video_metadata['link_id'] = link['id']
                     video_metadata['id'] = str(uuid4())
+                    video_metadata['video_url'] = video_metadata.get('video_url') or url
+                    video_metadata['page_number'] = link.get('page_number')
                     all_videos.append(video_metadata)
                     link['video_id'] = video_metadata['id']
                     link['link_type'] = 'video'
@@ -125,7 +155,12 @@ class LinkExtractor:
             # Check for other video platforms
             elif self._is_video_platform(url):
                 platform = self._detect_video_platform(url)
-                video_metadata = self._create_generic_video_metadata(url, link['id'], platform)
+                video_metadata = self._create_generic_video_metadata(
+                    url,
+                    link['id'],
+                    platform,
+                    page_number=link.get('page_number')
+                )
                 all_videos.append(video_metadata)
                 link['video_id'] = video_metadata['id']
                 link['link_type'] = 'video'
@@ -154,34 +189,31 @@ class LinkExtractor:
         try:
             with pdfplumber.open(pdf_path) as pdf:
                 for page_num, page in enumerate(pdf.pages, 1):
-                    # Get annotations
-                    if hasattr(page, 'annots') and page.annots:
-                        for annot in page.annots:
+                    # Some PDFs contain malformed annotation metadata; isolate per-page failures.
+                    try:
+                        annots = page.annots if hasattr(page, "annots") else None
+                    except Exception as page_error:
+                        self.logger.debug(
+                            "Skipping annotations for page %s due to parse error: %s",
+                            page_num,
+                            page_error,
+                        )
+                        continue
+
+                    if annots:
+                        for annot in annots:
                             try:
                                 if 'uri' in annot or 'URI' in annot:
-                                    url = annot.get('uri') or annot.get('URI')
+                                    url_raw = annot.get('uri') or annot.get('URI')
+                                    url_text = self._decode_pdf_value(url_raw)
                                     
                                     # Clean URL
-                                    url = clean_url(url) if url else None
+                                    url = clean_url(url_text) if url_text else None
                                     
                                     if url:
-                                        # Safely decode description (may be UTF-16-LE encoded)
-                                        description = ''
-                                        try:
-                                            desc_raw = annot.get('contents', '')
-                                            if isinstance(desc_raw, bytes):
-                                                # Try UTF-16-LE first (common in PDF annotations)
-                                                try:
-                                                    description = desc_raw.decode('utf-16-le', errors='ignore')
-                                                except:
-                                                    try:
-                                                        description = desc_raw.decode('utf-8', errors='ignore')
-                                                    except:
-                                                        description = ''
-                                            else:
-                                                description = str(desc_raw) if desc_raw else ''
-                                        except:
-                                            description = ''
+                                        # Safely decode description (can be bytes in arbitrary encodings).
+                                        desc_raw = annot.get('contents', '')
+                                        description = self._decode_pdf_value(desc_raw)
                                         
                                         links.append({
                                             'url': url,
@@ -298,13 +330,14 @@ class LinkExtractor:
         Otherwise, uses oembed (limited data).
         """
         try:
-            if self.youtube_api_key:
+            api_key = (self.youtube_api_key or "").strip()
+            if api_key and api_key.lower() not in {"your-youtube-api-key-here", "changeme", "placeholder"}:
                 # Use YouTube Data API v3
                 url = f"https://www.googleapis.com/youtube/v3/videos"
                 params = {
                     'part': 'snippet,contentDetails,statistics',
                     'id': youtube_id,
-                    'key': self.youtube_api_key
+                    'key': api_key
                 }
                 
                 response = requests.get(url, params=params, timeout=10)
@@ -575,7 +608,12 @@ Any visible text or product names?"""
         )
         return url.lower().endswith(video_extensions)
     
-    def _create_direct_video_metadata(self, url: str, link_id: str) -> Dict:
+    def _create_direct_video_metadata(
+        self,
+        url: str,
+        link_id: str,
+        page_number: Optional[int] = None
+    ) -> Dict:
         """
         Create video metadata dict for direct video file
         This will be enriched later by enrich_video_metadata.py
@@ -600,6 +638,7 @@ Any visible text or product names?"""
             'youtube_id': None,
             'platform': 'direct',
             'video_url': url,
+            'page_number': page_number,
             'title': title,
             'description': f'Direct video file: {filename}',
             'thumbnail_url': None,  # Will be generated by enrichment
@@ -687,7 +726,13 @@ Any visible text or product names?"""
         
         return 'unknown'
     
-    def _create_generic_video_metadata(self, url: str, link_id: str, platform: str) -> Dict:
+    def _create_generic_video_metadata(
+        self,
+        url: str,
+        link_id: str,
+        platform: str,
+        page_number: Optional[int] = None
+    ) -> Dict:
         """
         Create video metadata dict for non-YouTube platforms (Vimeo, Brightcove, etc.)
         
@@ -726,6 +771,7 @@ Any visible text or product names?"""
             'youtube_id': None,
             'platform': platform,
             'video_url': url,
+            'page_number': page_number,
             'title': title,
             'description': f'{platform.title()} video - enrichment needed',
             'thumbnail_url': None,
@@ -752,10 +798,21 @@ Any visible text or product names?"""
             else:
                 # Keep link with higher confidence or more info
                 existing = seen_urls[url_normalized]
+                replacement = existing
                 if link.get('confidence_score', 0) > existing.get('confidence_score', 0):
-                    seen_urls[url_normalized] = link
+                    replacement = link
                 elif link.get('description') and not existing.get('description'):
-                    seen_urls[url_normalized] = link
+                    replacement = link
+                elif link.get('page_number') and not existing.get('page_number'):
+                    replacement = link
+
+                other = existing if replacement is link else link
+                # Preserve useful fields from both candidates (especially page_number).
+                for key in ('page_number', 'description', 'context', 'context_text'):
+                    if not replacement.get(key) and other.get(key):
+                        replacement[key] = other.get(key)
+
+                seen_urls[url_normalized] = replacement
         
         return list(seen_urls.values())
     

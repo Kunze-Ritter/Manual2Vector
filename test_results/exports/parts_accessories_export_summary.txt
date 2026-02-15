@@ -1,0 +1,6 @@
+lexmark_7566-69x_sm | doc=d5849a18-cc45-44aa-81e0-e278a3e61022 | file=7566-69x_sm.pdf | manufacturer=Lexmark | all_parts=1088 | accessories=527
+  all_csv=test_results\exports\lexmark_7566-69x_sm_all_parts.csv
+  accessories_csv=test_results\exports\lexmark_7566-69x_sm_accessories.csv
+konica_km_c658_c558_c458_c368_c308_c258 | doc=9e7e4f7f-02c9-41e3-9a77-32bfd1647c1a | file=KM_C658_C558_C458_C368_C308_C258_SM_EN.pdf | manufacturer=Konica Minolta | all_parts=20 | accessories=3
+  all_csv=test_results\exports\konica_km_c658_c558_c458_c368_c308_c258_all_parts.csv
+  accessories_csv=test_results\exports\konica_km_c658_c558_c458_c368_c308_c258_accessories.csv

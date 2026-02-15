@@ -19,6 +19,9 @@ class SeriesProcessor(BaseProcessor):
         super().__init__(name="series_processor")
         self.stage = Stage.SERIES_DETECTION
         self.adapter = database_adapter or get_database_adapter()
+        # Expose adapter under BaseProcessor-expected attribute names.
+        self.db_adapter = self.adapter
+        self.database_service = self.adapter
         self.logger.info("SeriesProcessor initialized")
         
     async def process_all_products(self) -> Dict:

@@ -190,7 +190,9 @@ class ImageStorageProcessor:
             
             # 3. New image - upload to object storage
             extension = image_path.suffix.lstrip('.')
-            storage_path = f"{file_hash}.{extension}"
+            is_svg = extension.lower() == 'svg'
+            has_png_derivative = bool(metadata.get('has_png_derivative', not is_svg)) if metadata else (not is_svg)
+            storage_path = f"svg/{file_hash}.svg" if is_svg else f"{file_hash}.{extension}"
             
             # Upload to object storage
             with open(image_path, 'rb') as f:
@@ -204,9 +206,11 @@ class ImageStorageProcessor:
                             'page-number': str(page_number),
                             'image-type': image_type,
                             'file-hash': file_hash,
+                            'is-vector-graphic': str(is_svg).lower(),
+                            'has-png-derivative': str(has_png_derivative).lower(),
                             'upload-timestamp': datetime.utcnow().isoformat()
                         },
-                        'ContentType': mimetypes.guess_type(image_path)[0] or 'image/png'
+                        'ContentType': 'image/svg+xml' if is_svg else (mimetypes.guess_type(image_path)[0] or 'image/png')
                     }
                 )
             
@@ -215,6 +219,11 @@ class ImageStorageProcessor:
                 storage_url = f"{self.public_url}/{storage_path}"
             else:
                 storage_url = f"{self.endpoint_url}/{self.bucket_name}/{storage_path}"
+
+            svg_storage_url = storage_url if is_svg else (metadata.get('svg_storage_url') if metadata else None)
+            if is_svg and metadata and metadata.get('png_storage_url'):
+                # Keep storage_url backward-compatible with raster consumers when a PNG derivative exists.
+                storage_url = metadata['png_storage_url']
             
             # 4. Insert to database using DatabaseAdapter
             from backend.core.data_models import ImageModel
@@ -222,11 +231,16 @@ class ImageStorageProcessor:
             image_model = ImageModel(
                 document_id=str(document_id),
                 filename=storage_path,
+                original_filename=image_path.name,
                 storage_path=storage_path,
                 storage_url=storage_url,
+                svg_storage_url=svg_storage_url,
+                original_svg_content=metadata.get('original_svg_content') if metadata else None,
+                is_vector_graphic=is_svg,
+                has_png_derivative=has_png_derivative,
                 file_hash=file_hash,
                 file_size=image_path.stat().st_size,
-                image_format=extension.upper(),
+                image_format=extension.lower(),
                 page_number=page_number,
                 image_type=image_type,
                 width_px=metadata.get('width') if metadata else None,
@@ -238,7 +252,10 @@ class ImageStorageProcessor:
                 ocr_confidence=metadata.get('ocr_confidence') if metadata else None
             )
             
-            db_id = await self.db_client.create_image(image_model)
+            if is_svg and hasattr(self.db_client, 'create_image_with_svg'):
+                db_id = await self.db_client.create_image_with_svg(image_model)
+            else:
+                db_id = await self.db_client.create_image(image_model)
             
             self.logger.debug(f"Uploaded new image: {file_hash[:8]}... -> {storage_path}")
             

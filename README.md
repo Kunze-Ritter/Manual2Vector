@@ -284,7 +284,7 @@ The Laravel Filament dashboard at **http://localhost:80** provides document mana
  - 📘 **[Operational Runbook: Error Handling](docs/OPERATIONAL_RUNBOOK_ERROR_HANDLING.md)** - Queries and procedures for pipeline errors and retries
 
 ### Pipeline Documentation
-- 🏗️ **[Pipeline Architecture](docs/processor/PIPELINE_ARCHITECTURE.md)** - 15-stage modular pipeline design
+- 🏗️ **[Pipeline Architecture](docs/processor/PIPELINE_ARCHITECTURE.md)** - 16-stage modular pipeline design
 - 📋 **[Stage Reference](docs/processor/STAGE_REFERENCE.md)** - Detailed documentation for all processing stages
 - 🚀 **[Quick Start](docs/processor/QUICK_START.md)** - CLI, API, and dashboard usage examples
 
@@ -329,8 +329,8 @@ KRAI is a comprehensive multimodal AI system that automatically extracts, analyz
 
 ### 🔄 Stage-Based Processing Pipeline
 
-- **15-Stage Modular Architecture** - Granular control over document processing
-- **Stage Orchestration** - UPLOAD → TEXT_EXTRACTION → TABLE_EXTRACTION → SVG_PROCESSING → IMAGE_PROCESSING → VISUAL_EMBEDDING → LINK_EXTRACTION → CHUNK_PREPROCESSING → CLASSIFICATION → METADATA_EXTRACTION → PARTS_EXTRACTION → SERIES_DETECTION → STORAGE → EMBEDDING → SEARCH_INDEXING
+- **16-Stage Modular Architecture** - Granular control over document processing
+- **Stage Orchestration** - UPLOAD → TEXT_EXTRACTION → TABLE_EXTRACTION → SVG_PROCESSING → IMAGE_PROCESSING → VISUAL_EMBEDDING → LINK_EXTRACTION → VIDEO_ENRICHMENT (optional) → CHUNK_PREPROCESSING → CLASSIFICATION → METADATA_EXTRACTION → PARTS_EXTRACTION → SERIES_DETECTION → STORAGE → EMBEDDING → SEARCH_INDEXING
 - **Individual Stage Execution** - Run specific stages on-demand via CLI or API
 - **Smart Processing** - Skip completed stages and resume from failures
 - **Real-time Status Tracking** - Monitor progress of each stage independently

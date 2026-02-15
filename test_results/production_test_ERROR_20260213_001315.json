@@ -1,0 +1,14 @@
+{
+  "result": "ERROR",
+  "timestamp": "2026-02-13T00:13:15.597198",
+  "error": {
+    "message": "Stage failed.",
+    "type": "RuntimeError",
+    "stack_trace": "RuntimeError: Stage failed.\n"
+  },
+  "context": {
+    "document_id": "4d0299ed-52ce-4d74-8019-36b8389faa1b",
+    "stage": "embedding",
+    "pdf_path": "C:\\Firmwares\\HP\\HP_E877_CPMD.pdf"
+  }
+}

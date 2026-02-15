@@ -29,6 +29,7 @@ class PipelineConfig:
         self.enable_vision_ai = self._get_bool('ENABLE_VISION_AI', True)
         self.enable_link_extraction = self._get_bool('ENABLE_LINK_EXTRACTION', True)
         self.enable_embeddings = self._get_bool('ENABLE_EMBEDDINGS', True)
+        self.enable_brightcove_enrichment = self._get_bool('ENABLE_BRIGHTCOVE_ENRICHMENT', False)
         
         # Storage settings (MinIO/object-storage only)
         self.upload_images_to_storage = self._get_bool('UPLOAD_IMAGES_TO_STORAGE', False)
@@ -49,6 +50,7 @@ class PipelineConfig:
                 'versions': self.enable_version_extraction,
                 'images': self.enable_image_extraction,
                 'links': self.enable_link_extraction,
+                'brightcove_enrichment': self.enable_brightcove_enrichment,
             },
             'ai': {
                 'ocr': self.enable_ocr,

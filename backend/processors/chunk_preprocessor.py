@@ -8,6 +8,7 @@ and detecting chunk types for better embedding quality.
 """
 
 import re
+import json
 from typing import Any, Dict, List
 
 from backend.core.base_processor import BaseProcessor, Stage
@@ -89,7 +90,7 @@ class ChunkPreprocessor(BaseProcessor):
 
                         chunk_type = self._detect_chunk_type(cleaned_content)
 
-                        metadata = chunk.get('metadata', {})
+                        metadata = self._normalize_metadata(chunk.get('metadata'))
                         metadata['preprocessed'] = True
                         metadata['chunk_type'] = chunk_type
                         metadata['original_length'] = len(original_content)
@@ -227,6 +228,20 @@ class ChunkPreprocessor(BaseProcessor):
                 return 'table'
         
         return 'text'
+
+    @staticmethod
+    def _normalize_metadata(raw_metadata: Any) -> Dict[str, Any]:
+        """Normalize chunk metadata to a mutable dict."""
+        if isinstance(raw_metadata, dict):
+            return dict(raw_metadata)
+        if isinstance(raw_metadata, str):
+            try:
+                parsed = json.loads(raw_metadata)
+                if isinstance(parsed, dict):
+                    return parsed
+            except Exception:
+                pass
+        return {}
     
     async def _get_document_chunks(self, document_id: str, adapter) -> List[Dict]:
         """Get all chunks for document via DatabaseAdapter or Supabase client. Fails or warns when neither is available."""
@@ -285,12 +300,11 @@ class ChunkPreprocessor(BaseProcessor):
             adapter.warning("Failed to update chunk %s: %s", chunk_id, e)
             return False
     
-    def _create_result(self, success: bool, message: str, data: Dict) -> Any:
-        """Create a processing result object"""
-        class Result:
-            def __init__(self, success, message, data):
-                self.success = success
-                self.message = message
-                self.data = data
-        
-        return Result(success, message, data)
+    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
+        """Create a BaseProcessor-compatible result payload."""
+        return {
+            "success": success,
+            "data": data or {},
+            "metadata": {"message": message},
+            "error": None if success else message,
+        }

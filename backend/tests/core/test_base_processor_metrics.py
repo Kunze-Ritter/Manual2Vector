@@ -26,6 +26,24 @@ class ConcreteProcessor(BaseProcessor):
         )
 
 
+class DictResultProcessor(BaseProcessor):
+    """Processor returning dict payloads (legacy behavior)."""
+
+    async def process(self, context: ProcessingContext):
+        return {
+            "success": True,
+            "images_processed": 3,
+            "metadata": {"document_id": str(context.document_id)},
+        }
+
+
+class FailingProcessor(BaseProcessor):
+    """Processor raising an error to exercise ErrorLogger invocation."""
+
+    async def process(self, context: ProcessingContext):
+        raise ValueError("boom")
+
+
 @pytest.fixture
 def processor():
     return ConcreteProcessor("test_processor", {})
@@ -158,3 +176,59 @@ async def test_safe_process_sets_processing_time(processor, context):
     assert hasattr(result, "processing_time")
     assert isinstance(result.processing_time, (int, float))
     assert result.processing_time >= 0
+
+
+@pytest.mark.asyncio
+async def test_safe_process_normalizes_dict_results(context):
+    """Test that dict returns are normalized to ProcessingResult."""
+    processor = DictResultProcessor("dict_result_processor", {})
+
+    with patch.object(processor, "_check_completion_marker", return_value=None):
+        with patch.object(processor, "_get_retry_orchestrator", return_value=None):
+            with patch.object(processor, "_get_error_logger", return_value=None):
+                with patch(
+                    "backend.core.base_processor.RetryPolicyManager.get_policy",
+                    new_callable=AsyncMock,
+                    return_value=MagicMock(max_retries=0),
+                ):
+                    with patch.object(
+                        processor,
+                        "_set_completion_marker",
+                        new_callable=AsyncMock,
+                        return_value=None,
+                    ):
+                        result = await processor.safe_process(context)
+
+    assert isinstance(result, ProcessingResult)
+    assert result.success is True
+    assert result.status == ProcessingStatus.COMPLETED
+    assert result.data["images_processed"] == 3
+    assert result.metadata["document_id"] == str(context.document_id)
+    assert isinstance(result.processing_time, (int, float))
+
+
+@pytest.mark.asyncio
+async def test_safe_process_logs_error_with_expected_keywords(context):
+    """Ensure BaseProcessor uses ErrorLogger.log_error(error=..., retry_count=...)."""
+    processor = FailingProcessor("failing_processor", {"service_name": "test"})
+    mock_error_logger = MagicMock()
+    mock_error_logger.log_error = AsyncMock(return_value="err_123")
+
+    with patch.object(processor, "_check_completion_marker", return_value=None):
+        with patch.object(processor, "_get_retry_orchestrator", return_value=None):
+            with patch.object(processor, "_get_error_logger", return_value=mock_error_logger):
+                with patch(
+                    "backend.core.base_processor.RetryPolicyManager.get_policy",
+                    new_callable=AsyncMock,
+                    return_value=MagicMock(max_retries=0),
+                ):
+                    result = await processor.safe_process(context)
+
+    assert result.success is False
+    assert result.status == ProcessingStatus.FAILED
+    assert mock_error_logger.log_error.await_count == 1
+    kwargs = mock_error_logger.log_error.await_args.kwargs
+    assert "error" in kwargs
+    assert "retry_count" in kwargs
+    assert "exception" not in kwargs
+    assert "retry_attempt" not in kwargs

@@ -14,6 +14,13 @@ from typing import List, Optional, Dict
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "parts_patterns.json"
 PARTS_CONFIG = None
 
+MANUFACTURER_ALIASES = {
+    "hp_inc": "hp",
+    "hewlett_packard": "hp",
+    "konica": "konica_minolta",
+    "minolta": "konica_minolta",
+}
+
 def _load_config():
     """Load parts patterns configuration"""
     global PARTS_CONFIG
@@ -21,6 +28,28 @@ def _load_config():
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             PARTS_CONFIG = json.load(f)
     return PARTS_CONFIG
+
+
+def _valid_manufacturer_keys(config: Dict) -> List[str]:
+    """Return manufacturer keys with a usable patterns list."""
+    keys: List[str] = []
+    for key, value in config.items():
+        if not isinstance(value, dict):
+            continue
+        patterns = value.get("patterns")
+        if isinstance(patterns, list) and patterns:
+            keys.append(key)
+    return keys
+
+
+def _resolve_manufacturer_key(manufacturer_key: Optional[str], config: Dict) -> Optional[str]:
+    """Normalize manufacturer aliases to config keys."""
+    if not manufacturer_key:
+        return None
+    normalized = str(manufacturer_key).strip().lower().replace(" ", "_").replace("-", "_")
+    if normalized in config:
+        return normalized
+    return MANUFACTURER_ALIASES.get(normalized)
 
 
 def extract_parts_by_manufacturer(text: str, manufacturer_key: str) -> Optional[str]:
@@ -40,9 +69,12 @@ def extract_parts_by_manufacturer(text: str, manufacturer_key: str) -> Optional[
     config = _load_config()
     
     # Get manufacturer patterns
-    if manufacturer_key not in config:
+    resolved_key = _resolve_manufacturer_key(manufacturer_key, config)
+    if not resolved_key or resolved_key not in config:
         manufacturer_key = 'generic'
-    
+    else:
+        manufacturer_key = resolved_key
+
     manufacturer_config = config.get(manufacturer_key, {})
     patterns = manufacturer_config.get('patterns', [])
     
@@ -54,8 +86,12 @@ def extract_parts_by_manufacturer(text: str, manufacturer_key: str) -> Optional[
     
     # Extract using all patterns for this manufacturer
     for pattern_config in patterns:
-        pattern = pattern_config.get('pattern')
-        confidence = pattern_config.get('confidence', 0.5)
+        if isinstance(pattern_config, str):
+            pattern = pattern_config
+            confidence = 0.8
+        else:
+            pattern = pattern_config.get('pattern')
+            confidence = pattern_config.get('confidence', 0.5)
         
         if confidence < min_confidence:
             continue
@@ -92,6 +128,119 @@ def _filter_false_positives(parts: List[str], config: Dict) -> List[str]:
     parts = [p for p in parts if p.upper() not in false_positives]
     
     return parts
+
+
+def _has_any_keyword(text: str, keywords: List[str]) -> bool:
+    """Case-insensitive keyword lookup."""
+    if not text:
+        return False
+    text_l = text.lower()
+    return any(k.lower() in text_l for k in keywords if k)
+
+
+def _is_plausible_part_token(part: str) -> bool:
+    """Basic token sanity checks to reject obvious non-part artifacts."""
+    if not part:
+        return False
+    token = part.strip()
+    if not (5 <= len(token) <= 25):
+        return False
+    # Pure words from headings/TOC should not be treated as part numbers.
+    if token.isalpha():
+        return False
+    # Reject repeated digit artifacts like 1111111111.
+    if token.isdigit() and len(set(token)) == 1:
+        return False
+    return True
+
+
+def _looks_like_table_row_context(context: str, part: str) -> bool:
+    """Heuristic for structured table rows around a part code."""
+    if not context or not part:
+        return False
+    compact = re.sub(r"\s+", " ", context)
+    return bool(
+        re.search(
+            rf"{re.escape(part)}\s+\d+\s+\d+\s+[A-Za-z][A-Za-z0-9()\/,\- ]{{3,120}}",
+            compact,
+            re.IGNORECASE,
+        )
+        or re.search(
+            rf"{re.escape(part)}\s+\d+\s+[A-Za-z][A-Za-z0-9()\/,\- ]{{3,120}}",
+            compact,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _is_context_noise_for_part(context: str, part: str, rules: Dict, manufacturer_key: str, pattern_name: str) -> bool:
+    """
+    Determine whether a match is likely not a spare part reference.
+
+    This blocks false positives like firmware bundle IDs (e.g. 82M8579).
+    """
+    if not context:
+        return True
+
+    context_l = context.lower()
+    require_keywords = rules.get("require_context_keywords", []) or []
+    indicators = rules.get("part_number_indicators", []) or []
+    exclusion_terms = rules.get("exclude_if_near", []) or []
+
+    # Strong noise markers observed in manuals/download instructions.
+    hard_noise_terms = [
+        "bundle zip",
+        "settings bundle",
+        "import configuration",
+        "downloads.lexmark.com",
+        "/downloads/firmware/",
+        "firmware version",
+        "embedded web server",
+        "chart no",
+        "ctc-",
+        "signal format",
+        "preamble",
+        "modifications not authorized",
+        "safety warnings",
+        "authorized by",
+    ]
+
+    # Lexmark's broad numeric pattern is useful, but catches firmware IDs.
+    if manufacturer_key == "lexmark" and pattern_name == "standard_parts_numeric":
+        if _has_any_keyword(context_l, hard_noise_terms):
+            return True
+
+    # Prefer stricter indicators over broad service-manual keywords.
+    strong_part_terms = [
+        "part number",
+        "part no",
+        "part #",
+        "p/n",
+        "item no",
+        "description",
+        "qty",
+        "quantity",
+        "order",
+        "replacement part",
+    ]
+    has_part_signal = (
+        _has_any_keyword(context_l, indicators)
+        or _has_any_keyword(context_l, strong_part_terms)
+    )
+    has_table_signal = _looks_like_table_row_context(context, part)
+    has_soft_exclusion = _has_any_keyword(context_l, exclusion_terms)
+
+    # Konica broad numeric dash pattern often catches option kits and references.
+    if manufacturer_key == "konica_minolta" and pattern_name == "parts_4digit_numeric":
+        if _has_any_keyword(context_l, ["key counter kit", "kit-", "optional", "chart no", "ctc-"]):
+            return True
+
+    # Keep when either table structure or part-related semantics is present.
+    if has_table_signal or has_part_signal:
+        return False
+
+    # No part signal + contextual noise => likely false positive.
+    return has_soft_exclusion or _has_any_keyword(context_l, hard_noise_terms)
 
 
 def extract_parts(text: str) -> Optional[str]:
@@ -177,36 +326,78 @@ def extract_parts_with_context(text: str, manufacturer_key: str = None, max_part
     config = _load_config()
     context_window = config.get('extraction_rules', {}).get('context_window_chars', 200)
     min_confidence = config.get('extraction_rules', {}).get('min_confidence', 0.70)
+    extraction_rules = config.get('extraction_rules', {}) or {}
     
     parts_with_context = []
     
     # Determine which manufacturers to use
-    manufacturers_to_check = []
-    if manufacturer_key and manufacturer_key in config:
-        manufacturers_to_check.append(manufacturer_key)
+    manufacturers_to_check: List[str] = []
+    resolved_key = _resolve_manufacturer_key(manufacturer_key, config)
+    if resolved_key and resolved_key in config:
+        manufacturers_to_check.append(resolved_key)
     else:
-        # Try all manufacturers if no specific one given
-        manufacturers_to_check = [k for k in config.keys() if k != 'extraction_rules']
+        # Try all configured manufacturers if no specific one given
+        manufacturers_to_check = _valid_manufacturer_keys(config)
     
     # Extract from each manufacturer's patterns
     for mfr_key in manufacturers_to_check:
         mfr_config = config.get(mfr_key, {})
+        if not isinstance(mfr_config, dict):
+            continue
         patterns = mfr_config.get('patterns', [])
         
         for pattern_config in patterns:
-            pattern = pattern_config.get('pattern')
-            confidence = pattern_config.get('confidence', 0.5)
-            pattern_name = pattern_config.get('name', 'unknown')
+            # Backward-compatible handling: patterns can be dicts or plain regex strings.
+            if isinstance(pattern_config, str):
+                pattern = pattern_config
+                confidence = 0.8
+                pattern_name = 'legacy_pattern'
+            else:
+                pattern = pattern_config.get('pattern')
+                confidence = pattern_config.get('confidence', 0.5)
+                pattern_name = pattern_config.get('name', 'unknown')
             
             if confidence < min_confidence:
+                continue
+            if not pattern:
                 continue
             
             try:
                 for match in re.finditer(pattern, text):
                     part = match.group(0)
-                    start = max(0, match.start() - context_window)
-                    end = min(len(text), match.end() + context_window)
+                    if not _is_plausible_part_token(part):
+                        continue
+                    raw_start = max(0, match.start() - context_window)
+                    raw_end = min(len(text), match.end() + context_window)
+
+                    # Expand to nearby line boundaries first, then to word boundaries,
+                    # so we avoid clipped tokens like "oner" instead of "Toner".
+                    start = raw_start
+                    prev_nl = text.rfind('\n', max(0, raw_start - 120), raw_start + 1)
+                    if prev_nl != -1:
+                        start = prev_nl + 1
+                    else:
+                        while start > 0 and text[start - 1].isalnum():
+                            start -= 1
+
+                    end = raw_end
+                    next_nl = text.find('\n', raw_end, min(len(text), raw_end + 120))
+                    if next_nl != -1:
+                        end = next_nl
+                    else:
+                        while end < len(text) and text[end].isalnum():
+                            end += 1
+
                     context = text[start:end].strip()
+
+                    if _is_context_noise_for_part(
+                        context=context,
+                        part=part,
+                        rules=extraction_rules,
+                        manufacturer_key=mfr_key,
+                        pattern_name=pattern_name,
+                    ):
+                        continue
                     
                     parts_with_context.append({
                         'part': part,

@@ -200,6 +200,161 @@ class ObjectStorageService:
         """Get content type for file"""
         content_type, _ = mimetypes.guess_type(filename)
         return content_type or 'application/octet-stream'
+
+    def _resolve_base_url(self, bucket_type: str, bucket_name: str) -> str:
+        """Resolve public base URL for a bucket type."""
+        if bucket_type == 'document_images':
+            base_url = self.public_urls.get('images') or self.public_urls['documents']
+        elif bucket_type == 'error_images':
+            base_url = self.public_urls.get('error', '')
+        elif bucket_type == 'parts_images':
+            base_url = self.public_urls.get('parts', '')
+        else:
+            base_url = self.public_urls['documents']
+
+        if bucket_type == 'document_images' and self._document_images_bucket_override and not self.public_urls.get('images'):
+            base_url = ""
+
+        if not base_url:
+            base_url = f"{self.endpoint_url}/{bucket_name}"
+        return base_url
+
+    def _looks_like_svg(self, content: bytes, filename: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """Detect SVG uploads by extension, metadata hints, or payload signature."""
+        filename_lower = (filename or "").lower()
+        if filename_lower.endswith('.svg'):
+            return True
+
+        metadata = metadata or {}
+        format_hint = str(metadata.get('format', '')).lower()
+        content_type_hint = str(metadata.get('content_type', '')).lower()
+        if format_hint == 'svg' or content_type_hint == 'image/svg+xml':
+            return True
+
+        head = content[:256].lstrip().lower()
+        return head.startswith(b'<svg') or (head.startswith(b'<?xml') and b'<svg' in head)
+
+    async def upload_svg_file(
+        self,
+        content: Union[str, bytes],
+        filename: str,
+        bucket_type: str = 'document_images',
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Upload SVG content with enforced SVG content type and deduplication."""
+        svg_bytes = content.encode('utf-8') if isinstance(content, str) else content
+        metadata = dict(metadata or {})
+        metadata['format'] = 'svg'
+        metadata['content_type'] = 'image/svg+xml'
+
+        try:
+            if self.client is None:
+                allow_mock = os.getenv('OBJECT_STORAGE_ALLOW_MOCK', 'false').lower() == 'true'
+                if not allow_mock:
+                    raise RuntimeError(
+                        "Object storage client is not connected. "
+                        "Ensure boto3 is installed and connect() succeeded, or set OBJECT_STORAGE_ALLOW_MOCK=true."
+                    )
+
+                file_hash = self._generate_file_hash(svg_bytes)
+                storage_path = self._generate_storage_path(file_hash=file_hash, bucket_type=bucket_type)
+                bucket_name = self.buckets.get(bucket_type, 'krai-documents')
+                base_url = self._resolve_base_url(bucket_type, bucket_name)
+                public_url = f"{base_url}/{storage_path}"
+                return {
+                    'success': True,
+                    'bucket': bucket_name,
+                    'key': storage_path,
+                    'storage_path': storage_path,
+                    'public_url': public_url,
+                    'url': public_url,
+                    'storage_url': public_url,
+                    'presigned_url': None,
+                    'file_hash': file_hash,
+                    'size': len(svg_bytes),
+                    'content_type': 'image/svg+xml',
+                    'metadata': metadata,
+                }
+
+            if bucket_type not in self.buckets:
+                raise ValueError(f"Invalid bucket type: {bucket_type}")
+
+            bucket_name = self.buckets[bucket_type]
+            file_hash = self._generate_file_hash(svg_bytes)
+
+            duplicate = await self.check_duplicate(file_hash, bucket_type)
+            if duplicate:
+                self.logger.info(f"Duplicate SVG found with hash {file_hash[:16]}...: {duplicate['key']}")
+                dup_result = {
+                    'success': True,
+                    'file_hash': file_hash,
+                    'storage_path': duplicate['key'],
+                    'storage_url': duplicate['url'],
+                    'url': duplicate['url'],
+                    'bucket': duplicate['bucket'],
+                    'is_duplicate': True,
+                }
+                try:
+                    presigned_expiry = int(os.getenv('OBJECT_STORAGE_PRESIGNED_EXPIRY_SECONDS', '3600'))
+                    dup_result['presigned_url'] = self.client.generate_presigned_url(
+                        'get_object',
+                        Params={'Bucket': duplicate['bucket'], 'Key': duplicate['key']},
+                        ExpiresIn=presigned_expiry
+                    )
+                except Exception:
+                    dup_result['presigned_url'] = None
+                return dup_result
+
+            storage_path = self._generate_storage_path(file_hash=file_hash, bucket_type=bucket_type)
+            file_metadata = {
+                'original_filename': filename,
+                'file_hash': file_hash,
+                'upload_timestamp': datetime.now(timezone.utc).isoformat(),
+                'content_type': 'image/svg+xml',
+            }
+            for key, value in metadata.items():
+                file_metadata[key] = str(value)
+
+            self.client.put_object(
+                Bucket=bucket_name,
+                Key=storage_path,
+                Body=svg_bytes,
+                ContentType='image/svg+xml',
+                Metadata=file_metadata
+            )
+
+            presigned_url = None
+            try:
+                presigned_expiry = int(os.getenv('OBJECT_STORAGE_PRESIGNED_EXPIRY_SECONDS', '3600'))
+                presigned_url = self.client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket_name, 'Key': storage_path},
+                    ExpiresIn=presigned_expiry
+                )
+            except Exception as presign_err:
+                self.logger.debug("Failed to generate presigned URL: %s", presign_err)
+
+            base_url = self._resolve_base_url(bucket_type, bucket_name)
+            public_url = f"{base_url}/{storage_path}"
+            self.logger.info(f"Uploaded SVG {filename} to {bucket_name}/{storage_path}")
+            return {
+                'success': True,
+                'bucket': bucket_name,
+                'key': storage_path,
+                'storage_path': storage_path,
+                'public_url': public_url,
+                'url': public_url,
+                'storage_url': public_url,
+                'presigned_url': presigned_url,
+                'file_hash': file_hash,
+                'is_duplicate': False,
+                'size': len(svg_bytes),
+                'content_type': 'image/svg+xml',
+                'metadata': file_metadata
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to upload SVG {filename}: {e}")
+            raise
     
     async def upload_image(self, 
                           content: bytes, 
@@ -218,6 +373,14 @@ class ObjectStorageService:
         Returns:
             Dict with storage information
         """
+        if self._looks_like_svg(content, filename, metadata):
+            return await self.upload_svg_file(
+                content=content,
+                filename=filename,
+                bucket_type=bucket_type,
+                metadata=metadata,
+            )
+
         try:
             if self.client is None:
                 allow_mock = os.getenv('OBJECT_STORAGE_ALLOW_MOCK', 'false').lower() == 'true'

@@ -18,6 +18,10 @@ from backend.utils.manufacturer_normalizer import (
     MANUFACTURER_MAP
 )
 
+KNOWN_MANUFACTURER_UUIDS = {
+    "HP Inc.": "e7680b1c-d4f8-45fb-934a-3be603c29cac",
+}
+
 
 class ClassificationProcessor(BaseProcessor):
     """
@@ -75,6 +79,7 @@ class ClassificationProcessor(BaseProcessor):
                 file_path = Path(context.file_path)
 
                 doc_metadata = await self._get_document_metadata(context.document_id)
+                await self._hydrate_page_texts_from_chunks(context)
 
                 manufacturer = await self._detect_manufacturer(file_path, doc_metadata, context, adapter)
 
@@ -82,17 +87,33 @@ class ClassificationProcessor(BaseProcessor):
                     adapter.warning("Could not detect manufacturer")
                     manufacturer = "Unknown"
 
+                manufacturer_id = await self._resolve_manufacturer_id(manufacturer)
                 document_type, version = await self._detect_document_type(
                     file_path, doc_metadata, manufacturer, context, adapter
                 )
+                model_candidates = self._extract_model_candidates_for_linking(file_path, context)
 
                 if self.database_service:
                     await self._update_document_classification(
                         context.document_id,
                         manufacturer,
+                        manufacturer_id,
                         document_type,
-                        version
+                        version,
+                        model_candidates=model_candidates
                     )
+                    if manufacturer_id:
+                        adapter.info("Manufacturer ID resolved: %s -> %s", manufacturer, manufacturer_id)
+                    else:
+                        adapter.warning("Manufacturer ID could not be resolved for: %s", manufacturer)
+                    linked_products = await self._link_document_products(
+                        context.document_id,
+                        manufacturer_id,
+                        model_candidates,
+                        adapter
+                    )
+                else:
+                    linked_products = 0
 
                 self.logger.success(f"✅ Classification: {manufacturer} - {document_type}")
                 
@@ -163,8 +184,11 @@ class ClassificationProcessor(BaseProcessor):
                     message=f"Classification completed: {manufacturer} - {document_type}",
                     data={
                         'manufacturer': manufacturer,
+                        'manufacturer_id': manufacturer_id,
                         'document_type': document_type,
                         'version': version,
+                        'models_detected_for_linking': model_candidates,
+                        'document_products_linked': linked_products,
                         'products_discovered': models_found
                     }
                 )
@@ -177,6 +201,36 @@ class ClassificationProcessor(BaseProcessor):
                     message=f"Classification error: {str(e)}",
                     data={}
                 )
+
+    async def _hydrate_page_texts_from_chunks(self, context) -> None:
+        """Populate context.page_texts from chunks when upstream context is missing."""
+        if getattr(context, "page_texts", None):
+            return
+        if not self.database_service or not hasattr(self.database_service, "fetch_all"):
+            return
+
+        try:
+            rows = await self.database_service.fetch_all(
+                """
+                SELECT page_start, text_chunk
+                FROM krai_intelligence.chunks
+                WHERE document_id = $1::uuid
+                ORDER BY chunk_index
+                """,
+                [str(context.document_id)],
+            )
+            pages: Dict[int, list[str]] = {}
+            for row in rows or []:
+                page = row.get("page_start")
+                chunk = row.get("text_chunk") or ""
+                if page is None or not chunk:
+                    continue
+                pages.setdefault(int(page), []).append(chunk)
+
+            if pages:
+                context.page_texts = {p: "\n".join(parts) for p, parts in pages.items()}
+        except Exception as exc:
+            self.logger.debug("Could not hydrate page_texts from chunks: %s", exc)
     
     async def _get_document_metadata(self, document_id: str) -> Dict:
         """Get document metadata from database"""
@@ -214,9 +268,9 @@ class ClassificationProcessor(BaseProcessor):
         Priority:
         1. Filename patterns (HP, Canon, etc.)
         2. Document title
-        3. First/last pages analysis (introduction & imprint)
-        4. AI classification (content chunks)
-        5. Filename parsing fallback (HP_, KM_, etc.)
+        3. Filename parsing fallback (HP_, KM_, Lexmark machine type, etc.)
+        4. First/last pages analysis (introduction & imprint)
+        5. AI classification (content chunks)
         """
         filename = file_path.name.lower()
         
@@ -235,13 +289,19 @@ class ClassificationProcessor(BaseProcessor):
                 adapter.info("Manufacturer detected from title: %s", normalized)
                 return normalized
         
-        # 3. Check first and last pages for manufacturer
+        # 3. FALLBACK: Parse filename pattern (e.g., HP_E475_SM.pdf, KM_C759_SM.pdf, 7566-69x_sm.pdf)
+        manufacturer = self._parse_manufacturer_from_filename(file_path)
+        if manufacturer:
+            adapter.info("Manufacturer detected from filename pattern: %s", manufacturer)
+            return manufacturer
+
+        # 4. Check first and last pages for manufacturer
         if hasattr(context, 'page_texts') and context.page_texts:
             manufacturer = self._detect_manufacturer_from_pages(context.page_texts, adapter)
             if manufacturer:
                 return manufacturer
         
-        # 4. Use AI to detect from content (if available)
+        # 5. Use AI to detect from content (if available)
         if self.ai_service and self.features_service:
             try:
                 # Get first few chunks for analysis
@@ -256,12 +316,6 @@ class ClassificationProcessor(BaseProcessor):
                         return manufacturer
             except Exception as e:
                 adapter.warning("AI manufacturer detection failed: %s", e)
-        
-        # 5. FALLBACK: Parse filename pattern (e.g., HP_E475_SM.pdf, KM_C759_SM.pdf)
-        manufacturer = self._parse_manufacturer_from_filename(file_path)
-        if manufacturer:
-            adapter.info("Manufacturer detected from filename pattern: %s", manufacturer)
-            return manufacturer
         
         # 6. WEB VERIFICATION FALLBACK: Use web search to verify manufacturer from model numbers
         if self.manufacturer_verification_service:
@@ -489,6 +543,10 @@ If uncertain, respond with "Unknown"."""
                 normalized = normalize_manufacturer_prefix(prefix)
                 if normalized:
                     return normalized
+
+        # Lexmark machine-type filenames often look like 7566-69x_sm.pdf.
+        if re.match(r"^\d{4}-\d{2}[A-Z](?:_|-|$)", filename_stem):
+            return normalize_manufacturer("Lexmark")
         
         return None
     
@@ -545,7 +603,6 @@ If uncertain, respond with "Unknown"."""
         try:
             if has_adapter and hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
                 intel_schema = getattr(self.database_service, '_intelligence_schema', 'krai_intelligence')
-                parts_schema = getattr(self.database_service, '_parts_schema', 'krai_parts')
                 async with self.database_service.pg_pool.acquire() as conn:
                     ec_row = await conn.fetchrow(
                         f"SELECT COUNT(*) as c FROM {intel_schema}.error_codes WHERE document_id = $1",
@@ -554,7 +611,12 @@ If uncertain, respond with "Unknown"."""
                     stats['total_error_codes'] = int(ec_row['c']) if ec_row else 0
 
                     parts_row = await conn.fetchrow(
-                        f"SELECT COUNT(*) as c FROM {parts_schema}.parts_catalog WHERE document_id = $1",
+                        """
+                        SELECT COUNT(DISTINCT pc.id) AS c
+                        FROM krai_core.document_products dp
+                        JOIN krai_parts.parts_catalog pc ON pc.product_id = dp.product_id
+                        WHERE dp.document_id = $1
+                        """,
                         document_id
                     )
                     stats['parts_count'] = int(parts_row['c']) if parts_row else 0
@@ -562,8 +624,11 @@ If uncertain, respond with "Unknown"."""
                 error_codes = self.database_service.client.table('error_codes').select('id').eq('document_id', document_id).execute()
                 stats['total_error_codes'] = len(error_codes.data) if error_codes.data else 0
 
-                parts = self.database_service.client.table('parts_catalog').select('id').eq('document_id', document_id).execute()
-                stats['parts_count'] = len(parts.data) if parts.data else 0
+                doc_products = self.database_service.client.table('document_products').select('product_id').eq('document_id', document_id).execute()
+                product_ids = [row.get('product_id') for row in (doc_products.data or []) if row.get('product_id')]
+                if product_ids:
+                    parts = self.database_service.client.table('parts_catalog').select('id').in_('product_id', product_ids).execute()
+                    stats['parts_count'] = len(parts.data) if parts.data else 0
             else:
                 self.logger.warning("Content statistics fallback: adapter has no pg_pool, cannot gather stats")
         except Exception as e:
@@ -587,37 +652,203 @@ If uncertain, respond with "Unknown"."""
         self,
         document_id: str,
         manufacturer: str,
+        manufacturer_id: Optional[str],
         document_type: str,
-        version: str
+        version: str,
+        model_candidates: Optional[list] = None,
     ):
         """Update document with classification results"""
         try:
+            update_data = {
+                'manufacturer': manufacturer,
+                'manufacturer_id': manufacturer_id,
+                'document_type': document_type,
+                'version': version
+            }
+            if model_candidates:
+                update_data['models'] = model_candidates
+
             if hasattr(self.database_service, 'update_document'):
                 await self.database_service.update_document(
                     document_id,
-                    {
-                        'manufacturer': manufacturer,
-                        'document_type': document_type,
-                        'version': version
-                    }
+                    update_data
                 )
             elif hasattr(self.database_service, 'client'):
-                self.database_service.client.table('documents').update({
+                supabase_update = {
                     'manufacturer': manufacturer,
+                    'manufacturer_id': manufacturer_id,
                     'document_type': document_type,
-                    'version': version
-                }).eq('id', document_id).execute()
+                    'version': version,
+                    'models': model_candidates or []
+                }
+                self.database_service.client.table('documents').update(supabase_update).eq('id', document_id).execute()
             
             self.logger.info(f"Updated document classification in database")
         except Exception as e:
             self.logger.error(f"Failed to update document classification: {e}")
+
+    async def _resolve_manufacturer_id(self, manufacturer: str) -> Optional[str]:
+        """Resolve manufacturer name to manufacturers.id."""
+        if not manufacturer or manufacturer == "Unknown" or not self.database_service:
+            return None
+
+        try:
+            canonical = normalize_manufacturer(manufacturer) or manufacturer
+            if canonical in KNOWN_MANUFACTURER_UUIDS:
+                return KNOWN_MANUFACTURER_UUIDS[canonical]
+            if manufacturer.strip().lower() in {"hp inc", "hp inc.", "hp", "hewlett-packard", "hewlett packard"}:
+                return KNOWN_MANUFACTURER_UUIDS["HP Inc."]
+
+            if hasattr(self.database_service, 'fetch_one'):
+                row = await self.database_service.fetch_one(
+                    """
+                    SELECT id
+                    FROM krai_core.manufacturers
+                    WHERE LOWER(name) = LOWER($1)
+                       OR LOWER(short_name) = LOWER($1)
+                       OR LOWER(name) LIKE LOWER($2)
+                    ORDER BY
+                        CASE
+                            WHEN LOWER(name) = LOWER($1) THEN 0
+                            WHEN LOWER(short_name) = LOWER($1) THEN 1
+                            ELSE 2
+                        END
+                    LIMIT 1
+                    """,
+                    [manufacturer, f"%{manufacturer}%"]
+                )
+                if row:
+                    return str(row["id"])
+
+                # Auto-create missing manufacturer entries (e.g., Lexmark) to unblock downstream stages.
+                short_name = re.sub(r"[^A-Z]", "", manufacturer.upper())[:8] or manufacturer[:8].upper()
+                created = await self.database_service.fetch_one(
+                    """
+                    INSERT INTO krai_core.manufacturers (name, short_name)
+                    VALUES ($1, $2)
+                    RETURNING id
+                    """,
+                    [manufacturer, short_name]
+                )
+                if created:
+                    self.logger.info("Created missing manufacturer '%s' (%s)", manufacturer, short_name)
+                    return str(created["id"])
+        except Exception as e:
+            self.logger.warning("Could not resolve manufacturer_id for '%s': %s", manufacturer, e)
+        return None
+
+    def _extract_model_candidates_for_linking(self, file_path: Path, context) -> list:
+        """Extract strict model tokens suitable for product linking."""
+        candidates = []
+        model_pattern = re.compile(r"^(?:[A-Z]{1,3}-)?[A-Z]{0,2}\d{3,5}[A-Z]{0,4}$")
+
+        for token in re.split(r"[^A-Z0-9-]+", file_path.stem.upper()):
+            token = token.strip()
+            if token and model_pattern.match(token):
+                candidates.append(token)
+
+        if hasattr(context, 'page_texts') and context.page_texts:
+            # Include first pages where model families are commonly listed.
+            for page_no in (1, 2, 3):
+                page_text = context.page_texts.get(page_no, '') or ''
+                if not page_text:
+                    continue
+                for token in re.split(r"[^A-Z0-9-]+", page_text[:2000].upper()):
+                    token = token.strip()
+                    if token and model_pattern.match(token):
+                        candidates.append(token)
+
+        reject = {"PDF", "SM", "CPMD", "FW", "DOC", "MANUAL", "SERVICE", "LIST", "PAGE"}
+        normalized = []
+        for token in candidates:
+            token = token.strip("_- ")
+            if token in reject:
+                continue
+            # Ignore pure numeric tokens (years, counters) for product linking.
+            if not re.search(r"[A-Z]", token):
+                continue
+            if token and token not in normalized:
+                normalized.append(token)
+        # Keep enough filename models for multi-model manuals (e.g. C658_C558_C458_C368_C308_C258).
+        return normalized[:12]
+
+    async def _link_document_products(
+        self,
+        document_id: str,
+        manufacturer_id: Optional[str],
+        model_candidates: list,
+        adapter,
+    ) -> int:
+        """Upsert products and link them to the current document."""
+        if not manufacturer_id:
+            adapter.warning("Skipping document_products linking: no manufacturer_id")
+            return 0
+        if not model_candidates:
+            adapter.info("No model candidates found for product linking")
+            return 0
+        if not hasattr(self.database_service, 'fetch_one') or not hasattr(self.database_service, 'execute_query'):
+            adapter.warning("Skipping product linking: adapter does not support SQL operations")
+            return 0
+
+        linked = 0
+        for model in model_candidates:
+            try:
+                product = await self.database_service.fetch_one(
+                    """
+                    SELECT id
+                    FROM krai_core.products
+                    WHERE manufacturer_id = $1::uuid
+                      AND LOWER(model_number) = LOWER($2)
+                    LIMIT 1
+                    """,
+                    [manufacturer_id, model]
+                )
+
+                if product:
+                    product_id = str(product['id'])
+                else:
+                    created = await self.database_service.fetch_one(
+                        """
+                        INSERT INTO krai_core.products (manufacturer_id, model_number, product_type)
+                        VALUES ($1::uuid, $2, $3)
+                        RETURNING id
+                        """,
+                        [manufacturer_id, model, 'printer']
+                    )
+                    product_id = str(created['id'])
+
+                link_exists = await self.database_service.fetch_one(
+                    """
+                    SELECT id
+                    FROM krai_core.document_products
+                    WHERE document_id = $1::uuid AND product_id = $2::uuid
+                    LIMIT 1
+                    """,
+                    [document_id, product_id]
+                )
+                if link_exists:
+                    continue
+
+                await self.database_service.execute_query(
+                    """
+                    INSERT INTO krai_core.document_products (document_id, product_id)
+                    VALUES ($1::uuid, $2::uuid)
+                    """,
+                    [document_id, product_id]
+                )
+                linked += 1
+            except Exception as e:
+                adapter.warning("Failed to link model '%s': %s", model, e)
+
+        if linked:
+            adapter.info("Linked %s products to document", linked)
+        return linked
     
-    def _create_result(self, success: bool, message: str, data: Dict) -> Any:
-        """Create a processing result object"""
-        class Result:
-            def __init__(self, success, message, data):
-                self.success = success
-                self.message = message
-                self.data = data
-        
-        return Result(success, message, data)
+    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
+        """Create a BaseProcessor-compatible result payload."""
+        return {
+            "success": success,
+            "data": data or {},
+            "metadata": {"message": message},
+            "error": None if success else message,
+        }

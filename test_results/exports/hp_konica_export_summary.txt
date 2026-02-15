@@ -1,0 +1,6 @@
+konica_km_c658_c558_c458_c368_c308_c258 | doc=9e7e4f7f-02c9-41e3-9a77-32bfd1647c1a | all_parts=14
+  csv=test_results\exports\konica_km_c658_c558_c458_c368_c308_c258_all_parts.csv
+hp_e877_sm | doc=b557ec67-52db-4863-9e3a-b0d48e330b2e | all_parts=72
+  csv=test_results\exports\hp_e877_sm_all_parts.csv
+hp_e877_cpmd | doc=becd5a67-3008-4d60-82ee-aa24f666b8c9 | all_parts=72
+  csv=test_results\exports\hp_e877_cpmd_all_parts.csv

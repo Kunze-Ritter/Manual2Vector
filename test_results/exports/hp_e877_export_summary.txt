@@ -1,0 +1,6 @@
+HP Export Summary
+documents=b557ec67-52db-4863-9e3a-b0d48e330b2e, becd5a67-3008-4d60-82ee-aa24f666b8c9
+all_parts=144
+accessory_candidates=62
+all_parts_csv=test_results\exports\hp_e877_all_parts.csv
+accessories_csv=test_results\exports\hp_e877_accessory_candidates.csv

@@ -7,6 +7,7 @@ strategy with safe fallback behavior.
 """
 
 import logging
+import os
 from typing import Any, Dict, List
 
 
@@ -127,6 +128,7 @@ class QualityValidator:
         image_pass = images_count >= self.thresholds.get("min_images", 10)
         error_code_pass = error_codes_count >= self.thresholds.get("min_error_codes", 5)
         parts_pass = parts_count >= self.thresholds.get("min_parts", 0)
+        warnings = await self._get_stage_warnings(document_ids)
 
         return {
             "chunks": {
@@ -143,12 +145,15 @@ class QualityValidator:
                 "count": error_codes_count,
                 "threshold": self.thresholds.get("min_error_codes", 5),
                 "status": "PASS" if error_code_pass else "FAIL",
+                "warnings": warnings if error_codes_count == 0 else None,
             },
             "parts": {
                 "count": parts_count,
                 "threshold": self.thresholds.get("min_parts", 0),
                 "status": parts_status if parts_status == "SKIPPED" else ("PASS" if parts_pass else "FAIL"),
+                "warnings": warnings if parts_count == 0 else None,
             },
+            "stage_warnings": warnings,
             "status": "PASS"
             if all([chunk_pass, image_pass, error_code_pass, parts_pass or parts_status == "SKIPPED"])
             else "FAIL",
@@ -173,10 +178,12 @@ class QualityValidator:
         }
 
     async def _check_correctness(self, document_ids: List[str]) -> Dict[str, Any]:
-        """Validate product extraction correctness.
+        """Validate extraction correctness in a manufacturer-agnostic way.
 
-        Checks extracted products by joining document_products to products and
-        manufacturers, then validating expected model/manufacturer presence.
+        For mixed document batches we treat correctness as:
+        - at least `min_products` linked products found
+        - at least one non-empty model number present
+        - at least one non-empty manufacturer name present
         """
         try:
             rows = await self.database_adapter.fetch_all(
@@ -204,20 +211,22 @@ class QualityValidator:
             model_number = (row_dict.get("model_number") or "").lower()
             manufacturer = (row_dict.get("manufacturer") or "").lower()
 
-            if "hp e877" in model_number or "e877" in model_number:
+            if model_number:
                 model_detected = True
-            if "hp inc." in manufacturer or manufacturer == "hp" or " hp " in f" {manufacturer} ":
+            if manufacturer:
                 manufacturer_detected = True
 
         min_products = self.thresholds.get("min_products", 1)
         product_count_pass = products_count >= min_products
         correctness_pass = model_detected and manufacturer_detected and product_count_pass
+        warnings = await self._get_stage_warnings(document_ids)
 
         return {
             "products_count": products_count,
             "products_threshold": min_products,
             "model_detected": model_detected,
             "manufacturer_detected": manufacturer_detected,
+            "warnings": warnings if products_count == 0 else None,
             "status": "PASS" if correctness_pass else "FAIL",
         }
 
@@ -317,7 +326,9 @@ class QualityValidator:
             if row_dict.get("status") == "completed":
                 completed_stages += 1
 
-        expected_stage_records = len(document_ids) * 15
+        brightcove_enabled = os.getenv("ENABLE_BRIGHTCOVE_ENRICHMENT", "false").lower() in {"1", "true", "yes", "on"}
+        stages_per_document = 16 if brightcove_enabled else 15
+        expected_stage_records = len(document_ids) * stages_per_document
         stage_pass = total_records == expected_stage_records and completed_stages == expected_stage_records
 
         return {
@@ -335,3 +346,33 @@ class QualityValidator:
             return 0
         row_dict = dict(row) if not isinstance(row, dict) else row
         return int(row_dict.get(key, 0))
+
+    async def _get_stage_warnings(self, document_ids: List[str]) -> Dict[str, List[str]]:
+        """Fetch warnings from stage_tracking metadata for documents."""
+        try:
+            rows = await self.database_adapter.fetch_all(
+                """
+                SELECT document_id, stage_name, metadata
+                FROM krai_system.stage_tracking
+                WHERE document_id = ANY($1)
+                  AND metadata ? 'warning'
+                """,
+                [document_ids]
+            )
+
+            warnings: Dict[str, List[str]] = {}
+            for row in (rows or []):
+                row_dict = dict(row) if not isinstance(row, dict) else row
+                doc_id = str(row_dict.get("document_id"))
+                stage = row_dict.get("stage_name")
+                metadata = row_dict.get("metadata", {}) or {}
+                warning = metadata.get("warning", "")
+
+                if doc_id not in warnings:
+                    warnings[doc_id] = []
+                warnings[doc_id].append(f"{stage}: {warning}")
+
+            return warnings
+        except Exception as e:
+            logger.warning("Could not fetch stage warnings: %s", e)
+            return {}

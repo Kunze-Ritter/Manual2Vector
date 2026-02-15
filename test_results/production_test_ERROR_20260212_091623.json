@@ -1,0 +1,17 @@
+{
+  "result": "ERROR",
+  "timestamp": "2026-02-12T09:16:23.657716",
+  "error": {
+    "message": "column \"file_hash\" does not exist",
+    "type": "UndefinedColumnError",
+    "stack_trace": "Traceback (most recent call last):\n  File \"C:\\Users\\haast\\Docker\\KRAI-minimal\\scripts\\production_test.py\", line 50, in run\n    document_ids = await self._process_documents()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\haast\\Docker\\KRAI-minimal\\scripts\\production_test.py\", line 280, in _process_documents\n    upload_result = await upload_processor.process(upload_context)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\haast\\Docker\\KRAI-minimal\\backend\\processors\\upload_processor.py\", line 81, in process\n    raw_result = await self._process_with_adapter(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<4 lines>...\n    )\n    ^\n  File \"C:\\Users\\haast\\Docker\\KRAI-minimal\\backend\\processors\\upload_processor.py\", line 146, in _process_with_adapter\n    existing_doc = await self.database.get_document_by_hash(file_hash)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\haast\\Docker\\KRAI-minimal\\backend\\services\\postgresql_adapter.py\", line 302, in get_document_by_hash\n    row = await conn.fetchrow(\n          ^^^^^^^^^^^^^^^^^^^^\n    ...<2 lines>...\n    )\n    ^\n  File \"C:\\Users\\haast\\AppData\\Roaming\\Python\\Python313\\site-packages\\asyncpg\\connection.py\", line 748, in fetchrow\n    data = await self._execute(\n           ^^^^^^^^^^^^^^^^^^^^\n    ...<5 lines>...\n    )\n    ^\n  File \"C:\\Users\\haast\\AppData\\Roaming\\Python\\Python313\\site-packages\\asyncpg\\connection.py\", line 1864, in _execute\n    result, _ = await self.__execute(\n                ^^^^^^^^^^^^^^^^^^^^^\n    ...<7 lines>...\n    )\n    ^\n  File \"C:\\Users\\haast\\AppData\\Roaming\\Python\\Python313\\site-packages\\asyncpg\\connection.py\", line 1961, in __execute\n    result, stmt = await self._do_execute(\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n    ...<5 lines>...\n    )\n    ^\n  File \"C:\\Users\\haast\\AppData\\Roaming\\Python\\Python313\\site-packages\\asyncpg\\connection.py\", line 2012, in _do_execute\n    stmt = await self._get_statement(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<4 lines>...\n    )\n    ^\n  File \"C:\\Users\\haast\\AppData\\Roaming\\Python\\Python313\\site-packages\\asyncpg\\connection.py\", line 432, in _get_statement\n    statement = await self._protocol.prepare(\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<5 lines>...\n    )\n    ^\n  File \"asyncpg\\\\protocol\\\\protocol.pyx\", line 165, in prepare\nasyncpg.exceptions.UndefinedColumnError: column \"file_hash\" does not exist\n"
+  },
+  "context": {
+    "test_run_id": "test_20260212_091622",
+    "document_ids": [],
+    "pdf_paths": [
+      "C:\\Firmwares\\HP\\HP_E877_CPMD.pdf",
+      "C:\\Firmwares\\HP\\HP_E877_SM.pdf"
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "result": "FAIL",
+  "exit_code": 1,
+  "test_run": {
+    "id": "test_20260213_072532",
+    "started_at": "2026-02-13T07:25:32.699812",
+    "ended_at": "2026-02-13T17:26:56.754430",
+    "duration_seconds": 36084.054618
+  },
+  "summary": {
+    "documents_processed": 2,
+    "total_stages": 30,
+    "completed_stages": 30,
+    "success_rate": 1.0
+  },
+  "documents": {
+    "document_ids": [
+      "becd5a67-3008-4d60-82ee-aa24f666b8c9",
+      "b557ec67-52db-4863-9e3a-b0d48e330b2e"
+    ],
+    "pdf_paths": [
+      "C:\\Firmwares\\HP\\HP_E877_CPMD.pdf",
+      "C:\\Firmwares\\HP\\HP_E877_SM.pdf"
+    ]
+  },
+  "quality_metrics": {
+    "completeness": {
+      "chunks": {
+        "count": 5159,
+        "threshold": 100,
+        "status": "PASS"
+      },
+      "images": {
+        "count": 2062,
+        "threshold": 10,
+        "status": "PASS"
+      },
+      "error_codes": {
+        "count": 0,
+        "threshold": 5,
+        "status": "FAIL"
+      },
+      "parts": {
+        "count": 0,
+        "threshold": 0,
+        "status": "PASS"
+      },
+      "status": "FAIL"
+    },
+    "correctness": {
+      "products_count": 0,
+      "products_threshold": 1,
+      "model_detected": false,
+      "manufacturer_detected": false,
+      "status": "FAIL"
+    },
+    "embeddings": {
+      "total_chunks": 5159,
+      "chunks_with_embeddings": 5159,
+      "coverage": 1.0,
+      "threshold": 0.95,
+      "status": "PASS"
+    },
+    "relationships": {
+      "linked_documents": 0,
+      "linked_products": 0,
+      "status": "FAIL"
+    },
+    "stage_status": {
+      "total_stage_records": 30,
+      "expected_stage_records": 30,
+      "completed_stages": 30,
+      "expected_completed_stages": 30,
+      "status": "PASS"
+    }
+  },
+  "artifacts": {
+    "report_directory": "C:\\Users\\haast\\Docker\\KRAI-minimal\\test_results",
+    "report_path": "C:\\Users\\haast\\Docker\\KRAI-minimal\\test_results\\production_test_20260213_172656.json"
+  },
+  "errors": []
+}

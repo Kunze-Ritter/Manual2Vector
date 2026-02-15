@@ -1,0 +1,14 @@
+{
+  "result": "ERROR",
+  "timestamp": "2026-02-12T09:31:00.811699",
+  "error": {
+    "message": "Cannot run stage 'text_extraction' for document d8f5d4cc-ab5e-460f-a1b6-f62378c6f1c1: no valid storage_path/resolved_path found on disk",
+    "type": "RuntimeError",
+    "stack_trace": "RuntimeError: Cannot run stage 'text_extraction' for document d8f5d4cc-ab5e-460f-a1b6-f62378c6f1c1: no valid storage_path/resolved_path found on disk\n"
+  },
+  "context": {
+    "document_id": "d8f5d4cc-ab5e-460f-a1b6-f62378c6f1c1",
+    "stage": "text_extraction",
+    "pdf_path": "C:\\Firmwares\\HP\\HP_E877_CPMD.pdf"
+  }
+}

@@ -53,7 +53,10 @@ class SVGProcessor(BaseProcessor):
         self.ai_service = ai_service
         self.dpi = dpi
         self.max_dimension = max_dimension
-        
+        self.svg_inline_storage_threshold_kb = int(os.getenv('SVG_INLINE_STORAGE_THRESHOLD_KB', '100'))
+        # Reduce svglib log noise (e.g. "Unsupported shape type Group for clipping" – we handle failure and use fallback)
+        # Set to CRITICAL so even ERROR-Meldungen von svglib unterdrückt werden.
+        logging.getLogger("svglib.svglib").setLevel(logging.CRITICAL)
         self.logger.info(f"SVGProcessor initialized (DPI: {dpi}, max_dimension: {max_dimension})")
     
     def get_stage(self) -> Stage:
@@ -72,6 +75,9 @@ class SVGProcessor(BaseProcessor):
         """
         import asyncio
         loop = asyncio.get_event_loop()
+        # Merke das Event-Loop-Objekt, damit synchroner Code in Threads
+        # korrekte Coroutines per run_coroutine_threadsafe einplanen kann.
+        self._event_loop = loop
         
         try:
             # Extract document information
@@ -125,41 +131,75 @@ class SVGProcessor(BaseProcessor):
         
         # Open PDF document
         doc = fitz.open(pdf_path)
-        
+
         # Extract SVGs from all pages
         all_svgs = []
+        page_count = doc.page_count
         for page_num, page in enumerate(doc):
+            # Fortschritt auf Seitenebene loggen, z. B. „Seite 10/1023“
+            if page_count:
+                self.logger.info(
+                    "SVG processing page %s/%s for document %s",
+                    page_num + 1,
+                    page_count,
+                    document_id,
+                )
             page_svgs = self._extract_page_svgs(page, page_num + 1)
             if page_svgs:
                 all_svgs.extend(page_svgs)
                 self.logger.debug(f"Extracted {len(page_svgs)} SVGs from page {page_num + 1}")
-        
-        # Convert SVGs to PNG
+
         converted_count = 0
+        svg_storage_success_count = 0
+        vision_skip_count = 0
+        vision_enabled = bool(self.ai_service)
+
         for svg_data in all_svgs:
-            try:
+            svg_data['document_id'] = str(document_id)
+            storage_result = self._upload_svg_to_storage(svg_data)
+            if storage_result.get('svg_storage_url'):
+                svg_storage_success_count += 1
+            svg_data.update(storage_result)
+
+            if vision_enabled:
                 png_bytes = self._convert_svg_to_png(svg_data['svg_content'])
+                if not png_bytes and svg_data.get('bounding_box') and svg_data.get('page_number'):
+                    png_bytes = self._render_svg_region_with_pymupdf(doc, svg_data)
                 if png_bytes:
                     svg_data['png_bytes'] = png_bytes
                     svg_data['image_type'] = 'vector_graphic'
+                    svg_data['has_png_derivative'] = True
                     converted_count += 1
                 else:
-                    self.logger.warning(f"Failed to convert SVG: {svg_data['filename']}")
-            except Exception as e:
-                self.logger.error(f"Error converting SVG {svg_data['filename']}: {e}")
-        
-        # Queue converted SVGs for storage
-        queued_count = 0
-        if converted_count > 0:
-            queued_count = self._queue_svg_images(document_id, all_svgs, context)
-        
+                    svg_data['has_png_derivative'] = False
+                    vision_skip_count += 1
+                    self.logger.info(
+                        "Skipping Vision AI for SVG without PNG derivative (document=%s, page=%s, file=%s)",
+                        document_id,
+                        svg_data.get('page_number'),
+                        svg_data.get('filename'),
+                    )
+            else:
+                svg_data['has_png_derivative'] = False
+                vision_skip_count += 1
+                self.logger.info(
+                    "Skipping Vision AI for SVG without PNG derivative (document=%s, page=%s, file=%s, reason=disabled)",
+                    document_id,
+                    svg_data.get('page_number'),
+                    svg_data.get('filename'),
+                )
+
+        queued_count = self._queue_svg_images(document_id, all_svgs, context)
         doc.close()
-        
+
         result_data = {
             'svgs_extracted': len(all_svgs),
             'svgs_converted': converted_count,
             'images_queued': queued_count,
-            'conversion_success_rate': converted_count / len(all_svgs) if all_svgs else 0
+            'svg_storage_success': svg_storage_success_count,
+            'vision_skipped_due_to_missing_png': vision_skip_count,
+            'png_conversion_success_rate': converted_count / len(all_svgs) if all_svgs else 0,
+            'svg_storage_success_rate': svg_storage_success_count / len(all_svgs) if all_svgs else 0,
         }
         
         self.logger.success(
@@ -363,7 +403,7 @@ class SVGProcessor(BaseProcessor):
             drawing = svg2rlg(io.BytesIO(svg_bytes))
             
             if drawing is None:
-                self.logger.warning("Failed to parse SVG content")
+                self.logger.info("SVG parsing returned no drawing object; PNG derivative unavailable")
                 return None
             
             # Render to PNG bytes directly
@@ -377,9 +417,50 @@ class SVGProcessor(BaseProcessor):
             return png_bytes
             
         except Exception as e:
-            self.logger.error(f"SVG to PNG conversion failed: {e}")
+            self.logger.info("SVG to PNG conversion failed; preserving SVG without PNG derivative")
+            self.logger.debug(
+                "SVG conversion error details: type=%s message=%s svg_size=%s",
+                type(e).__name__,
+                str(e),
+                len(svg_content) if svg_content else 0,
+            )
             return None
-    
+
+    def _render_svg_region_with_pymupdf(
+        self, doc: "fitz.Document", svg_data: Dict[str, Any]
+    ) -> Optional[bytes]:
+        """
+        Fallback: render the SVG's bounding box region from the PDF page as PNG using PyMuPDF.
+        Used when svglib fails (e.g. "Unsupported shape type Group for clipping").
+        """
+        try:
+            page_number = svg_data.get("page_number")
+            bbox = svg_data.get("bounding_box") or {}
+            x0 = bbox.get("x0", 0)
+            y0 = bbox.get("y0", 0)
+            x1 = bbox.get("x1")
+            y1 = bbox.get("y1")
+            if page_number is None or x1 is None or y1 is None:
+                return None
+            page = doc[page_number - 1]  # 1-based to 0-based
+            rect = fitz.Rect(x0, y0, x1, y1)
+            if rect.is_empty or rect.is_infinite:
+                return None
+            pix = page.get_pixmap(clip=rect, dpi=min(self.dpi, 150))  # cap DPI for large regions
+            png_bytes = pix.tobytes("png")
+            if self.max_dimension > 0:
+                png_bytes = self._scale_png_if_needed(png_bytes)
+            self.logger.debug(
+                "SVG→PNG fallback via PyMuPDF for page %s (clip %.0fx%.0f)",
+                page_number,
+                rect.width,
+                rect.height,
+            )
+            return png_bytes
+        except Exception as e:
+            self.logger.debug("PyMuPDF SVG-region fallback failed: %s", e)
+            return None
+
     def _scale_png_if_needed(self, png_bytes: bytes) -> bytes:
         """
         Scale PNG if it exceeds maximum dimensions
@@ -423,14 +504,79 @@ class SVGProcessor(BaseProcessor):
         except Exception as e:
             self.logger.warning(f"Failed to scale PNG: {e}")
             return png_bytes
+
+    def _upload_svg_to_storage(self, svg_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Upload original SVG content and optionally keep inline copy for small payloads.
+
+        Args:
+            svg_data: SVG extraction record
+
+        Returns:
+            Dictionary with svg_storage_url/original_svg_content/svg_file_hash metadata
+        """
+        svg_content = svg_data.get('svg_content') or ''
+        svg_size = len(svg_content.encode('utf-8'))
+        inline_threshold = self.svg_inline_storage_threshold_kb * 1024
+        original_svg_content = svg_content if svg_size <= inline_threshold else None
+
+        storage_result: Dict[str, Any] = {
+            'svg_storage_url': None,
+            'original_svg_content': original_svg_content,
+            'svg_file_hash': None,
+        }
+
+        if not self.storage_service or not hasattr(self.storage_service, 'upload_svg_file'):
+            self.logger.info("Storage service does not support upload_svg_file; SVG URL will be empty")
+            return storage_result
+
+        try:
+            metadata = {
+                'document_id': svg_data.get('document_id', ''),
+                'page_number': svg_data.get('page_number'),
+                'graphic_index': svg_data.get('graphic_index'),
+                'svg_size': svg_data.get('svg_size', svg_size),
+            }
+            upload_filename = svg_data.get('filename', f"svg_{uuid4()}.svg")
+
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                upload_result = loop.run_until_complete(
+                    self.storage_service.upload_svg_file(
+                        content=svg_content,
+                        filename=upload_filename,
+                        bucket_type='document_images',
+                        metadata={k: v for k, v in metadata.items() if v is not None},
+                    )
+                )
+            finally:
+                loop.close()
+
+            storage_result['svg_storage_url'] = (
+                upload_result.get('url')
+                or upload_result.get('public_url')
+                or upload_result.get('storage_url')
+            )
+            storage_result['svg_file_hash'] = upload_result.get('file_hash')
+        except Exception as e:
+            self.logger.warning(
+                "Failed to upload SVG to storage (page=%s file=%s): %s",
+                svg_data.get('page_number'),
+                svg_data.get('filename'),
+                e,
+            )
+
+        return storage_result
     
     def _queue_svg_images(self, document_id: UUID, svgs: List[Dict[str, Any]], context) -> int:
         """
-        Queue converted SVG images for storage
+        Queue SVG images for storage, preserving SVG and optional PNG derivative
         
         Args:
             document_id: Document UUID
-            svgs: List of SVG data with converted PNG bytes
+            svgs: List of SVG data with storage metadata and optional PNG bytes
             context: Processing context
             
         Returns:
@@ -439,22 +585,37 @@ class SVGProcessor(BaseProcessor):
         queued_count = 0
         
         for svg_data in svgs:
-            if 'png_bytes' not in svg_data:
-                continue
-            
             try:
+                png_bytes = svg_data.get('png_bytes')
+                has_png_derivative = png_bytes is not None
+                svg_storage_url = svg_data.get('svg_storage_url')
+                inline_svg = svg_data.get('original_svg_content')
+
                 # Create payload for processing queue
                 payload = {
                     'artifact_type': 'image',
                     'document_id': str(document_id),
-                    'filename': svg_data['filename'].replace('.svg', '.png'),
+                    'filename': (
+                        svg_data['filename'].replace('.svg', '.png')
+                        if has_png_derivative else svg_data['filename']
+                    ),
                     'page_number': svg_data['page_number'],
                     'image_type': 'vector_graphic',
-                    'content': base64.b64encode(svg_data['png_bytes']).decode('utf-8'),
+                    'content': (
+                        base64.b64encode(png_bytes).decode('utf-8')
+                        if has_png_derivative else None
+                    ),
+                    'svg_storage_url': svg_storage_url,
+                    'original_svg_content': inline_svg,
+                    'is_vector_graphic': True,
+                    'has_png_derivative': has_png_derivative,
                     'metadata': {
                         'svg_size': svg_data['svg_size'],
                         'original_format': 'svg',
                         'conversion_dpi': self.dpi,
+                        'has_png_derivative': has_png_derivative,
+                        'svg_storage_url': svg_storage_url,
+                        'is_vector_graphic': True,
                         'extracted_from_page': svg_data['page_number']
                     }
                 }
@@ -468,28 +629,32 @@ class SVGProcessor(BaseProcessor):
                     "payload": payload
                 }
                 
-                # Use adapter method if available. Run in new event loop because
-                # _queue_svg_images runs in a worker thread (via run_in_executor)
-                # and has no access to the main event loop.
+                # Use adapter method if available.
+                # _queue_svg_images läuft in einem Worker-Thread (run_in_executor),
+                # deshalb planen wir die Coroutine threadsicher auf dem Haupt-Event-Loop ein.
                 if hasattr(self.database_service, 'create_svg_queue_entry'):
                     import asyncio
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
+                    main_loop = getattr(self, "_event_loop", None)
+                    if not isinstance(main_loop, asyncio.AbstractEventLoop):
+                        self.logger.warning(
+                            "No main event loop recorded on SVGProcessor; skipping SVG queue entry for %s",
+                            svg_data['filename'],
+                        )
+                    else:
                         try:
-                            loop.run_until_complete(
-                                self.database_service.create_svg_queue_entry(stage_payload)
+                            fut = asyncio.run_coroutine_threadsafe(
+                                self.database_service.create_svg_queue_entry(stage_payload),
+                                main_loop,
                             )
+                            fut.result()  # block im Worker-Thread, bis Eintrag erstellt ist
                             queued_count += 1
                             self.logger.debug(f"Queued SVG image: {svg_data['filename']}")
-                        finally:
-                            loop.close()
-                    except Exception as loop_exc:
-                        self.logger.error(
-                            "Failed to enqueue SVG image %s: %s",
-                            svg_data['filename'],
-                            loop_exc,
-                        )
+                        except Exception as loop_exc:
+                            self.logger.error(
+                                "Failed to enqueue SVG image %s: %s",
+                                svg_data['filename'],
+                                loop_exc,
+                            )
                 else:
                     self.logger.warning("Database service does not support SVG queuing")
                 

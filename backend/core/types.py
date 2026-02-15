@@ -38,6 +38,7 @@ class Stage(Enum):
     STORAGE = "storage"
     EMBEDDING = "embedding"  # Stage 7: Embedding Processor → krai_intelligence.chunks (with embedding column) + unified_embeddings (source_type='text')
     SEARCH_INDEXING = "search_indexing"
+    VIDEO_ENRICHMENT = "video_enrichment"
 
 
 @dataclass
@@ -68,6 +69,7 @@ class ProcessingContext:
     tables: Optional[List[Dict[str, Any]]] = None  # Extracted tables with context
     links: Optional[List[Dict[str, Any]]] = None  # Extracted links with context
     videos: Optional[List[Dict[str, Any]]] = None  # Extracted videos with context
+    chunks: Optional[List[Dict[str, Any]]] = None  # Extracted text chunks for embedding/search stages
     # Retry and error tracking fields
     request_id: Optional[str] = None  # Unique identifier for the processing request
     correlation_id: Optional[str] = None  # Correlation ID for tracking across retries (format: req_id.stage_name.retry_N)

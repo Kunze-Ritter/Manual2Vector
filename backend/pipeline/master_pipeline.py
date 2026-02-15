@@ -14,6 +14,7 @@ import os
 import sys
 import time
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable, Awaitable
 import logging
@@ -59,6 +60,8 @@ from backend.processors.table_processor import TableProcessor
 from backend.processors.thumbnail_processor import ThumbnailProcessor
 from backend.processors.parts_processor import PartsProcessor
 from backend.processors.series_processor import SeriesProcessor
+from backend.processors.video_enrichment_processor import VideoEnrichmentProcessor
+from backend.processors.pipeline_config import get_pipeline_config
 
 from backend.core.base_processor import ProcessingContext
 
@@ -77,6 +80,7 @@ class KRMasterPipeline:
         self.performance_service = performance_collector  # Use provided collector or will be initialized later
         self.processors = {}
         self.force_continue_on_errors = force_continue_on_errors
+        self.pipeline_config = get_pipeline_config()
         
         # Setup colored logging globally (ERROR = RED, WARNING = YELLOW, INFO = GREEN)
         apply_colored_logging_globally(level=logging.INFO)
@@ -301,6 +305,14 @@ class KRMasterPipeline:
             'search': SearchProcessor(self.database_service, self.ai_service),
             'thumbnail': ThumbnailProcessor(self.database_service, self.storage_service)
         }
+
+        if self.pipeline_config.enable_brightcove_enrichment:
+            self.processors['video_enrichment'] = VideoEnrichmentProcessor(
+                database_service=self.database_service,
+                config={'enable_brightcove_enrichment': True},
+            )
+        else:
+            self.logger.info("Brightcove enrichment stage disabled by ENABLE_BRIGHTCOVE_ENRICHMENT")
         
         # Wire performance collector to all processors
         for processor_name, processor in self.processors.items():
@@ -410,7 +422,8 @@ class KRMasterPipeline:
             return []
     
     async def get_document_stage_status(self, document_id: str) -> Dict[str, bool]:
-        """Check which stages have been completed for a document - all 15 canonical stages"""
+        """Check which stages have been completed for a document."""
+        brightcove_enabled = os.getenv('ENABLE_BRIGHTCOVE_ENRICHMENT', 'false').lower() in {'1', 'true', 'yes', 'on'}
         stage_status = {
             'upload': False,
             'text_extraction': False,
@@ -419,6 +432,7 @@ class KRMasterPipeline:
             'image_processing': False,
             'visual_embedding': False,
             'link_extraction': False,
+            'video_enrichment': False,
             'chunk_preprocessing': False,
             'classification': False,
             'metadata_extraction': False,
@@ -506,6 +520,20 @@ class KRMasterPipeline:
                         )
                         if links_count > 0:
                             stage_status['link_extraction'] = True
+
+                        if brightcove_enabled:
+                            current_check = "video_enrichment:krai_content.videos"
+                            enriched_videos_count = await conn.fetchval(
+                                """
+                                SELECT COUNT(*)
+                                FROM krai_content.videos
+                                WHERE document_id = $1
+                                  AND enriched_at IS NOT NULL
+                                """,
+                                document_id,
+                            )
+                            if int(enriched_videos_count or 0) > 0:
+                                stage_status['video_enrichment'] = True
                         
                         # Check metadata extraction - krai_intelligence.error_codes
                         current_check = "metadata_extraction:krai_intelligence.error_codes"
@@ -657,20 +685,21 @@ class KRMasterPipeline:
                 context.document_type = doc_info.document_type or ''
 
             stage_sequence = [
-                ("text_extraction", "[2/15] Text Processing:", 'text'),
-                ("table_extraction", "[3/15] Table Extraction:", 'table'),
-                ("svg_processing", "[4/15] SVG Processing:", 'svg'),
-                ("image_processing", "[5/15] Image Processing:", 'image'),
-                ("visual_embedding", "[6/15] Visual Embedding:", 'visual_embedding'),
-                ("classification", "[7/15] Classification:", 'classification'),
-                ("chunk_preprocessing", "[8/15] Chunk Preprocessing:", 'chunk_prep'),
-                ("link_extraction", "[9/15] Links:", 'links'),
-                ("metadata_extraction", "[10/15] Metadata (Error Codes):", 'metadata'),
-                ("parts_extraction", "[11/15] Parts Extraction:", 'parts'),
-                ("series_detection", "[12/15] Series Detection:", 'series'),
-                ("storage", "[13/15] Storage:", 'storage'),
-                ("embedding", "[14/15] Embeddings:", 'embedding'),
-                ("search_indexing", "[15/15] Search:", 'search'),
+                ("text_extraction", "[2/16] Text Processing:", 'text'),
+                ("table_extraction", "[3/16] Table Extraction:", 'table'),
+                ("svg_processing", "[4/16] SVG Processing:", 'svg'),
+                ("image_processing", "[5/16] Image Processing:", 'image'),
+                ("visual_embedding", "[6/16] Visual Embedding:", 'visual_embedding'),
+                ("classification", "[7/16] Classification:", 'classification'),
+                ("chunk_preprocessing", "[8/16] Chunk Preprocessing:", 'chunk_prep'),
+                ("link_extraction", "[9/16] Links:", 'links'),
+                ("video_enrichment", "[10/16] Video Enrichment:", 'video_enrichment'),
+                ("metadata_extraction", "[11/16] Metadata (Error Codes):", 'metadata'),
+                ("parts_extraction", "[12/16] Parts Extraction:", 'parts'),
+                ("series_detection", "[13/16] Series Detection:", 'series'),
+                ("storage", "[14/16] Storage:", 'storage'),
+                ("embedding", "[15/16] Embeddings:", 'embedding'),
+                ("search_indexing", "[16/16] Search:", 'search'),
             ]
 
             success_messages = {
@@ -684,6 +713,12 @@ class KRMasterPipeline:
                     "Link extraction completed: "
                     f"{res.data.get('links_extracted', 0)} links "
                     f"({res.data.get('video_links_created', 0)} videos)"
+                ),
+                'video_enrichment': lambda res: (
+                    "Video enrichment completed: "
+                    f"{res.data.get('enriched', 0)} enriched, "
+                    f"{res.data.get('failed', 0)} failed, "
+                    f"{res.data.get('skipped', 0)} skipped"
                 ),
                 'metadata_extraction': lambda res: "Metadata processing completed",
                 'parts_extraction': lambda res: f"Parts extraction completed: {res.data.get('parts_created', 0) or res.data.get('parts_found', 0)} parts",
@@ -716,6 +751,43 @@ class KRMasterPipeline:
                 if stage_name == 'visual_embedding' and self.processors.get('visual_embedding') is None:
                     self.logger.info("  %s %s (SKIPPED: Visual embedding processor not available)", label, filename)
                     continue
+                if stage_name == 'video_enrichment' and not self.pipeline_config.enable_brightcove_enrichment:
+                    self.logger.info("  %s %s (SKIPPED: Brightcove enrichment disabled)", label, filename)
+                    continue
+                if stage_name == 'video_enrichment' and self.processors.get('video_enrichment') is None:
+                    self.logger.info("  %s %s (SKIPPED: Video enrichment processor not available)", label, filename)
+                    continue
+                if stage_name == 'parts_extraction':
+                    product_count = await self._count_document_products(document_id)
+                    if product_count == 0:
+                        self.logger.warning(
+                            "Skipping parts extraction for %s: No products linked (0 document_products entries)",
+                            document_id,
+                        )
+                        skip_metadata = {
+                            'skipped': True,
+                            'skip_reason': 'No linked products found',
+                            'product_count': 0,
+                            'warning': 'Parts extraction requires at least one linked product',
+                            'processor': processor_key,
+                        }
+                        if self.stage_tracker:
+                            await self.stage_tracker.complete_stage(
+                                document_id,
+                                stage_name,
+                                metadata=skip_metadata,
+                            )
+                        else:
+                            from backend.core.base_processor import Stage
+                            await self.track_stage_status(
+                                document_id=document_id,
+                                stage=Stage.PARTS_EXTRACTION,
+                                status='completed',
+                                metadata=skip_metadata,
+                            )
+                        completed_stages.append(stage_name)
+                        self.logger.info("    ✅ Parts extraction skipped: no linked products")
+                        continue
 
                 self.logger.info("  %s %s", label, filename)
                 try:
@@ -738,6 +810,7 @@ class KRMasterPipeline:
                         completed_stages.append(stage_name)
                         formatter = success_messages.get(stage_name)
                         formatted_message = formatter(result) if formatter else f"{stage_name.capitalize()} completed"
+                        await self._record_zero_result_warning_for_stage(document_id, stage_name)
                         self.logger.info("    ✅ %s", formatted_message)
                     else:
                         failed_stages.append(stage_name)
@@ -954,6 +1027,9 @@ class KRMasterPipeline:
             self.logger.info("  [%s] Classification: %s", doc_index, filename)
             processor = self.processors['classification']
             result4 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
+            result4_success = result4.get('success', False) if isinstance(result4, dict) else getattr(result4, 'success', False)
+            if result4_success:
+                await self._record_zero_result_warning_for_stage(context.document_id, 'classification')
             
             # Stage 5: Chunk Preprocessing (NEW! - AI-ready chunks)
             current_stage = "chunk_prep"
@@ -971,6 +1047,33 @@ class KRMasterPipeline:
             links_count = result4c.data.get('links_extracted', 0) if result4c.success else 0
             video_count = result4c.data.get('video_links_created', 0) if result4c.success else 0
             self.logger.info("    → %s links, %s videos", links_count, video_count)
+
+            enriched_count = 0
+            failed_video_enrichment_count = 0
+            skipped_video_enrichment_count = 0
+            if self.pipeline_config.enable_brightcove_enrichment and self.processors.get('video_enrichment'):
+                current_stage = "video_enrichment"
+                self.logger.info("  [%s] Video Enrichment: %s", doc_index, filename)
+                try:
+                    processor = self.processors['video_enrichment']
+                    result4d = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
+                    result4d_data = result4d.data if hasattr(result4d, 'data') else (result4d.get('data') if isinstance(result4d, dict) else {})
+                    enriched_count = result4d_data.get('enriched', 0) if result4d_data else 0
+                    failed_video_enrichment_count = result4d_data.get('failed', 0) if result4d_data else 0
+                    skipped_video_enrichment_count = result4d_data.get('skipped', 0) if result4d_data else 0
+                    self.logger.info(
+                        "    → %s enriched, %s failed, %s skipped",
+                        enriched_count,
+                        failed_video_enrichment_count,
+                        skipped_video_enrichment_count,
+                    )
+                except Exception as enrichment_error:
+                    self.logger.warning(
+                        "  [%s] Video enrichment stage failed (non-blocking): %s",
+                        doc_index,
+                        enrichment_error,
+                        exc_info=True,
+                    )
             
             # Stage 7: Metadata Processor (Error Codes)
             current_stage = "metadata"
@@ -978,6 +1081,9 @@ class KRMasterPipeline:
             processor = self.processors['metadata']
             result5 = await processor.safe_process(context) if hasattr(processor, 'safe_process') else await processor.process(context)
             error_codes_count = result5.data.get('error_codes_found', 0) if result5.success else 0
+            result5_success = result5.get('success', False) if isinstance(result5, dict) else getattr(result5, 'success', False)
+            if result5_success:
+                await self._record_zero_result_warning_for_stage(context.document_id, 'metadata_extraction')
             self.logger.info("    → %s error codes", error_codes_count)
             
             # Stage 8: Storage Processor
@@ -1011,6 +1117,9 @@ class KRMasterPipeline:
                 'svgs_converted': svg_converted,
                 'images': images_count,
                 'visual_embeddings': visual_embeddings_count,
+                'videos_enriched': enriched_count,
+                'video_enrichment_failed': failed_video_enrichment_count,
+                'video_enrichment_skipped': skipped_video_enrichment_count,
                 'smart_processing': False
             }
             
@@ -1673,10 +1782,10 @@ class KRMasterPipeline:
                     (
                         $1::uuid,
                         $2,
-                        $3,
-                        $4,
-                        CASE WHEN $4 = 'running' THEN NOW() ELSE NOW() END,
-                        CASE WHEN $4 IN ('completed', 'failed') THEN NOW() ELSE NULL END,
+                        $3::text,
+                        $4::text,
+                        CASE WHEN $4::text = 'running' THEN NOW() ELSE NOW() END,
+                        CASE WHEN $4::text IN ('completed', 'failed') THEN NOW() ELSE NULL END,
                         $5,
                         $6::jsonb,
                         NOW(),
@@ -1711,6 +1820,129 @@ class KRMasterPipeline:
                 status,
                 tracking_error,
             )
+
+    async def _count_document_products(self, document_id: str) -> int:
+        """Count linked products for a document."""
+        try:
+            if not self.database_service or not hasattr(self.database_service, 'fetch_one'):
+                return 0
+            row = await self.database_service.fetch_one(
+                "SELECT COUNT(*) as count FROM krai_core.document_products WHERE document_id = $1::uuid",
+                [document_id]
+            )
+            return int(row['count']) if row else 0
+        except Exception as e:
+            self.logger.warning("Could not count document_products for %s: %s", document_id, e)
+            return 0
+
+    async def _count_error_codes(self, document_id: str) -> int:
+        """Count error codes for a document."""
+        try:
+            if not self.database_service or not hasattr(self.database_service, 'fetch_one'):
+                return 0
+            row = await self.database_service.fetch_one(
+                "SELECT COUNT(*) as count FROM krai_intelligence.error_codes WHERE document_id = $1::uuid",
+                [document_id]
+            )
+            return int(row['count']) if row else 0
+        except Exception as e:
+            self.logger.warning("Could not count error_codes for %s: %s", document_id, e)
+            return 0
+
+    async def _count_parts(self, document_id: str) -> int:
+        """Count parts for a document via document_products join."""
+        try:
+            if not self.database_service or not hasattr(self.database_service, 'fetch_one'):
+                return 0
+            row = await self.database_service.fetch_one(
+                """
+                SELECT COUNT(DISTINCT pc.id) as count
+                FROM krai_core.document_products dp
+                JOIN krai_parts.parts_catalog pc ON pc.product_id = dp.product_id
+                WHERE dp.document_id = $1::uuid
+                """,
+                [document_id]
+            )
+            return int(row['count']) if row else 0
+        except Exception as e:
+            self.logger.warning("Could not count parts for %s: %s", document_id, e)
+            return 0
+
+    async def _update_stage_metadata_warning(
+        self,
+        document_id: str,
+        stage_name: str,
+        warning: str,
+        metadata: Optional[Dict] = None
+    ) -> None:
+        """Update stage metadata with warning information."""
+        try:
+            if not self.stage_tracker and not self.database_service:
+                return
+            if not self.database_service or not hasattr(self.database_service, 'execute_query'):
+                return
+
+            current_metadata = dict(metadata or {})
+            current_metadata['warning'] = warning
+            current_metadata['warning_timestamp'] = datetime.utcnow().isoformat()
+
+            await self.database_service.execute_query(
+                """
+                UPDATE krai_system.stage_tracking
+                SET metadata = metadata || $1::jsonb
+                WHERE document_id = $2::uuid AND stage_name = $3
+                """,
+                [json.dumps(current_metadata), document_id, stage_name]
+            )
+            self.logger.warning("Stage %s warning for %s: %s", stage_name, document_id, warning)
+        except Exception as e:
+            self.logger.error("Failed to update stage metadata warning: %s", e)
+
+    async def _record_zero_result_warning_for_stage(self, document_id: str, stage_name: str) -> None:
+        """Record metadata warnings for extraction stages that produced no results."""
+        if stage_name in {"product_extraction", "classification"}:
+            product_count = await self._count_document_products(document_id)
+            if product_count == 0:
+                await self._update_stage_metadata_warning(
+                    document_id,
+                    stage_name,
+                    'No products extracted',
+                    {'expected_min': 1, 'actual': 0}
+                )
+                self.logger.warning(
+                    "Product extraction completed with 0 results for %s",
+                    document_id
+                )
+
+        if stage_name in {"error_code_extraction", "metadata_extraction"}:
+            error_code_count = await self._count_error_codes(document_id)
+            if error_code_count == 0:
+                await self._update_stage_metadata_warning(
+                    document_id,
+                    stage_name,
+                    'No error codes extracted',
+                    {'expected_min': 5, 'actual': 0}
+                )
+                self.logger.warning(
+                    "Error code extraction completed with 0 results for %s",
+                    document_id
+                )
+
+        if stage_name == "parts_extraction":
+            product_count = await self._count_document_products(document_id)
+            parts_count = await self._count_parts(document_id)
+            if parts_count == 0 and product_count > 0:
+                await self._update_stage_metadata_warning(
+                    document_id,
+                    stage_name,
+                    'No parts extracted despite products present',
+                    {'expected_min': 1, 'actual': 0, 'product_count': product_count}
+                )
+                self.logger.warning(
+                    "Parts extraction completed with 0 results for %s (but %d products exist)",
+                    document_id,
+                    product_count
+                )
 
     async def run_single_stage(self, document_id: str, stage) -> Dict[str, Any]:
         """
@@ -1748,7 +1980,8 @@ class KRMasterPipeline:
             Stage.SERIES_DETECTION: 'series',
             Stage.STORAGE: 'storage',
             Stage.EMBEDDING: 'embedding',
-            Stage.SEARCH_INDEXING: 'search'
+            Stage.SEARCH_INDEXING: 'search',
+            Stage.VIDEO_ENRICHMENT: 'video_enrichment',
         }
         
         processor_key = processor_map.get(stage)
@@ -1824,17 +2057,62 @@ class KRMasterPipeline:
                     f"Cannot run stage '{stage_name}' for document {document_id}: "
                     "classification stage must be completed first"
                 )
+
+            if stage == Stage.VIDEO_ENRICHMENT and not stage_status.get('link_extraction'):
+                return await _tracked_failure(
+                    f"Cannot run stage '{stage_name}' for document {document_id}: "
+                    "link_extraction stage must be completed first"
+                )
+
+            # PARTS_EXTRACTION can still run without linked products; processor can
+            # extract parts using manufacturer context alone.
+            if stage == Stage.PARTS_EXTRACTION:
+                product_count = await self._count_document_products(document_id)
+                if product_count == 0:
+                    self.logger.warning(
+                        "Skipping parts extraction for %s: No products linked (0 document_products entries)",
+                        document_id,
+                    )
+                    skip_metadata = {
+                        'skipped': True,
+                        'skip_reason': 'No linked products found',
+                        'product_count': 0,
+                        'warning': 'Parts extraction requires at least one linked product',
+                        'processor': processor_key,
+                    }
+                    if self.stage_tracker:
+                        await self.stage_tracker.complete_stage(
+                            document_id,
+                            stage.value,
+                            metadata=skip_metadata,
+                        )
+                    else:
+                        await self.track_stage_status(
+                            document_id=document_id,
+                            stage=stage,
+                            status='completed',
+                            metadata=skip_metadata,
+                        )
+                    return {
+                        'success': True,
+                        'data': {'skipped': True, 'skip_reason': 'No linked products found'},
+                        'stage': stage.value,
+                        'processor': processor_key,
+                    }
             
             # Build context based on stage requirements
+            resolved_file_path = getattr(document, 'storage_path', None) or getattr(document, 'resolved_path', None)
             context_data = {
                 'document_id': document_id,
                 'document_type': getattr(document, 'document_type', 'service_manual'),
                 'file_hash': '',  # Will be derived if needed
+                # ProcessingContext requires file_path even for stages that do not read the PDF directly.
+                'file_path': resolved_file_path or '',
             }
             
             # Add file path for stages that need it
             if stage in [Stage.UPLOAD, Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION, Stage.SVG_PROCESSING, Stage.IMAGE_PROCESSING]:
-                file_path = getattr(document, 'storage_path', None) or getattr(document, 'resolved_path', None)
+                file_path = resolved_file_path
                 if file_path and os.path.exists(file_path):
                     context_data['file_path'] = file_path
                     context_data['pdf_path'] = file_path
@@ -1917,6 +2195,9 @@ class KRMasterPipeline:
                     status='completed',
                     metadata={'processor': processor_key},
                 )
+
+                stage_value = stage.value if hasattr(stage, "value") else str(stage)
+                await self._record_zero_result_warning_for_stage(document_id, stage_value)
             else:
                 error_message = str(getattr(result, 'error', '') or 'Stage failed.')
                 await self.track_stage_status(
@@ -2337,3 +2618,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+

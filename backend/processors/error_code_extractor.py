@@ -384,7 +384,12 @@ class ErrorCodeExtractor:
                         self.logger.info(f"   Context extracted ({len(context)} chars), extracting description...")
                     
                     # Try to extract structured description
-                    description = self._extract_description(full_document_text, end_pos, max_length=500)
+                    description = self._extract_description(
+                        full_document_text,
+                        end_pos,
+                        max_length=500,
+                        code_start_pos=start_pos,
+                    )
                     
                     if processed_count == 0 and match_idx == 0:
                         self.logger.info(f"   Description extracted, extracting solution...")
@@ -642,7 +647,11 @@ class ErrorCodeExtractor:
                     if not self._validate_context(context):
                         continue
 
-                    description = self._extract_description(text, match.end())
+                    description = self._extract_description(
+                        text,
+                        match.end(),
+                        code_start_pos=match.start(),
+                    )
                     if not description or self._is_generic_description(description):
                         continue
 
@@ -726,7 +735,8 @@ class ErrorCodeExtractor:
         self,
         text: str,
         code_end_pos: int,
-        max_length: int = 500
+        max_length: int = 500,
+        code_start_pos: Optional[int] = None,
     ) -> Optional[str]:
         """
         Extract error description (text after error code)
@@ -767,15 +777,39 @@ class ErrorCodeExtractor:
         else:
             description = remaining_text.strip()
         
-        # Skip if too short
+        # Keep searching with fallback heuristics when forward description is too short.
         if len(description) < 20:
-            return None
+            description = ""
         
         # Remove common prefixes
         for prefix in [':', '-', '–', '—', 'error', 'code']:
             description = description.lstrip(prefix).strip()
         
-        return description
+        if description and len(description) >= 20:
+            return description
+
+        # Fallback for table/list layouts where the useful description appears
+        # before the error code (e.g. "Error when disconnected ... 63.00.02").
+        if code_start_pos is not None:
+            window_start = max(0, code_start_pos - 350)
+            before_text = text[window_start:code_start_pos]
+            before_compact = re.sub(r"\s+", " ", before_text).strip()
+            if before_compact:
+                marker_patterns = [
+                    r"(error\s+when\s+disconnected[^.;\n]{10,260})$",
+                    r"((?:error|fault|alarm|warning|message)[^.;\n]{12,260})$",
+                    r"([^.;\n]{20,260})$",
+                ]
+                for marker in marker_patterns:
+                    match = re.search(marker, before_compact, re.IGNORECASE)
+                    if not match:
+                        continue
+                    candidate = match.group(1).strip(" -:;,.")
+                    candidate = re.sub(r"\s+", " ", candidate)
+                    if len(candidate) >= 20:
+                        return candidate[:max_length]
+
+        return None
     
     def _extract_solution(
         self,

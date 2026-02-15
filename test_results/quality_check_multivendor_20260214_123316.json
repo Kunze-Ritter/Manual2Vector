@@ -1,0 +1,73 @@
+{
+  "run_at": "2026-02-14T12:33:16.594033",
+  "document_ids": [
+    "9e7e4f7f-02c9-41e3-9a77-32bfd1647c1a",
+    "d5849a18-cc45-44aa-81e0-e278a3e61022"
+  ],
+  "pdf_paths": [
+    "C:\\Firmwares\\Konica Minolta\\KM_C658_C558_C458_C368_C308_C258_SM_EN.pdf",
+    "C:\\Firmwares\\Lexmark\\7566-69x_sm.pdf"
+  ],
+  "thresholds": {
+    "min_chunks": 100,
+    "min_images": 10,
+    "min_error_codes": 5,
+    "min_embedding_coverage": 0.95,
+    "min_products": 1,
+    "min_parts": 0
+  },
+  "quality_results": {
+    "status": "FAIL",
+    "metrics": {
+      "completeness": {
+        "chunks": {
+          "count": 5435,
+          "threshold": 100,
+          "status": "PASS"
+        },
+        "images": {
+          "count": 0,
+          "threshold": 10,
+          "status": "FAIL"
+        },
+        "error_codes": {
+          "count": 207,
+          "threshold": 5,
+          "status": "PASS"
+        },
+        "parts": {
+          "count": 20,
+          "threshold": 0,
+          "status": "PASS"
+        },
+        "status": "FAIL"
+      },
+      "correctness": {
+        "products_count": 5,
+        "products_threshold": 1,
+        "model_detected": true,
+        "manufacturer_detected": true,
+        "status": "PASS"
+      },
+      "embeddings": {
+        "total_chunks": 5435,
+        "chunks_with_embeddings": 5435,
+        "coverage": 1.0,
+        "threshold": 0.95,
+        "status": "PASS"
+      },
+      "relationships": {
+        "linked_documents": 1,
+        "linked_products": 5,
+        "status": "PASS"
+      },
+      "stage_status": {
+        "total_stage_records": 24,
+        "expected_stage_records": 30,
+        "completed_stages": 21,
+        "expected_completed_stages": 30,
+        "status": "FAIL"
+      }
+    }
+  }
+}

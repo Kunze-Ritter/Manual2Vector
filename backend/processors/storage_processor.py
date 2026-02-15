@@ -129,6 +129,7 @@ class StorageProcessor(BaseProcessor):
                     INSERT INTO krai_content.images (
                         id, document_id, filename, original_filename,
                         storage_path, storage_url, file_size, image_format,
+                        svg_storage_url, original_svg_content, is_vector_graphic, has_png_derivative,
                         width_px, height_px, page_number, image_index,
                         image_type, ai_description, ai_confidence,
                         contains_text,
@@ -141,17 +142,22 @@ class StorageProcessor(BaseProcessor):
                         $1::uuid, $2::uuid, $3, $4,
                         $5, $6, $7, $8,
                         $9, $10, $11, $12,
-                        $13, $14, $15,
-                        $16,
-                        $17, $18,
-                        $19,
-                        $20::text[],
-                        $21,
-                        $22, $23
+                        $13, $14, $15, $16,
+                        $17, $18, $19,
+                        $20,
+                        $21, $22,
+                        $23,
+                        $24::text[],
+                        $25,
+                        $26, $27
                     )
                     ON CONFLICT (id) DO UPDATE SET
                         storage_path = EXCLUDED.storage_path,
                         storage_url = EXCLUDED.storage_url,
+                        svg_storage_url = EXCLUDED.svg_storage_url,
+                        original_svg_content = EXCLUDED.original_svg_content,
+                        is_vector_graphic = EXCLUDED.is_vector_graphic,
+                        has_png_derivative = EXCLUDED.has_png_derivative,
                         file_hash = EXCLUDED.file_hash,
                         ai_description = EXCLUDED.ai_description,
                         ai_confidence = EXCLUDED.ai_confidence,
@@ -173,6 +179,18 @@ class StorageProcessor(BaseProcessor):
                         storage_url,
                         image.get('size_bytes'),
                         image.get('format'),
+                        image.get('svg_storage_url') or image.get('metadata', {}).get('svg_storage_url'),
+                        image.get('original_svg_content'),
+                        bool(
+                            image.get('is_vector_graphic')
+                            or image.get('metadata', {}).get('is_vector_graphic')
+                            or (str(image.get('format', '')).lower() == 'svg')
+                        ),
+                        bool(
+                            image.get('has_png_derivative')
+                            if image.get('has_png_derivative') is not None
+                            else image.get('metadata', {}).get('has_png_derivative', True)
+                        ),
                         image.get('width'),
                         image.get('height'),
                         image.get('page_number'),
@@ -206,11 +224,10 @@ class StorageProcessor(BaseProcessor):
 
         return stored
 
-    def _create_result(self, success: bool, message: str, data: Dict) -> Any:
-        class Result:
-            def __init__(self, success: bool, message: str, data: Dict):
-                self.success = success
-                self.message = message
-                self.data = data
-
-        return Result(success, message, data)
+    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
+        return {
+            "success": success,
+            "data": data or {},
+            "metadata": {"message": message},
+            "error": None if success else message,
+        }

@@ -1,0 +1,14 @@
+{
+  "result": "ERROR",
+  "timestamp": "2026-02-12T20:04:14.485918",
+  "error": {
+    "message": "ProcessingContext.__init__() got an unexpected keyword argument 'chunks'",
+    "type": "RuntimeError",
+    "stack_trace": "RuntimeError: ProcessingContext.__init__() got an unexpected keyword argument 'chunks'\n"
+  },
+  "context": {
+    "document_id": "4d0299ed-52ce-4d74-8019-36b8389faa1b",
+    "stage": "embedding",
+    "pdf_path": "C:\\Firmwares\\HP\\HP_E877_CPMD.pdf"
+  }
+}

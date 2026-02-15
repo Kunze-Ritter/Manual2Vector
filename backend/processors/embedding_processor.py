@@ -415,6 +415,33 @@ class EmbeddingProcessor(BaseProcessor):
                 'embeddings_created': 0
             }
 
+        # Normalize chunk payloads so downstream code can rely on `chunk_id` + `text`.
+        normalized_chunks: List[Dict[str, Any]] = []
+        for idx, chunk in enumerate(chunks):
+            normalized: Dict[str, Any]
+            if isinstance(chunk, dict):
+                normalized = dict(chunk)
+            else:
+                normalized = {'text': chunk}
+
+            chunk_id = normalized.get('chunk_id') or normalized.get('id')
+            if chunk_id is not None:
+                normalized['chunk_id'] = chunk_id
+
+            text_value = (
+                normalized.get('text')
+                or normalized.get('chunk_text')
+                or normalized.get('text_chunk')
+                or normalized.get('content')
+            )
+            if text_value is None:
+                text_value = ''
+            if not isinstance(text_value, str):
+                text_value = str(text_value)
+            normalized['text'] = text_value
+            normalized['_chunk_index'] = idx
+            normalized_chunks.append(normalized)
+
         track_stage = getattr(context, 'track_stage', True)
 
         loop = asyncio.get_running_loop()
@@ -429,7 +456,7 @@ class EmbeddingProcessor(BaseProcessor):
             try:
                 result = await self.process_document(
                     context.document_id,
-                    chunks,
+                    normalized_chunks,
                     track_stage
                 )
             except Exception as exc:
@@ -639,6 +666,11 @@ class EmbeddingProcessor(BaseProcessor):
                     'partial_success': partial_success,
                     'embeddings_created': total_embedded,
                     'context_embeddings_created': context_embeddings_created,
+                    'error': (
+                        f"Failed to embed all {len(failed_chunks)} chunks"
+                        if total_embedded == 0 and len(failed_chunks) > 0
+                        else None
+                    ),
                     'failed_count': len(failed_chunks),
                     'failed_chunks': failed_chunks,
                     'processing_time': processing_time
@@ -682,19 +714,37 @@ class EmbeddingProcessor(BaseProcessor):
         
         for chunk in chunks:
             try:
+                chunk_id = chunk.get('chunk_id') or chunk.get('id')
+                if chunk_id is None:
+                    failed_chunks.append({
+                        'chunk_id': None,
+                        'error': f"Missing chunk_id (index={chunk.get('_chunk_index')})"
+                    })
+                    continue
+
+                text_value = (
+                    chunk.get('text')
+                    or chunk.get('chunk_text')
+                    or chunk.get('text_chunk')
+                    or chunk.get('content')
+                    or ''
+                )
+                if not isinstance(text_value, str):
+                    text_value = str(text_value)
+
                 # Generate embedding
-                embedding = self._generate_embedding(chunk['text'])
+                embedding = self._generate_embedding(text_value)
                 
                 if embedding is None:
                     failed_chunks.append({
-                        'chunk_id': chunk.get('chunk_id'),
+                        'chunk_id': chunk_id,
                         'error': 'Failed to generate embedding'
                     })
                     continue
                 
                 # Store in database
                 stored = await self._store_embedding(
-                    chunk_id=chunk['chunk_id'],
+                    chunk_id=chunk_id,
                     document_id=document_id,
                     embedding=embedding,
                     chunk_data=chunk
@@ -704,14 +754,14 @@ class EmbeddingProcessor(BaseProcessor):
                     success_count += 1
                 else:
                     failed_chunks.append({
-                        'chunk_id': chunk.get('chunk_id'),
+                        'chunk_id': chunk_id,
                         'error': 'Failed to store embedding'
                     })
                     
             except Exception as e:
                 self.logger.debug(f"Failed to embed chunk: {e}")
                 failed_chunks.append({
-                    'chunk_id': chunk.get('chunk_id'),
+                    'chunk_id': chunk.get('chunk_id') or chunk.get('id'),
                     'error': str(e)
                 })
         
@@ -920,6 +970,13 @@ class EmbeddingProcessor(BaseProcessor):
             
             # Preserve existing metadata from chunk (includes header metadata, etc.)
             existing_metadata = chunk_data.get('metadata', {})
+            if isinstance(existing_metadata, str):
+                try:
+                    existing_metadata = json.loads(existing_metadata)
+                except Exception:
+                    existing_metadata = {}
+            if not isinstance(existing_metadata, dict):
+                existing_metadata = {}
             
             # Update with required fields (don't overwrite if already exists)
             metadata = {
@@ -1357,14 +1414,28 @@ class EmbeddingProcessor(BaseProcessor):
                     total_context_embeddings += result.get('success_count', 0)
                     adapter.info(f"Stored {result.get('success_count', 0)} link context embeddings")
 
-            tables_result = await self.database_adapter.execute_query(
-                """
-                SELECT id, context_text, caption
-                FROM krai_intelligence.structured_tables
-                WHERE document_id = $1 AND context_text IS NOT NULL
-                """.strip(),
-                [str(document_id)],
-            )
+            try:
+                tables_result = await self.database_adapter.execute_query(
+                    """
+                    SELECT id, context_text, caption, metadata
+                    FROM krai_intelligence.structured_tables
+                    WHERE document_id = $1 AND context_text IS NOT NULL
+                    """.strip(),
+                    [str(document_id)],
+                )
+            except Exception as table_query_error:
+                adapter.debug(
+                    "structured_tables context columns unavailable, using fallback query: %s",
+                    table_query_error,
+                )
+                tables_result = await self.database_adapter.execute_query(
+                    """
+                    SELECT id, table_markdown, metadata
+                    FROM krai_intelligence.structured_tables
+                    WHERE document_id = $1
+                    """.strip(),
+                    [str(document_id)],
+                )
 
             if tables_result:
                 adapter.info(f"Processing {len(tables_result)} tables with context")
@@ -1373,13 +1444,29 @@ class EmbeddingProcessor(BaseProcessor):
                 for table in tables_result:
                     # Combine context fields for embedding
                     context_parts = []
-                    
-                    if table.get('context_text'):
-                        context_parts.append(table['context_text'])
-                    if table.get('caption'):
-                        context_parts.append(table['caption'])
-                    if table.get('page_header'):
-                        context_parts.append(table['page_header'])
+
+                    metadata = table.get('metadata')
+                    if isinstance(metadata, str):
+                        try:
+                            metadata = json.loads(metadata)
+                        except Exception:
+                            metadata = {}
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+
+                    context_text_field = table.get('context_text') or metadata.get('context_text')
+                    caption_field = table.get('caption') or metadata.get('caption')
+                    page_header_field = table.get('page_header') or metadata.get('page_header')
+                    markdown_field = table.get('table_markdown')
+
+                    if context_text_field:
+                        context_parts.append(context_text_field)
+                    if caption_field:
+                        context_parts.append(caption_field)
+                    if page_header_field:
+                        context_parts.append(page_header_field)
+                    if markdown_field:
+                        context_parts.append(markdown_field)
                     
                     if context_parts:
                         context_text = ' | '.join(context_parts)

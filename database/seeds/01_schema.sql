@@ -1915,8 +1915,12 @@ CREATE TABLE krai_content.images (
     original_filename character varying(255),
     storage_path text,
     storage_url text NOT NULL,
+    svg_storage_url text,
+    original_svg_content text,
     file_size integer,
     image_format character varying(10),
+    is_vector_graphic boolean DEFAULT false,
+    has_png_derivative boolean DEFAULT true,
     width_px integer,
     height_px integer,
     page_number integer,
@@ -1963,6 +1967,33 @@ COMMENT ON COLUMN krai_content.images.figure_number IS 'Figure reference number 
 --
 
 COMMENT ON COLUMN krai_content.images.figure_context IS 'Context text around figure reference';
+
+
+--
+-- Name: COLUMN images.svg_storage_url; Type: COMMENT; Schema: krai_content; Owner: -
+--
+
+COMMENT ON COLUMN krai_content.images.svg_storage_url IS 'MinIO URL for original SVG file when image is vector graphic';
+
+
+--
+-- Name: COLUMN images.original_svg_content; Type: COMMENT; Schema: krai_content; Owner: -
+--
+
+COMMENT ON COLUMN krai_content.images.original_svg_content IS 'Inline SVG content for small vector graphics (<100KB)';
+
+
+--
+-- Name: COLUMN images.is_vector_graphic; Type: COMMENT; Schema: krai_content; Owner: -
+--
+
+COMMENT ON COLUMN krai_content.images.is_vector_graphic IS 'True when image originated from vector graphic extraction';
+
+--
+-- Name: COLUMN images.has_png_derivative; Type: COMMENT; Schema: krai_content; Owner: -
+--
+
+COMMENT ON COLUMN krai_content.images.has_png_derivative IS 'True when a PNG derivative exists for vector graphics';
 
 
 --
@@ -3695,6 +3726,13 @@ CREATE INDEX idx_images_figure_number ON krai_content.images USING btree (figure
 --
 
 CREATE INDEX idx_images_hash ON krai_content.images USING btree (file_hash);
+
+
+--
+-- Name: idx_images_is_vector_graphic; Type: INDEX; Schema: krai_content; Owner: -
+--
+
+CREATE INDEX idx_images_is_vector_graphic ON krai_content.images USING btree (is_vector_graphic) WHERE (is_vector_graphic = true);
 
 
 --

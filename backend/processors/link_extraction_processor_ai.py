@@ -490,8 +490,8 @@ class LinkExtractionProcessorAI(BaseProcessor):
 
         for video in videos:
             try:
-                url = video.get("source_url") or video.get("url")
-                link_id = link_id_map.get(url) if url else video.get("link_id")
+                video_url = video.get("source_url") or video.get("url") or video.get("video_url")
+                link_id = link_id_map.get(video_url) if video_url else video.get("link_id")
 
                 if not link_id:
                     continue
@@ -505,6 +505,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     "thumbnail_url": video.get("thumbnail_url"),
                     "duration": video.get("duration"),
                     "platform": video.get("link_category") or video.get("platform") or "youtube",
+                    "video_url": video_url,
                     "metadata": json.dumps(video.get("metadata") or {}),
                     "manufacturer_id": video.get("manufacturer_id"),
                     "series_id": video.get("series_id"),
@@ -515,68 +516,85 @@ class LinkExtractionProcessorAI(BaseProcessor):
                     "related_chunks": video.get("related_chunks", []),
                 }
 
-                if video.get("youtube_id"):
+                existing: List[Dict] = []
+                if video_payload["youtube_id"]:
                     existing = await self.database_service.execute_query(
                         "SELECT id FROM krai_content.videos WHERE youtube_id = $1 LIMIT 1",
-                        [video["youtube_id"]],
+                        [video_payload["youtube_id"]],
                     )
-                    if existing:
-                        await self.database_service.execute_query(
-                            """
-                            UPDATE krai_content.videos
-                            SET
-                                link_id = $2,
-                                document_id = $3,
-                                platform = $4,
-                                title = $5,
-                                description = $6,
-                                thumbnail_url = $7,
-                                duration = $8,
-                                manufacturer_id = $9,
-                                series_id = $10,
-                                metadata = $11::jsonb,
-                                context_description = $12,
-                                related_products = $13::text[],
-                                related_chunks = $14::uuid[],
-                                page_number = $15,
-                                updated_at = NOW()
-                            WHERE id = $1
-                            """.strip(),
-                            [
-                                str(existing[0]["id"]),
-                                link_id,
-                                video_payload["document_id"],
-                                video_payload["platform"],
-                                video_payload["title"],
-                                video_payload["description"],
-                                video_payload["thumbnail_url"],
-                                video_payload["duration"],
-                                video_payload["manufacturer_id"],
-                                video_payload["series_id"],
-                                video_payload["metadata"],
-                                video_payload["context_description"],
-                                video_payload["related_products"],
-                                video_payload["related_chunks"],
-                                video_payload["page_number"],
-                            ],
-                        )
-                        continue
+                elif video_payload["video_url"]:
+                    existing = await self.database_service.execute_query(
+                        """
+                        SELECT id
+                        FROM krai_content.videos
+                        WHERE video_url = $1 AND youtube_id IS NULL
+                        LIMIT 1
+                        """.strip(),
+                        [video_payload["video_url"]],
+                    )
+
+                if existing:
+                    await self.database_service.execute_query(
+                        """
+                        UPDATE krai_content.videos
+                        SET
+                            link_id = $2,
+                            document_id = $3,
+                            youtube_id = $4,
+                            platform = $5,
+                            video_url = $6,
+                            title = $7,
+                            description = $8,
+                            thumbnail_url = $9,
+                            duration = $10,
+                            manufacturer_id = $11,
+                            series_id = $12,
+                            metadata = $13::jsonb,
+                            context_description = $14,
+                            related_products = $15::text[],
+                            related_chunks = $16::uuid[],
+                            page_number = $17,
+                            updated_at = NOW()
+                        WHERE id = $1
+                        """.strip(),
+                        [
+                            str(existing[0]["id"]),
+                            link_id,
+                            video_payload["document_id"],
+                            video_payload["youtube_id"],
+                            video_payload["platform"],
+                            video_payload["video_url"],
+                            video_payload["title"],
+                            video_payload["description"],
+                            video_payload["thumbnail_url"],
+                            video_payload["duration"],
+                            video_payload["manufacturer_id"],
+                            video_payload["series_id"],
+                            video_payload["metadata"],
+                            video_payload["context_description"],
+                            video_payload["related_products"],
+                            video_payload["related_chunks"],
+                            video_payload["page_number"],
+                        ],
+                    )
+                    continue
 
                 await self.database_service.execute_query(
                     """
                     INSERT INTO krai_content.videos
-                        (link_id, document_id, youtube_id, platform, title, description, thumbnail_url,
+                        (link_id, document_id, youtube_id, platform, video_url, title, description, thumbnail_url,
                          duration, manufacturer_id, series_id, metadata, context_description,
                          related_products, related_chunks, page_number)
                     VALUES
-                        ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12,
-                         $13::text[], $14::uuid[], $15)
+                        ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13,
+                         $14::text[], $15::uuid[], $16)
                     """.strip(),
                     [
                         link_id,
                         video_payload["document_id"],
                         video_payload["youtube_id"],
                         video_payload["platform"],
+                        video_payload["video_url"],
                         video_payload["title"],
                         video_payload["description"],
                         video_payload["thumbnail_url"],
@@ -619,7 +637,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
         for link in links:
             page_number = link.get('page_number')
             if not page_number or page_number not in page_texts:
-                adapter.warning("No page text available for link on page %d", page_number)
+                adapter.warning("No page text available for link on page %s", page_number)
                 links_with_context.append(link)
                 continue
             
@@ -645,7 +663,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 links_with_context.append(link)
                 
             except Exception as e:
-                adapter.error("Failed to extract context for link on page %d: %s", page_number, e)
+                adapter.error("Failed to extract context for link on page %s: %s", page_number, e)
                 links_with_context.append(link)
         
         adapter.info("Extracted context for %d links", len(links_with_context))
@@ -714,12 +732,12 @@ class LinkExtractionProcessorAI(BaseProcessor):
         for video in videos:
             page_number = video.get('page_number')
             if not page_number or page_number not in page_texts:
-                adapter.warning("No page text available for video on page %d", page_number)
+                adapter.warning("No page text available for video on page %s", page_number)
                 videos_with_context.append(video)
                 continue
             
             page_text = page_texts[page_number]
-            video_url = video.get('source_url') or video.get('url')
+            video_url = video.get('source_url') or video.get('url') or video.get('video_url')
             
             try:
                 # Extract context using ContextExtractionService
@@ -741,17 +759,16 @@ class LinkExtractionProcessorAI(BaseProcessor):
                 videos_with_context.append(video)
                 
             except Exception as e:
-                adapter.error("Failed to extract context for video on page %d: %s", page_number, e)
+                adapter.error("Failed to extract context for video on page %s: %s", page_number, e)
                 videos_with_context.append(video)
         
         adapter.info("Extracted context for %d videos", len(videos_with_context))
         return videos_with_context
 
-    def _create_result(self, success: bool, message: str, data: Dict) -> Any:
-        class Result:
-            def __init__(self, success: bool, message: str, data: Dict):
-                self.success = success
-                self.message = message
-                self.data = data
-
-        return Result(success, message, data)
+    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
+        return {
+            "success": success,
+            "data": data or {},
+            "metadata": {"message": message},
+            "error": None if success else message,
+        }

@@ -51,6 +51,13 @@ class ImageBase(BaseModel):
     original_filename: Optional[str] = Field(None, description="Original uploaded filename.")
     storage_path: Optional[str] = Field(None, description="Relative storage path inside the bucket.")
     storage_url: Optional[HttpUrl] = Field(None, description="Public URL to access the image.")
+    svg_storage_url: Optional[HttpUrl] = Field(None, description="Public URL to the original SVG asset.")
+    original_svg_content: Optional[str] = Field(None, description="Inline SVG content for small vector graphics.")
+    is_vector_graphic: Optional[bool] = Field(False, description="Flag indicating if the asset is a vector graphic.")
+    has_png_derivative: Optional[bool] = Field(
+        True,
+        description="Whether a PNG derivative is available for raster-only consumers like Vision AI.",
+    )
     file_size: Optional[int] = Field(None, ge=0, description="File size in bytes.")
     image_format: Optional[ImageFormat] = Field(None, description="Image format/extension.")
     width_px: Optional[int] = Field(None, ge=0, description="Image width in pixels.")

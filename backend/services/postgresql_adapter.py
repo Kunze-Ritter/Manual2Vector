@@ -324,6 +324,24 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Get all chunks for a document (alias for get_intelligence_chunks_by_document)"""
         return await self.get_intelligence_chunks_by_document(document_id)
 
+    async def get_chunk(self, chunk_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single chunk by ID, preferring intelligence chunks."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"SELECT * FROM {self._intelligence_schema}.chunks WHERE id = $1::uuid LIMIT 1",
+                chunk_id,
+            )
+            if row:
+                return dict(row)
+
+            # Backward-compatible fallback for legacy content chunks.
+            legacy_row = await conn.fetchrow(
+                f"SELECT * FROM {self._content_schema}.chunks WHERE id = $1::uuid LIMIT 1",
+                chunk_id,
+            )
+            return dict(legacy_row) if legacy_row else None
+
     async def get_intelligence_chunks_by_document(self, document_id: str) -> List[Dict[str, Any]]:
         """Get all intelligence chunks for a document"""
         pool = self._ensure_pool()
@@ -578,6 +596,33 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.info(f"Created image {image_id}")
             return str(image_id)
 
+    async def create_image_with_svg(self, image: ImageModel) -> str:
+        """Create image record with SVG metadata fields populated."""
+        pool = self._ensure_pool()
+        image_data = image.model_dump(mode='python', exclude_none=True)
+        image_data['is_vector_graphic'] = bool(image_data.get('is_vector_graphic', True))
+
+        async with pool.acquire() as conn:
+            existing = None
+            if image.file_hash:
+                existing = await conn.fetchrow(
+                    f"SELECT id FROM {self._content_schema}.images WHERE file_hash = $1 LIMIT 1",
+                    image.file_hash
+                )
+            if existing:
+                image_id = str(existing['id'])
+                self.logger.info(f"SVG image with hash {image.file_hash[:16]}... already exists: {image_id}")
+                return image_id
+
+            columns, placeholders, values = self._prepare_insert(image_data)
+            sql = (
+                f"INSERT INTO {self._content_schema}.images "
+                f"({', '.join(columns)}) VALUES ({', '.join(placeholders)}) RETURNING id"
+            )
+            image_id = await conn.fetchval(sql, *values)
+            self.logger.info(f"Created SVG image {image_id}")
+            return str(image_id)
+
     async def get_image_by_hash(self, image_hash: str) -> Optional[Dict[str, Any]]:
         pool = self._ensure_pool()
         async with pool.acquire() as conn:
@@ -597,6 +642,94 @@ class PostgreSQLAdapter(DatabaseAdapter):
                 ORDER BY page_number, image_index
                 """,
                 document_id
+            )
+            return [dict(row) for row in rows]
+
+    async def update_image_svg_storage(
+        self,
+        image_id: str,
+        svg_storage_url: str,
+        original_svg_content: Optional[str] = None,
+        is_vector_graphic: bool = True
+    ) -> bool:
+        """Update SVG storage metadata for an existing image."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            result = await conn.execute(
+                f"""
+                UPDATE {self._content_schema}.images
+                SET svg_storage_url = $2,
+                    original_svg_content = $3,
+                    is_vector_graphic = $4,
+                    updated_at = NOW()
+                WHERE id = $1
+                """,
+                image_id,
+                svg_storage_url,
+                original_svg_content,
+                is_vector_graphic
+            )
+            updated = result == "UPDATE 1"
+            if updated:
+                self.logger.info(f"Updated SVG storage metadata for image {image_id}")
+            return updated
+
+    async def create_svg_queue_entry(self, queue_data: Dict[str, Any]) -> str:
+        """Create a processing queue entry for SVG/image storage tasks."""
+        pool = self._ensure_pool()
+        payload = queue_data.get("payload") or {}
+        document_id = queue_data.get("document_id") or payload.get("document_id")
+        if not document_id:
+            raise ValueError("create_svg_queue_entry requires document_id")
+
+        stage = str(queue_data.get("stage") or payload.get("stage") or "storage")
+        task_type = queue_data.get("task_type")
+        if not task_type:
+            task_type = str(queue_data.get("artifact_type") or payload.get("artifact_type") or stage)
+
+        priority = queue_data.get("priority", 5)
+        status = queue_data.get("status", "pending")
+        max_retries = queue_data.get("max_retries", 3)
+        retry_count = queue_data.get("retry_count", 0)
+        chunk_id = queue_data.get("chunk_id") or payload.get("chunk_id")
+        image_id = queue_data.get("image_id") or payload.get("image_id")
+        video_id = queue_data.get("video_id") or payload.get("video_id")
+
+        async with pool.acquire() as conn:
+            queue_id = await conn.fetchval(
+                f"""
+                INSERT INTO {self._system_schema}.processing_queue
+                    (document_id, chunk_id, image_id, video_id, stage, task_type, priority, status, retry_count, max_retries, payload)
+                VALUES
+                    ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, $7, $8, $9, $10, $11::jsonb)
+                RETURNING id
+                """,
+                str(document_id),
+                str(chunk_id) if chunk_id else None,
+                str(image_id) if image_id else None,
+                str(video_id) if video_id else None,
+                stage,
+                task_type,
+                int(priority),
+                status,
+                int(retry_count),
+                int(max_retries),
+                json.dumps(payload, ensure_ascii=False),
+            )
+            self.logger.info("Created SVG queue entry %s (stage=%s task_type=%s)", queue_id, stage, task_type)
+            return str(queue_id)
+
+    async def get_images_by_vector_flag(self, is_vector_graphic: bool = True) -> List[Dict[str, Any]]:
+        """Retrieve images filtered by vector graphic flag."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                SELECT * FROM {self._content_schema}.images
+                WHERE is_vector_graphic = $1
+                ORDER BY created_at DESC
+                """,
+                is_vector_graphic
             )
             return [dict(row) for row in rows]
 
@@ -1006,6 +1139,47 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.info(f"Created error code {error_code_id}")
             return str(error_code_id)
 
+    async def get_error_codes_by_document(self, document_id: str) -> List[Dict[str, Any]]:
+        """Return all error codes for a document."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                SELECT *
+                FROM {self._intelligence_schema}.error_codes
+                WHERE document_id = $1::uuid
+                ORDER BY created_at ASC, id ASC
+                """,
+                document_id,
+            )
+            return [dict(row) for row in rows]
+
+    async def create_error_code_part_link(self, link_data: Dict[str, Any]) -> bool:
+        """Create or keep an error-code/part link (idempotent)."""
+        pool = self._ensure_pool()
+        error_code_id = link_data.get("error_code_id")
+        part_id = link_data.get("part_id")
+        if not error_code_id or not part_id:
+            raise ValueError("link_data must contain error_code_id and part_id")
+
+        relevance_score = link_data.get("relevance_score", 1.0)
+        extraction_source = link_data.get("extraction_source")
+
+        async with pool.acquire() as conn:
+            status = await conn.execute(
+                f"""
+                INSERT INTO {self._intelligence_schema}.error_code_parts
+                    (error_code_id, part_id, relevance_score, extraction_source)
+                VALUES ($1::uuid, $2::uuid, $3, $4)
+                ON CONFLICT (error_code_id, part_id) DO NOTHING
+                """,
+                error_code_id,
+                part_id,
+                relevance_score,
+                extraction_source,
+            )
+            return status.endswith("1")
+
     async def log_search_analytics(self, analytics: SearchAnalyticsModel) -> str:
         pool = self._ensure_pool()
         analytics_data = analytics.model_dump(mode='python', exclude_none=True)
@@ -1174,7 +1348,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Insert a part record into krai_parts.parts_catalog."""
         pool = self._ensure_pool()
         record = {k: v for k, v in part_data.items() if v is not None and k in (
-            'manufacturer_id', 'part_number', 'part_name', 'part_description', 'part_category'
+            'manufacturer_id', 'product_id', 'part_number', 'part_name', 'part_description', 'part_category'
         )}
         columns, placeholders, values = self._prepare_insert(record)
         sql = (
@@ -1216,7 +1390,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
     async def update_part(self, part_id: str, part_data: Dict[str, Any]) -> bool:
         """Update an existing part."""
         pool = self._ensure_pool()
-        allowed = ('part_name', 'part_description', 'part_category')
+        allowed = ('part_name', 'part_description', 'part_category', 'product_id')
         updates = {k: v for k, v in part_data.items() if k in allowed and v is not None}
         if not updates:
             return True
@@ -1245,6 +1419,79 @@ class PostgreSQLAdapter(DatabaseAdapter):
             video_id = await conn.fetchval(sql, *video_data.values())
             self.logger.info(f"Upserted video {video_id}")
             return str(video_id)
+
+    async def get_videos_needing_enrichment(
+        self,
+        document_id: str,
+        limit: int = 100,
+        force: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Fetch videos with metadata.needs_enrichment=true for a document."""
+        pool = self._ensure_pool()
+        where_force = "" if force else "AND (enriched_at IS NULL OR enrichment_error IS NOT NULL)"
+        query = f"""
+            SELECT id, video_url, metadata, enriched_at, enrichment_error
+            FROM {self._content_schema}.videos
+            WHERE document_id = $1::uuid
+              AND COALESCE((metadata->>'needs_enrichment')::boolean, false) = true
+              {where_force}
+            ORDER BY created_at ASC
+            LIMIT $2
+        """
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, document_id, limit)
+            return [dict(row) for row in rows]
+
+    async def update_video_enrichment(self, video_id: str, metadata_dict: Dict[str, Any]) -> bool:
+        """Update a video record with enriched metadata fields."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                f"""
+                UPDATE {self._content_schema}.videos
+                SET
+                    title = COALESCE($2, title),
+                    description = COALESCE($3, description),
+                    duration = COALESCE($4, duration),
+                    thumbnail_url = COALESCE($5, thumbnail_url),
+                    published_at = COALESCE($6, published_at),
+                    tags = COALESCE($7::text[], tags),
+                    metadata = COALESCE($8::jsonb, metadata),
+                    enrichment_error = $9,
+                    enriched_at = COALESCE($10, enriched_at),
+                    updated_at = NOW()
+                WHERE id = $1::uuid
+                """,
+                video_id,
+                metadata_dict.get("title"),
+                metadata_dict.get("description"),
+                metadata_dict.get("duration"),
+                metadata_dict.get("thumbnail_url"),
+                metadata_dict.get("published_at"),
+                metadata_dict.get("tags"),
+                json.dumps(metadata_dict.get("metadata")) if metadata_dict.get("metadata") is not None else None,
+                metadata_dict.get("enrichment_error"),
+                metadata_dict.get("enriched_at"),
+            )
+            return True
+
+    async def mark_video_enrichment_failed(self, video_id: str, error_message: str) -> bool:
+        """Persist enrichment failure details and keep needs_enrichment=true for retries."""
+        pool = self._ensure_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                f"""
+                UPDATE {self._content_schema}.videos
+                SET
+                    enrichment_error = $2,
+                    metadata = COALESCE(metadata, '{{}}'::jsonb) || '{{"needs_enrichment": true}}'::jsonb,
+                    updated_at = NOW()
+                WHERE id = $1::uuid
+                """,
+                video_id,
+                (error_message or "Unknown enrichment error")[:1000],
+            )
+            return True
 
     async def create_print_defect(self, defect: PrintDefectModel) -> str:
         pool = self._ensure_pool()

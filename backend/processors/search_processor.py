@@ -129,11 +129,10 @@ class SearchProcessor(BaseProcessor):
             logger = adapter if adapter else self.logger
             logger.debug("Failed updating document search flags: %s", exc)
 
-    def _create_result(self, success: bool, message: str, data: Dict) -> Any:
-        class Result:
-            def __init__(self, success: bool, message: str, data: Dict):
-                self.success = success
-                self.message = message
-                self.data = data
-
-        return Result(success, message, data)
+    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
+        return {
+            "success": success,
+            "data": data or {},
+            "metadata": {"message": message},
+            "error": None if success else message,
+        }

@@ -69,19 +69,11 @@ class MetadataProcessorAI(BaseProcessor):
                     manufacturer = "AUTO"
 
                 adapter.info("Extracting error codes (manufacturer: %s)...", manufacturer)
-                # Use extract_from_text method instead of missing extract method
-                error_codes = self.error_code_extractor.extract_from_text(
-                    text="",  # Will be overridden by PDF processing
-                    page_number=1
+                error_codes = await self._extract_error_codes_from_chunks(
+                    document_id=context.document_id,
+                    manufacturer=manufacturer,
+                    adapter=adapter,
                 )
-                # Fallback: try extract if available
-                if hasattr(self.error_code_extractor, 'extract'):
-                    error_codes = self.error_code_extractor.extract(
-                        pdf_path=file_path,
-                        manufacturer=manufacturer
-                    )
-                else:
-                    adapter.warning("ErrorCodeExtractor.extract method not available - skipping error code extraction")
 
                 if error_codes:
                     self.logger.success(f"✅ Extracted {len(error_codes)} error codes")
@@ -163,6 +155,47 @@ class MetadataProcessorAI(BaseProcessor):
             self.logger.warning(f"Could not get manufacturer: {e}")
         
         return "AUTO"
+
+    async def _extract_error_codes_from_chunks(self, document_id: str, manufacturer: str, adapter) -> List:
+        """Extract error codes by scanning document chunks."""
+        if not self.database_service or not hasattr(self.database_service, "get_chunks_by_document"):
+            adapter.warning("Chunk access unavailable - cannot extract error codes")
+            return []
+
+        chunks = await self.database_service.get_chunks_by_document(document_id)
+        if not chunks:
+            adapter.warning("No chunks found for error code extraction")
+            return []
+
+        extracted = []
+        seen_codes = set()
+        for chunk in chunks:
+            chunk_dict = dict(chunk) if not isinstance(chunk, dict) else chunk
+            text = (
+                chunk_dict.get("text_chunk")
+                or chunk_dict.get("content")
+                or chunk_dict.get("text")
+                or ""
+            )
+            if not text:
+                continue
+
+            page_number = chunk_dict.get("page_start") or chunk_dict.get("page_number") or 1
+            chunk_codes = self.error_code_extractor.extract_from_text(
+                text=text,
+                page_number=int(page_number),
+                manufacturer_name=manufacturer if manufacturer != "AUTO" else None,
+            )
+            for code in chunk_codes:
+                key = getattr(code, "error_code", None)
+                if not key or key in seen_codes:
+                    continue
+                # Preserve chunk linkage where possible.
+                setattr(code, "chunk_id", chunk_dict.get("id"))
+                seen_codes.add(key)
+                extracted.append(code)
+
+        return extracted
     
     async def _save_error_codes(
         self,

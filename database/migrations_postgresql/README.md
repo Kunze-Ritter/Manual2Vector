@@ -75,6 +75,17 @@ Oder mit psql:
 psql "$POSTGRES_URL" -f database/migrations_postgresql/009_add_stage_metrics_table.sql
 ```
 
+### 6. `017_video_enrichment_columns.sql` (optional)
+**Erstellt:**
+- `krai_content.videos.tags` (`text[]`)
+- `krai_content.videos.enrichment_error` (`text`)
+- Index `idx_videos_needs_enrichment` für `metadata->>'needs_enrichment'`
+
+**Anwenden (wenn Brightcove Stage 16 genutzt wird):**
+```bash
+psql "$POSTGRES_URL" -f database/migrations_postgresql/017_video_enrichment_columns.sql
+```
+
 ---
 
 ## 🚀 Installation

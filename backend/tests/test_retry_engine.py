@@ -1110,9 +1110,8 @@ class TestRetryOrchestratorBaseProcessorIntegration:
         context = ProcessingContext(
             document_id="test_doc_123",
             file_path="/test/doc.pdf",
-            file_name="doc.pdf",
             file_size=1024,
-            mime_type="application/pdf"
+            document_type="service_manual"
         )
         
         # Execute

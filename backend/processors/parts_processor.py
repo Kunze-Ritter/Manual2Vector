@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 
 from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.types import ProcessingError
 from .stage_tracker import StageTracker
 from .imports import get_database_adapter, extract_parts_with_context
 
@@ -22,8 +23,20 @@ class PartsProcessor(BaseProcessor):
         super().__init__(name="parts_processor")
         self.stage = Stage.PARTS_EXTRACTION
         self.adapter = database_adapter or get_database_adapter()
+        # Expose adapter under BaseProcessor-expected attribute names.
+        self.db_adapter = self.adapter
+        self.database_service = self.adapter
         self.stage_tracker = None  # Temporarily disabled due to Supabase dependency
         self.logger.info("PartsProcessor initialized")
+
+    @staticmethod
+    def _read_field(obj, key: str, default=None):
+        """Read field from dict-like or attribute-based model objects."""
+        if obj is None:
+            return default
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
         
     async def process_document(self, document_id: str) -> Dict:
         """
@@ -41,7 +54,8 @@ class PartsProcessor(BaseProcessor):
             'parts_created': 0,
             'parts_updated': 0,
             'parts_linked_to_error_codes': 0,
-            'errors': 0
+            'errors': 0,
+            'skipped_reason': None,
         }
 
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
@@ -57,14 +71,29 @@ class PartsProcessor(BaseProcessor):
                         await self.stage_tracker.fail_stage(document_id, self.stage, error="Document not found")
                     return stats
 
-                manufacturer_id = document.get('manufacturer_id')
-                manufacturer_name = (document.get('manufacturer') or '').lower().replace(' ', '_')
+                manufacturer_id = self._read_field(document, 'manufacturer_id')
+                manufacturer_name = (
+                    self._read_field(document, 'manufacturer', '') or ''
+                ).lower().replace(' ', '_')
+
+                if not manufacturer_id:
+                    manufacturer_id, manufacturer_name = await self._resolve_document_manufacturer(document_id, manufacturer_name)
 
                 if not manufacturer_id:
                     adapter.warning("No manufacturer_id available, skipping parts extraction")
+                    stats['skipped_reason'] = "Missing manufacturer_id"
                     if self.stage_tracker:
                         await self.stage_tracker.skip_stage(document_id, self.stage, reason="Missing manufacturer_id")
                     return stats
+
+                linked_product_ids = await self._get_document_product_ids(document_id)
+                if not linked_product_ids:
+                    adapter.warning(
+                        "No document_products links available; parts extraction will continue with manufacturer context only. "
+                        "This may result in lower quality part-product associations."
+                    )
+                    stats['skipped_reason'] = "No linked products (continuing with manufacturer-only context)"
+                primary_product_id = linked_product_ids[0] if linked_product_ids else None
 
                 adapter.info("Extracting parts for manufacturer: %s", manufacturer_name)
 
@@ -79,7 +108,8 @@ class PartsProcessor(BaseProcessor):
                             chunk=chunk,
                             manufacturer_id=manufacturer_id,
                             manufacturer_key=manufacturer_name,
-                            document_id=document_id
+                            document_id=document_id,
+                            product_id=primary_product_id
                         )
 
                         stats['parts_found'] += len(parts_found)
@@ -91,8 +121,9 @@ class PartsProcessor(BaseProcessor):
                             elif result == 'updated':
                                 stats['parts_updated'] += 1
 
-                    except Exception as e:
-                        adapter.error("Error processing chunk %s: %s", chunk.get('id'), e)
+                    except Exception:
+                        chunk_id = chunk.get('id') if isinstance(chunk, dict) else None
+                        adapter.exception("Error processing chunk %s", chunk_id)
                         stats['errors'] += 1
 
                 adapter.info("Linking parts to error codes...")
@@ -102,15 +133,19 @@ class PartsProcessor(BaseProcessor):
                 adapter.info("Parts extraction complete: %s", stats)
 
                 if self.stage_tracker:
+                    metadata = {
+                        'parts_found': stats['parts_found'],
+                        'parts_created': stats['parts_created'],
+                        'parts_updated': stats['parts_updated'],
+                        'chunks_processed': stats['chunks_processed'],
+                        'linked_products': len(linked_product_ids),
+                    }
+                    if not linked_product_ids:
+                        metadata['warning'] = 'No products linked - parts extracted with manufacturer context only'
                     await self.stage_tracker.complete_stage(
                         document_id,
                         self.stage,
-                        metadata={
-                            'parts_found': stats['parts_found'],
-                            'parts_created': stats['parts_created'],
-                            'parts_updated': stats['parts_updated'],
-                            'chunks_processed': stats['chunks_processed']
-                        }
+                        metadata=metadata
                     )
 
                 return stats
@@ -129,6 +164,21 @@ class PartsProcessor(BaseProcessor):
             raise ValueError("Processing context must include 'document_id'")
 
         stats = await self.process_document(str(document_id))
+        skipped_reason = stats.get("skipped_reason")
+        if skipped_reason == "Missing manufacturer_id":
+            return self.create_error_result(
+                error=ProcessingError(
+                    message=f"Parts extraction skipped: {skipped_reason}",
+                    processor=self.name,
+                    error_code="PARTS_PRECONDITION_FAILED",
+                ),
+                data=stats,
+                metadata={
+                    "document_id": str(document_id),
+                    "stage": self.stage.value,
+                    "skipped_reason": skipped_reason,
+                },
+            )
         metadata = {
             "document_id": str(document_id),
             "stage": self.stage.value,
@@ -142,7 +192,8 @@ class PartsProcessor(BaseProcessor):
         chunk: Dict, 
         manufacturer_id: str,
         manufacturer_key: str,
-        document_id: str
+        document_id: str,
+        product_id: Optional[str] = None,
     ) -> List[Dict]:
         """
         Extract parts with context from a chunk
@@ -170,20 +221,28 @@ class PartsProcessor(BaseProcessor):
             return []
         
         # Extract parts with context using manufacturer-specific patterns
-        parts_with_ctx = extract_parts_with_context(text, manufacturer_key=manufacturer_key, max_parts=20)
+        parts_with_ctx = extract_parts_with_context(text, manufacturer_key=manufacturer_key, max_parts=100)
         
         parts_data = []
         for item in parts_with_ctx:
             part_number = item['part']
             context = item['context']
+
+            if not self._is_plausible_part_number(part_number):
+                continue
             
             # Extract description and category from context
             description, category = self._extract_description_and_category(context, part_number)
+            part_name = self._extract_part_name(context, part_number)
+
+            if not self._is_high_quality_part_context(part_name, description):
+                continue
             
             parts_data.append({
                 'part_number': part_number,
                 'manufacturer_id': manufacturer_id,
-                'part_name': self._extract_part_name(context, part_number),
+                'product_id': product_id,
+                'part_name': part_name,
                 'part_description': description,
                 'part_category': category,
                 'document_id': document_id,
@@ -192,53 +251,213 @@ class PartsProcessor(BaseProcessor):
             })
         
         return parts_data
+
+    def _is_plausible_part_number(self, part_number: str) -> bool:
+        """Reject obvious non-part artifacts like headings or repeated digits."""
+        token = (part_number or "").strip()
+        if not token:
+            return False
+        if token.isalpha():
+            return False
+        if token.isdigit() and len(set(token)) == 1:
+            return False
+        return True
+
+    def _is_high_quality_part_context(self, part_name: Optional[str], description: Optional[str]) -> bool:
+        """Reject weak/noisy matches that are unlikely to be real spare parts."""
+        name = (part_name or "").strip()
+        desc = (description or "").strip()
+        if name:
+            return True
+        if len(desc) < 25:
+            return False
+
+        lower_desc = desc.lower()
+        noise_markers = [
+            "bundle zip",
+            "settings bundle",
+            "import configuration",
+            "downloads.lexmark.com",
+            "/downloads/firmware/",
+            "firmware version",
+            "embedded web server",
+        ]
+        if any(marker in lower_desc for marker in noise_markers):
+            return False
+        return True
+
+    @staticmethod
+    def _text_quality_score(value: Optional[str]) -> int:
+        """Heuristic quality score for extracted name/description."""
+        text = (value or "").strip()
+        if not text:
+            return 0
+        score = 1
+        lower = text.lower()
+        if text and text[0].isupper():
+            score += 2
+        if len(text) <= 80:
+            score += 1
+        if any(k in lower for k in ["drum", "toner", "unit", "cartridge", "kit"]):
+            score += 2
+        if any(k in lower for k in ["parts name", "number of field standard", "target model"]):
+            score -= 2
+        if any(k in lower for k in ["bundle zip", "import configuration", "downloads."]):
+            score -= 3
+        if text and text[0].islower():
+            score -= 2
+        return score
+
+    async def _get_document_product_ids(self, document_id: str) -> List[str]:
+        """Return all linked product IDs for the document."""
+        try:
+            if hasattr(self.adapter, "fetch_all"):
+                rows = await self.adapter.fetch_all(
+                    """
+                    SELECT product_id
+                    FROM krai_core.document_products
+                    WHERE document_id = $1::uuid
+                    """,
+                    [document_id]
+                )
+                product_ids: List[str] = []
+                for row in (rows or []):
+                    row_dict = dict(row) if not isinstance(row, dict) else row
+                    product_id = row_dict.get("product_id")
+                    if product_id:
+                        product_ids.append(str(product_id))
+                return product_ids
+        except Exception as e:
+            self.logger.warning("Could not load document_products for %s: %s", document_id, e)
+        return []
+
+    async def _resolve_document_manufacturer(self, document_id: str, fallback_name: str) -> Tuple[Optional[str], str]:
+        """Load manufacturer_id/name directly from documents table when model object omits fields."""
+        try:
+            if hasattr(self.adapter, "fetch_one"):
+                row = await self.adapter.fetch_one(
+                    """
+                    SELECT manufacturer_id, manufacturer
+                    FROM krai_core.documents
+                    WHERE id = $1::uuid
+                    LIMIT 1
+                    """,
+                    [document_id]
+                )
+                if row:
+                    row_dict = dict(row) if not isinstance(row, dict) else row
+                    manufacturer_id = row_dict.get("manufacturer_id")
+                    manufacturer_name = (row_dict.get("manufacturer") or fallback_name or "").lower().replace(" ", "_")
+                    return (str(manufacturer_id) if manufacturer_id else None), manufacturer_name
+        except Exception as e:
+            self.logger.warning("Could not resolve manufacturer for %s: %s", document_id, e)
+        return None, fallback_name
     
     def _extract_part_name(self, context: str, part_number: str) -> Optional[str]:
         """
-        Extract short part name from context
-        
-        Args:
-            context: Text around part number
-            part_number: The part number
-            
-        Returns:
-            Part name or None
+        Extract short part name from context.
+
+        Prefers table-like row descriptions first because service manuals
+        often list part number + quantities + description in one row.
         """
-        # Look for common patterns before part number
+        row_description = self._extract_table_row_description(context, part_number)
+        if row_description:
+            return row_description[:100]
+
         patterns = [
-            r'(?:replace|install|use|order)\s+(?:the\s+)?([a-z\s]{5,40}?)\s*[-–—:]\s*' + re.escape(part_number),
-            r'([A-Z][a-z\s]{5,40}?)\s*[-–—:]\s*' + re.escape(part_number),
-            r'(?:part|component|assembly)\s*[:]\s*([a-z\s]{5,40}?)\s*[-–—]?\s*' + re.escape(part_number),
+            r'(?:replace|install|use|order)\s+(?:the\s+)?([a-z\s]{5,40}?)\s*[-:]\s*' + re.escape(part_number),
+            r'([A-Z][a-z\s]{5,40}?)\s*[-:]\s*' + re.escape(part_number),
+            r'(?:part|component|assembly)\s*[:]\s*([a-z\s]{5,40}?)\s*[-:]?\s*' + re.escape(part_number),
         ]
-        
+
         for pattern in patterns:
             match = re.search(pattern, context, re.IGNORECASE)
-            if match:
-                name = match.group(1).strip()
-                # Clean up
-                name = re.sub(r'\s+', ' ', name)
-                return name[:100]  # Limit length
-        
+            if not match:
+                continue
+            name = re.sub(r'\s+', ' ', match.group(1).strip())
+            return name[:100]
+
         return None
-    
+
+    def _extract_table_row_description(self, context: str, part_number: str) -> Optional[str]:
+        """Extract compact description from table-like row around the part number."""
+        if not context:
+            return None
+
+        def _clean_desc(text: str) -> Optional[str]:
+            desc = re.sub(r'\s+', ' ', text).strip(' -:;,')
+            desc = re.sub(r'^.*?part\s+number\s+', '', desc, flags=re.IGNORECASE)
+            desc = re.sub(r'^.*\b[A-Z0-9]{2,}-[A-Z0-9]{2,}\b\s+', '', desc, flags=re.IGNORECASE)
+            if not desc:
+                return None
+            if desc.lower() in {'description', 'removal procedure'}:
+                return None
+            return desc
+
+        def _is_noise_line(line: str) -> bool:
+            l = line.lower().strip()
+            if not l:
+                return True
+            if 'bizhub' in l:
+                return True
+            if re.fullmatch(r'[\d,.\- ]+(sheets|counts|m)?', l):
+                return True
+            if re.fullmatch(r'[A-Z0-9]{2,}[-]?[A-Z0-9]{2,}', l):
+                return True
+            return False
+
+        # Line-aware extraction is more stable for OCR table text.
+        lines = [ln.strip() for ln in context.splitlines() if ln and ln.strip()]
+        for idx, line in enumerate(lines):
+            if part_number not in line:
+                continue
+
+            pos = line.find(part_number)
+            if pos > 0:
+                inline = _clean_desc(line[:pos])
+                if inline and not _is_noise_line(inline):
+                    return inline
+
+            for back in range(idx - 1, max(-1, idx - 8), -1):
+                candidate = _clean_desc(lines[back])
+                if not candidate or _is_noise_line(candidate):
+                    continue
+                return candidate
+
+        compact = re.sub(r'\s+', ' ', context).strip()
+        patterns = [
+            rf"{re.escape(part_number)}\s+\d+\s+\d+\s+([A-Za-z][A-Za-z0-9()\/,\- ]{{3,120}}?)(?:\s+(?:N/A|See\b|$))",
+            rf"{re.escape(part_number)}\s+\d+\s+([A-Za-z][A-Za-z0-9()\/,\- ]{{3,120}}?)(?:\s+(?:N/A|See\b|$))",
+            rf"([A-Za-z][A-Za-z0-9()\/,\- ]{{8,120}}?)\s+(?:See\s+NOTE\s+above\.\s+)?{re.escape(part_number)}(?:\s|$)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, compact, re.IGNORECASE)
+            if not match:
+                continue
+            desc = _clean_desc(match.group(1))
+            if desc:
+                return desc
+        return None
+
     def _extract_description_and_category(
-        self, 
-        context: str, 
+        self,
+        context: str,
         part_number: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """
         Extract description and category from context
-        
+
         Args:
             context: Text around part number
             part_number: The part number
-            
+
         Returns:
             Tuple of (description, category)
         """
-        context_lower = context.lower()
-        
-        # Determine category based on keywords
+        row_description = self._extract_table_row_description(context, part_number)
+        description_source = row_description or context
+        context_lower = description_source.lower()
+
         category = None
         if any(word in context_lower for word in ['toner', 'cartridge', 'ink', 'drum']):
             category = 'consumable'
@@ -250,61 +469,86 @@ class PartsProcessor(BaseProcessor):
             category = 'mechanical'
         elif any(word in context_lower for word in ['cable', 'harness', 'connector']):
             category = 'electrical'
-        
-        # Description is the context, cleaned up
-        description = context.strip()
+
+        description = description_source.strip()
         description = re.sub(r'\s+', ' ', description)
-        
-        return description[:500], category  # Limit length
-    
+
+        return description[:500], category
+
     async def _store_part(self, part_data: Dict, adapter) -> str:
         """
         Store or update part in database
-        
+
         Args:
             part_data: Part information
-            
+
         Returns:
             'created', 'updated', or 'error'
         """
         try:
-            # Check if part already exists
             existing = await self.adapter.get_part_by_number_and_manufacturer(
-                part_data['part_number'], 
+                part_data['part_number'],
                 part_data['manufacturer_id']
             )
-            
-            # Prepare data for storage
+
             store_data = {
                 'part_number': part_data['part_number'],
                 'manufacturer_id': part_data['manufacturer_id'],
+                'product_id': part_data.get('product_id'),
                 'part_name': part_data.get('part_name'),
                 'part_description': part_data.get('part_description'),
                 'part_category': part_data.get('part_category')
             }
-            
+
             if existing:
-                # Update existing part if new description is better
                 part_id = existing['id']
-                old_desc = existing.get('part_description', '')
-                new_desc = store_data.get('part_description', '')
-                
-                # Update if new description is longer/better
+                old_desc = (existing.get('part_description') or '')
+                new_desc = (store_data.get('part_description') or '')
+                old_name = (existing.get('part_name') or '')
+                new_name = (store_data.get('part_name') or '')
+                old_product_id = existing.get('product_id')
+                new_product_id = store_data.get('product_id')
+                old_name_l = old_name.lower()
+                old_desc_l = old_desc.lower()
+                noisy_old_name = (
+                    "part number" in old_name_l
+                    or old_name_l.startswith("iption")
+                )
+                noisy_old_desc = (
+                    "part number" in old_desc_l
+                    and "description" in old_desc_l
+                )
+
+                should_update = False
                 if len(new_desc) > len(old_desc):
+                    should_update = True
+                if new_name and len(new_name) > len(old_name):
+                    should_update = True
+                if new_name and noisy_old_name:
+                    should_update = True
+                if new_desc and noisy_old_desc:
+                    should_update = True
+                if new_name and (self._text_quality_score(new_name) > self._text_quality_score(old_name)):
+                    should_update = True
+                if new_desc and (self._text_quality_score(new_desc) > self._text_quality_score(old_desc)):
+                    should_update = True
+                if new_product_id and not old_product_id:
+                    should_update = True
+
+                if should_update:
                     await self.adapter.update_part(part_id, store_data)
                     adapter.debug("Updated part %s", part_data['part_number'])
                     return 'updated'
                 return 'exists'
-            else:
-                # Create new part
-                await self.adapter.create_part(store_data)
-                adapter.debug("Created part %s", part_data['part_number'])
-                return 'created'
-                
+
+            await self.adapter.create_part(store_data)
+            adapter.debug("Created part %s", part_data['part_number'])
+            return 'created'
+
         except Exception as e:
             adapter.error("Error storing part %s: %s", part_data['part_number'], e)
             return 'error'
-    
+
     async def _link_parts_to_error_codes(self, document_id: str, adapter) -> int:
         """
         Link parts to error codes based on chunk proximity and solution text
@@ -318,6 +562,10 @@ class PartsProcessor(BaseProcessor):
         linked_count = 0
         
         try:
+            if not hasattr(self.adapter, "get_error_codes_by_document"):
+                adapter.debug("Skipping error-code linking: adapter method get_error_codes_by_document not available")
+                return 0
+
             # Get all error codes for this document
             error_codes = await self.adapter.get_error_codes_by_document(document_id)
             
@@ -338,6 +586,8 @@ class PartsProcessor(BaseProcessor):
                 
                 # Also check the chunk where error code was found
                 if chunk_id:
+                    if not hasattr(self.adapter, "get_chunk"):
+                        continue
                     chunk = await self.adapter.get_chunk(chunk_id)
                     if chunk:
                         chunk_text = (
@@ -449,3 +699,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
