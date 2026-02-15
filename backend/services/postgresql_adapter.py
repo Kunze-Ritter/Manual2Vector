@@ -1426,14 +1426,19 @@ class PostgreSQLAdapter(DatabaseAdapter):
         limit: int = 100,
         force: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Fetch videos with metadata.needs_enrichment=true for a document."""
+        """Fetch Brightcove videos that still need enrichment for a document."""
         pool = self._ensure_pool()
         where_force = "" if force else "AND (enriched_at IS NULL OR enrichment_error IS NOT NULL)"
         query = f"""
             SELECT id, video_url, metadata, enriched_at, enrichment_error
             FROM {self._content_schema}.videos
             WHERE document_id = $1::uuid
-              AND COALESCE((metadata->>'needs_enrichment')::boolean, false) = true
+              AND platform = 'brightcove'
+              AND (
+                COALESCE((metadata->>'needs_enrichment')::boolean, false) = true
+                OR COALESCE(BTRIM(title), '') = ''
+                OR COALESCE(BTRIM(context_description), '') = ''
+              )
               {where_force}
             ORDER BY created_at ASC
             LIMIT $2

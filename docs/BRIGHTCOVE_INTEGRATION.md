@@ -20,14 +20,18 @@ BRIGHTCOVE_ACCOUNT_ID=your_account_id
 BRIGHTCOVE_CLIENT_ID=your_client_id
 BRIGHTCOVE_CLIENT_SECRET=your_client_secret
 BRIGHTCOVE_API_TIMEOUT=30
-BRIGHTCOVE_BATCH_SIZE=10
+BRIGHTCOVE_ENRICHMENT_BATCH_SIZE=10
 BRIGHTCOVE_RATE_LIMIT_DELAY=1.0
 ```
 
 ## How It Works
 
 1. Stage 13 (`link_extraction`) stores video links with `metadata.needs_enrichment=true`.
-2. Stage 16 (`video_enrichment`) loads videos needing enrichment.
+2. Stage 16 (`video_enrichment`) loads Brightcove videos needing enrichment where:
+   - `metadata.needs_enrichment=true`, or
+   - `title` is empty, or
+   - `context_description` is empty.
+   If `force_video_reenrichment=false`, only unenriched/failed rows are retried (`enriched_at IS NULL OR enrichment_error IS NOT NULL`).
 3. OAuth 2.0 token is requested from Brightcove.
 4. CMS API metadata is fetched and stored in `krai_content.videos`.
 5. Successful enrichment sets `metadata.needs_enrichment=false` and updates `enriched_at`.
@@ -62,4 +66,4 @@ Grant read access for CMS video metadata.
   - Validate `BRIGHTCOVE_CLIENT_ID` and `BRIGHTCOVE_CLIENT_SECRET`.
 - Frequent 429 responses:
   - Increase `BRIGHTCOVE_RATE_LIMIT_DELAY`.
-  - Reduce `BRIGHTCOVE_BATCH_SIZE`.
+  - Reduce `BRIGHTCOVE_ENRICHMENT_BATCH_SIZE`.

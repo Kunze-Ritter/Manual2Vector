@@ -34,6 +34,16 @@ class FakeDatabase:
         return True
 
 
+class FakeEnricher:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    async def enrich_video(self, url, **kwargs):
+        self.calls += 1
+        return self.responses[self.calls - 1]
+
+
 @pytest.mark.asyncio
 async def test_processor_initialization_flag(monkeypatch):
     monkeypatch.setenv("ENABLE_BRIGHTCOVE_ENRICHMENT", "false")
@@ -45,14 +55,9 @@ async def test_processor_initialization_flag(monkeypatch):
 async def test_processor_enriches_and_fails_individually(monkeypatch):
     monkeypatch.setenv("ENABLE_BRIGHTCOVE_ENRICHMENT", "true")
     db = FakeDatabase()
-    processor = VideoEnrichmentProcessor(database_service=db)
-
-    calls = {"count": 0}
-
-    async def fake_enrich_video(url, **kwargs):
-        calls["count"] += 1
-        if calls["count"] == 1:
-            return {
+    enricher = FakeEnricher(
+        [
+            {
                 "title": "Brightcove Title",
                 "description": "Desc",
                 "duration": 42,
@@ -60,10 +65,11 @@ async def test_processor_enriches_and_fails_individually(monkeypatch):
                 "published_at": "2025-01-01T00:00:00Z",
                 "tags": ["a", "b"],
                 "metadata": {"needs_enrichment": False},
-            }
-        return {"error": "api failure"}
-
-    processor.enricher.enrich_video = fake_enrich_video
+            },
+            {"error": "api failure"},
+        ]
+    )
+    processor = VideoEnrichmentProcessor(database_service=db, enricher=enricher)
 
     context = ProcessingContext(
         document_id="00000000-0000-0000-0000-000000000001",
@@ -77,6 +83,7 @@ async def test_processor_enriches_and_fails_individually(monkeypatch):
     assert result.success is True
     assert result.data["enriched"] == 1
     assert result.data["failed"] == 1
+    assert enricher.calls == 2
     assert len(db.updated) == 1
     assert len(db.failed) == 1
 
@@ -85,15 +92,19 @@ async def test_processor_enriches_and_fails_individually(monkeypatch):
 async def test_processor_skips_when_credentials_missing(monkeypatch):
     monkeypatch.setenv("ENABLE_BRIGHTCOVE_ENRICHMENT", "true")
     db = FakeDatabase()
-    processor = VideoEnrichmentProcessor(database_service=db)
-
-    async def fake_enrich_video(url, **kwargs):
-        return {
-            "metadata": {"needs_enrichment": True, "credentials_missing": True},
-            "enrichment_error": None,
-        }
-
-    processor.enricher.enrich_video = fake_enrich_video
+    enricher = FakeEnricher(
+        [
+            {
+                "metadata": {"needs_enrichment": True, "credentials_missing": True},
+                "enrichment_error": None,
+            },
+            {
+                "metadata": {"needs_enrichment": True, "credentials_missing": True},
+                "enrichment_error": None,
+            },
+        ]
+    )
+    processor = VideoEnrichmentProcessor(database_service=db, enricher=enricher)
 
     context = ProcessingContext(
         document_id="00000000-0000-0000-0000-000000000001",
@@ -106,9 +117,17 @@ async def test_processor_skips_when_credentials_missing(monkeypatch):
 
     assert result.success is False
     assert result.data["skipped"] == 2
+    assert enricher.calls == 2
     assert db.last_force is True
     assert len(db.updated) == 2
     assert len(db.failed) == 0
+
+
+@pytest.mark.asyncio
+async def test_processor_uses_enrichment_batch_env_var(monkeypatch):
+    monkeypatch.setenv("BRIGHTCOVE_ENRICHMENT_BATCH_SIZE", "7")
+    processor = VideoEnrichmentProcessor(database_service=FakeDatabase())
+    assert processor.batch_size == 7
 
 
 @pytest.mark.asyncio

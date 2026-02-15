@@ -12,13 +12,31 @@ from scripts.enrich_video_metadata import VideoEnricher
 class VideoEnrichmentProcessor(BaseProcessor):
     """Optional stage to enrich extracted video links with Brightcove metadata."""
 
-    def __init__(self, database_service=None, config: Dict[str, Any] = None):
+    def __init__(
+        self,
+        database_service=None,
+        config: Dict[str, Any] = None,
+        brightcove_client: Any = None,
+        enricher: Any = None,
+    ):
         super().__init__(name="video_enrichment_processor", config=config or {})
         self.stage = Stage.VIDEO_ENRICHMENT
         self.database_service = database_service
-        self.batch_size = int(os.getenv("BRIGHTCOVE_BATCH_SIZE", "10"))
+        self.batch_size = int(
+            os.getenv("BRIGHTCOVE_ENRICHMENT_BATCH_SIZE", os.getenv("BRIGHTCOVE_BATCH_SIZE", "10"))
+        )
         self.enabled = os.getenv("ENABLE_BRIGHTCOVE_ENRICHMENT", "false").lower() == "true"
-        self.enricher = VideoEnricher(database_adapter=database_service)
+        self.brightcove_client = brightcove_client
+        if enricher is not None:
+            self.enricher = enricher
+        else:
+            try:
+                self.enricher = VideoEnricher(
+                    database_adapter=database_service,
+                    brightcove_client=brightcove_client,
+                )
+            except TypeError:
+                self.enricher = VideoEnricher(database_adapter=database_service)
         self.logger.info("VideoEnrichmentProcessor initialized (enabled=%s)", self.enabled)
 
     def get_dependencies(self) -> List[str]:
@@ -164,7 +182,12 @@ class VideoEnrichmentProcessor(BaseProcessor):
             SELECT id, video_url, metadata, enriched_at, enrichment_error
             FROM krai_content.videos
             WHERE document_id = $1::uuid
-              AND COALESCE((metadata->>'needs_enrichment')::boolean, false) = true
+              AND platform = 'brightcove'
+              AND (
+                COALESCE((metadata->>'needs_enrichment')::boolean, false) = true
+                OR COALESCE(BTRIM(title), '') = ''
+                OR COALESCE(BTRIM(context_description), '') = ''
+              )
               {where_force}
             ORDER BY created_at ASC
             LIMIT $2

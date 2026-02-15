@@ -79,7 +79,8 @@ psql "$POSTGRES_URL" -f database/migrations_postgresql/009_add_stage_metrics_tab
 **Erstellt:**
 - `krai_content.videos.tags` (`text[]`)
 - `krai_content.videos.enrichment_error` (`text`)
-- Index `idx_videos_needs_enrichment` für `metadata->>'needs_enrichment'`
+- Entfernt optional `krai_content.videos.duration_seconds` (falls durch alte doppelte 017 angelegt)
+- Index `idx_videos_enrichment_pending` für Brightcove Pending-Enrichment (`needs_enrichment` ODER leerer `title`/`context_description`)
 
 **Anwenden (wenn Brightcove Stage 16 genutzt wird):**
 ```bash

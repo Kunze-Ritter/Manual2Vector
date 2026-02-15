@@ -5,7 +5,8 @@
 ### Changes Made
 - Added `tags` (`text[]`) to `krai_content.videos`
 - Added `enrichment_error` (`text`) to `krai_content.videos`
-- Added partial index `idx_videos_needs_enrichment` for queued enrichment records
+- Added partial index `idx_videos_enrichment_pending` for queued Brightcove enrichment records
+- Removed unused `duration_seconds` column if present from duplicate migration variant
 - Registered migration entry `017_video_enrichment_columns` in `krai_system.migrations`
 
 ## 2026-02-03: Alert Service Schema Fix
