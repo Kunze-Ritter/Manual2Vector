@@ -249,23 +249,23 @@ def rate_limit_health() -> str:
 
 
 # Dynamic rate limit functions that check for API key presence
-def rate_limit_auth_dynamic(request: Request) -> str:
+def rate_limit_auth_dynamic(request: Request | None = None) -> str:
     return dynamic_rate_limit(rate_limit_auth)(request)
 
 
-def rate_limit_upload_dynamic(request: Request) -> str:
+def rate_limit_upload_dynamic(request: Request | None = None) -> str:
     return dynamic_rate_limit(rate_limit_upload)(request)
 
 
-def rate_limit_search_dynamic(request: Request) -> str:
+def rate_limit_search_dynamic(request: Request | None = None) -> str:
     return dynamic_rate_limit(rate_limit_search)(request)
 
 
-def rate_limit_standard_dynamic(request: Request) -> str:
+def rate_limit_standard_dynamic(request: Request | None = None) -> str:
     return dynamic_rate_limit(rate_limit_standard)(request)
 
 
-def rate_limit_health_dynamic(request: Request) -> str:
+def rate_limit_health_dynamic(request: Request | None = None) -> str:
     return dynamic_rate_limit(rate_limit_health)(request)
 
 
@@ -273,7 +273,7 @@ def rate_limit_api_key() -> str:
     return _rate_limit_value("RATE_LIMIT_API_KEY")
 
 
-def dynamic_rate_limit(endpoint_limit_func: Callable[[], str]) -> Callable[[Request], str]:
+def dynamic_rate_limit(endpoint_limit_func: Callable[[], str]) -> Callable[[Request | None], str]:
     """Create a dynamic rate limit function that uses API key limits when available.
     
     Args:
@@ -282,9 +282,9 @@ def dynamic_rate_limit(endpoint_limit_func: Callable[[], str]) -> Callable[[Requ
     Returns:
         Callable that takes a Request and returns the appropriate rate limit string
     """
-    def _get_limit(request: Request) -> str:
+    def _get_limit(request: Request | None = None) -> str:
         # Check if request has a validated API key
-        api_key_user_id = getattr(request.state, "api_key_user_id", None)
+        api_key_user_id = getattr(getattr(request, "state", None), "api_key_user_id", None)
         if api_key_user_id:
             # Use higher API key rate limit
             return rate_limit_api_key()

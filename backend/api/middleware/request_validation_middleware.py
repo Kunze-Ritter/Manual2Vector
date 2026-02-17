@@ -18,7 +18,9 @@ from config.security_config import get_security_config
 from api.validation_error_codes import ValidationErrorCode, create_validation_error_response
 
 logger = logging.getLogger("krai.request_validation")
-_sql_pattern = re.compile(r"(;\s*drop|union\s+select|--|/\*|\*/|exec\s|xp_)", re.I)
+# Keep SQLi-focused signatures and avoid wildcard MIME false-positives
+# (e.g. Accept: */* from Docker health checks).
+_sql_pattern = re.compile(r"(;\s*drop|union\s+select|--|exec\s|xp_)", re.I)
 _xss_pattern = re.compile(r"(<script|javascript:|onerror=|onload=|onclick=)", re.I)
 
 ALLOWED_CONTENT_TYPES = {

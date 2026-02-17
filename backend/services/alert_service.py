@@ -924,8 +924,8 @@ Generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
                                COUNT(*) as alert_count,
                                MIN(first_occurrence) as first_occurrence,
                                MAX(last_occurrence) as last_occurrence,
-                               MAX(message) as message,
-                               MAX(details) as details,
+                               (ARRAY_AGG(message ORDER BY last_occurrence DESC NULLS LAST, created_at DESC))[1] as message,
+                               (ARRAY_AGG(details ORDER BY last_occurrence DESC NULLS LAST, created_at DESC))[1] as details,
                                ARRAY_AGG(id) as alert_ids
                         FROM krai_system.alerts
                         WHERE status = 'pending'

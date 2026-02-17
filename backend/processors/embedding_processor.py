@@ -526,6 +526,7 @@ class EmbeddingProcessor(BaseProcessor):
                 total_chunks = len(chunks)
                 batch_index = 0
                 processed_count = 0
+                progress_batch_size = max(1, total_chunks // 10) if total_chunks else 1
                 total_characters = 0
                 total_non_empty_chunks = 0
                 total_truncated_chunks = 0
@@ -539,7 +540,7 @@ class EmbeddingProcessor(BaseProcessor):
 
                     total_batches = max(1, (total_chunks + current_batch_size - 1) // current_batch_size)
 
-                    adapter.info(
+                    adapter.debug(
                         "Processing batch %d/%d (%d chunks, size=%d)...",
                         batch_index,
                         total_batches,
@@ -582,6 +583,13 @@ class EmbeddingProcessor(BaseProcessor):
                     total_embedded += batch_result['success_count']
                     failed_chunks.extend(batch_result['failed_chunks'])
                     processed_count += len(batch)
+                    if (processed_count % progress_batch_size == 0) or (processed_count == total_chunks):
+                        adapter.warning(
+                            "Embedding progress: %d/%d (%.0f%%)",
+                            processed_count,
+                            total_chunks,
+                            (processed_count / total_chunks) * 100 if total_chunks else 100,
+                        )
 
                     if self.stage_tracker:
                         progress = (processed_count / total_chunks) * 100

@@ -3,6 +3,7 @@
 import asyncio
 import glob
 import json
+import logging
 import os
 import sys
 from datetime import datetime
@@ -17,6 +18,12 @@ from backend.core.base_processor import ProcessingContext, Stage
 from backend.pipeline.master_pipeline import KRMasterPipeline
 from scripts.quality_validator import QualityValidator
 from scripts.report_generator import ReportGenerator
+
+
+class DocumentProcessingError(Exception):
+    def __init__(self, message: str, context: Dict[str, Any]):
+        super().__init__(message)
+        self.context = context
 
 
 class ProductionTestOrchestrator:
@@ -44,6 +51,7 @@ class ProductionTestOrchestrator:
     async def run(self) -> int:
         try:
             self.start_time = datetime.now()
+            self._configure_production_logging()
             self._validate_environment()
             await self._cleanup_test_data()
 
@@ -77,6 +85,11 @@ class ProductionTestOrchestrator:
                 },
             )
             return 1
+
+    def _configure_production_logging(self):
+        logging.getLogger("backend.processors").setLevel(logging.WARNING)
+        logging.getLogger("krai").setLevel(logging.WARNING)
+        logging.getLogger("krai.master_pipeline").setLevel(logging.INFO)
 
     def _validate_environment(self):
         upload_images_to_storage = os.getenv("UPLOAD_IMAGES_TO_STORAGE", "").lower()
@@ -240,6 +253,124 @@ class ProductionTestOrchestrator:
         except Exception as error:
             self.console.print(f"[yellow]Cleanup warning:[/yellow] {error}")
 
+    async def _process_single_document(self, pdf_path: str, progress_instance: Progress, task_id: int, pdf_index: int) -> str:
+        logger = logging.getLogger("krai.production_test")
+        current_stage = Stage.UPLOAD.value
+        document_id: Optional[str] = None
+
+        running_loop = asyncio.get_running_loop()
+        if running_loop.is_closed() or not running_loop.is_running():
+            raise DocumentProcessingError(
+                "Event loop is not active before document processing.",
+                context={"pdf_path": pdf_path, "stage": current_stage},
+            )
+
+        def _ensure_loop_active(stage_name: str):
+            if running_loop.is_closed() or not running_loop.is_running():
+                raise RuntimeError(f"Event loop unavailable during stage {stage_name}")
+
+        stages = list(Stage)
+        total_steps = len(self.pdf_paths) * len(stages)
+        pdf_name = Path(pdf_path).name
+
+        try:
+            upload_processor = self.pipeline.processors.get("upload")
+            if upload_processor is None:
+                raise DocumentProcessingError(
+                    "Upload processor not available.",
+                    context={"pdf_path": pdf_path, "stage": Stage.UPLOAD.value},
+                )
+
+            completed_steps = int(progress_instance.tasks[task_id].completed)
+            progress_instance.update(
+                task_id,
+                description=(
+                    f"[cyan]PDF {pdf_index + 1}/2 ({pdf_name}) - Stage 1/15: {Stage.UPLOAD.value} "
+                    f"({completed_steps}/{total_steps} stages complete)"
+                ),
+            )
+
+            _ensure_loop_active(Stage.UPLOAD.value)
+            upload_context = ProcessingContext(
+                document_id=str(uuid4()),
+                file_path=pdf_path,
+                document_type="service_manual",
+            )
+            upload_result = await upload_processor.process(upload_context)
+            if not upload_result.success:
+                raise DocumentProcessingError(
+                    str(upload_result.error) if upload_result.error else "Upload stage failed.",
+                    context={"pdf_path": pdf_path, "stage": Stage.UPLOAD.value},
+                )
+
+            upload_data = upload_result.data or {}
+            document_id = upload_data.get("document_id")
+            if not document_id:
+                raise DocumentProcessingError(
+                    "Upload did not return a document_id.",
+                    context={"pdf_path": pdf_path, "stage": Stage.UPLOAD.value},
+                )
+
+            await self.pipeline.track_stage_status(
+                document_id=str(document_id),
+                stage=Stage.UPLOAD,
+                status="running",
+                metadata={"pdf_path": pdf_path, "processor": "upload"},
+            )
+
+            await self.pipeline.track_stage_status(
+                document_id=str(document_id),
+                stage=Stage.UPLOAD,
+                status="completed",
+                metadata={"pdf_path": pdf_path, "processor": "upload"},
+            )
+
+            progress_instance.update(task_id, advance=1)
+
+            for stage_index, stage in enumerate(stages[1:], start=2):
+                current_stage = stage.value
+                completed_steps = int(progress_instance.tasks[task_id].completed)
+                progress_instance.update(
+                    task_id,
+                    description=(
+                        f"[cyan]PDF {pdf_index + 1}/2 ({pdf_name}) - Stage {stage_index}/15: {stage.value} "
+                        f"({completed_steps}/{total_steps} stages complete)"
+                    ),
+                )
+
+                _ensure_loop_active(stage.value)
+                stage_result = await self.pipeline.run_single_stage(str(document_id), stage)
+                if not stage_result.get("success"):
+                    raise DocumentProcessingError(
+                        stage_result.get("error", "Stage failed."),
+                        context={
+                            "document_id": str(document_id),
+                            "stage": stage.value,
+                            "pdf_path": pdf_path,
+                        },
+                    )
+
+                progress_instance.update(task_id, advance=1)
+
+            return str(document_id)
+        except RuntimeError as error:
+            if "event loop" in str(error).lower() or "loop" in str(error).lower():
+                logger.error(
+                    "Event loop failure while processing document_id=%s stage=%s pdf_path=%s: %s",
+                    document_id,
+                    current_stage,
+                    pdf_path,
+                    error,
+                )
+            raise
+        finally:
+            if running_loop.is_closed():
+                logger.warning(
+                    "Event loop closed before document processing finalized for document_id=%s pdf_path=%s",
+                    document_id,
+                    pdf_path,
+                )
+
     async def _process_documents(self) -> List[str]:
         stages = list(Stage)
         total_steps = len(self.pdf_paths) * len(stages)
@@ -254,83 +385,35 @@ class ProductionTestOrchestrator:
         )
 
         with progress as progress_instance:
-            task_id = progress_instance.add_task("[cyan]Starting production test", total=total_steps)
+            task_id = progress_instance.add_task(
+                f"[cyan]Processing 2 PDFs in parallel - 0/{total_steps} stages complete",
+                total=total_steps,
+            )
 
-            for pdf_path in self.pdf_paths:
-                pdf_name = Path(pdf_path).name
-
-                upload_processor = self.pipeline.processors.get("upload")
-                if upload_processor is None:
-                    self._generate_error_report(
-                        RuntimeError("Upload processor not available."),
-                        context={"pdf_path": pdf_path, "stage": Stage.UPLOAD.value},
-                    )
-                    return []
-
-                progress_instance.update(
-                    task_id,
-                    description=f"[cyan]Processing {pdf_name} - Stage 1/15: {Stage.UPLOAD.value}",
+            tasks = [
+                asyncio.create_task(
+                    self._process_single_document(pdf, progress_instance, task_id, i)
                 )
+                for i, pdf in enumerate(self.pdf_paths)
+            ]
 
-                upload_context = ProcessingContext(
-                    document_id=str(uuid4()),
-                    file_path=pdf_path,
-                    document_type="service_manual",
-                )
-                upload_result = await upload_processor.process(upload_context)
-                if not upload_result.success:
-                    self._generate_error_report(
-                        RuntimeError(str(upload_result.error) if upload_result.error else "Upload stage failed."),
-                        context={"pdf_path": pdf_path, "stage": Stage.UPLOAD.value},
-                    )
-                    return []
+            try:
+                for completed in asyncio.as_completed(tasks):
+                    result = await completed
+                    document_ids.append(str(result))
+            except Exception as error:
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
 
-                upload_data = upload_result.data or {}
-                document_id = upload_data.get("document_id")
-                if not document_id:
-                    self._generate_error_report(
-                        RuntimeError("Upload did not return a document_id."),
-                        context={"pdf_path": pdf_path, "stage": Stage.UPLOAD.value},
-                    )
-                    return []
+                # Wait for cancellation so in-flight work stops before returning.
+                await asyncio.gather(*tasks, return_exceptions=True)
 
-                await self.pipeline.track_stage_status(
-                    document_id=str(document_id),
-                    stage=Stage.UPLOAD,
-                    status="running",
-                    metadata={"pdf_path": pdf_path, "processor": "upload"},
-                )
+                context = getattr(error, "context", {})
+                self._generate_error_report(error, context=context)
+                return []
 
-                await self.pipeline.track_stage_status(
-                    document_id=str(document_id),
-                    stage=Stage.UPLOAD,
-                    status="completed",
-                    metadata={"pdf_path": pdf_path, "processor": "upload"},
-                )
-
-                document_ids.append(str(document_id))
-                self.document_ids = document_ids
-                progress_instance.update(task_id, advance=1)
-
-                for stage_index, stage in enumerate(stages[1:], start=2):
-                    progress_instance.update(
-                        task_id,
-                        description=f"[cyan]Processing {pdf_name} - Stage {stage_index}/15: {stage.value}",
-                    )
-
-                    stage_result = await self.pipeline.run_single_stage(str(document_id), stage)
-                    if not stage_result.get("success"):
-                        self._generate_error_report(
-                            RuntimeError(stage_result.get("error", "Stage failed.")),
-                            context={
-                                "document_id": str(document_id),
-                                "stage": stage.value,
-                                "pdf_path": pdf_path,
-                            },
-                        )
-                        return []
-
-                    progress_instance.update(task_id, advance=1)
+            self.document_ids = document_ids
 
         return document_ids
 

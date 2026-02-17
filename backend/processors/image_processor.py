@@ -1012,10 +1012,20 @@ class ImageProcessor(BaseProcessor):
 
             success_count = 0
             processed_count = 0
+            total_images = len(images_to_process)
+            batch_size = max(1, total_images // 10) if total_images else 1
 
-            for img in images_to_process:
+            for i, img in enumerate(images_to_process):
+                if i % batch_size == 0 or i == total_images - 1:
+                    self.logger.warning(
+                        "Image processing: %d/%d (%.0f%%)",
+                        i + 1,
+                        total_images,
+                        ((i + 1) / total_images) * 100 if total_images else 100,
+                    )
+
                 if img.get('has_png_derivative') is False:
-                    self.logger.info(
+                    self.logger.debug(
                         "Skipping Vision AI for %s because PNG derivative is unavailable",
                         img.get('filename'),
                     )

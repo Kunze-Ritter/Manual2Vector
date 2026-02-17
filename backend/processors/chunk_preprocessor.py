@@ -76,6 +76,7 @@ class ChunkPreprocessor(BaseProcessor):
                     )
 
                 adapter.info("Preprocessing %s chunks", len(chunks))
+                batch_size = max(1, len(chunks) // 10)
 
                 preprocessed_count = 0
                 for chunk in chunks:
@@ -106,6 +107,13 @@ class ChunkPreprocessor(BaseProcessor):
                             )
                             if updated:
                                 preprocessed_count += 1
+                                if (preprocessed_count % batch_size == 0) or (preprocessed_count == len(chunks)):
+                                    adapter.info(
+                                        "Preprocessing progress: %d/%d (%.0f%%)",
+                                        preprocessed_count,
+                                        len(chunks),
+                                        (preprocessed_count / len(chunks)) * 100 if len(chunks) else 100,
+                                    )
 
                     except Exception as e:
                         adapter.warning("Failed to preprocess chunk %s: %s", chunk.get('id'), e)

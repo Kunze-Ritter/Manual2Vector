@@ -640,6 +640,16 @@ class SVGProcessor(BaseProcessor):
                             "No main event loop recorded on SVGProcessor; skipping SVG queue entry for %s",
                             svg_data['filename'],
                         )
+                    elif main_loop.is_closed():
+                        self.logger.warning(
+                            "Main event loop is closed; skipping SVG queue entry for %s",
+                            svg_data['filename'],
+                        )
+                    elif not main_loop.is_running():
+                        self.logger.warning(
+                            "Main event loop is not running; skipping SVG queue entry for %s",
+                            svg_data['filename'],
+                        )
                     else:
                         try:
                             fut = asyncio.run_coroutine_threadsafe(
@@ -649,6 +659,12 @@ class SVGProcessor(BaseProcessor):
                             fut.result()  # block im Worker-Thread, bis Eintrag erstellt ist
                             queued_count += 1
                             self.logger.debug(f"Queued SVG image: {svg_data['filename']}")
+                        except RuntimeError as loop_exc:
+                            self.logger.warning(
+                                "Event loop unavailable while queueing SVG image %s; skipping entry: %s",
+                                svg_data['filename'],
+                                loop_exc,
+                            )
                         except Exception as loop_exc:
                             self.logger.error(
                                 "Failed to enqueue SVG image %s: %s",

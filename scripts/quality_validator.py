@@ -7,7 +7,6 @@ strategy with safe fallback behavior.
 """
 
 import logging
-import os
 from typing import Any, Dict, List
 
 
@@ -326,8 +325,7 @@ class QualityValidator:
             if row_dict.get("status") == "completed":
                 completed_stages += 1
 
-        brightcove_enabled = os.getenv("ENABLE_BRIGHTCOVE_ENRICHMENT", "false").lower() in {"1", "true", "yes", "on"}
-        stages_per_document = 16 if brightcove_enabled else 15
+        stages_per_document = 16
         expected_stage_records = len(document_ids) * stages_per_document
         stage_pass = total_records == expected_stage_records and completed_stages == expected_stage_records
 

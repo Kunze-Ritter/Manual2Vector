@@ -285,7 +285,7 @@ class KRMasterPipeline:
         self.processors = {
             'upload': UploadProcessor(self.database_service),
             'text': OptimizedTextProcessor(self.database_service, self.config_service),
-            'svg': SVGProcessor(self.database_service, self.storage_service, self.ai_service) if os.getenv('ENABLE_SVG_EXTRACTION', 'false').lower() == 'true' else None,
+            'svg': SVGProcessor(self.database_service, self.storage_service, self.ai_service),
             'embedding': embedding_processor,
             'table': table_processor,
             'image': ImageProcessor(self.database_service, self.storage_service, self.ai_service),
@@ -306,13 +306,10 @@ class KRMasterPipeline:
             'thumbnail': ThumbnailProcessor(self.database_service, self.storage_service)
         }
 
-        if self.pipeline_config.enable_brightcove_enrichment:
-            self.processors['video_enrichment'] = VideoEnrichmentProcessor(
-                database_service=self.database_service,
-                config={'enable_brightcove_enrichment': True},
-            )
-        else:
-            self.logger.info("Brightcove enrichment stage disabled by ENABLE_BRIGHTCOVE_ENRICHMENT")
+        self.processors['video_enrichment'] = VideoEnrichmentProcessor(
+            database_service=self.database_service,
+            config={'enable_brightcove_enrichment': True},
+        )
         
         # Wire performance collector to all processors
         for processor_name, processor in self.processors.items():

@@ -4,7 +4,7 @@ KRAI Processing Pipeline API
 FastAPI app for monitoring, managing, and controlling the document processing pipeline.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Depends, Request, status
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Depends, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
@@ -610,7 +610,7 @@ async def root():
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 @limiter.limit(rate_limit_health_dynamic)
-async def health_check(request: Request):
+async def health_check(request: Request, response: Response):
     """
     Health check endpoint
     
@@ -692,8 +692,11 @@ async def health_check(request: Request):
         }
 
     # Batch operations health
+    transaction_support = False
     try:
         task_service = await get_batch_task_service()
+        await get_transaction_manager()
+        transaction_support = True
         services["batch_operations"] = {
             "status": "healthy",
             "message": "Task service initialized",
