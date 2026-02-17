@@ -6,17 +6,21 @@
   "hp": {
     "manufacturer_name": "HP",
     "description": "Hewlett Packard error code patterns",
-    "format": "XX.XX.XX or XX.XXX.XX or XX.Xx.XX (x=wildcard)",
+    "format": "XX.XX.XX or XX.XXX.XX or XX.Xx.XX (alphanumeric segments, e.g. 13.B9.Az)",
     "patterns": [
-      "error\\s+code\\s+(\\d{2}\\.\\d{2,3}\\.\\d{2})",
-      "error\\s+(\\d{2}\\.\\d{2,3}\\.\\d{2})",
-      "code\\s+(\\d{2}\\.\\d{2,3}\\.\\d{2})",
-      "(\\d{2}\\.\\d{2,3}\\.\\d{2})\\s+error",
-      "\\b(\\d{2}\\.\\d{1,3}x\\.\\d{2})\\b",
-      "\\b(\\d{2}\\.\\d{1,3}X\\.\\d{2})\\b",
-      "\\b(\\d{2}\\.\\d{2,3}\\.\\d{2})\\b"
+      "error\\s+code\\s+(\\d{2}\\.[A-Z0-9]{1,4}\\.[A-Za-z0-9]{1,4})",
+      "error\\s+(\\d{2}\\.[A-Z0-9]{1,4}\\.[A-Za-z0-9]{1,4})",
+      "code\\s+(\\d{2}\\.[A-Z0-9]{1,4}\\.[A-Za-z0-9]{1,4})",
+      "(\\d{2}\\.[A-Z0-9]{1,4}\\.[A-Za-z0-9]{1,4})\\s+error",
+      "\\b(\\d{2}\\.[A-Z0-9]{1,4}[xX]\\.[A-Za-z0-9]{1,4})\\b",
+      "\\b(\\d{2}\\.[A-Z0-9]{1,4}\\.[A-Za-z0-9]{1,4})\\b"
     ],
-    "validation_regex": "^\\d{2}\\.\\d{1,3}[xX]?\\.\\d{2}$",
+    "validation_regex": "^\\d{2}\\.[A-Z0-9]{1,4}[xX]?\\.[A-Za-z0-9]{1,4}$",
+    "hierarchy_rules": {
+      "derive_parent": "first_n_segments",
+      "separator": ".",
+      "parent_segments": 2
+    },
     "categories": {
       "paper_jam": "Paper handling and jam errors",
       "fuser": "Fuser assembly and temperature errors",
@@ -79,6 +83,10 @@
       "(?:jam|misfeed|paper\\s+jam)[^\\n]{0,50}(\\d{2}-\\d{2})"
     ],
     "validation_regex": "^C-?[A-Z]?\\d{3,4}$|^C-\\d{4}_\\d{4}$|^J-\\d{2}-\\d{2}$|^[SDPF]-\\d{1,2}$|^\\d{2}-\\d{2}$",
+    "hierarchy_rules": {
+      "derive_parent": "prefix_digits",
+      "prefix_length": 4
+    },
     "context_requirements": {
       "jam_codes": {
         "pattern": "\\d{2}-\\d{2}",
@@ -121,6 +129,10 @@
       "\\b(SC\\d{3,4})\\b"
     ],
     "validation_regex": "^SC\\d{3,4}$",
+    "hierarchy_rules": {
+      "derive_parent": "prefix_digits",
+      "prefix_length": 3
+    },
     "categories": {
       "exposure": "Exposure lamp errors",
       "scanner": "Scanner and imaging errors", 
@@ -181,6 +193,11 @@
       "error\\s+(\\d{2})(?=\\s|$)"
     ],
     "validation_regex": "^\\d{3}-\\d{3}$|^\\d{2}-\\d{3}$|^\\d{2}$",
+    "hierarchy_rules": {
+      "derive_parent": "first_n_segments",
+      "separator": "-",
+      "parent_segments": 1
+    },
     "categories": {
       "interlock": "Cover and door interlock errors",
       "fuser": "Fuser assembly and temperature errors", 
@@ -204,6 +221,11 @@
       "\\b(\\d{2,3}\\.\\d{2})\\b"
     ],
     "validation_regex": "^\\d{2,3}\\.\\d{2}$",
+    "hierarchy_rules": {
+      "derive_parent": "first_n_segments",
+      "separator": ".",
+      "parent_segments": 1
+    },
     "categories": {
       "fuser": "Fuser assembly and temperature errors",
       "paper_jam": "Paper handling and jam errors",
@@ -230,6 +252,10 @@
       "\\b([ABEF]\\d{1,2})\\b"
     ],
     "validation_regex": "^C\\d{4}$|^[ABEF]\\d{1,2}$",
+    "hierarchy_rules": {
+      "derive_parent": "prefix_digits",
+      "prefix_length": 2
+    },
     "categories": {
       "charger": "Main charger unit errors",
       "fuser": "Fuser assembly and temperature errors",
@@ -256,6 +282,11 @@
       "\\b([HEFUAO]\\d{1,2}-\\d{2})\\b"
     ],
     "validation_regex": "^[HEFUAO]\\d{1,2}-\\d{2}$",
+    "hierarchy_rules": {
+      "derive_parent": "first_n_segments",
+      "separator": "-",
+      "parent_segments": 1
+    },
     "categories": {
       "paper_jam": "Paper handling and jam errors",
       "adf": "Automatic Document Feeder errors",
@@ -279,8 +310,13 @@
       "\\b(\\d{3}-\\d{3})\\b"
     ],
     "validation_regex": "^\\d{3}-\\d{3}$",
+    "hierarchy_rules": {
+      "derive_parent": "first_n_segments",
+      "separator": "-",
+      "parent_segments": 1
+    },
     "categories": {
-      "interlock": "Cover and door errors", 
+      "interlock": "Cover and door errors",
       "fuser": "Fuser assembly errors",
       "paper_jam": "Paper handling errors",
       "toner": "Toner supply system errors",

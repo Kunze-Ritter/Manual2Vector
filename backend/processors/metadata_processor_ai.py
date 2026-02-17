@@ -237,6 +237,8 @@ class MetadataProcessorAI(BaseProcessor):
                         requires_technician=bool(getattr(error_code, 'requires_technician', False)),
                         requires_parts=bool(getattr(error_code, 'requires_parts', False)),
                         severity_level=str(getattr(error_code, 'severity_level', None) or 'low'),
+                        parent_code=getattr(error_code, 'parent_code', None),
+                        is_category=bool(getattr(error_code, 'is_category', False)),
                     )
                     await self.database_service.create_error_code(model)
                     saved_count += 1
@@ -255,6 +257,8 @@ class MetadataProcessorAI(BaseProcessor):
                         'chunk_id': getattr(error_code, 'chunk_id', None),
                         'product_id': getattr(error_code, 'product_id', None),
                         'video_id': getattr(error_code, 'video_id', None),
+                        'parent_code': getattr(error_code, 'parent_code', None),
+                        'is_category': getattr(error_code, 'is_category', False),
                     }
                     result = self.database_service.client.table('error_codes').insert(error_data).execute()
                     if result.data:

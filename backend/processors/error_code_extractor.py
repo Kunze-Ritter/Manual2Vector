@@ -660,6 +660,9 @@ class ErrorCodeExtractor:
 
                     severity = self._determine_severity(description, solution)
 
+                    hierarchy_rules = mfr_config.get("hierarchy_rules")
+                    parent_code = self._derive_parent_code(code, hierarchy_rules)
+
                     try:
                         error_code = ExtractedErrorCode(
                             error_code=code,
@@ -672,6 +675,7 @@ class ErrorCodeExtractor:
                             severity_level=severity,
                             manufacturer_name=manufacturer_name,
                             effective_manufacturer=effective_manufacturer,
+                            parent_code=parent_code,
                         )
                         found_codes.append(error_code)
                         seen_codes.add(code)
@@ -682,6 +686,16 @@ class ErrorCodeExtractor:
                         logger.debug(f"Validation failed for code '{code}': {e}")
 
         unique_codes = self._deduplicate(found_codes)
+
+        # Create category entries for parent codes
+        for _mfr_key, mfr_config in patterns_to_use:
+            hierarchy_rules = mfr_config.get("hierarchy_rules")
+            if hierarchy_rules:
+                categories = self._create_category_entries(
+                    unique_codes, hierarchy_rules, _mfr_key, manufacturer_name
+                )
+                unique_codes.extend(categories)
+
         unique_codes.sort(key=lambda x: x.confidence, reverse=True)
 
         max_codes = self.extraction_rules.get("max_codes_per_page", 20)
@@ -691,6 +705,72 @@ class ErrorCodeExtractor:
 
         return unique_codes
     
+    @staticmethod
+    def _derive_parent_code(code: str, hierarchy_rules: Optional[Dict[str, Any]]) -> Optional[str]:
+        """Derive parent category code from a specific error code.
+
+        Supports two strategies configured via hierarchy_rules:
+        - "first_n_segments": split by separator and take first N segments
+          (e.g., "13.B9.Az" with separator="." and parent_segments=2 → "13.B9")
+        - "prefix_digits": take the first N characters as parent
+          (e.g., "SC542" with prefix_length=3 → "SC5")
+        """
+        if not hierarchy_rules:
+            return None
+        method = hierarchy_rules.get("derive_parent")
+        if method == "first_n_segments":
+            sep = hierarchy_rules.get("separator", ".")
+            parts = code.split(sep)
+            n = hierarchy_rules.get("parent_segments", 2)
+            if len(parts) > n:
+                return sep.join(parts[:n])
+        elif method == "prefix_digits":
+            length = hierarchy_rules.get("prefix_length", 3)
+            if len(code) > length:
+                return code[:length]
+        return None
+
+    def _create_category_entries(
+        self,
+        codes: List[ExtractedErrorCode],
+        hierarchy_rules: Dict[str, Any],
+        mfr_key: str,
+        manufacturer_name: Optional[str],
+    ) -> List[ExtractedErrorCode]:
+        """Create category entries for parent codes that don't already exist."""
+        parent_codes = {c.parent_code for c in codes if c.parent_code}
+        existing_codes = {c.error_code for c in codes}
+        categories: List[ExtractedErrorCode] = []
+        for parent in sorted(parent_codes):
+            if parent in existing_codes:
+                continue
+            children = [c for c in codes if c.parent_code == parent]
+            if not children:
+                continue
+            best_child = max(children, key=lambda c: c.confidence)
+            child_descs = [f"{c.error_code} {c.error_description[:60]}" for c in children[:5]]
+            description = f"{parent} error family ({len(children)} codes: {', '.join(child_descs)})"
+            if len(description) < 10:
+                description = f"{parent} error code category"
+            try:
+                category = ExtractedErrorCode(
+                    error_code=parent,
+                    error_description=description,
+                    solution_text=None,
+                    context_text=best_child.context_text,
+                    confidence=0.95,
+                    page_number=best_child.page_number,
+                    extraction_method=f"{mfr_key}_category",
+                    severity_level="medium",
+                    manufacturer_name=manufacturer_name,
+                    effective_manufacturer=best_child.effective_manufacturer,
+                    is_category=True,
+                )
+                categories.append(category)
+            except Exception as exc:
+                logger.debug("Failed to create category entry for '%s': %s", parent, exc)
+        return categories
+
     def _validate_context(self, context: str) -> bool:
         """Validate that context looks like an error code section"""
         context_lower = context.lower()

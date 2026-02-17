@@ -223,6 +223,8 @@ class ErrorCodeModel(BaseModel):
     requires_parts: bool = False
     estimated_fix_time_minutes: Optional[int] = None
     severity_level: str = "low"
+    parent_code: Optional[str] = None
+    is_category: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class SearchAnalyticsModel(BaseModel):
