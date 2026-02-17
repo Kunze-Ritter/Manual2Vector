@@ -35,7 +35,7 @@ Root endpoint with API info
 ```json
 {
   "service": "KRAI Processing Pipeline API",
-  "version": "2.0.0",
+  "version": "0.50.0",
   "status": "running",
   "documentation": "/docs"
 }

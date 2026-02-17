@@ -16,7 +16,7 @@ Modules:
 
 from .logger import get_logger
 
-__version__ = "2.0.0"
+__version__ = "0.50.0"
 __all__ = [
     "get_logger",
 ]

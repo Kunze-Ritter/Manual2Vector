@@ -98,7 +98,7 @@ DEFAULT_ADMIN_LAST_NAME = os.getenv("DEFAULT_ADMIN_LAST_NAME", "Administrator")
 app = FastAPI(
     title="KRAI Processing Pipeline API",
     description="Document processing pipeline with monitoring and management",
-    version="2.0.0",
+    version="0.50.0",
     docs_url=None,  # Disable default docs to add auth
     redoc_url=None,  # Disable default redoc to add auth
     openapi_url="/openapi.json"
@@ -604,7 +604,7 @@ async def root():
     """Root endpoint with API information"""
     return {
         "name": "KRAI Processing Pipeline",
-        "version": "2.0.0",
+        "version": "0.50.0",
         "status": "operational"
     }
 
