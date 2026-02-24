@@ -106,7 +106,7 @@ The KRAI Pipeline is a modular document processing system that orchestrates all 
 - Upload images to object storage (MinIO)
 - Generate presigned URLs
 - File organization by document
-- **Output:** R2 URLs
+- **Output:** Object storage URLs
 
 ### Stage 9: Embedding Generation (Optional)
 - Generate 768-dim vectors (embeddinggemma)
@@ -137,7 +137,7 @@ pipeline = MasterPipeline(
     enable_images=True,
     enable_ocr=True,
     enable_vision=True,
-    enable_r2_storage=False,  # Optional
+    # storage upload disabled
     enable_embeddings=True
 )
 
@@ -189,7 +189,7 @@ pipeline = MasterPipeline(
     enable_vision=True,   # Vision AI analysis
     
     # Optional stages
-    enable_r2_storage=False,  # Upload images to R2
+    # storage upload disabled
     enable_embeddings=True,   # Generate embeddings
     
     # Error handling
@@ -236,7 +236,7 @@ pipeline = MasterPipeline(
 - 8GB RAM recommended for large documents
 
 ### External Services
-- **Supabase**: Database + pgvector
+- **PostgreSQL**: Database + pgvector
 - **Ollama**: embeddinggemma model (optional)
 - **MinIO Object Storage**: Image storage (optional)
 
@@ -270,9 +270,9 @@ boto3>=1.28.0
 ### Environment Variables
 
 ```bash
-# Supabase
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-service-role-key
+# PostgreSQL
+DATABASE_CONNECTION_URL=postgresql://krai_user:password@krai-postgres:5432/krai_db
+DATABASE_PASSWORD=your_database_password
 
 # Ollama (for embeddings)
 OLLAMA_URL=http://localhost:11434
@@ -401,7 +401,7 @@ Begin with minimal configuration:
 ```python
 pipeline = MasterPipeline(
     supabase_client=supabase,
-    enable_r2_storage=False,  # Disable optional features first
+    # storage upload disabled
     enable_embeddings=False
 )
 ```

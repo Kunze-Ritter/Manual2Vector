@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Documents\Schemas;
 
-use App\Models\Manufacturer;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -58,20 +57,10 @@ class DocumentForm
 
                 Select::make('manufacturer_id')
                     ->label('Hersteller')
-                    ->options(fn () => Manufacturer::query()
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                        ->toArray()
-                    )
+                    ->relationship('manufacturer', 'name')
                     ->searchable()
                     ->preload()
-                    ->nullable()
-                    ->getSearchResultsUsing(fn (string $search) => Manufacturer::query()
-                        ->where('name', 'like', "%{$search}%")
-                        ->orderBy('name')
-                        ->limit(50)
-                        ->pluck('name', 'id')
-                        ->toArray()),
+                    ->nullable(),
 
                 TextInput::make('manufacturer')
                     ->label('Hersteller (Text)')

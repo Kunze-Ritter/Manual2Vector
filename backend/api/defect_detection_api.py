@@ -1,4 +1,4 @@
-"""
+﻿"""
 Defect Detection API for KR-AI-Engine
 FastAPI endpoints for AI-powered defect detection
 """
@@ -11,7 +11,7 @@ from datetime import datetime
 
 from core.data_models import DefectDetectionRequest, DefectDetectionResponse
 from services.ai_service import AIService
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 
 class DefectDetectionAPI:
     """
@@ -23,7 +23,7 @@ class DefectDetectionAPI:
     - POST /defect-detection/feedback: Provide feedback on detection
     """
     
-    def __init__(self, ai_service: AIService, database_service: DatabaseService):
+    def __init__(self, ai_service: AIService, database_service: DatabaseAdapter):
         self.ai_service = ai_service
         self.database_service = database_service
         self.logger = logging.getLogger("krai.api.defect_detection")
@@ -245,3 +245,4 @@ class DefectDetectionAPI:
                     'error': str(e),
                     'timestamp': datetime.utcnow().isoformat()
                 }
+

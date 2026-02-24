@@ -160,9 +160,11 @@ class DocumentsTable
                             return $query;
                         }
 
+                        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $username);
+
                         return $query->whereRaw(
                             "extracted_metadata->'upload'->'uploaded_by'->>'username' ILIKE ?",
-                            ['%' . $username . '%']
+                            ['%' . $escaped . '%']
                         );
                     }),
             ])
@@ -176,6 +178,7 @@ class DocumentsTable
                     BulkAction::make('smartProcessBulk')
                         ->label('Smart verarbeiten')
                         ->icon('heroicon-o-sparkles')
+                        ->authorize(fn () => auth()->user()?->canManageContent() ?? false)
                         ->action(function (Collection $records) {
                             $service = app(KraiEngineService::class);
                             $stages = config('krai.default_stages', []);
@@ -210,6 +213,7 @@ class DocumentsTable
                     BulkAction::make('processStageBulk')
                         ->label('Stage verarbeiten')
                         ->icon('heroicon-o-play')
+                        ->authorize(fn () => auth()->user()?->canManageContent() ?? false)
                         ->form([
                             Select::make('stage')
                                 ->label('Stage auswählen')
@@ -251,6 +255,7 @@ class DocumentsTable
                     BulkAction::make('generateThumbnailsBulk')
                         ->label('Thumbnails generieren')
                         ->icon('heroicon-o-photo')
+                        ->authorize(fn () => auth()->user()?->canManageContent() ?? false)
                         ->action(function (Collection $records) {
                             $service = app(KraiEngineService::class);
                             $success = 0;

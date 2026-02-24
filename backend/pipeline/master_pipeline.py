@@ -630,7 +630,51 @@ class KRMasterPipeline:
             self.logger.error("Error checking stage status", exc_info=True)
         
         return stage_status
-    
+
+    async def _mark_stage_skipped_completed(
+        self,
+        document_id: str,
+        stage_name: str,
+        processor_key: str,
+        reason: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Persist skipped stage as completed in stage_tracking with skip metadata."""
+        from backend.core.types import Stage
+
+        skip_metadata: Dict[str, Any] = {
+            'skipped': True,
+            'skip_reason': reason,
+            'processor': processor_key,
+        }
+        if metadata:
+            skip_metadata.update(metadata)
+
+        stage_tracker = getattr(self, 'stage_tracker', None)
+        if stage_tracker:
+            await stage_tracker.complete_stage(
+                document_id,
+                stage_name,
+                metadata=skip_metadata,
+            )
+            return
+
+        try:
+            stage_enum = Stage(stage_name)
+        except ValueError:
+            self.logger.warning(
+                "Cannot map skipped stage to Stage enum for tracking: %s",
+                stage_name,
+            )
+            return
+
+        await self.track_stage_status(
+            document_id=document_id,
+            stage=stage_enum,
+            status='completed',
+            metadata=skip_metadata,
+        )
+
     async def process_document_smart_stages(self, document_id: str, filename: str, file_path: str) -> Dict[str, Any]:
         """Process only the missing stages for a document using structured logging."""
         try:
@@ -735,23 +779,65 @@ class KRMasterPipeline:
                 # SVG stage gating with feature flag
                 if stage_name == 'svg_processing':
                     if os.getenv('ENABLE_SVG_EXTRACTION', 'false').lower() != 'true':
+                        await self._mark_stage_skipped_completed(
+                            document_id=document_id,
+                            stage_name=stage_name,
+                            processor_key=processor_key,
+                            reason='SVG extraction disabled',
+                        )
+                        completed_stages.append(stage_name)
                         self.logger.info("  %s %s (SKIPPED: SVG extraction disabled)", label, filename)
                         continue
                     if self.processors.get('svg') is None:
+                        await self._mark_stage_skipped_completed(
+                            document_id=document_id,
+                            stage_name=stage_name,
+                            processor_key=processor_key,
+                            reason='SVG processor not available',
+                        )
+                        completed_stages.append(stage_name)
                         self.logger.info("  %s %s (SKIPPED: SVG processor not available)", label, filename)
                         continue
 
                 # Skip table_extraction or visual_embedding if processor not wired
                 if stage_name == 'table_extraction' and self.processors.get('table') is None:
+                    await self._mark_stage_skipped_completed(
+                        document_id=document_id,
+                        stage_name=stage_name,
+                        processor_key=processor_key,
+                        reason='Table processor not available',
+                    )
+                    completed_stages.append(stage_name)
                     self.logger.info("  %s %s (SKIPPED: Table processor not available)", label, filename)
                     continue
                 if stage_name == 'visual_embedding' and self.processors.get('visual_embedding') is None:
+                    await self._mark_stage_skipped_completed(
+                        document_id=document_id,
+                        stage_name=stage_name,
+                        processor_key=processor_key,
+                        reason='Visual embedding processor not available',
+                    )
+                    completed_stages.append(stage_name)
                     self.logger.info("  %s %s (SKIPPED: Visual embedding processor not available)", label, filename)
                     continue
                 if stage_name == 'video_enrichment' and not self.pipeline_config.enable_brightcove_enrichment:
+                    await self._mark_stage_skipped_completed(
+                        document_id=document_id,
+                        stage_name=stage_name,
+                        processor_key=processor_key,
+                        reason='Brightcove enrichment disabled',
+                    )
+                    completed_stages.append(stage_name)
                     self.logger.info("  %s %s (SKIPPED: Brightcove enrichment disabled)", label, filename)
                     continue
                 if stage_name == 'video_enrichment' and self.processors.get('video_enrichment') is None:
+                    await self._mark_stage_skipped_completed(
+                        document_id=document_id,
+                        stage_name=stage_name,
+                        processor_key=processor_key,
+                        reason='Video enrichment processor not available',
+                    )
+                    completed_stages.append(stage_name)
                     self.logger.info("  %s %s (SKIPPED: Video enrichment processor not available)", label, filename)
                     continue
                 if stage_name == 'parts_extraction':
@@ -768,20 +854,13 @@ class KRMasterPipeline:
                             'warning': 'Parts extraction requires at least one linked product',
                             'processor': processor_key,
                         }
-                        if self.stage_tracker:
-                            await self.stage_tracker.complete_stage(
-                                document_id,
-                                stage_name,
-                                metadata=skip_metadata,
-                            )
-                        else:
-                            from backend.core.base_processor import Stage
-                            await self.track_stage_status(
-                                document_id=document_id,
-                                stage=Stage.PARTS_EXTRACTION,
-                                status='completed',
-                                metadata=skip_metadata,
-                            )
+                        await self._mark_stage_skipped_completed(
+                            document_id=document_id,
+                            stage_name=stage_name,
+                            processor_key=processor_key,
+                            reason='No linked products found',
+                            metadata=skip_metadata,
+                        )
                         completed_stages.append(stage_name)
                         self.logger.info("    ✅ Parts extraction skipped: no linked products")
                         continue
@@ -2019,6 +2098,20 @@ class KRMasterPipeline:
             stage_status = await self.get_document_stage_status(document_id)
             stage_name = stage.value
 
+            if stage == Stage.VIDEO_ENRICHMENT and not self.pipeline_config.enable_brightcove_enrichment:
+                await self._mark_stage_skipped_completed(
+                    document_id=document_id,
+                    stage_name=stage.value,
+                    processor_key=processor_key,
+                    reason='Brightcove enrichment disabled',
+                )
+                return {
+                    'success': True,
+                    'data': {'skipped': True, 'skip_reason': 'Brightcove enrichment disabled'},
+                    'stage': stage.value,
+                    'processor': processor_key,
+                }
+
             # Upload must be completed (and storage_path must exist) before text/table stages
             if stage in [Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION]:
                 if not stage_status.get('upload'):
@@ -2077,19 +2170,13 @@ class KRMasterPipeline:
                         'warning': 'Parts extraction requires at least one linked product',
                         'processor': processor_key,
                     }
-                    if self.stage_tracker:
-                        await self.stage_tracker.complete_stage(
-                            document_id,
-                            stage.value,
-                            metadata=skip_metadata,
-                        )
-                    else:
-                        await self.track_stage_status(
-                            document_id=document_id,
-                            stage=stage,
-                            status='completed',
-                            metadata=skip_metadata,
-                        )
+                    await self._mark_stage_skipped_completed(
+                        document_id=document_id,
+                        stage_name=stage.value,
+                        processor_key=processor_key,
+                        reason='No linked products found',
+                        metadata=skip_metadata,
+                    )
                     return {
                         'success': True,
                         'data': {'skipped': True, 'skip_reason': 'No linked products found'},
@@ -2243,6 +2330,9 @@ class KRMasterPipeline:
             'total_stages': len(stages),
             'successful': 0,
             'failed': 0,
+            'skipped': 0,
+            'failed_stages': [],
+            'skipped_stages': [],
             'stage_results': []
         }
         
@@ -2254,10 +2344,20 @@ class KRMasterPipeline:
                 results['successful'] += 1
             else:
                 results['failed'] += 1
+                results['failed_stages'].append({
+                    'stage': stage_result.get('stage', str(stage)),
+                    'error': stage_result.get('error', 'Unknown error'),
+                })
                 
                 # Stop on failure if not configured to continue
                 if not self.force_continue_on_errors:
                     self.logger.error(f"Stopping pipeline due to stage failure: {stage}")
+                    # Record remaining stages as skipped
+                    remaining = stages[stages.index(stage) + 1:]
+                    results['skipped'] = len(remaining)
+                    results['skipped_stages'] = [
+                        s.value if hasattr(s, 'value') else str(s) for s in remaining
+                    ]
                     break
         
         results['success_rate'] = results['successful'] / results['total_stages'] * 100 if results['total_stages'] > 0 else 0
@@ -2615,4 +2715,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

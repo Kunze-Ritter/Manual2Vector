@@ -182,9 +182,8 @@ MinIO is the sole object storage solution, providing S3-compatible local storage
 - **Version Control** - File versioning and rollback capability
 - **Optional Cloud Migration** - S3-compatible for future cloud needs
 
-#### Migration from Cloudflare R2
-- **Completed November 2024 (KRAI-002)**
-- **All R2 dependencies removed** from codebase
+#### Storage Migration (Completed November 2024, KRAI-002)
+- **All legacy storage dependencies removed** from codebase
 - **MinIO as default storage** for all new deployments
 - **See docs/MIGRATION_R2_TO_MINIO.md for migration details**
 

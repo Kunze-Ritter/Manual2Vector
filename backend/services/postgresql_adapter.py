@@ -38,6 +38,10 @@ class PostgreSQLAdapter(DatabaseAdapter):
     def __init__(self, postgres_url: str, schema_prefix: str = "krai"):
         """Initialize PostgreSQL adapter with connection string."""
         super().__init__()
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', schema_prefix):
+            raise ValueError(
+                f"Invalid schema_prefix '{schema_prefix}': must start with a letter and contain only letters, digits, or underscores."
+            )
         self.postgres_url = postgres_url
         self.schema_prefix = schema_prefix
         self.pg_pool: Optional[asyncpg.Pool] = None
@@ -208,7 +212,12 @@ class PostgreSQLAdapter(DatabaseAdapter):
     def _prepare_insert(self, data: Dict[str, Any]) -> tuple[list[str], list[str], list[Any]]:
         columns = list(data.keys())
         placeholders = [f"${idx + 1}" for idx in range(len(columns))]
-        values = [data[column] for column in columns]
+        # asyncpg requires JSONB dict values as JSON strings;
+        # list values are PostgreSQL arrays and must stay as native Python lists.
+        values = [
+            json.dumps(v) if isinstance(v, dict) else v
+            for v in (data[column] for column in columns)
+        ]
         return columns, placeholders, values
 
     @staticmethod
@@ -355,7 +364,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
     async def update_chunk(
         self, chunk_id: str, content: str = None, metadata: Dict[str, Any] = None, char_count: int = None
     ) -> bool:
-        """Update chunk content and/or metadata. Uses text_chunk or chunk_text depending on schema."""
+        """Update chunk content and/or metadata."""
         if content is None and metadata is None:
             return False
         pool = self._ensure_pool()
@@ -363,7 +372,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
         params = []
         idx = 1
         if content is not None:
-            set_parts.append(f"chunk_text = ${idx}")
+            set_parts.append(f"text_chunk = ${idx}")
             params.append(content)
             idx += 1
         if metadata is not None:
@@ -1428,12 +1437,12 @@ class PostgreSQLAdapter(DatabaseAdapter):
     ) -> List[Dict[str, Any]]:
         """Fetch Brightcove videos that still need enrichment for a document."""
         pool = self._ensure_pool()
-        where_force = "" if force else "AND (enriched_at IS NULL OR enrichment_error IS NOT NULL)"
+        where_force = "" if force else "AND (enriched_at IS NULL OR metadata->>'enrichment_error' IS NOT NULL)"
         query = f"""
-            SELECT id, video_url, metadata, enriched_at, enrichment_error
+            SELECT id, video_url, platform, metadata, enriched_at
             FROM {self._content_schema}.videos
             WHERE document_id = $1::uuid
-              AND platform = 'brightcove'
+              AND platform IN ('brightcove', 'youtube', 'vimeo')
               AND (
                 COALESCE((metadata->>'needs_enrichment')::boolean, false) = true
                 OR COALESCE(BTRIM(title), '') = ''
@@ -1451,6 +1460,19 @@ class PostgreSQLAdapter(DatabaseAdapter):
         """Update a video record with enriched metadata fields."""
         pool = self._ensure_pool()
         async with pool.acquire() as conn:
+            # Merge non-column fields (tags, enrichment_error) into metadata JSONB.
+            # krai_content.videos has no standalone tags or enrichment_error columns.
+            extra_meta: Dict[str, Any] = {}
+            if metadata_dict.get("tags") is not None:
+                extra_meta["tags"] = metadata_dict["tags"]
+            if metadata_dict.get("enrichment_error"):
+                extra_meta["enrichment_error"] = metadata_dict["enrichment_error"]
+            elif "enrichment_error" in metadata_dict:
+                extra_meta["enrichment_error"] = None  # will be merged out
+
+            base_meta = metadata_dict.get("metadata") or {}
+            merged_meta = {**base_meta, **extra_meta}
+
             await conn.execute(
                 f"""
                 UPDATE {self._content_schema}.videos
@@ -1460,10 +1482,8 @@ class PostgreSQLAdapter(DatabaseAdapter):
                     duration = COALESCE($4, duration),
                     thumbnail_url = COALESCE($5, thumbnail_url),
                     published_at = COALESCE($6, published_at),
-                    tags = COALESCE($7::text[], tags),
-                    metadata = COALESCE($8::jsonb, metadata),
-                    enrichment_error = $9,
-                    enriched_at = COALESCE($10, enriched_at),
+                    metadata = COALESCE(metadata, '{{}}'::jsonb) || COALESCE($7::jsonb, '{{}}'::jsonb),
+                    enriched_at = COALESCE($8, enriched_at),
                     updated_at = NOW()
                 WHERE id = $1::uuid
                 """,
@@ -1473,9 +1493,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
                 metadata_dict.get("duration"),
                 metadata_dict.get("thumbnail_url"),
                 metadata_dict.get("published_at"),
-                metadata_dict.get("tags"),
-                json.dumps(metadata_dict.get("metadata")) if metadata_dict.get("metadata") is not None else None,
-                metadata_dict.get("enrichment_error"),
+                json.dumps(merged_meta) if merged_meta else None,
                 metadata_dict.get("enriched_at"),
             )
             return True
@@ -1488,13 +1506,15 @@ class PostgreSQLAdapter(DatabaseAdapter):
                 f"""
                 UPDATE {self._content_schema}.videos
                 SET
-                    enrichment_error = $2,
-                    metadata = COALESCE(metadata, '{{}}'::jsonb) || '{{"needs_enrichment": true}}'::jsonb,
+                    metadata = COALESCE(metadata, '{{}}'::jsonb) || $2::jsonb,
                     updated_at = NOW()
                 WHERE id = $1::uuid
                 """,
                 video_id,
-                (error_message or "Unknown enrichment error")[:1000],
+                json.dumps({
+                    "needs_enrichment": True,
+                    "enrichment_error": (error_message or "Unknown enrichment error")[:1000],
+                }),
             )
             return True
 

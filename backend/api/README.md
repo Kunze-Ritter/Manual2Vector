@@ -276,7 +276,7 @@ OBJECT_STORAGE_PUBLIC_URL_ERROR=http://localhost:9000/error-images
 OBJECT_STORAGE_PUBLIC_URL_PARTS=http://localhost:9000/parts-images
 ```
 
-Legacy migration note: `R2_*` and `UPLOAD_*_TO_R2` variables are rejected at backend startup. Use only `OBJECT_STORAGE_*` variables. See `docs/MIGRATION_R2_TO_MINIO.md`.
+Use only `OBJECT_STORAGE_*` variables. See `docs/MIGRATION_R2_TO_MINIO.md` for storage migration details.
 
 ## 📊 Monitoring
 

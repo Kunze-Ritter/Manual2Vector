@@ -1,11 +1,11 @@
 """Factory helpers for creating and registering the AuthService."""
 from services.auth_service import AuthService
-from services.database_service import DatabaseService
+from services.database_factory import create_database_adapter
 
 
 def create_auth_service() -> AuthService:
     """Instantiate AuthService using the configured database service."""
-    db_service = DatabaseService()
+    db_service = create_database_adapter()
     return AuthService(db_service)
 
 

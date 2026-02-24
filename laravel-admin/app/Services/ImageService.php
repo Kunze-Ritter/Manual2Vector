@@ -36,7 +36,7 @@ class ImageService
 
     public function listImages(array $filters = [], int $page = 1, int $pageSize = 50, string $sortBy = 'created_at', string $sortOrder = 'desc'): array
     {
-        $cacheKey = sprintf('images.list.%s.%d.%d.%s.%s', md5(json_encode($filters)), $page, $pageSize, $sortBy, $sortOrder);
+        $cacheKey = sprintf('images.list.g%d.%s.%d.%d.%s.%s', $this->cacheGeneration(), md5(json_encode($filters)), $page, $pageSize, $sortBy, $sortOrder);
 
         $store = Cache::getStore();
         $supportsTags = $store instanceof \Illuminate\Cache\TaggableStore;
@@ -98,7 +98,7 @@ class ImageService
 
     public function getImagesByDocument(string $documentId, int $page = 1, int $pageSize = 50): array
     {
-        $cacheKey = sprintf('images.by_document.%s.%d.%d', $documentId, $page, $pageSize);
+        $cacheKey = sprintf('images.by_document.g%d.%s.%d.%d', $this->cacheGeneration(), $documentId, $page, $pageSize);
 
         $store = Cache::getStore();
         $supportsTags = $store instanceof \Illuminate\Cache\TaggableStore;
@@ -129,7 +129,7 @@ class ImageService
 
     public function getImageStats(): array
     {
-        $cacheKey = 'images.stats';
+        $cacheKey = 'images.stats.g' . $this->cacheGeneration();
 
         $store = Cache::getStore();
         $supportsTags = $store instanceof \Illuminate\Cache\TaggableStore;
@@ -155,7 +155,7 @@ class ImageService
         });
     }
 
-    public function deleteImage(string $imageId, bool $deleteFromStorage = false): array
+    public function deleteImage(string $imageId, bool $deleteFromStorage = false, bool $invalidateCache = true): array
     {
         try {
             $response = $this->client()->delete($this->baseUrl . '/api/v1/images/' . $imageId, [
@@ -163,7 +163,9 @@ class ImageService
             ]);
 
             if ($response->successful()) {
-                $this->clearCache();
+                if ($invalidateCache) {
+                    $this->clearCache();
+                }
                 return ['success' => true, 'data' => $response->json(), 'error' => null];
             }
 
@@ -187,7 +189,7 @@ class ImageService
         ];
 
         foreach ($imageIds as $id) {
-            $result = $this->deleteImage($id, $deleteFromStorage);
+            $result = $this->deleteImage($id, $deleteFromStorage, false);
             if ($result['success']) {
                 $summary['success']++;
             } else {
@@ -213,6 +215,8 @@ class ImageService
 
     public function createBulkDownloadZip(array $imageIds): ?string
     {
+        $maxTotalBytes = (int) config('krai.images.bulk_download_max_bytes', 500 * 1024 * 1024); // 500 MB default
+
         $zip = new \ZipArchive();
         $tmpPath = tempnam(sys_get_temp_dir(), 'images_zip_');
         if ($tmpPath === false) {
@@ -223,6 +227,8 @@ class ImageService
             return null;
         }
 
+        $totalBytes = 0;
+
         foreach ($imageIds as $id) {
             $response = $this->downloadImage($id);
             if (!$response || !$response->successful()) {
@@ -231,6 +237,16 @@ class ImageService
             }
 
             $content = $response->body();
+            $size = strlen($content);
+
+            if ($totalBytes + $size > $maxTotalBytes) {
+                Log::channel('krai-images')->warning('Bulk download size limit reached, truncating', [
+                    'total_bytes' => $totalBytes,
+                    'limit' => $maxTotalBytes,
+                ]);
+                break;
+            }
+
             $filename = $id . '.bin';
             $disposition = $response->header('Content-Disposition');
             if ($disposition && preg_match('/filename="?([^";]+)"?/i', $disposition, $matches)) {
@@ -238,6 +254,8 @@ class ImageService
             }
 
             $zip->addFromString($filename, $content);
+            $totalBytes += $size;
+            unset($content); // free memory immediately after adding to ZIP
         }
 
         $zip->close();
@@ -253,6 +271,12 @@ class ImageService
             return;
         }
 
-        Cache::flush();
+        // Increment generation to invalidate all image cache keys without flushing unrelated cache
+        Cache::increment('images.cache_generation');
+    }
+
+    private function cacheGeneration(): int
+    {
+        return (int) Cache::get('images.cache_generation', 0);
     }
 }

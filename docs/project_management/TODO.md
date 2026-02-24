@@ -418,7 +418,7 @@
 - [x] GET `/content/tasks` - List all tasks
 
 #### Advanced Features & Systems
-- [x] Image Storage System - Database storage + R2 upload control
+- [x] Image Storage System - Database storage + MinIO upload control
 - [x] File Format Support - .pdfz decompression support
 - [x] OEM/Rebrand Cross-Manufacturer Search System
 - [x] Configuration Validation System

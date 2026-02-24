@@ -128,7 +128,7 @@ Extract text content from PDF pages using OCR and text extraction libraries.
 ### Database Operations
 ```sql
 INSERT INTO krai_content.chunks (
-    id, document_id, page_number, chunk_text,
+    id, document_id, page_number, text_chunk,
     chunk_type, content_hash, created_at
 ) VALUES (
     uuid, document_id, page_num, extracted_text,
@@ -529,11 +529,11 @@ Split document text into semantic chunks optimized for search indexing and retri
 ```sql
 INSERT INTO krai_intelligence.chunks (
     id, document_id, page_number, chunk_index,
-    chunk_text, chunk_type, content_hash,
+    text_chunk, chunk_type, content_hash,
     start_char, end_char, word_count, created_at
 ) VALUES (
     uuid, document_id, page_num, chunk_idx,
-    chunk_text, 'semantic', hash,
+    text_chunk, 'semantic', hash,
     start_pos, end_pos, word_count, now()
 );
 ```
@@ -1003,7 +1003,7 @@ Update search indexes and prepare document for full-text and semantic search que
 ```sql
 -- Update full-text search indexes
 UPDATE krai_intelligence.chunks SET
-    search_vector = to_tsvector('english', chunk_text)
+    search_vector = to_tsvector('english', text_chunk)
 WHERE document_id = document_id;
 
 -- Update pgvector indexes

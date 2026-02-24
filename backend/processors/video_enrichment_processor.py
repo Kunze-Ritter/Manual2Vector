@@ -176,13 +176,13 @@ class VideoEnrichmentProcessor(BaseProcessor):
                 force=force,
             )
 
-        where_force = "" if force else "AND (enriched_at IS NULL OR enrichment_error IS NOT NULL)"
+        where_force = "" if force else "AND (enriched_at IS NULL OR metadata->>'enrichment_error' IS NOT NULL)"
         return await self.database_service.execute_query(
             f"""
-            SELECT id, video_url, metadata, enriched_at, enrichment_error
+            SELECT id, video_url, platform, metadata, enriched_at
             FROM krai_content.videos
             WHERE document_id = $1::uuid
-              AND platform = 'brightcove'
+              AND platform IN ('brightcove', 'youtube', 'vimeo')
               AND (
                 COALESCE((metadata->>'needs_enrichment')::boolean, false) = true
                 OR COALESCE(BTRIM(title), '') = ''
@@ -200,6 +200,17 @@ class VideoEnrichmentProcessor(BaseProcessor):
             await self.database_service.update_video_enrichment(video_id, updates)
             return
 
+        # Merge non-column fields (tags, enrichment_error) into metadata JSONB
+        # krai_content.videos has no standalone tags or enrichment_error columns.
+        metadata = dict(updates.get("metadata") or {})
+        if updates.get("tags") is not None:
+            metadata["tags"] = updates["tags"]
+        if "enrichment_error" in updates:
+            if updates["enrichment_error"]:
+                metadata["enrichment_error"] = updates["enrichment_error"]
+            else:
+                metadata.pop("enrichment_error", None)
+
         await self.database_service.execute_query(
             """
             UPDATE krai_content.videos
@@ -209,10 +220,8 @@ class VideoEnrichmentProcessor(BaseProcessor):
                 duration = COALESCE($4, duration),
                 thumbnail_url = COALESCE($5, thumbnail_url),
                 published_at = COALESCE($6, published_at),
-                tags = COALESCE($7::text[], tags),
-                metadata = COALESCE($8::jsonb, metadata),
-                enrichment_error = $9,
-                enriched_at = COALESCE($10, enriched_at),
+                metadata = COALESCE(metadata, '{}'::jsonb) || COALESCE($7::jsonb, '{}'::jsonb),
+                enriched_at = COALESCE($8, enriched_at),
                 updated_at = NOW()
             WHERE id = $1::uuid
             """,
@@ -223,9 +232,7 @@ class VideoEnrichmentProcessor(BaseProcessor):
                 updates.get("duration"),
                 updates.get("thumbnail_url"),
                 updates.get("published_at"),
-                updates.get("tags"),
-                json.dumps(updates.get("metadata")) if updates.get("metadata") is not None else None,
-                updates.get("enrichment_error"),
+                json.dumps(metadata) if metadata else None,
                 updates.get("enriched_at"),
             ],
         )
@@ -239,10 +246,9 @@ class VideoEnrichmentProcessor(BaseProcessor):
             """
             UPDATE krai_content.videos
             SET
-                enrichment_error = $2,
-                metadata = COALESCE(metadata, '{}'::jsonb) || '{"needs_enrichment": true}'::jsonb,
+                metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
                 updated_at = NOW()
             WHERE id = $1::uuid
             """,
-            [video_id, error_message[:1000]],
+            [video_id, json.dumps({"needs_enrichment": True, "enrichment_error": error_message[:1000]})],
         )

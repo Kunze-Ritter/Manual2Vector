@@ -7,7 +7,10 @@ strategy with safe fallback behavior.
 """
 
 import logging
+import os
 from typing import Any, Dict, List
+
+from backend.core.types import Stage
 
 
 logger = logging.getLogger(__name__)
@@ -307,7 +310,7 @@ class QualityValidator:
         try:
             rows = await self.database_adapter.fetch_all(
                 """
-                SELECT document_id, stage_number, stage_name, status
+                SELECT document_id, stage_number, stage_name, status, metadata
                 FROM krai_system.stage_tracking
                 WHERE document_id = ANY($1)
                 """,
@@ -318,24 +321,59 @@ class QualityValidator:
             logger.exception("Stage status query failed for document_ids=%s", document_ids)
             raise
 
-        total_records = len(rows or [])
-        completed_stages = 0
-        for row in rows or []:
-            row_dict = dict(row)
-            if row_dict.get("status") == "completed":
-                completed_stages += 1
+        records = rows or []
+        total_records = len(records)
+        enabled_stage_count = len(self._enabled_stage_names())
 
-        stages_per_document = 16
-        expected_stage_records = len(document_ids) * stages_per_document
-        stage_pass = total_records == expected_stage_records and completed_stages == expected_stage_records
+        rows_by_document: Dict[str, List[Dict[str, Any]]] = {}
+        for row in records:
+            row_dict = dict(row) if not isinstance(row, dict) else row
+            doc_id = str(row_dict.get("document_id"))
+            rows_by_document.setdefault(doc_id, []).append(row_dict)
+
+        expected_stage_records = enabled_stage_count * len(document_ids)
+        completed_stages = 0
+        for document_id in document_ids:
+            doc_id = str(document_id)
+            doc_rows = rows_by_document.get(doc_id, [])
+
+            for row_dict in doc_rows:
+                status = (row_dict.get("status") or "").lower()
+                metadata = row_dict.get("metadata") or {}
+                if status in {"completed", "skipped"}:
+                    completed_stages += 1
+                    continue
+                if isinstance(metadata, dict) and metadata.get("skipped") is True:
+                    completed_stages += 1
+
+        extra_stage_records = max(total_records - expected_stage_records, 0)
+        stage_pass = (
+            total_records >= expected_stage_records
+            and completed_stages >= expected_stage_records
+        )
 
         return {
             "total_stage_records": total_records,
             "expected_stage_records": expected_stage_records,
             "completed_stages": completed_stages,
+            "extra_stage_records": extra_stage_records,
             "expected_completed_stages": expected_stage_records,
             "status": "PASS" if stage_pass else "FAIL",
         }
+
+    def _enabled_stage_names(self) -> List[str]:
+        """Return expected stage names for current feature flags."""
+        stages = [stage.value for stage in Stage]
+        if not self._env_flag_enabled("ENABLE_BRIGHTCOVE_ENRICHMENT", default=False):
+            stages = [stage for stage in stages if stage != Stage.VIDEO_ENRICHMENT.value]
+        if not self._env_flag_enabled("ENABLE_SVG_EXTRACTION", default=False):
+            stages = [stage for stage in stages if stage != Stage.SVG_PROCESSING.value]
+        return stages
+
+    @staticmethod
+    def _env_flag_enabled(name: str, default: bool = False) -> bool:
+        value = os.getenv(name, str(default)).strip().lower()
+        return value in {"1", "true", "yes", "on"}
 
     @staticmethod
     def _row_value(row: Any, key: str) -> int:

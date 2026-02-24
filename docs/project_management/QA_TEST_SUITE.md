@@ -53,7 +53,7 @@
 - [ ] Stage 3: Image extraction + OCR + Vision
 - [ ] Stage 4: Product extraction (Pattern + LLM)
 - [ ] Stage 5: Error code & version extraction
-- [ ] Stage 6: R2 storage upload
+- [ ] Stage 6: MinIO storage upload
 - [ ] Stage 7: Embedding generation (pgvector)
 - [ ] Stage 8: Search analytics tracking
 - [ ] Full pipeline executes without errors
@@ -69,7 +69,7 @@
 ### **7. Production Configuration**
 - [ ] All environment variables set
 - [ ] Supabase connection working
-- [ ] R2 storage accessible
+- [ ] MinIO/Object Storage accessible (`OBJECT_STORAGE_*`)
 - [ ] Ollama models available (qwen2.5, llava, embeddinggemma)
 - [ ] API keys configured (YouTube)
 - [ ] No hardcoded secrets
@@ -322,7 +322,7 @@ Embedding processor ready for semantic search!
 **Checklist:**
 ```bash
 # Check .env file
-cat .env | grep -E "SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|R2_ACCESS_KEY|OLLAMA_URL|YOUTUBE_API_KEY"
+cat .env | grep -E "OBJECT_STORAGE_ENDPOINT|OBJECT_STORAGE_ACCESS_KEY|OLLAMA_URL|YOUTUBE_API_KEY"
 
 # All should be set (not empty, not "your_key_here")
 ```

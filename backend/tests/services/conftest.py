@@ -1,4 +1,4 @@
-"""
+﻿"""
 Shared fixtures for service testing.
 
 Provides reusable fixtures for WebScrapingService, LinkEnrichmentService,
@@ -744,10 +744,10 @@ def mock_manufacturer_crawler(mock_database_service, mock_web_scraping_service, 
 async def test_database():
     """Async test database fixture for integration tests.
     
-    Provides a DatabaseService instance connected to the test database.
+    Provides a database adapter instance connected to the test database.
     Function-scoped to ensure each test gets a fresh connection in the correct event loop.
     """
-    from services.database_service import DatabaseService
+    from services.database_factory import create_database_adapter
     from dotenv import load_dotenv
     from pathlib import Path
     
@@ -759,7 +759,7 @@ async def test_database():
         load_dotenv()
     
     # Initialize database service
-    database_service = DatabaseService()
+    database_service = create_database_adapter()
     
     # Connect asynchronously
     await database_service.connect()
@@ -1174,3 +1174,4 @@ def integration_test_urls():
         'parts': 'http://example.com/parts/test-model',
         'troubleshooting': 'http://example.com/support/troubleshooting'
     }
+

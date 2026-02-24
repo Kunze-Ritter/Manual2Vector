@@ -127,28 +127,28 @@ Variables are organized by functional area matching the structure in `.env.examp
 - **Required:** True
 - **Default:** `s3`
 - **Example:** `OBJECT_STORAGE_TYPE=s3`
-- **Description:** Object storage implementation (s3-compatible for MinIO and R2)
+- **Description:** Object storage implementation (s3-compatible for MinIO or S3-compatible storage)
 - **Used by:** Storage adapter factory
 - **Notes:** Currently only s3 is supported
 ### OBJECT_STORAGE_ENDPOINT
 - **Required:** True
 - **Default:** None
 - **Example:** `OBJECT_STORAGE_ENDPOINT=http://krai-minio:9000`
-- **Description:** S3-compatible endpoint URL (MinIO or R2)
+- **Description:** S3-compatible endpoint URL (MinIO or S3-compatible storage)
 - **Used by:** Storage adapter, upload handlers
 - **Notes:** Use Docker service name for internal connections
 ### OBJECT_STORAGE_ACCESS_KEY
 - **Required:** True
 - **Default:** None
 - **Example:** `OBJECT_STORAGE_ACCESS_KEY=minioadmin`
-- **Description:** S3 access key ID (MinIO or R2)
+- **Description:** S3 access key ID (MinIO or S3-compatible storage)
 - **Used by:** Storage adapter authentication
 - **Notes:** Change default for production!
 ### OBJECT_STORAGE_SECRET_KEY
 - **Required:** True
 - **Default:** None
 - **Example:** `OBJECT_STORAGE_SECRET_KEY=minioadmin123`
-- **Description:** S3 secret access key (MinIO or R2)
+- **Description:** S3 secret access key (MinIO or S3-compatible storage)
 - **Used by:** Storage adapter authentication
 - **Notes:** Change default for production!
 ### OBJECT_STORAGE_REGION
@@ -603,7 +603,7 @@ For complete deprecation information, migration instructions, and variable mappi
 
 ### Deprecated Storage Variables
 
-Legacy R2 variable mappings were removed from this reference. See docs/MIGRATION_R2_TO_MINIO.md for migration details.
+Legacy storage variable mappings were removed from this reference. See `docs/setup/DEPRECATED_VARIABLES.md` for migration details.
 
 ### Deprecated AI Service Variables
 

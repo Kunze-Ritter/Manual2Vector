@@ -162,7 +162,7 @@ type .env | findstr SUPABASE_URL
 
 ### **Problem: "Object storage credentials missing"**
 
-**Lösung:** Prüfe R2-Variablen:
+**Lösung:** Prüfe Object-Storage-Variablen:
 ```bash
 type .env | findstr OBJECT_STORAGE_
 ```

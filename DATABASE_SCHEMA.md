@@ -89,6 +89,7 @@
 | `related_products` | _text | YES | - |
 | `related_chunks` | _uuid | YES | - |
 | `context_embedding` | vector | YES | - |
+| `figure_reference` | text | YES | - |
 
 ### krai_content.links
 
@@ -685,6 +686,7 @@ Ein geplantes separates Embeddings-Table wurde nie implementiert.
 | `chunk_id` | uuid | YES | - |
 | `image_id` | uuid | YES | - |
 | `video_id` | uuid | YES | - |
+| `stage` | character varying(50) | NO | 'storage'::character varying |
 | `task_type` | character varying(50) | NO | - |
 | `priority` | int4 | YES | 5 |
 | `status` | character varying(20) | YES | 'pending'::character varying |
@@ -694,6 +696,7 @@ Ein geplantes separates Embeddings-Table wurde nie implementiert.
 | `error_message` | text | YES | - |
 | `retry_count` | int4 | YES | 0 |
 | `max_retries` | int4 | YES | 3 |
+| `payload` | jsonb | YES | '{}'::jsonb |
 | `created_at` | timestamptz | YES | now() |
 
 ### krai_system.stage_tracking

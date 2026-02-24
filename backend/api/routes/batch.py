@@ -43,6 +43,8 @@ RESOURCE_TABLE_MAP: Dict[str, str] = {
     "images": "krai_content.images",
 }
 
+_ALLOWED_TABLE_NAMES = frozenset(RESOURCE_TABLE_MAP.values())
+
 RESOURCE_PERMISSIONS: Dict[str, str] = {
     "documents": "documents",
     "products": "products",
@@ -59,6 +61,14 @@ ASYNC_THRESHOLD = 50
 ProgressCallback = Callable[[BatchOperationResult, int, int, int, int], Awaitable[None]]
 
 COLUMN_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# Allowed table identifiers: only values from RESOURCE_TABLE_MAP are safe to interpolate
+_ALLOWED_TABLE_NAMES: frozenset = frozenset()  # populated after RESOURCE_TABLE_MAP is defined
+
+
+def _assert_safe_table_name(table_name: str) -> None:
+    """Raise ValueError if table_name is not in the static whitelist."""
+    if table_name not in _ALLOWED_TABLE_NAMES:
+        raise ValueError(f"Unsafe table identifier rejected: {table_name!r}")
 
 
 def _run_background(coro: Awaitable[Any]) -> None:
@@ -117,6 +127,7 @@ async def _fetch_record(
     table_name: str,
     record_id: str,
 ) -> Optional[Dict[str, Any]]:
+    _assert_safe_table_name(table_name)
     if connection:
         query = f"SELECT * FROM {table_name} WHERE id = $1"
         row = await connection.fetchrow(query, record_id)
@@ -136,6 +147,7 @@ async def _delete_record(
     table_name: str,
     record_id: str,
 ) -> None:
+    _assert_safe_table_name(table_name)
     if connection:
         query = f"DELETE FROM {table_name} WHERE id = $1"
         await connection.execute(query, record_id)
@@ -155,6 +167,7 @@ async def _update_record(
     record_id: str,
     update_data: Dict[str, Any],
 ) -> None:
+    _assert_safe_table_name(table_name)
     set_clauses: List[str] = []
     parameters: List[Any] = [record_id]
     index = 2

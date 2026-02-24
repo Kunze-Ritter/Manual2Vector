@@ -145,12 +145,18 @@ class IdempotencyChecker:
                 print(f"Data hash: {marker['data_hash']}")
             ```
         """
+        if not document_id:
+            self.logger.debug(
+                f"Skipping completion marker check for stage {stage_name}: document_id not yet assigned"
+            )
+            return None
+
         query = """
             SELECT document_id, stage_name, completed_at, data_hash, metadata
             FROM krai_system.stage_completion_markers
             WHERE document_id = $1 AND stage_name = $2
         """
-        
+
         try:
             result = await self.db_adapter.fetch_one(query, [document_id, stage_name])
             
@@ -215,17 +221,23 @@ class IdempotencyChecker:
             )
             ```
         """
+        if not document_id:
+            self.logger.debug(
+                f"Skipping set_completion_marker for stage {stage_name}: document_id not yet assigned"
+            )
+            return False
+
         query = """
-            INSERT INTO krai_system.stage_completion_markers 
+            INSERT INTO krai_system.stage_completion_markers
             (document_id, stage_name, data_hash, metadata, completed_at)
             VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-            ON CONFLICT (document_id, stage_name) 
-            DO UPDATE SET 
+            ON CONFLICT (document_id, stage_name)
+            DO UPDATE SET
                 data_hash = $3,
                 metadata = $4,
                 completed_at = CURRENT_TIMESTAMP
         """
-        
+
         try:
             metadata_json = json.dumps(metadata or {}, default=str)
             await self.db_adapter.execute_query(

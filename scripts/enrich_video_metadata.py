@@ -372,7 +372,16 @@ class VideoEnricher:
             return metadata
 
         if not self.has_brightcove_credentials():
-            metadata["metadata"]["credentials_missing"] = True
+            # Try public oEmbed endpoint — works for publicly accessible Brightcove videos
+            # without API credentials.
+            oembed_result = await self._try_brightcove_oembed(url)
+            if oembed_result:
+                metadata.update(oembed_result)
+                metadata["metadata"]["oembed_enriched"] = True
+                metadata["metadata"]["needs_enrichment"] = False
+                metadata["metadata"].pop("credentials_missing", None)
+            else:
+                metadata["metadata"]["credentials_missing"] = True
             return metadata
 
         token = await self.get_brightcove_access_token()
@@ -436,6 +445,32 @@ class VideoEnricher:
             metadata["metadata"]["api_enriched"] = False
             metadata["metadata"]["needs_enrichment"] = True
             return metadata
+
+    async def _try_brightcove_oembed(self, url: str) -> Optional[Dict[str, Any]]:
+        """Attempt to fetch metadata via Brightcove's public oEmbed endpoint.
+
+        Works for publicly accessible videos without API credentials.
+        Returns a partial metadata dict on success, None on failure.
+        """
+        try:
+            oembed_url = "https://players.brightcove.net/oembed"
+            response = self.session.get(oembed_url, params={"url": url}, timeout=10)
+            if response.status_code != 200:
+                return None
+            data = response.json()
+            return {
+                "title": data.get("title"),
+                "description": data.get("description") or data.get("author_name"),
+                "thumbnail_url": data.get("thumbnail_url"),
+                "channel_title": data.get("author_name"),
+                "metadata": {
+                    "width": data.get("width"),
+                    "height": data.get("height"),
+                },
+            }
+        except Exception as exc:
+            logger.debug("Brightcove oEmbed request failed: %s", exc)
+            return None
 
     async def enrich_direct_video(self, url: str) -> Dict[str, Any]:
         metadata = {

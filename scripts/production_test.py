@@ -98,10 +98,11 @@ class ProductionTestOrchestrator:
                 "UPLOAD_IMAGES_TO_STORAGE must be set to 'true' for production test (MinIO required)."
             )
 
-        r2_vars = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]
-        if any(os.getenv(var) for var in r2_vars):
+        # Backend startup already blocks legacy storage credentials, but we keep a belt-and-suspenders guard here.
+        legacy_storage_vars = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]
+        if any(os.getenv(var) for var in legacy_storage_vars):
             raise RuntimeError(
-                "R2 environment variables detected. Remove R2 configuration before running production test."
+                "Legacy storage environment variables detected. Remove legacy storage configuration before running production test."
             )
 
         self.console.print("[green]Environment validation passed.[/green]")

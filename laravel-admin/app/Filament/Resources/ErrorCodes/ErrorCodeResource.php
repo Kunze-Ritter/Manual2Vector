@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class ErrorCodeResource extends Resource
@@ -37,6 +38,11 @@ class ErrorCodeResource extends Resource
     public static function table(Table $table): Table
     {
         return ErrorCodesTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['manufacturer', 'product']);
     }
 
     public static function getRelations(): array

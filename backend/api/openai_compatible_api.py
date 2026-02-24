@@ -1,4 +1,4 @@
-"""
+﻿"""
 OpenAI-Compatible API for OpenWebUI Integration
 ================================================
 Provides OpenAI-compatible endpoints for chat completions using KRAI's search capabilities.
@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 from services.ai_service import AIService
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ class ModelsResponse(BaseModel):
 class OpenAICompatibleAPI:
     """OpenAI-compatible API for OpenWebUI integration"""
     
-    def __init__(self, database_service: DatabaseService, ai_service: AIService):
+    def __init__(self, database_service: DatabaseAdapter, ai_service: AIService):
         self.database_service = database_service
         self.ai_service = ai_service
         self.logger = logging.getLogger("krai.api.openai")
@@ -196,7 +196,7 @@ class OpenAICompatibleAPI:
                 yield f"data: {json.dumps(make_chunk(chunk_text))}\n\n"
         except Exception as e:
             self.logger.error(f"Streaming error: {e}")
-            yield f"data: {json.dumps(make_chunk(f'❌ Fehler: {str(e)}'))}\n\n"
+            yield f"data: {json.dumps(make_chunk(f'âŒ Fehler: {str(e)}'))}\n\n"
         
         # Send final chunk
         final_chunk = {
@@ -326,7 +326,7 @@ class OpenAICompatibleAPI:
                 formatted_lines.append(f"{step_num}. {step_text}")
                 current_step = step_num
             # Sub-items (bullet points)
-            elif line.startswith('•'):
+            elif line.startswith('â€¢'):
                 formatted_lines.append(f"  - {line[1:].strip()}")  # Remove bullet, add indent
             # Continuation of previous step
             elif current_step and not re.match(r'^\d+\.', line):
@@ -347,6 +347,7 @@ class OpenAICompatibleAPI:
 # Factory function
 # ============================================================================
 
-def create_openai_api(database_service: DatabaseService, ai_service: AIService) -> OpenAICompatibleAPI:
+def create_openai_api(database_service: DatabaseAdapter, ai_service: AIService) -> OpenAICompatibleAPI:
     """Create OpenAI-compatible API instance"""
     return OpenAICompatibleAPI(database_service, ai_service)
+

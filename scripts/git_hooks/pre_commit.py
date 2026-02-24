@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import subprocess
 import sys
@@ -176,46 +177,25 @@ def update_version_file(
         print("   parent commit: unavailable")
 
 
-def check_no_pycache_staged() -> int:
-    """Block commits that stage Python cache artifacts."""
-    try:
-        result = subprocess.run(
-            ["git", "diff", "--cached", "--name-only", "--diff-filter=A"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        print(f"Warning: Could not inspect staged files: {exc}", file=sys.stderr)
-        return 1
+def _load_shared_module() -> "module":
+    """Load shared git hook helpers."""
+    repo_root = Path(__file__).resolve().parents[2]
+    module_path = repo_root / "scripts" / "git_hooks" / "shared.py"
 
-    offending_paths: list[str] = []
-    for raw_path in result.stdout.splitlines():
-        path = raw_path.strip()
-        normalized = path.replace("\\", "/")
-        if "__pycache__" in normalized or normalized.endswith((".pyc", ".pyo", ".pyd")):
-            offending_paths.append(path)
+    spec = importlib.util.spec_from_file_location("krai_git_hook_shared", module_path)
+    if spec is None or spec.loader is None:  # pragma: no cover - import failure path
+        raise ImportError(f"Could not load shared module from {module_path}")
 
-    if offending_paths:
-        print(
-            "Error: Commit blocked. Staged cache artifacts are not allowed:",
-            file=sys.stderr,
-        )
-        for path in offending_paths:
-            print(f"  - {path}", file=sys.stderr)
-        print(
-            "Remove them from the index (e.g. `git rm --cached <path>`) and retry.",
-            file=sys.stderr,
-        )
-        return 1
-
-    return 0
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def main(args: list[str] | None = None) -> int:
     """Run the updater manually for testing purposes."""
 
-    if check_no_pycache_staged() != 0:
+    shared = _load_shared_module()
+    if shared.check_no_pycache_staged() != 0:
         return 1
 
     args = args if args is not None else sys.argv[1:]

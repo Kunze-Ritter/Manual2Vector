@@ -10,14 +10,12 @@ Route::get('/', function () {
 
 Route::middleware(['web', 'auth'])->prefix('kradmin')->group(function () {
     Route::post('/ai-chat/stream', function (Request $request) {
-        $sessionId = $request->input('session_id');
-        $message = $request->input('message');
-
-        if (!$sessionId || !$message) {
-            abort(400, 'Missing session_id or message');
-        }
+        $validated = $request->validate([
+            'session_id' => 'required|string|max:255',
+            'message'    => 'required|string|max:2000',
+        ]);
 
         $service = app(AiAgentService::class);
-        return $service->chatStream($message, $sessionId);
+        return $service->chatStream($validated['message'], $validated['session_id']);
     })->name('ai-chat.stream');
 });

@@ -67,6 +67,8 @@ class FirecrawlTestPage extends Page implements HasForms
             $url = (string) ($this->formData['testUrl'] ?? '');
             $type = (string) ($this->formData['testType'] ?? 'scrape');
 
+            $this->validateScrapeUrl($url);
+
             $result = match ($type) {
                 'crawl' => $service->crawlViaBackend($url, $options),
                 'extract' => $service->extractViaBackend($url, $schema, $options),
@@ -93,6 +95,41 @@ class FirecrawlTestPage extends Page implements HasForms
                 ->send();
         } finally {
             $this->isLoading = false;
+        }
+    }
+
+    /**
+     * Validates a URL against SSRF attack vectors.
+     * Blocks private IPs, localhost, link-local and cloud-metadata endpoints.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validateScrapeUrl(string $url): void
+    {
+        $parsed = parse_url($url);
+        $scheme = strtolower($parsed['scheme'] ?? '');
+
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            throw new \InvalidArgumentException('Nur HTTP(S) URLs sind erlaubt.');
+        }
+
+        $host = strtolower($parsed['host'] ?? '');
+
+        $blockedHosts = [
+            'localhost', '127.0.0.1', '0.0.0.0', '::1',
+            '169.254.169.254',    // AWS / GCP / Azure Metadata
+            'metadata.google.internal',
+        ];
+
+        if (in_array($host, $blockedHosts, true)) {
+            throw new \InvalidArgumentException('Interne oder Metadaten-URLs sind nicht erlaubt.');
+        }
+
+        // Block private / reserved IP ranges
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                throw new \InvalidArgumentException('Private IP-Adressen sind nicht erlaubt.');
+            }
         }
     }
 
@@ -138,17 +175,21 @@ class FirecrawlTestPage extends Page implements HasForms
                     Forms\Components\TextInput::make('testUrl')
                         ->label('URL')
                         ->placeholder('https://example.com')
+                        ->url()
+                        ->maxLength(2048)
                         ->required(),
                     Forms\Components\Textarea::make('testOptions')
                         ->label('Options (JSON)')
                         ->placeholder('{"blockMedia": true}')
                         ->rows(5)
+                        ->maxLength(10000)
                         ->dehydrateStateUsing(fn ($state) => $this->decodeJson($state))
                         ->afterStateHydrated(fn ($component, $state) => $component->state($this->encodeJson($state))),
                     Forms\Components\Textarea::make('testSchema')
                         ->label('Schema (JSON)')
                         ->placeholder('{"title": "string"}')
                         ->rows(6)
+                        ->maxLength(10000)
                         ->visible(fn (Forms\Get $get) => $get('testType') === 'extract')
                         ->dehydrateStateUsing(fn ($state) => $this->decodeJson($state))
                         ->afterStateHydrated(fn ($component, $state) => $component->state($this->encodeJson($state))),

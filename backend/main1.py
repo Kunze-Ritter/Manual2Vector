@@ -65,7 +65,6 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 
 # Import services
-from services.database_service import DatabaseService
 from services.object_storage_service import ObjectStorageService
 from services.database_factory import create_database_adapter
 from services.storage_factory import create_storage_service

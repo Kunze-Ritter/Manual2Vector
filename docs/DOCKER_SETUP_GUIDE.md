@@ -972,7 +972,7 @@ mc mirror ./downloads/parts/ local/parts-images/
 UPDATE krai_content.images 
 SET storage_url = REPLACE(
   storage_url, 
-  'https://pub-xxx.r2.dev', 
+  'https://old-storage-url', 
   'http://localhost:9000/images'
 );
 ```
@@ -983,7 +983,7 @@ SET storage_url = REPLACE(
 |--------------|--------------|-------|
 | `SUPABASE_URL` | `DATABASE_URL` | Use PostgreSQL connection string |
 | `SUPABASE_ANON_KEY` | Not needed | Local setup doesn't use auth keys |
-| Legacy `R2_*` variables | `OBJECT_STORAGE_*` | See `docs/MIGRATION_R2_TO_MINIO.md` |
+| Legacy object storage variables | `OBJECT_STORAGE_*` | See `docs/MIGRATION_R2_TO_MINIO.md` |
 | `OLLAMA_URL` | `AI_SERVICE_URL` | Same value, different name |
 
 ### Migration Script
@@ -1013,8 +1013,8 @@ docker exec -i krai-postgres psql -U krai_user -d krai < supabase_backup.sql
 # 6. Upload files to MinIO
 echo "📤 Uploading files to MinIO..."
 python scripts/init_minio.py
-mc mirror ./r2_downloads/documents/ local/documents/
-mc mirror ./r2_downloads/parts/ local/parts-images/
+mc mirror ./old_storage_downloads/documents/ local/documents/
+mc mirror ./old_storage_downloads/parts/ local/parts-images/
 
 # 7. Update database URLs
 echo "🔄 Updating storage URLs in database..."

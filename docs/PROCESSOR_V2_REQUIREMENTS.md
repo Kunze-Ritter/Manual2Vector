@@ -258,7 +258,7 @@ def improved_chunking(text: str, max_chunk_size=1000, overlap=100):
 **New Pipeline:**
 
 ```
-1. PDF Upload → R2 Storage
+1. PDF Upload → Object Storage (MinIO)
    ↓
 2. Text Extraction (PyMuPDF/pdfplumber - NO AI Vision for text!)
    ↓
@@ -417,7 +417,7 @@ GROUP BY confidence_range;
 
 ### Phase 1: Prep
 - [ ] Complete DB cleanup (TRUNCATE all tables)
-- [ ] R2 storage cleanup or new bucket
+- [ ] Object storage cleanup or new bucket
 - [ ] Backup any PDFs we want to reprocess
 
 ### Phase 2: Code

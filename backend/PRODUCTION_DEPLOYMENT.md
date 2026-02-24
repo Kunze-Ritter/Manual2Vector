@@ -37,7 +37,7 @@ API_WORKERS=4
 LOG_LEVEL=INFO
 ```
 
-> Migration note: legacy `R2_*` variables are no longer supported. The backend now fails startup if any `R2_*` or `UPLOAD_*_TO_R2` variables are present. Use only `OBJECT_STORAGE_*` keys and follow `docs/MIGRATION_R2_TO_MINIO.md` for migration details.
+> The backend uses only `OBJECT_STORAGE_*` variables. See `docs/MIGRATION_R2_TO_MINIO.md` if migrating from a previous storage configuration.
 
 ### **2. Database Migrations**
 ✅ **Run ALL migrations 01-34 in Supabase:**
@@ -357,7 +357,7 @@ ollama pull embeddinggemma
 **3. Object Storage Upload Failed**
 - Verify `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY`
 - Check bucket names and access policy (`OBJECT_STORAGE_BUCKET_*`)
-- Remove any legacy `R2_*`/`UPLOAD_*_TO_R2` variables (backend startup fails if present)
+- Ensure no legacy storage variables are present (backend startup validates configuration)
 
 ---
 

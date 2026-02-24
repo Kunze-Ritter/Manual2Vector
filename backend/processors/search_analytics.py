@@ -43,7 +43,10 @@ class SearchAnalytics:
 
         try:
             if loop and loop.is_running():
-                loop.create_task(coro)
+                task = loop.create_task(coro)
+                task.add_done_callback(
+                    lambda t: t.exception() if not t.cancelled() and t.exception() else None
+                )
                 return True
             asyncio.run(coro)
             return True

@@ -30,7 +30,7 @@ class MonitoringService
      */
     private function createHttpClient()
     {
-        return Http::timeout(10)
+        return Http::timeout(config('krai.monitoring.timeout', 10))
             ->withHeaders($this->buildHeaders());
     }
 
@@ -574,58 +574,62 @@ class MonitoringService
         $ttl = config('krai.monitoring.cache_ttl.dashboard', 120);
 
         return $this->deduplicatedRequest($cacheKey, $ttl, function () use ($endpoints, $cacheKey, $ttl) {
-            return Cache::remember($cacheKey, $ttl, function () use ($endpoints) {
-                try {
-                    $responses = Http::pool(function (Pool $pool) use ($endpoints) {
-                        $headers = $this->buildHeaders();
-                        $requests = [];
+            $lock = Cache::lock('lock.' . $cacheKey, 30);
 
-                        foreach ($endpoints as $name => $path) {
-                            $requests[] = $pool->as($name)->withHeaders($headers)->timeout(10)->get("{$this->baseUrl}{$path}");
+            return $lock->get(function () use ($endpoints, $cacheKey, $ttl) {
+                return Cache::remember($cacheKey, $ttl, function () use ($endpoints) {
+                    try {
+                        $responses = Http::pool(function (Pool $pool) use ($endpoints) {
+                            $headers = $this->buildHeaders();
+                            $requests = [];
+
+                            foreach ($endpoints as $name => $path) {
+                                $requests[] = $pool->as($name)->withHeaders($headers)->timeout(config('krai.monitoring.timeout', 10))->get("{$this->baseUrl}{$path}");
+                            }
+
+                            return $requests;
+                        });
+
+                        $result = [];
+
+                        foreach ($responses as $name => $response) {
+                            if ($response->successful()) {
+                                $json = $response->json();
+                                $result[$name] = [
+                                    'success' => true,
+                                    'data' => $json['data'] ?? $json,
+                                    'error' => null,
+                                ];
+                            } else {
+                                Log::error('Failed batch monitoring request', [
+                                    'endpoint' => $name,
+                                    'status' => $response->status(),
+                                    'body' => $response->body(),
+                                ]);
+
+                                $result[$name] = [
+                                    'success' => false,
+                                    'data' => [],
+                                    'error' => "HTTP {$response->status()}: {$response->body()}",
+                                ];
+                            }
                         }
 
-                        return $requests;
-                    });
+                        return $result;
+                    } catch (\Exception $e) {
+                        Log::error('Exception during batch monitoring request', [
+                            'message' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
 
-                    $result = [];
-
-                    foreach ($responses as $name => $response) {
-                        if ($response->successful()) {
-                            $json = $response->json();
-                            $result[$name] = [
-                                'success' => true,
-                                'data' => $json['data'] ?? $json,
-                                'error' => null,
-                            ];
-                        } else {
-                            Log::error('Failed batch monitoring request', [
-                                'endpoint' => $name,
-                                'status' => $response->status(),
-                                'body' => $response->body(),
-                            ]);
-
-                            $result[$name] = [
-                                'success' => false,
-                                'data' => [],
-                                'error' => "HTTP {$response->status()}: {$response->body()}",
-                            ];
-                        }
+                        return [
+                            'success' => false,
+                            'data' => [],
+                            'error' => $e->getMessage(),
+                        ];
                     }
-
-                    return $result;
-                } catch (\Exception $e) {
-                    Log::error('Exception during batch monitoring request', [
-                        'message' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-
-                    return [
-                        'success' => false,
-                        'data' => [],
-                        'error' => $e->getMessage(),
-                    ];
-                }
-            });
+                });
+            }) ?? Cache::get($cacheKey) ?? ['success' => false, 'data' => [], 'error' => 'Cache lock timeout'];
         });
     }
 

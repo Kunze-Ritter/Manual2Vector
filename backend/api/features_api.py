@@ -1,4 +1,4 @@
-"""
+﻿"""
 Features API for KR-AI-Engine
 FastAPI endpoints for features management and inheritance
 """
@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from datetime import datetime
 
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 from services.features_service import FeaturesService
 
 class FeaturesAPI:
@@ -25,7 +25,7 @@ class FeaturesAPI:
     - PUT /features/product/{product_id}: Update product features
     """
     
-    def __init__(self, database_service: DatabaseService, features_service: FeaturesService):
+    def __init__(self, database_service: DatabaseAdapter, features_service: FeaturesService):
         self.database_service = database_service
         self.features_service = features_service
         self.logger = logging.getLogger("krai.api.features")
@@ -222,3 +222,4 @@ class FeaturesAPI:
                     'error': str(e),
                     'timestamp': datetime.utcnow().isoformat()
                 }
+

@@ -9,6 +9,7 @@ use App\Services\BackendApiService;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use UnitEnum;
 
 class PipelineErrorResource extends Resource
@@ -62,13 +63,14 @@ class PipelineErrorResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::active()->count();
+        return (string) static::getModel()::active()->count();
     }
 
     public static function getNavigationBadgeColor(): ?string
     {
-        $count = static::getModel()::active()->count();
-        return $count > 0 ? 'danger' : 'success';
+        return Cache::remember('pipeline_error.active_count_color', 20, function () {
+            return static::getModel()::active()->count() > 0 ? 'danger' : 'success';
+        });
     }
 
     public static function getStatusBadgeColor(string $status): string

@@ -365,7 +365,7 @@ JSON:"""
                             obj = json.loads(current_obj)
                             objects.append(obj)
                             self.logger.info(f"   ✅ Recovered 1 complete object from partial JSON")
-                        except:
+                        except (json.JSONDecodeError, ValueError):
                             pass
                         current_obj = ""
                         continue
@@ -393,9 +393,9 @@ JSON:"""
                     obj = json.loads(test_str)
                     self.logger.info(f"   ✅ Recovered partial object (truncated at char {end})")
                     return obj
-                except:
+                except (json.JSONDecodeError, ValueError):
                     continue
-        except:
+        except Exception:
             pass
         
         # If all else fails, return empty dict

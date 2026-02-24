@@ -48,7 +48,10 @@
                                     <div class="flex justify-start">
                                         <div class="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg p-3 max-w-[80%] shadow-sm">
                                             <div class="text-sm prose dark:prose-invert prose-sm max-w-none">
-                                                {!! \Illuminate\Support\Str::markdown($message['content'] ?? '') !!}
+                                                {!! \Illuminate\Support\Str::markdown($message['content'] ?? '', [
+                                                    'html_input' => 'strip',
+                                                    'allow_unsafe_links' => false,
+                                                ]) !!}
                                             </div>
                                             <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                                                 {{ \Carbon\Carbon::parse($message['timestamp'] ?? now())->format('H:i') }}

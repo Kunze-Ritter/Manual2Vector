@@ -51,13 +51,13 @@ from api.middleware.rate_limit_middleware import (
 from api.middleware.request_validation_middleware import RequestValidationMiddleware
 from services.auth_service import AuthService, AuthenticationError
 from services.db_pool import get_pool
+from services.database_adapter import DatabaseAdapter
 from services.database_factory import create_database_adapter
 from services.batch_task_service import BatchTaskService
 from services.transaction_manager import TransactionManager
 
 # Import API routers
-# DISABLED: agent_api requires langchain dependencies that need to be fixed
-# from api.agent_api import create_agent_api
+from api.agent_api import create_agent_api
 from api.routes import documents, products
 from api.routes.error_codes import router as error_codes_router
 from api.routes.videos import router as videos_router
@@ -83,7 +83,12 @@ security_config = get_security_config()
 cors_config = get_cors_config(security_config)
 
 # Security configuration
-SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY environment variable is not set. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -447,13 +452,11 @@ async def get_upload_processor():
 
 async def get_agent_app():
     """Get Agent API app"""
-    # DISABLED: agent_api requires langchain dependencies
-    # global agent_app
-    # if agent_app is None:
-    #     pool = await get_pool()
-    #     agent_app = create_agent_api(pool)
-    # return agent_app
-    raise HTTPException(status_code=503, detail="Agent API temporarily disabled")
+    global agent_app
+    if agent_app is None:
+        pool = await get_pool()
+        agent_app = create_agent_api(pool)
+    return agent_app
 
 
 async def get_batch_task_service() -> BatchTaskService:
@@ -492,11 +495,10 @@ async def get_alert_service() -> AlertService:
     """Return singleton AlertService."""
     global alert_service
     if alert_service is None:
-        # TODO: Replace with direct PostgreSQL connection
-        # adapter = await get_database_adapter()
+        adapter = create_database_adapter()
+        await adapter.connect()
         metrics_svc = await get_metrics_service()
-        # alert_service = AlertService(adapter, metrics_svc)
-        alert_service = AlertService(None, metrics_svc)  # Temporary fix
+        alert_service = AlertService(adapter, metrics_svc)
     return alert_service
 
 
@@ -518,7 +520,13 @@ def get_websocket_manager() -> websocket_api.WebSocketManager:
         websocket_manager = websocket_api.WebSocketManager()
     return websocket_manager
 
-# TODO: Replace database adapter functions with direct PostgreSQL connections
+
+async def get_database_adapter(request: Request) -> DatabaseAdapter:
+    """Provide the shared DatabaseAdapter from app state (initialized at startup)."""
+    adapter = getattr(request.app.state, "db_adapter", None)
+    if adapter is None:
+        raise RuntimeError("Database adapter has not been initialized")
+    return adapter
 
 
 # === PYDANTIC MODELS ===
@@ -569,8 +577,8 @@ async def get_documentation(request: Request):
     credentials = await security_scheme(request)
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
-    ensure_auth_service()
-    claims = await AuthMiddleware(ensure_auth_service())(request, allow_expired=True)
+    auth_svc = await ensure_auth_service()
+    claims = await AuthMiddleware(auth_svc)(request, allow_expired=True)
     if claims.get("role") not in {"admin", "editor"}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     return get_swagger_ui_html(
@@ -585,8 +593,8 @@ async def get_redoc_documentation(request: Request):
     credentials = await security_scheme(request)
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
-    ensure_auth_service()
-    claims = await AuthMiddleware(ensure_auth_service())(request, allow_expired=True)
+    auth_svc = await ensure_auth_service()
+    claims = await AuthMiddleware(auth_svc)(request, allow_expired=True)
     if claims.get("role") not in {"admin", "editor"}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     return get_swagger_ui_html(
@@ -804,6 +812,7 @@ async def upload_document(
 async def startup_events():
     """Initialize shared services and verify default admin user."""
     service = await ensure_auth_service()
+    set_auth_service(service)
     admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
 
     try:
@@ -825,6 +834,11 @@ async def startup_events():
     
     # Initialize db_pool in app.state for API key validation middleware
     app.state.db_pool = pool
+
+    # Initialize shared DatabaseAdapter for status/upload endpoints
+    db_adapter = create_database_adapter()
+    await db_adapter.connect()
+    app.state.db_adapter = db_adapter
     
     try:
         async with pool.acquire() as conn:
@@ -835,6 +849,10 @@ async def startup_events():
     await get_batch_task_service()
     await get_transaction_manager()
     logger.info("Batch services initialized with asyncpg pool")
+    
+    # Initialize Agent API router with the live pool
+    agent_router = create_agent_api(pool)
+    app.include_router(agent_router)
     
     # Initialize monitoring services
     metrics_svc = await get_metrics_service()
@@ -855,6 +873,25 @@ async def startup_events():
     )
 
 
+@app.on_event("shutdown")
+async def shutdown_events():
+    """Clean up resources on shutdown."""
+    from services.db_pool import close_pool
+
+    if hasattr(app.state, "db_adapter"):
+        try:
+            await app.state.db_adapter.disconnect()
+        except Exception as exc:
+            logger.warning("Error closing db_adapter on shutdown: %s", exc)
+
+    try:
+        await close_pool()
+    except Exception as exc:
+        logger.warning("Error closing db_pool on shutdown: %s", exc)
+
+    logger.info("Application shutdown complete")
+
+
 @app.post("/upload/directory", tags=["Upload"])
 @limiter.limit(rate_limit_upload_dynamic)
 async def upload_directory(
@@ -863,9 +900,8 @@ async def upload_directory(
     document_type: str = "service_manual",
     recursive: bool = False,
     force_reprocess: bool = False,
-    current_user: dict = Depends(require_permission('documents:write'))
-    # TODO: Replace with direct PostgreSQL connection
-    # adapter: DatabaseAdapter = Depends(get_database_adapter)
+    current_user: dict = Depends(require_permission('documents:write')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ):
     """
     Upload all PDFs from a directory
@@ -884,10 +920,9 @@ async def upload_directory(
     if not directory.exists() or not directory.is_dir():
         raise HTTPException(status_code=404, detail="Directory not found")
     
-    # BatchUploadProcessor accepts adapter
     batch_processor = BatchUploadProcessor(adapter, max_file_size_mb=500)
     
-    results = batch_processor.process_directory(
+    results = await batch_processor.process_directory(
         directory=directory,
         document_type=document_type,
         recursive=recursive,
@@ -904,9 +939,8 @@ async def upload_directory(
 async def get_document_status(
     request: Request,
     document_id: str,
-    current_user: dict = Depends(require_permission('documents:read'))
-    # TODO: Replace with direct PostgreSQL connection
-    # adapter: DatabaseAdapter = Depends(get_database_adapter)
+    current_user: dict = Depends(require_permission('documents:read')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ):
     """
     Get processing status for a document
@@ -918,78 +952,85 @@ async def get_document_status(
         Current processing status
     """
     try:
-        # Get document using adapter
         doc = await adapter.get_document(document_id)
         
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        # Return proper ProcessingStatus model
-        # For now, use basic status from document processing_status field
-        processing_status = doc.get('processing_status', 'unknown')
+        # DocumentModel or dict-like from adapter
+        status_val = getattr(doc, "processing_status", None) or (doc.get("processing_status") if isinstance(doc, dict) else None) or "unknown"
+        if hasattr(status_val, "value"):
+            status_val = status_val.value
+        created = getattr(doc, "created_at", None) or (doc.get("created_at") if isinstance(doc, dict) else None)
+        updated = getattr(doc, "updated_at", None) or (doc.get("updated_at") if isinstance(doc, dict) else None)
+        started_at = created.isoformat() if created else None
+        completed_at = updated.isoformat() if (updated and status_val == "completed") else None
         
         return ProcessingStatus(
             document_id=document_id,
-            status=processing_status,
-            current_stage='unknown',  # Stage tracking not available in PostgreSQL-only mode
-            progress=100.0 if processing_status == 'completed' else 0.0,
-            started_at=doc.get('created_at'),
-            completed_at=doc.get('updated_at') if processing_status == 'completed' else None,
+            status=str(status_val),
+            current_stage="unknown",
+            progress=100.0 if status_val == "completed" else 0.0,
+            started_at=started_at,
+            completed_at=completed_at,
             error=None,
-            stage_status={}  # Empty stage status for now
+            stage_status={},
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/status/pipeline", tags=["Status"])
 async def get_pipeline_status(
-    current_user: dict = Depends(require_permission('documents:read'))
-    # TODO: Replace with direct PostgreSQL connection
-    # adapter: DatabaseAdapter = Depends(get_database_adapter)
+    current_user: dict = Depends(require_permission('documents:read')),
+    adapter: DatabaseAdapter = Depends(get_database_adapter),
 ):
     """
     Get overall pipeline status
-    
+
     Returns:
         Statistics for all pipeline stages
     """
     try:
-        # TODO: Replace with direct PostgreSQL connection
-        # Get all documents using direct table
-        # documents = await adapter.execute_query(
-        #     "SELECT id, filename, processing_status, created_at FROM krai_core.documents",
-        #     []
-        # )
-        
-        # Get queue
-        # queue = await adapter.execute_query(
-        #     "SELECT * FROM krai_core.processing_queue",
-        #     []
-        # )
-        
-        # TODO: Replace with direct PostgreSQL connection
-        # For now, return empty stats
+        prefix = getattr(adapter, "schema_prefix", "krai")
+        core_schema = f"{prefix}_core"
+        system_schema = f"{prefix}_system"
+        documents = await adapter.execute_query(
+            f"SELECT id, filename, processing_status, created_at FROM {core_schema}.documents",
+            None,
+        )
+        queue = await adapter.execute_query(
+            f"SELECT * FROM {system_schema}.processing_queue",
+            None,
+        )
+        doc_list = documents if isinstance(documents, list) else []
+        queue_list = queue if isinstance(queue, list) else []
+        by_status = {}
+        for d in doc_list:
+            row = d if isinstance(d, dict) else (getattr(d, "__dict__", None) or {})
+            ps = row.get("processing_status") if isinstance(row, dict) else getattr(d, "processing_status", None)
+            if hasattr(ps, "value"):
+                ps = ps.value
+            by_status[ps] = by_status.get(ps, 0) + 1
+        task_types = [
+            "text_extraction", "image_processing", "classification",
+            "metadata_extraction", "storage", "embedding", "search",
+        ]
+        by_task_type = {t: sum(1 for q in queue_list if (q.get("task_type") if isinstance(q, dict) else getattr(q, "task_type", None)) == t) for t in task_types}
         stats = {
-            "total_documents": 0,
-            "in_queue": 0,
-            "processing": 0,
-            "completed": 0,
-            "failed": 0,
-            "by_task_type": {}
+            "total_documents": len(doc_list),
+            "in_queue": by_status.get("pending", 0) + len(queue_list),
+            "processing": by_status.get("processing", 0),
+            "completed": by_status.get("completed", 0),
+            "failed": by_status.get("failed", 0),
+            "by_task_type": by_task_type,
         }
-        
-        # Count by task_type from queue
-        # task_types = ["text_extraction", "image_processing", "classification",
-        #               "metadata_extraction", "storage", "embedding", "search"]
-        # 
-        # for task_type in task_types:
-        #     count = len([q for q in queue if q.get("task_type") == task_type])
-        #     stats["by_task_type"][task_type] = count
-        
         return stats
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1123,25 +1164,6 @@ app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Mo
 
 # Mount WebSocket API
 app.include_router(websocket_api.router, tags=["WebSocket"])
-
-# Add Agent API endpoints directly
-@app.get("/agent/health")
-async def agent_health():
-    """Agent health check endpoint"""
-    return {
-        "status": "healthy",
-        "agent": "KRAI AI Agent",
-        "version": "1.0.0"
-    }
-
-@app.post("/agent/chat")
-async def agent_chat(message: dict):
-    """Agent chat endpoint"""
-    return {
-        "response": "Agent chat endpoint is working!",
-        "message": message.get("message", ""),
-        "agent": "KRAI AI Agent"
-    }
 
 # Custom OpenAPI schema
 def custom_openapi():

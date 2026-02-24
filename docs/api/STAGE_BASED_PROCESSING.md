@@ -473,7 +473,7 @@ function processWithRetry($documentId, $stage, $maxRetries = 3)
 
 - **Memory:** 100-500MB per stage depending on document size
 - **CPU:** High during image processing and embedding generation
-- **Storage:** Thumbnails stored in configured object storage (MinIO, S3, R2)
+- **Storage:** Thumbnails stored in configured object storage (MinIO or S3-compatible storage)
 - **Network:** Video enrichment requires external API calls
 
 ## Monitoring and Logging

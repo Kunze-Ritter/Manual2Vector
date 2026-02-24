@@ -136,15 +136,15 @@ async def list_documents(
             where_clauses.append(f"manufacturer_id = ${param_count}")
             params.append(filters.manufacturer_id)
         
-        if filters.status:
+        if filters.processing_status:
             param_count += 1
-            where_clauses.append(f"status = ${param_count}")
-            params.append(filters.status)
-        
+            where_clauses.append(f"processing_status = ${param_count}")
+            params.append(filters.processing_status)
+
         where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        
+
         # Apply sorting
-        order_clause = f" ORDER BY {sort.sort_by} {sort.order.value}"
+        order_clause = f" ORDER BY {sort.sort_by} {sort.sort_order.value}"
         
         # Apply pagination
         offset = (pagination.page - 1) * pagination.page_size
@@ -596,21 +596,21 @@ async def get_document_stages(
                 error_code="DOCUMENT_NOT_FOUND"
             )
         
-        doc = result[0]
+        doc = dict(result)
         stage_status_jsonb = doc.get("stage_status", {})
-        
+
         # Parse stages
         stages = _parse_stage_status(stage_status_jsonb)
-        
+
         # Check if any failed stages can be retried
         can_retry = any(
             stage.status == StageStatus.FAILED
             for stage in stages.values()
         )
-        
+
         # Get overall progress (default to 0 if function returns None)
         overall_progress = doc.get("overall_progress") or 0.0
-        
+
         # Get current stage (default to first stage if None)
         current_stage = doc.get("current_stage") or CANONICAL_STAGES[0]
         
@@ -679,7 +679,7 @@ async def retry_document_stage(
                 error_code="DOCUMENT_NOT_FOUND"
             )
         
-        doc = result[0]
+        doc = dict(result)
         stage_status_jsonb = doc.get("stage_status", {})
         
         # Check if stage is failed

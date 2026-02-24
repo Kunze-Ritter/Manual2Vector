@@ -588,29 +588,30 @@ class ImageProcessor(BaseProcessor):
             
             image_counter = 0
             
-            # Iterate through pages
-            for page_num in range(len(pdf_document)):
-                page = pdf_document[page_num]
-                
-                # Get images on page
-                image_list = page.get_images(full=True)
-                
-                for img_index, img_info in enumerate(image_list):
-                    if image_counter >= self.max_images_per_doc:
-                        self.logger.warning(f"Reached max images limit: {self.max_images_per_doc}")
-                        break
+            try:
+                # Iterate through pages
+                for page_num in range(len(pdf_document)):
+                    page = pdf_document[page_num]
                     
-                    try:
-                        # Extract image
-                        xref = img_info[0]
-                        base_image = pdf_document.extract_image(xref)
+                    # Get images on page
+                    image_list = page.get_images(full=True)
+                    
+                    for img_index, img_info in enumerate(image_list):
+                        if image_counter >= self.max_images_per_doc:
+                            self.logger.warning(f"Reached max images limit: {self.max_images_per_doc}")
+                            break
                         
-                        image_bytes = base_image["image"]
-                        image_ext = base_image["ext"]
-                        
-                        # Open with PIL to get dimensions
-                        pil_image = Image.open(io.BytesIO(image_bytes))
-                        width, height = pil_image.size
+                        try:
+                            # Extract image
+                            xref = img_info[0]
+                            base_image = pdf_document.extract_image(xref)
+                            
+                            image_bytes = base_image["image"]
+                            image_ext = base_image["ext"]
+                            
+                            # Open with PIL to get dimensions
+                            with Image.open(io.BytesIO(image_bytes)) as pil_image:
+                                width, height = pil_image.size
                         
                         # Check minimum size
                         if width * height < self.min_image_size:
@@ -647,8 +648,8 @@ class ImageProcessor(BaseProcessor):
                 
                 if image_counter >= self.max_images_per_doc:
                     break
-            
-            pdf_document.close()
+            finally:
+                pdf_document.close()
             
             return images
             
@@ -1214,14 +1215,16 @@ class ImageProcessor(BaseProcessor):
             
             # Extract page as image
             doc = fitz.open(pdf_path)
-            if page_number >= len(doc):
-                self.logger.warning(f"Page {page_number} out of range (doc has {len(doc)} pages)")
-                return None
-            
-            page = doc[page_number]
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better quality
-            img_data = pix.tobytes("png")
-            doc.close()
+            try:
+                if page_number >= len(doc):
+                    self.logger.warning(f"Page {page_number} out of range (doc has {len(doc)} pages)")
+                    return None
+                
+                page = doc[page_number]
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better quality
+                img_data = pix.tobytes("png")
+            finally:
+                doc.close()
             
             # Analyze with Vision AI
             img_base64 = base64.b64encode(img_data).decode('utf-8')

@@ -203,11 +203,11 @@ async def list_products(
             params.append(filters.product_type.value)
 
         if filters.search:
-            param_count += 1
-            where_clauses.append(f"(model_number ILIKE ${param_count} OR model_name ILIKE ${param_count} OR description ILIKE ${param_count})")
             search_term = f"%{filters.search}%"
+            n1, n2, n3 = param_count + 1, param_count + 2, param_count + 3
+            where_clauses.append(f"(model_number ILIKE ${n1} OR model_name ILIKE ${n2} OR description ILIKE ${n3})")
             params.extend([search_term, search_term, search_term])
-            param_count += 2
+            param_count += 3
 
         where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 

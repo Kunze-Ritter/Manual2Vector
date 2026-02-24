@@ -3,6 +3,7 @@
 Automatically processes PDFs from input_pdfs/ folder using KRMasterPipeline with stage-based processing.
 """
 
+import argparse
 import asyncio
 from pathlib import Path
 import sys
@@ -31,7 +32,12 @@ logger.info("")
 class AutoProcessor:
     """Automatically process PDFs with complete pipeline"""
     
-    def __init__(self, input_dir: str = "input_pdfs", processed_dir: str = "processed_pdfs"):
+    def __init__(
+        self,
+        input_dir: str = "input_pdfs",
+        processed_dir: str = "processed_pdfs",
+        move_processed: bool = True,
+    ):
         """Initialize auto processor"""
         self.logger = get_logger()
         
@@ -47,11 +53,15 @@ class AutoProcessor:
         self.logger.info(f"Processed directory: {self.processed_dir}")
         
         self.pipeline = KRMasterPipeline()
-        asyncio.run(self.pipeline.initialize_services())
+        self.move_processed = move_processed
         
         # Create directories if they don't exist
         self.input_dir.mkdir(exist_ok=True)
         self.processed_dir.mkdir(exist_ok=True)
+
+    async def initialize(self) -> None:
+        """Initialize async pipeline services."""
+        await self.pipeline.initialize_services()
     
     def _check_ollama(self):
         """Check if Ollama is running and try to start if not"""
@@ -105,7 +115,7 @@ class AutoProcessor:
         }
         
         # Find all PDFs (including .pdfz compressed)
-        pdf_files = list(self.input_dir.glob("*.pdf")) + list(self.input_dir.glob("*.pdfz"))
+        pdf_files = list(self.input_dir.rglob("*.pdf")) + list(self.input_dir.rglob("*.pdfz"))
         stats['pdfs_found'] = len(pdf_files)
         
         if not pdf_files:
@@ -128,8 +138,9 @@ class AutoProcessor:
                     stats['total_parts_found'] += result.get('parts_found', 0)
                     stats['total_series_created'] += result.get('series_created', 0)
                     
-                    # Move to processed folder
-                    self._move_to_processed(pdf_path)
+                    if self.move_processed:
+                        # Move to processed folder
+                        self._move_to_processed(pdf_path)
                 else:
                     stats['pdfs_failed'] += 1
                     self.logger.error(f"Failed: {result.get('error')}")
@@ -155,82 +166,38 @@ class AutoProcessor:
     async def process_single_pdf(self, pdf_path: Path) -> Dict:
         """
         Process single PDF with complete pipeline
-        
+
         Args:
             pdf_path: Path to PDF file
-            
+
         Returns:
             Dict with result
         """
-        result = {
-            'success': False,
-            'document_id': None,
-            'parts_found': 0,
-            'series_created': 0
-        }
-        
         try:
-            # STAGE 1-5: Document Processing (Text, Images, Classification, Error Codes)
-            self.logger.info("STAGE 1-5: Document Processing")
-            self.logger.info("-" * 80)
-            
-            stages_1_5 = [Stage.UPLOAD, Stage.TEXT_EXTRACTION, Stage.TABLE_EXTRACTION, Stage.IMAGE_PROCESSING, Stage.CLASSIFICATION]
-            doc_result = await self.pipeline.run_stages(None, stages_1_5, pdf_path=pdf_path)
+            full_result = await self.pipeline.process_single_document_full_pipeline(
+                str(pdf_path),
+                1,
+                1,
+            )
 
-            if not doc_result or not doc_result.get('success'):
-                result['error'] = doc_result.get('error', 'Unknown error') if doc_result else 'Unknown error'
-                return result
-
-            document_id = doc_result['stage_results'][-1].get('document_id')
-            result['document_id'] = document_id
-            
-            self.logger.info(f"✅ Document Processing Complete")
-            self.logger.info(f"   - Document ID: {document_id}")
-            
-            # Extract metadata from final stage result
-            final_stage_result = doc_result['stage_results'][-1]
-            page_count = final_stage_result.get('metadata', {}).get('page_count', 0)
-            error_codes = final_stage_result.get('error_codes', [])
-            
-            self.logger.info(f"   - Pages: {page_count}")
-            self.logger.info(f"   - Error Codes: {len(error_codes)}")
-            self.logger.info("")
-            
-            # STAGE 6-7: Pipeline Processing (Parts + Series)
-            self.logger.info("STAGE 6-7: Parts & Series Processing")
-            self.logger.info("-" * 80)
-            
-            # Delay to ensure document is committed to DB
-            self.logger.debug("Waiting for document to be committed to DB...")
-            await asyncio.sleep(3)
-            
-            stages_6_7 = [Stage.PARTS_EXTRACTION, Stage.SERIES_DETECTION]
-            pipeline_result = await self.pipeline.run_stages(document_id, stages_6_7)
-            
-            if pipeline_result.get('success'):
-                result['success'] = True
-                # Extract parts and series from stage results
-                parts_stage = next((s for s in pipeline_result['stage_results'] if s.get('stage') == 'parts_extraction'), {})
-                series_stage = next((s for s in pipeline_result['stage_results'] if s.get('stage') == 'series_detection'), {})
-                result['parts_found'] = parts_stage.get('parts_found', 0)
-                result['series_created'] = series_stage.get('series_created', 0)
-            else:
-                result['error'] = pipeline_result.get('error', 'Pipeline failed')
-            
-            # STAGE 8: Video Enrichment (Background)
-            if final_stage_result.get('statistics', {}).get('videos_count', 0) > 0:
-                self.logger.info("")
-                self.logger.info("STAGE 8: Video Enrichment (Background)")
-                self.logger.info("-" * 80)
-                self._enrich_videos_background()
-            
+            result = {
+                'success': bool(full_result.get('success')),
+                'document_id': full_result.get('document_id'),
+                'parts_found': int(full_result.get('parts_found', 0) or 0),
+                'series_created': int(full_result.get('series_created', 0) or 0),
+            }
+            if not result['success']:
+                result['error'] = full_result.get('error', 'Unknown error')
             return result
-            
         except Exception as e:
-            result['error'] = str(e)
             self.logger.error(f"Error in process_single_pdf: {e}")
-            return result
-    
+            return {
+                'success': False,
+                'document_id': None,
+                'parts_found': 0,
+                'series_created': 0,
+                'error': str(e),
+            }
     def _enrich_videos_background(self):
         """Enrich videos in background (non-blocking)"""
         import subprocess
@@ -286,7 +253,22 @@ class AutoProcessor:
 
 async def main():
     """Run auto processor"""
-    processor = AutoProcessor()
+    parser = argparse.ArgumentParser(description="Auto-process PDFs with KRMasterPipeline")
+    parser.add_argument("--input-dir", default="input_pdfs", help="Directory containing PDFs")
+    parser.add_argument("--processed-dir", default="processed_pdfs", help="Directory for processed PDFs")
+    parser.add_argument(
+        "--no-move",
+        action="store_true",
+        help="Do not move successfully processed PDFs out of input directory",
+    )
+    args = parser.parse_args()
+
+    processor = AutoProcessor(
+        input_dir=args.input_dir,
+        processed_dir=args.processed_dir,
+        move_processed=not args.no_move,
+    )
+    await processor.initialize()
     stats = await processor.process_all_pdfs()
     
     print("\n" + "=" * 80)
@@ -299,3 +281,4 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+

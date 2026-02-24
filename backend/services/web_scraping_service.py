@@ -710,9 +710,22 @@ class WebScrapingService:
             result = await backend.scrape_url(url, options)
         except FirecrawlUnavailableError as exc:
             result = await self._handle_fallback("scrape_url", url, options, exc)
+        else:
+            # If the primary backend failed and no specific backend was forced,
+            # try the fallback (e.g. Firecrawl InternalServerError → BeautifulSoup).
+            if not result.get("success") and not force_backend and self._fallback_backend:
+                self._logger.warning(
+                    "Primary backend %s failed for %s, trying fallback %s",
+                    backend.backend_name,
+                    url,
+                    self._fallback_backend.backend_name,
+                )
+                self._fallback_count += 1
+                result = await self._fallback_backend.scrape_url(url, options)
         duration = asyncio.get_event_loop().time() - start
+        status = "completed" if result.get("success") else "failed"
         self._logger.info(
-            "Scrape completed using %s in %.2fs", result.get("backend"), duration
+            "Scrape %s using %s in %.2fs", status, result.get("backend"), duration
         )
         return result
 

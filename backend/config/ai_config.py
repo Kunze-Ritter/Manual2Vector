@@ -4,11 +4,14 @@ Intelligente Modell-Auswahl basierend auf verfügbarer Hardware
 """
 
 import os
+import logging
 import psutil
 import platform
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 class ModelTier(Enum):
     """Model Performance Tiers"""
@@ -104,8 +107,8 @@ class HardwareDetector:
                 if result.returncode == 0:
                     print(f"   [OK] NVIDIA GPU detected via nvidia-smi")
                     gpu_found = True
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"nvidia-smi detection failed: {e}")
         
         # Method 3: Check Intel GPU (Windows)
         if not gpu_found:
@@ -116,8 +119,8 @@ class HardwareDetector:
                 if result.returncode == 0 and 'Intel' in result.stdout:
                     print(f"   [OK] Intel GPU detected via wmic")
                     gpu_found = True
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Intel GPU detection via wmic failed: {e}")
         
         # Method 4: Check AMD GPU (Windows)
         if not gpu_found:
@@ -128,8 +131,8 @@ class HardwareDetector:
                 if result.returncode == 0 and any(keyword in result.stdout for keyword in ['AMD', 'Radeon']):
                     print(f"   [OK] AMD GPU detected via wmic")
                     gpu_found = True
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"AMD GPU detection via wmic failed: {e}")
         
         # Method 5: Generic GPU detection (Windows)
         if not gpu_found:
@@ -142,8 +145,8 @@ class HardwareDetector:
                     if gpu_lines:
                         print(f"   [OK] GPU detected via wmic: {gpu_lines[0]}")
                         gpu_found = True
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Generic GPU detection via wmic failed: {e}")
         
         if not gpu_found:
             print(f"   [NO] No GPU detected")
@@ -159,21 +162,21 @@ class HardwareDetector:
                 memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
                 print(f"   [MEM] GPU Memory: {memory_gb:.1f} GB (CUDA)")
                 return memory_gb
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"CUDA GPU memory detection failed: {e}")
         
         # Method 2: nvidia-smi
         try:
             import subprocess
-            result = subprocess.run(['nvidia-smi', '--query-gpu=memory.total', '--format=csv,noheader,nounits'], 
+            result = subprocess.run(['nvidia-smi', '--query-gpu=memory.total', '--format=csv,noheader,nounits'],
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 memory_mb = int(result.stdout.strip())
                 memory_gb = memory_mb / 1024
                 print(f"   [MEM] GPU Memory: {memory_gb:.1f} GB (nvidia-smi)")
                 return memory_gb
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"nvidia-smi memory detection failed: {e}")
         
         # Method 3: wmic (Windows) - estimate based on GPU name
         try:
@@ -189,8 +192,8 @@ class HardwareDetector:
                     elif 'Name' not in line and any(keyword in line for keyword in ['AMD', 'Radeon']):
                         print(f"   [MEM] GPU Memory: ~4.0 GB (AMD GPU estimate)")
                         return 4.0
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"wmic GPU memory detection failed: {e}")
         
         print(f"   [MEM] GPU Memory: Unknown")
         return None
@@ -204,20 +207,20 @@ class HardwareDetector:
                 gpu_name = torch.cuda.get_device_name(0)
                 print(f"   [GPU] GPU Name: {gpu_name} (CUDA)")
                 return gpu_name
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"CUDA GPU name detection failed: {e}")
         
         # Method 2: nvidia-smi
         try:
             import subprocess
-            result = subprocess.run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'], 
+            result = subprocess.run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'],
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 gpu_name = result.stdout.strip()
                 print(f"   [GPU] GPU Name: {gpu_name} (nvidia-smi)")
                 return gpu_name
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"nvidia-smi GPU name detection failed: {e}")
         
         # Method 3: wmic (Windows)
         try:
@@ -230,8 +233,8 @@ class HardwareDetector:
                     gpu_name = lines[0]
                     print(f"   [GPU] GPU Name: {gpu_name} (wmic)")
                     return gpu_name
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"wmic GPU name detection failed: {e}")
         
         print(f"   [GPU] GPU Name: Unknown")
         return None
@@ -244,8 +247,8 @@ class HardwareDetector:
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 return result.stdout.strip()
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"nvidia-smi driver version detection failed: {e}")
         return None
     
     def _check_colqwen_requirements(self) -> bool:

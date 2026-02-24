@@ -1,4 +1,4 @@
-"""
+﻿"""
 Multimodal Search Service - Unified search across all content types
 
 Provides unified search across text, images, videos, tables, and links using 
@@ -9,7 +9,7 @@ import logging
 import asyncio
 from typing import List, Dict, Any, Optional
 
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 from services.ai_service import AIService
 
 
@@ -23,7 +23,7 @@ class MultimodalSearchService:
     
     def __init__(
         self,
-        database_service: DatabaseService,
+        database_service: DatabaseAdapter,
         ai_service: AIService,
         default_threshold: float = 0.5,
         default_limit: int = 10
@@ -196,7 +196,7 @@ class MultimodalSearchService:
         """
         Two-stage image retrieval for improved relevance
         
-        Stage 1: Text search → LLM answer generation
+        Stage 1: Text search â†’ LLM answer generation
         Stage 2: Image search with expanded query context
         
         Args:
@@ -455,3 +455,4 @@ class MultimodalSearchService:
                     'ai_service': 'error'
                 }
             }
+

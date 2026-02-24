@@ -8,9 +8,9 @@ Stage 6 of the processing pipeline handles document storage in MinIO (S3-compati
 
 ## ✨ Features
 
-- ✅ **Upload documents to R2** with organized paths
+- ✅ **Upload documents to object storage** with organized paths
 - ✅ **Generate presigned URLs** for temporary access
-- ✅ **Download documents** from R2
+- ✅ **Download documents** from object storage
 - ✅ **Delete documents** with cleanup
 - ✅ **List documents** with filtering
 - ✅ **Storage statistics** (total size, by type)
@@ -52,7 +52,6 @@ OBJECT_STORAGE_BUCKET_DOCUMENTS=krai-documents-images
 2. Create or use an existing access key
 3. Ensure bucket access allows required read/write operations
 4. Copy access key and secret key
-5. Note your R2 endpoint URL (Account ID-based)
 6. Create a bucket (e.g., "krai-documents")
 
 ---
@@ -101,7 +100,7 @@ print(f"Temporary URL: {url}")
 ### Download Document:
 
 ```python
-# Download from R2
+# Download from object storage
 success = storage.download_document(
     storage_path="service_manual/hp/2024/abc-123/manual.pdf",
     local_path=Path("downloads/manual.pdf")
@@ -152,7 +151,7 @@ python processors/test_storage.py
 
 ### Test Coverage:
 
-1. ✅ **Configuration Check** - Validates R2 credentials
+1. ✅ **Configuration Check** - Validates object storage credentials
 2. ✅ **Storage Statistics** - Gets bucket info
 3. ✅ **Upload Document** - Uploads test PDF
 4. ✅ **Presigned URL** - Generates and validates URL
@@ -176,7 +175,8 @@ supabase = create_client(
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 )
 
-storage = StorageProcessor(supabase_client=supabase)
+# (historical: supabase_client parameter removed)
+storage = StorageProcessor()
 
 # Upload will automatically update stage_status
 result = storage.upload_document(
@@ -199,7 +199,8 @@ result = storage.upload_document(
 ```python
 class DocumentPipeline:
     def __init__(self):
-        self.storage = StorageProcessor(supabase_client=self.supabase)
+        # (historical: supabase_client parameter removed)
+        self.storage = StorageProcessor()
     
     def process_document(self, document_id, file_path):
         # ... text extraction, product extraction, etc.
@@ -273,14 +274,14 @@ parts_catalog/hp/          → HP parts catalogs
 ### Access Control:
 
 - ✅ Use presigned URLs for temporary access
-- ✅ Keep R2 credentials in `.env` (never commit)
+- ✅ Keep object storage credentials in `.env` (never commit)
 - ✅ Use separate buckets for different access levels
 - ✅ Enable bucket versioning for recovery
 - ✅ Set up lifecycle rules for old files
 
 ### Bucket Policies:
 
-Recommended R2 bucket setup:
+Recommended bucket setup:
 - **Private by default** - No public access
 - **Presigned URLs only** - Temporary access
 - **CORS enabled** - If serving to frontend
@@ -299,7 +300,7 @@ Recommended R2 bucket setup:
 Upload time depends on:
 - File size
 - Network speed
-- R2 region proximity
+- storage region proximity
 - Concurrent uploads
 
 ### Optimization Tips:
@@ -337,7 +338,7 @@ OBJECT_STORAGE_SECRET_KEY=your_secret
 
 ✅ **Solutions:**
 - Check network speed
-- Use closer R2 region
+- Use a closer storage region
 - Implement multipart upload for large files
 - Check if compression would help
 
@@ -349,7 +350,7 @@ Planned features:
 - [ ] Multipart uploads for large files (>100MB)
 - [ ] Upload progress callbacks
 - [ ] Automatic compression
-- [ ] Duplicate detection in R2
+- [ ] Duplicate detection in object storage
 - [ ] Lifecycle management (auto-delete old files)
 - [ ] CDN integration for faster downloads
 - [ ] Image optimization for thumbnails
@@ -363,7 +364,7 @@ Planned features:
 
 ```python
 storage = StorageProcessor(
-    supabase_client=None,      # Optional: For stage tracking
+    # (historical: supabase_client parameter removed)
     bucket_name=None,           # Optional: Override bucket
     endpoint_url=None,          # Optional: Override endpoint
     access_key=None,            # Optional: Override key
@@ -448,7 +449,7 @@ stats = storage.get_storage_statistics() -> Dict[str, Any]
 
 Before deploying to production:
 
-- [ ] R2 credentials configured in `.env`
+- [ ] Object storage credentials configured in `.env`
 - [ ] Bucket created in MinIO
 - [ ] API token has correct permissions
 - [ ] Test upload/download works

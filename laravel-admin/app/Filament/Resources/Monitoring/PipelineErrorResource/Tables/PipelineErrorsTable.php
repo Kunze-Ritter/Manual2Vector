@@ -16,6 +16,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PipelineErrorsTable
@@ -302,40 +303,41 @@ class PipelineErrorsTable
                             $backendSyncedCount = 0;
                             $backendFailedCount = 0;
 
-                            $records->each(function (PipelineError $record) use ($data, $service, &$localCount, &$backendSyncedCount, &$backendFailedCount) {
-                                // Update local database
-                                $record->update([
-                                    'status' => 'resolved',
-                                    'resolved_at' => now(),
-                                    'resolved_by' => auth()->id(),
-                                    'resolution_notes' => $data['resolution_notes'],
-                                ]);
-                                $localCount++;
+                            DB::transaction(function () use ($records, $data, $service, &$localCount, &$backendSyncedCount, &$backendFailedCount) {
+                                $records->each(function (PipelineError $record) use ($data, $service, &$localCount, &$backendSyncedCount, &$backendFailedCount) {
+                                    $record->update([
+                                        'status' => 'resolved',
+                                        'resolved_at' => now(),
+                                        'resolved_by' => auth()->id(),
+                                        'resolution_notes' => $data['resolution_notes'],
+                                    ]);
+                                    $localCount++;
 
-                                // Sync with backend
-                                try {
-                                    $result = $service->markErrorResolved(
-                                        $record->error_id,
-                                        auth()->id(),
-                                        $data['resolution_notes']
-                                    );
+                                    // Sync with backend (outside transaction scope intentionally – backend is external)
+                                    try {
+                                        $result = $service->markErrorResolved(
+                                            $record->error_id,
+                                            auth()->id(),
+                                            $data['resolution_notes']
+                                        );
 
-                                    if ($result['success'] === true) {
-                                        $backendSyncedCount++;
-                                    } else {
+                                        if ($result['success'] === true) {
+                                            $backendSyncedCount++;
+                                        } else {
+                                            $backendFailedCount++;
+                                            Log::warning('Bulk resolve backend sync failed', [
+                                                'error_id' => $record->error_id,
+                                                'error' => $result['error'] ?? 'Unknown error',
+                                            ]);
+                                        }
+                                    } catch (\Exception $e) {
                                         $backendFailedCount++;
-                                        Log::warning('Bulk resolve backend sync failed', [
+                                        Log::error('Bulk resolve backend sync exception', [
                                             'error_id' => $record->error_id,
-                                            'error' => $result['error'] ?? 'Unknown error',
+                                            'exception' => $e->getMessage(),
                                         ]);
                                     }
-                                } catch (\Exception $e) {
-                                    $backendFailedCount++;
-                                    Log::error('Bulk resolve backend sync exception', [
-                                        'error_id' => $record->error_id,
-                                        'exception' => $e->getMessage(),
-                                    ]);
-                                }
+                                });
                             });
 
                             // Show notification based on results

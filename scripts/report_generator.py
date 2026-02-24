@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
+from backend.core.types import Stage
+
 
 class ReportGenerator:
     def __init__(self, output_dir: str):
@@ -24,8 +26,13 @@ class ReportGenerator:
         overall_status = "PASS" if quality_status == "PASS" and not dashboard_failed else "FAIL"
 
         document_ids = test_results.get("document_ids", [])
-        total_stages = len(document_ids) * 15
-        completed_stages = quality_metrics.get("stage_status", {}).get("completed_stages", 0)
+        stage_status_metrics = quality_metrics.get("stage_status", {})
+        expected_stage_records = stage_status_metrics.get("expected_stage_records")
+        dynamic_total_stages = len(document_ids) * len(list(Stage))
+        total_stages = int(expected_stage_records) if expected_stage_records is not None else dynamic_total_stages
+
+        raw_completed_stages = int(stage_status_metrics.get("completed_stages", 0))
+        completed_stages = min(raw_completed_stages, total_stages) if total_stages > 0 else 0
         success_rate = (completed_stages / total_stages) if total_stages > 0 else 0.0
 
         report = {

@@ -359,7 +359,7 @@ class BackendApiService
      */
     private function createHttpClient()
     {
-        return Http::timeout(10)->withHeaders($this->buildHeaders());
+        return Http::timeout(config('krai.default_timeout', 10))->withHeaders($this->buildHeaders());
     }
 
     /**
@@ -412,7 +412,7 @@ class BackendApiService
         }
 
         try {
-            $response = Http::timeout(10)->post("{$this->baseUrl}/api/v1/auth/login", [
+            $response = $this->createHttpClient()->post("{$this->baseUrl}/api/v1/auth/login", [
                 'username' => $username,
                 'password' => $password,
             ]);

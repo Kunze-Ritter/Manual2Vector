@@ -333,12 +333,12 @@ async def check_residual_pii(db: Any) -> Dict[str, Any]:
                 })
     
     logger.info("   Scanning chunks text...")
-    chunk_query = "SELECT id, chunk_text FROM krai_intelligence.chunks WHERE chunk_text IS NOT NULL LIMIT 100"
+    chunk_query = "SELECT id, text_chunk FROM krai_intelligence.chunks WHERE text_chunk IS NOT NULL LIMIT 100"
     chunks = await db.fetch_all(chunk_query)
-    
+
     for chunk in chunks:
-        if chunk['chunk_text']:
-            pii = detector.detect_pii(chunk['chunk_text'])
+        if chunk['text_chunk']:
+            pii = detector.detect_pii(chunk['text_chunk'])
             if pii:
                 results['pii_found'] = True
                 results['findings']['chunks_text'].append({

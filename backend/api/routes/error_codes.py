@@ -258,22 +258,22 @@ async def list_error_codes(
             params.append(filters.requires_parts)
         
         if filters.search:
-            param_count += 1
-            where_clauses.append(f"(error_code ILIKE ${param_count} OR error_description ILIKE ${param_count} OR solution_text ILIKE ${param_count})")
             search_term = f"%{filters.search}%"
+            n1, n2, n3 = param_count + 1, param_count + 2, param_count + 3
+            where_clauses.append(f"(error_code ILIKE ${n1} OR error_description ILIKE ${n2} OR solution_text ILIKE ${n3})")
             params.extend([search_term, search_term, search_term])
-            param_count += 2
-        
+            param_count += 3
+
         where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        
+
         # Apply sorting
         order_direction = "DESC" if sort.sort_order == SortOrder.DESC else "ASC"
         order_clause = f" ORDER BY {sort.sort_by} {order_direction}"
-        
+
         # Apply pagination
         offset = (pagination.page - 1) * pagination.page_size
         limit_clause = f" LIMIT {pagination.page_size} OFFSET {offset}"
-        
+
         # Execute query
         query = f"""
             SELECT *, COUNT(*) OVER() as total_count
@@ -282,10 +282,9 @@ async def list_error_codes(
             {order_clause}
             {limit_clause}
         """
-        
-        async with pool.acquire() as conn:
-            result = await conn.fetch(query, *params)
-        
+
+        result = await adapter.execute_query(query, params)
+
         # Get total count from first row or execute separate count query
         total = 0
         if result:
@@ -293,8 +292,7 @@ async def list_error_codes(
         else:
             # Fallback count query
             count_query = f"SELECT COUNT(*) as count FROM krai_intelligence.error_codes{where_clause}"
-            async with pool.acquire() as conn:
-                count_result = await conn.fetch(count_query, *params)
+            count_result = await adapter.execute_query(count_query, params)
             total = count_result[0].get('count', 0) if count_result else 0
 
         LOGGER.info(

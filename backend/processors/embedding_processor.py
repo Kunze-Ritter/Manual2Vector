@@ -409,11 +409,51 @@ class EmbeddingProcessor(BaseProcessor):
             chunks = getattr(context, 'chunk_data', None)
 
         if chunks is None:
-            return {
-                'success': False,
-                'error': 'No chunks provided for embedding generation',
-                'embeddings_created': 0
-            }
+            # Context carries no chunks (e.g. smart-processing resumption path).
+            # Fall back to fetching un-embedded chunks for this document from the DB.
+            if self.database_adapter:
+                try:
+                    rows = await self.database_adapter.execute_query(
+                        """
+                        SELECT id AS chunk_id, text_chunk AS text, chunk_index, page_start,
+                               page_end, metadata
+                        FROM krai_intelligence.chunks
+                        WHERE document_id = $1::uuid
+                          AND embedding IS NULL
+                        ORDER BY chunk_index ASC
+                        """,
+                        [str(context.document_id)],
+                    )
+                    chunks = rows or []
+                    if chunks:
+                        self.logger.info(
+                            "Loaded %d un-embedded chunks from DB for document %s",
+                            len(chunks),
+                            context.document_id,
+                        )
+                    else:
+                        self.logger.info(
+                            "All chunks already embedded for document %s — nothing to do",
+                            context.document_id,
+                        )
+                        return {
+                            'success': True,
+                            'embeddings_created': 0,
+                            'message': 'All chunks already embedded',
+                        }
+                except Exception as exc:
+                    self.logger.error("Failed to load chunks from DB: %s", exc)
+                    return {
+                        'success': False,
+                        'error': f'No chunks in context and DB fetch failed: {exc}',
+                        'embeddings_created': 0,
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': 'No chunks provided for embedding generation',
+                    'embeddings_created': 0,
+                }
 
         # Normalize chunk payloads so downstream code can rely on `chunk_id` + `text`.
         normalized_chunks: List[Dict[str, Any]] = []
@@ -708,75 +748,60 @@ class EmbeddingProcessor(BaseProcessor):
         document_id: UUID
     ) -> Dict[str, Any]:
         """
-        Generate embeddings for a batch of chunks
-        
-        Args:
-            chunks: List of chunks
-            document_id: Document UUID
-            
-        Returns:
-            Dict with batch results
+        Generate embeddings for a batch of chunks (parallel requests to Ollama).
         """
+        parallel = int(os.getenv('EMBEDDING_PARALLEL_REQUESTS', '4'))
+        semaphore = asyncio.Semaphore(parallel)
+        loop = asyncio.get_event_loop()
         success_count = 0
         failed_chunks = []
-        
-        for chunk in chunks:
+
+        async def _embed_one(chunk: Dict[str, Any]) -> Dict[str, Any]:
+            chunk_id = chunk.get('chunk_id') or chunk.get('id')
+            text_value = (
+                chunk.get('text') or chunk.get('chunk_text')
+                or chunk.get('text_chunk') or chunk.get('content') or ''
+            )
+            if not isinstance(text_value, str):
+                text_value = str(text_value)
+
+            async with semaphore:
+                try:
+                    embedding = await loop.run_in_executor(
+                        None, self._generate_embedding, text_value
+                    )
+                except Exception as exc:
+                    return {'ok': False, 'chunk_id': chunk_id, 'error': str(exc)}
+
+            if embedding is None:
+                return {'ok': False, 'chunk_id': chunk_id, 'error': 'Failed to generate embedding'}
+
             try:
-                chunk_id = chunk.get('chunk_id') or chunk.get('id')
-                if chunk_id is None:
-                    failed_chunks.append({
-                        'chunk_id': None,
-                        'error': f"Missing chunk_id (index={chunk.get('_chunk_index')})"
-                    })
-                    continue
-
-                text_value = (
-                    chunk.get('text')
-                    or chunk.get('chunk_text')
-                    or chunk.get('text_chunk')
-                    or chunk.get('content')
-                    or ''
-                )
-                if not isinstance(text_value, str):
-                    text_value = str(text_value)
-
-                # Generate embedding
-                embedding = self._generate_embedding(text_value)
-                
-                if embedding is None:
-                    failed_chunks.append({
-                        'chunk_id': chunk_id,
-                        'error': 'Failed to generate embedding'
-                    })
-                    continue
-                
-                # Store in database
                 stored = await self._store_embedding(
                     chunk_id=chunk_id,
                     document_id=document_id,
                     embedding=embedding,
-                    chunk_data=chunk
+                    chunk_data=chunk,
                 )
-                
-                if stored:
-                    success_count += 1
-                else:
-                    failed_chunks.append({
-                        'chunk_id': chunk_id,
-                        'error': 'Failed to store embedding'
-                    })
-                    
-            except Exception as e:
-                self.logger.debug(f"Failed to embed chunk: {e}")
-                failed_chunks.append({
-                    'chunk_id': chunk.get('chunk_id') or chunk.get('id'),
-                    'error': str(e)
-                })
-        
-        return {
-            'success_count': success_count,
-            'failed_chunks': failed_chunks
-        }
+            except Exception as exc:
+                return {'ok': False, 'chunk_id': chunk_id, 'error': str(exc)}
+
+            if stored:
+                return {'ok': True, 'chunk_id': chunk_id}
+            return {'ok': False, 'chunk_id': chunk_id, 'error': 'Failed to store embedding'}
+
+        results = await asyncio.gather(*[_embed_one(c) for c in chunks], return_exceptions=True)
+
+        for result in results:
+            if isinstance(result, Exception):
+                failed_chunks.append({'chunk_id': None, 'error': str(result)})
+            elif result.get('ok'):
+                success_count += 1
+            else:
+                failed_chunks.append({'chunk_id': result.get('chunk_id'), 'error': result.get('error')})
+
+        return {'success_count': success_count, 'failed_chunks': failed_chunks}
+
     
     def _generate_embedding(self, text: str) -> Optional[List[float]]:
         """

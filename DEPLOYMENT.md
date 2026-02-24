@@ -67,7 +67,7 @@ API_PORT=8000
 LOG_LEVEL=INFO
 ```
 
-> **⚠️ IMPORTANT - PostgreSQL-Only Architecture:** This deployment uses PostgreSQL + MinIO for local-first architecture. **Migration from Supabase completed in November 2024 (KRAI-002).** Legacy Supabase and Cloudflare R2 configurations are deprecated and no longer supported. For legacy users migrating from Supabase, see `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md` for complete migration guidance.
+> **⚠️ IMPORTANT - PostgreSQL-Only Architecture:** Legacy Supabase configurations are deprecated and no longer supported. This deployment uses PostgreSQL + MinIO exclusively. For legacy users migrating from Supabase, see `docs/SUPABASE_TO_POSTGRESQL_MIGRATION.md`.
 
 > **Dashboard Interface:** KRAI uses **Laravel/Filament** as the sole dashboard interface, accessible at http://localhost:80. The dashboard provides visual pipeline management, document processing control, and real-time monitoring capabilities. See [Laravel Dashboard Deployment](#laravel-dashboard-deployment) and [docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md](docs/runbooks/LARAVEL_DASHBOARD_OPERATIONS.md) for operations and troubleshooting.
 

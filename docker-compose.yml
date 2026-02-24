@@ -13,15 +13,18 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=${REDIS_URL:-redis://krai-redis:6379}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD}@krai-redis:6379}
       - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://krai-firecrawl-api:3002}
-      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY}
+      - POSTGRES_URL=${DATABASE_CONNECTION_URL}
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./temp:/app/temp
+      - C:/Firmwares:/firmwares:ro
     networks:
       - krai-network
+    gpus: all
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -114,7 +117,7 @@ services:
     environment:
       - POSTGRES_DB=${DATABASE_NAME:-krai}
       - POSTGRES_USER=${DATABASE_USER:-krai_user}
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-krai_secure_password}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
     volumes:
       - krai_postgres_data:/var/lib/postgresql/data
@@ -135,8 +138,8 @@ services:
       - .env
     restart: always
     environment:
-      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY:-minioadmin123}
+      - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_KEY}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -164,6 +167,7 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - krai-network
+    gpus: all
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
     healthcheck:
@@ -180,21 +184,20 @@ services:
     env_file:
       - .env
     restart: always
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - krai_redis_data:/data
     networks:
       - krai-network
     healthcheck:
-      test: ["CMD", "redis-cli", "PING"]
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a $REDIS_PASSWORD PING"]
       interval: 20s
       timeout: 5s
       retries: 3
 
   # Playwright Service for Firecrawl
-  krai-playwright:
     image: ghcr.io/firecrawl/playwright-service:latest
     container_name: krai-playwright-prod
     env_file:
@@ -231,18 +234,18 @@ services:
       - NODE_ENV=production
       - PORT=3002
       - HOST=0.0.0.0
-      - REDIS_URL=redis://krai-redis:6379
-      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@krai-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://:${REDIS_PASSWORD}@krai-redis:6379
       - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000/scrape}
       - USE_DB_AUTHENTICATION=false
-      - NUQ_DATABASE_URL=postgresql://krai_user:Krai_Secure_Pass123!@krai-postgres:5432/krai
+      - NUQ_DATABASE_URL=${DATABASE_CONNECTION_URL}
       - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
-      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-false}
       - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
       - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
-      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY}
       - NUM_WORKERS=2
       - SCRAPE_TIMEOUT=60000
       - PAGE_TIMEOUT=30000
@@ -271,18 +274,18 @@ services:
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
-      - REDIS_URL=redis://krai-redis:6379
-      - REDIS_RATE_LIMIT_URL=redis://krai-redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@krai-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://:${REDIS_PASSWORD}@krai-redis:6379
       - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://krai-playwright:3000/scrape}
       - USE_DB_AUTHENTICATION=false
-      - NUQ_DATABASE_URL=postgresql://krai_user:Krai_Secure_Pass123!@krai-postgres:5432/krai
+      - NUQ_DATABASE_URL=${DATABASE_CONNECTION_URL}
       - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
-      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-true}
+      - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-false}
       - MAX_CONCURRENCY=${FIRECRAWL_MAX_CONCURRENCY:-4}
       - BLOCK_MEDIA=${FIRECRAWL_BLOCK_MEDIA:-true}
-      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY:-changeme_firecrawl_admin}
+      - FIRECRAWL_BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY}
       - NUQ_WORKER_PORT=3003
     command: ["node", "--import", "./dist/src/otel.js", "dist/src/services/worker/nuq-worker.js"]
     networks:

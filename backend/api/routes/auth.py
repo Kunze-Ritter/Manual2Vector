@@ -1,4 +1,4 @@
-"""
+﻿"""
 Authentication and User Management Routes
 
 Handles user authentication, registration, token management, and user administration
@@ -25,7 +25,7 @@ from api.middleware.auth_middleware import (
     get_current_user, require_admin, require_permission
 )
 from api.middleware.rate_limit_middleware import limiter, rate_limit_auth
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 from config.auth_config import ACCESS_TOKEN
 
 logger = logging.getLogger("krai.api.auth")
@@ -122,6 +122,7 @@ class ErrorResponseModel(BaseModel):
     429: {"description": "Too many login attempts", "model": ErrorResponseModel},
     500: {"description": "Internal server error", "model": ErrorResponseModel}
 })
+@limiter.limit(rate_limit_auth)
 async def login(
     request: Request,
     payload: LoginRequest,
@@ -725,10 +726,18 @@ async def change_password(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"success": False, "error": "Insufficient permissions"}
             )
+
+        is_admin_changing_other = user_id != current_user["id"]
+        if is_admin_changing_other:
+            logger.warning(
+                "Admin '%s' is changing password for user '%s'",
+                current_user.get("email"),
+                user_id,
+            )
             
         # Update password
         update_data = UserUpdate(
-            current_password=password_data.current_password if user_id == current_user["id"] else None,
+            current_password=password_data.current_password if not is_admin_changing_other else None,
             new_password=password_data.new_password
         )
         
@@ -757,7 +766,8 @@ async def change_password(
             detail={"success": False, "error": "Failed to change password"}
         )
 
-def initialize_auth_routes(database_service: DatabaseService):
+def initialize_auth_routes(database_service: DatabaseAdapter):
     """Initialize authentication routes with database service"""
     set_auth_service(AuthService(database_service))
     return router
+

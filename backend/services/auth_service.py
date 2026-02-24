@@ -1,4 +1,4 @@
-"""
+﻿"""
 Authentication Service
 Handles all authentication logic, user validation, and token management
 """
@@ -23,7 +23,7 @@ from config.auth_config import (
 )
 
 # Import database service
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 
 # Setup logging
 logger = logging.getLogger("krai.auth.service")
@@ -115,7 +115,7 @@ class RateLimitError(Exception):
 class AuthService:
     """Authentication service with comprehensive security features"""
     
-    def __init__(self, database_service: DatabaseService):
+    def __init__(self, database_service: DatabaseAdapter):
         self.db = database_service
         self.jwt_config = get_jwt_config()
         self.jwt_validator = get_jwt_validator()
@@ -1072,3 +1072,4 @@ def require_auth(service: AuthService = None):
             pass
         return wrapper
     return decorator
+

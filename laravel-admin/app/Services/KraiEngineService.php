@@ -416,14 +416,21 @@ class KraiEngineService
             $client = $this->createHttpClient();
             $client = $this->addUserContext($client, $user);
             
-            $response = $client->attach(
-                'file',
-                fopen($file->getRealPath(), 'rb'),
-                $file->getClientOriginalName()
-            )->post($this->baseUrl . $endpoint, [
-                'document_type' => $documentType,
-                'language' => $language,
-            ]);
+            $fileHandle = fopen($file->getRealPath(), 'rb');
+            try {
+                $response = $client->attach(
+                    'file',
+                    $fileHandle,
+                    $file->getClientOriginalName()
+                )->post($this->baseUrl . $endpoint, [
+                    'document_type' => $documentType,
+                    'language' => $language,
+                ]);
+            } finally {
+                if (is_resource($fileHandle)) {
+                    fclose($fileHandle);
+                }
+            }
             
             $this->logApiCall('POST', $endpoint, 'upload', $response->status());
             

@@ -1,4 +1,4 @@
-"""PostgreSQL-backed Manufacturer API routes for KR-AI-Engine."""
+﻿"""PostgreSQL-backed Manufacturer API routes for KR-AI-Engine."""
 from __future__ import annotations
 
 import logging
@@ -17,13 +17,13 @@ from models.manufacturer import (
     ManufacturerSortParams,
     SortOrder,
 )
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 
 
 class ManufacturerAPI:
     """Manufacturer list API backed by PostgreSQL."""
 
-    def __init__(self, database_service: DatabaseService) -> None:
+    def __init__(self, database_service: DatabaseAdapter) -> None:
         self.database_service = database_service
         self.logger = logging.getLogger("krai.api.manufacturers.pg")
         self.router = APIRouter(prefix="/manufacturers", tags=["manufacturers"])
@@ -125,3 +125,4 @@ class ManufacturerAPI:
             except Exception as exc:  # pragma: no cover - defensive
                 self.logger.error("Failed to list manufacturers: %s", exc)
                 raise HTTPException(status_code=500, detail=str(exc))
+

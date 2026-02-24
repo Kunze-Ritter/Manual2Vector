@@ -1,4 +1,4 @@
-"""
+﻿"""
 Document API for KR-AI-Engine
 FastAPI endpoints for document processing
 """
@@ -38,7 +38,7 @@ from models.document import (
     SortOrder,
     StageStatus,
 )
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 from services.object_storage_service import ObjectStorageService
 from services.ai_service import AIService
 from services.video_enrichment_service import VideoEnrichmentService
@@ -68,7 +68,7 @@ class DocumentAPI:
     """
     
     def __init__(self, 
-                 database_service: DatabaseService,
+                 database_service: DatabaseAdapter,
                  storage_service: ObjectStorageService,
                  ai_service: AIService,
                  video_enrichment_service: Optional[VideoEnrichmentService] = None):
@@ -891,11 +891,11 @@ class DocumentAPI:
                 result = await self.pipeline.run_stages(document_id, stages)
                 
                 if result.get('success', False):
-                    self.logger.info(f"✅ Document {document_id} processed successfully")
+                    self.logger.info(f"âœ… Document {document_id} processed successfully")
                     self.logger.info(f"   Successful stages: {result.get('successful', 0)}")
                     self.logger.info(f"   Failed stages: {result.get('failed', 0)}")
                 else:
-                    self.logger.error(f"❌ Document {document_id} processing failed")
+                    self.logger.error(f"âŒ Document {document_id} processing failed")
                     for stage_result in result.get('stage_results', []):
                         if not stage_result.get('success', False):
                             self.logger.error(f"   Stage {stage_result.get('stage')} failed: {stage_result.get('error')}")
@@ -917,3 +917,4 @@ class DocumentAPI:
                 )
             except:
                 pass
+

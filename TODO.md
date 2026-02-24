@@ -1115,12 +1115,12 @@
   - **Result:** Documents can now be uploaded successfully to database
   - **Verification:** Test document created successfully with ID `757b4589-48d3-4e84-a6ab-35f022530f41`
 
-- [x] **Removed R2 (Cloudflare) Legacy Code** ✅ (14:02)
-  - Eliminated deprecation warnings for `R2_PUBLIC_URL_*` and `R2_BUCKET_NAME_*` variables
-  - Removed fallback logic to old R2 environment variables
+- [x] **Removed Legacy Storage (Cloudflare) Code** ✅ (14:02)
+  - Eliminated deprecation warnings for legacy public URL and bucket name variables
+  - Removed fallback logic to old storage environment variables
   - Simplified `storage_factory.py` to use only OBJECT_STORAGE_* variables
   - **File:** `backend/services/storage_factory.py`
-  - **Result:** Clean S3/MinIO-only storage configuration, no more R2 warnings
+  - **Result:** Clean S3/MinIO-only storage configuration, no more legacy warnings
 
 - [x] **Full PostgreSQL Schema Migration to DATABASE_SCHEMA.md** ✅ (11:32)
   - Analyzed DATABASE_SCHEMA.md and compared with live krai-postgres database export

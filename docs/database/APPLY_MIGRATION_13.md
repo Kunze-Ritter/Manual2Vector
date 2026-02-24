@@ -107,7 +107,7 @@ $$ LANGUAGE plpgsql;
 ### **ENTFERNT:**
 | Spalte | Grund |
 |--------|-------|
-| `storage_url` | ❌ PDFs liegen lokal, keine R2 URLs mehr |
+| `storage_url` | ❌ PDFs liegen lokal, keine externen Storage-URLs mehr |
 | `product_id` | ❌ Kann nur 1 Produkt - falsch für Manuals mit 22 Produkten |
 | `manufacturer_id` | ❌ Redundant zu `manufacturer` VARCHAR |
 

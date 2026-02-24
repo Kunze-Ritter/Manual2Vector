@@ -13,7 +13,7 @@
 
 ### Root-Level Documentation
 - ✅ **README.md** - Added PostgreSQL-only architecture emphasis and migration reference
-- ✅ **DEPLOYMENT.md** - Prominent deprecation notice for Supabase/R2
+- ✅ **DEPLOYMENT.md** - Prominent deprecation notice for Supabase
 - ✅ **DOCKER_SETUP.md** - Updated environment variable sections with migration timeline
 - ✅ **TEST_SETUP.md** - Replaced Supabase env examples with PostgreSQL-only config
 

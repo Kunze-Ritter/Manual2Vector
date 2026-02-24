@@ -35,11 +35,10 @@ class SetUserPassword extends Command
             return 1;
         }
 
-        $user->password_hash = password_hash($password, PASSWORD_BCRYPT);
+        $user->password = $password;
         $user->save();
 
         $this->info("Password updated successfully for {$email}");
-        $this->line("Hash: {$user->password_hash}");
 
         return 0;
     }

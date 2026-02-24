@@ -1,4 +1,4 @@
-"""
+﻿"""
 Search API for KR-AI-Engine
 FastAPI endpoints for semantic search and vector operations
 """
@@ -15,7 +15,7 @@ from core.data_models import (
     MultimodalSearchRequest, MultimodalSearchResponse,
     TwoStageSearchRequest, TwoStageSearchResponse
 )
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 from services.ai_service import AIService
 from services.multimodal_search_service import MultimodalSearchService
 
@@ -36,7 +36,7 @@ class SearchAPI:
     - GET /search/error-codes: Search error codes
     """
     
-    def __init__(self, database_service: DatabaseService, ai_service: AIService):
+    def __init__(self, database_service: DatabaseAdapter, ai_service: AIService):
         self.database_service = database_service
         self.ai_service = ai_service
         self.multimodal_service = MultimodalSearchService(database_service, ai_service)
@@ -515,3 +515,4 @@ class SearchAPI:
                     'error': str(e),
                     'timestamp': datetime.utcnow().isoformat()
                 }
+

@@ -59,39 +59,17 @@ class FirecrawlService
 
     public function getHealth(): array
     {
-        return Cache::remember('firecrawl.health', $this->cacheTtl(), function () {
-            try {
-                $response = $this->callBackend('get', '/api/v1/scraping/health', [], $this->healthTimeout());
+        $lock = Cache::lock('lock.firecrawl.health', 15);
 
-                if ($response['success'] ?? false) {
-                    return [
-                        'success' => true,
-                        'data' => $response['data'],
-                        'error' => null,
-                    ];
-                }
-
-                return [
-                    'success' => false,
-                    'data' => [],
-                    'error' => $response['error'] ?? 'Health check failed',
-                ];
-            } catch (\Throwable $e) {
-                $this->logChannel()->warning('Firecrawl backend health failed, trying direct health fallback', [
-                    'message' => $e->getMessage(),
-                ]);
-
+        return $lock->get(function () {
+            return Cache::remember('firecrawl.health', $this->cacheTtl(), function () {
                 try {
-                    $direct = $this->createHttpClient($this->healthTimeout())->get("{$this->firecrawlUrl}/");
-                    if ($direct->successful()) {
+                    $response = $this->callBackend('get', '/api/v1/scraping/health', [], $this->healthTimeout());
+
+                    if ($response['success'] ?? false) {
                         return [
                             'success' => true,
-                            'data' => [
-                                'status' => 'healthy',
-                                'version' => null,
-                                'backend' => 'firecrawl',
-                                'capabilities' => ['scrape', 'crawl', 'extract', 'map'],
-                            ],
+                            'data' => $response['data'],
                             'error' => null,
                         ];
                     }
@@ -99,31 +77,47 @@ class FirecrawlService
                     return [
                         'success' => false,
                         'data' => [],
-                        'error' => "HTTP {$direct->status()}: {$direct->body()}",
+                        'error' => $response['error'] ?? 'Health check failed',
                     ];
-                } catch (\Throwable $fallback) {
-                    $this->logChannel()->error('Firecrawl direct health fallback failed', [
-                        'message' => $fallback->getMessage(),
+                } catch (\Throwable $e) {
+                    $this->logChannel()->warning('Firecrawl backend health failed, trying direct health fallback', [
+                        'message' => $e->getMessage(),
                     ]);
 
-                    return [
-                        'success' => false,
-                        'data' => [],
-                        'error' => $fallback->getMessage(),
-                    ];
-                }
-            } catch (\Throwable $e) {
-                $this->logChannel()->error('Firecrawl health exception', [
-                    'message' => $e->getMessage(),
-                ]);
+                    try {
+                        $direct = $this->createHttpClient($this->healthTimeout())->get("{$this->firecrawlUrl}/");
+                        if ($direct->successful()) {
+                            return [
+                                'success' => true,
+                                'data' => [
+                                    'status' => 'healthy',
+                                    'version' => null,
+                                    'backend' => 'firecrawl',
+                                    'capabilities' => ['scrape', 'crawl', 'extract', 'map'],
+                                ],
+                                'error' => null,
+                            ];
+                        }
 
-                return [
-                    'success' => false,
-                    'data' => [],
-                    'error' => $e->getMessage(),
-                ];
-            }
-        });
+                        return [
+                            'success' => false,
+                            'data' => [],
+                            'error' => "HTTP {$direct->status()}: {$direct->body()}",
+                        ];
+                    } catch (\Throwable $fallback) {
+                        $this->logChannel()->error('Firecrawl direct health fallback failed', [
+                            'message' => $fallback->getMessage(),
+                        ]);
+
+                        return [
+                            'success' => false,
+                            'data' => [],
+                            'error' => $fallback->getMessage(),
+                        ];
+                    }
+                }
+            });
+        }) ?? Cache::get('firecrawl.health') ?? ['success' => false, 'data' => [], 'error' => 'Health check lock timeout'];
     }
 
     public function getBackendInfo(): array
@@ -158,9 +152,12 @@ class FirecrawlService
 
     public function getRecentActivity(int $limit = 50): array
     {
-        return Cache::remember("firecrawl.activity.{$limit}", $this->cacheTtl(), function () use ($limit) {
-            return $this->callBackend('get', '/api/v1/scraping/logs', ['limit' => $limit], 10);
-        });
+        $cacheKey = "firecrawl.activity.{$limit}";
+        $lock = Cache::lock('lock.' . $cacheKey, 15);
+
+        return $lock->get(fn () => Cache::remember($cacheKey, $this->cacheTtl(), fn () => $this->callBackend('get', '/api/v1/scraping/logs', ['limit' => $limit], 10)))
+            ?? Cache::get($cacheKey)
+            ?? ['success' => false, 'data' => [], 'error' => 'Activity lock timeout'];
     }
 
     public function scrapeUrl(string $url, array $options = []): array

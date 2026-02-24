@@ -1,4 +1,4 @@
-"""PostgreSQL-backed Product API routes for KR-AI-Engine."""
+﻿"""PostgreSQL-backed Product API routes for KR-AI-Engine."""
 from __future__ import annotations
 
 import logging
@@ -17,13 +17,13 @@ from models.product import (
     ProductSortParams,
     SortOrder,
 )
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 
 
 class ProductAPI:
     """Product list and lookup API backed by PostgreSQL."""
 
-    def __init__(self, database_service: DatabaseService) -> None:
+    def __init__(self, database_service: DatabaseAdapter) -> None:
         self.database_service = database_service
         self.logger = logging.getLogger("krai.api.products.pg")
         self.router = APIRouter(prefix="/products", tags=["products"])
@@ -174,3 +174,4 @@ class ProductAPI:
 
             product_types = sorted(ALLOWED_PRODUCT_TYPES)
             return SuccessResponse(data={"product_types": product_types})
+

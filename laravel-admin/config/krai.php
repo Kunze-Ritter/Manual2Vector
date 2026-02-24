@@ -12,6 +12,7 @@ return [
     */
 
     'engine_url' => env('KRAI_ENGINE_URL', 'http://krai-engine:8000'),
+    'ollama_url' => env('OLLAMA_URL', 'http://krai-ollama-prod:11434'),
     'service_jwt' => env('KRAI_SERVICE_JWT', env('KRAI_ENGINE_SERVICE_JWT', '')),
     'default_timeout' => 120, // Default HTTP timeout in seconds
     'query_timeout' => 60, // Timeout for read-only queries
@@ -200,6 +201,7 @@ return [
             'pipeline' => env('MONITORING_CACHE_TTL_PIPELINE', 15),
             'performance' => env('MONITORING_CACHE_TTL_PERFORMANCE', 60),
         ],
+        'timeout' => env('MONITORING_REQUEST_TIMEOUT', 10),
         'polling_intervals' => [
             'dashboard' => env('MONITORING_DASHBOARD_POLLING_INTERVAL', 60),
             'queue' => env('MONITORING_QUEUE_POLLING_INTERVAL', 30),
@@ -235,6 +237,7 @@ return [
             'height' => 300,
         ],
         'bulk_download_limit' => 100,
+        'bulk_download_max_bytes' => env('KRAI_IMAGES_BULK_DOWNLOAD_MAX_BYTES', 524288000), // 500 MB
     ],
 
     /*

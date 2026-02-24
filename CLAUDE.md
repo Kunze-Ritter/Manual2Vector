@@ -89,6 +89,14 @@ All views use `vw_` prefix in `public` schema. Embeddings are in `krai_intellige
 
 **Always consult `DATABASE_SCHEMA.md` before writing any DB queries.** Never guess column names or schema locations.
 
+**Known column name traps** (historically caused bugs — use the correct name on the right):
+
+| Wrong | Correct | Table |
+|-------|---------|-------|
+| `chunk_text` | `text_chunk` | `krai_intelligence.chunks` |
+| `enrichment_error` | `metadata->>'enrichment_error'` | `krai_content.videos` (no column, stored in JSONB) |
+| `tags` (on videos) | `metadata->>'tags'` | `krai_content.videos` (no column, stored in JSONB) |
+
 ### Error Code Hierarchy
 
 Error codes in `krai_intelligence.error_codes` support hierarchical grouping via two columns (migration 018):

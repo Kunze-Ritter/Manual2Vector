@@ -77,12 +77,10 @@ dir .git\hooks\commit-msg*    # Windows
    - `SUPABASE_SERVICE_ROLE_KEY`
 
 ### MinIO Object Storage
-1. Cloudflare Dashboard → R2
-2. Manage R2 API Tokens
-3. Create API Token
-4. Kopiere:
-   - `OBJECT_STORAGE_ACCESS_KEY`
-   - `OBJECT_STORAGE_SECRET_KEY`
+1. Open MinIO Console: http://localhost:9001
+2. Navigate to Access Keys
+3. Create Access Key
+4. Copy OBJECT_STORAGE_ACCESS_KEY and OBJECT_STORAGE_SECRET_KEY
 
 ### YouTube API (optional)
 1. https://console.cloud.google.com/apis/credentials

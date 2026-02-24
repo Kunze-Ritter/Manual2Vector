@@ -6,6 +6,7 @@ Centralized asyncpg connection pool management for the application.
 Replaces the DatabaseAdapter abstraction layer with direct asyncpg usage.
 """
 
+import asyncio
 import os
 import logging
 from typing import Optional
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Global connection pool
 _pool: Optional[asyncpg.Pool] = None
+_pool_lock = asyncio.Lock()
 
 
 async def get_pool() -> asyncpg.Pool:
@@ -28,10 +30,12 @@ async def get_pool() -> asyncpg.Pool:
         RuntimeError: If pool cannot be created
     """
     global _pool
-    
+
     if _pool is None:
-        _pool = await create_pool()
-    
+        async with _pool_lock:
+            if _pool is None:
+                _pool = await create_pool()
+
     return _pool
 
 

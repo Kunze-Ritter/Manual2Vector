@@ -1,4 +1,4 @@
-"""
+﻿"""
 KRAI Integration Test Configuration
 ===================================
 
@@ -23,7 +23,8 @@ backend_root_str = str(backend_root)
 if backend_root_str not in sys.path:
     sys.path.insert(0, backend_root_str)
 
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
+from services.database_factory import create_database_adapter
 from services.object_storage_service import ObjectStorageService
 from services.storage_factory import create_storage_service
 from services.ai_service import AIService
@@ -75,7 +76,7 @@ def firecrawl_available() -> bool:
 
 
 @pytest.fixture(scope="function")
-async def real_manufacturer_crawler(test_database: DatabaseService, firecrawl_available: bool) -> AsyncGenerator[ManufacturerCrawler, None]:
+async def real_manufacturer_crawler(test_database: DatabaseAdapter, firecrawl_available: bool) -> AsyncGenerator[ManufacturerCrawler, None]:
     """
     ManufacturerCrawler with real services where available.
 
@@ -129,7 +130,7 @@ async def real_manufacturer_crawler(test_database: DatabaseService, firecrawl_av
 
 
 @pytest.fixture
-async def test_manufacturer_data(test_database: DatabaseService):
+async def test_manufacturer_data(test_database: DatabaseAdapter):
     """
     Provide a unique manufacturer_id for isolation and ensure base records exist if needed.
     """
@@ -138,7 +139,7 @@ async def test_manufacturer_data(test_database: DatabaseService):
 
 
 @pytest.fixture(autouse=True)
-async def cleanup_crawler_data(test_database: DatabaseService):
+async def cleanup_crawler_data(test_database: DatabaseAdapter):
     """
     Cleanup manufacturer crawler data after each test to maintain isolation.
     """
@@ -169,7 +170,7 @@ def event_loop():
     loop.close()
 
 @pytest.fixture(scope="function")
-async def test_database() -> AsyncGenerator[DatabaseService, None]:
+async def test_database() -> AsyncGenerator[DatabaseAdapter, None]:
     """
     Session-scoped database fixture for integration tests.
     
@@ -185,7 +186,7 @@ async def test_database() -> AsyncGenerator[DatabaseService, None]:
         load_dotenv()  # Fallback to main .env
     
     # Initialize database service
-    database_service = DatabaseService()
+    database_service = create_database_adapter()
     
     try:
         # Connect to test database
@@ -278,7 +279,7 @@ async def test_ai_service() -> AsyncGenerator[AIService, None]:
 
 @pytest.fixture(scope="function")
 async def test_pipeline(
-    test_database: DatabaseService,
+    test_database: DatabaseAdapter,
     test_storage: ObjectStorageService,
     test_ai_service: AIService
 ) -> AsyncGenerator[KRMasterPipeline, None]:
@@ -303,7 +304,7 @@ async def test_pipeline(
 
 @pytest.fixture(scope="function")
 async def test_search_service(
-    test_database: DatabaseService,
+    test_database: DatabaseAdapter,
     test_ai_service: AIService
 ) -> AsyncGenerator[MultimodalSearchService, None]:
     """
@@ -442,7 +443,7 @@ def setup_test_environment():
 # ---------------------------
 
 @pytest.fixture
-async def real_link_enrichment_service(test_database: DatabaseService, firecrawl_available: bool) -> AsyncGenerator[LinkEnrichmentService, None]:
+async def real_link_enrichment_service(test_database: DatabaseAdapter, firecrawl_available: bool) -> AsyncGenerator[LinkEnrichmentService, None]:
     """
     Real LinkEnrichmentService with live WebScrapingService backend.
     
@@ -491,7 +492,7 @@ async def real_link_enrichment_service(test_database: DatabaseService, firecrawl
 
 
 @pytest.fixture
-async def real_product_researcher(test_database: DatabaseService, firecrawl_available: bool) -> AsyncGenerator['ProductResearcher', None]:
+async def real_product_researcher(test_database: DatabaseAdapter, firecrawl_available: bool) -> AsyncGenerator['ProductResearcher', None]:
     """
     Real ProductResearcher with live scraping and LLM backend.
     
@@ -544,7 +545,7 @@ async def real_product_researcher(test_database: DatabaseService, firecrawl_avai
 
 
 @pytest.fixture
-async def test_link_data(test_database: DatabaseService):
+async def test_link_data(test_database: DatabaseAdapter):
     """
     Factory fixture for creating test links in database.
     
@@ -589,7 +590,7 @@ async def test_link_data(test_database: DatabaseService):
 
 
 @pytest.fixture
-async def test_crawled_page_data(test_database: DatabaseService):
+async def test_crawled_page_data(test_database: DatabaseAdapter):
     """
     Factory fixture for creating test crawled pages in database.
     
@@ -627,7 +628,7 @@ async def test_crawled_page_data(test_database: DatabaseService):
 
 
 @pytest.fixture(autouse=True)
-async def cleanup_link_enrichment_data(test_database: DatabaseService):
+async def cleanup_link_enrichment_data(test_database: DatabaseAdapter):
     """
     Autouse fixture to cleanup link enrichment test data after each test.
     
@@ -804,3 +805,4 @@ async def simulate_firecrawl_failure(service: LinkEnrichmentService):
         yield
     finally:
         service._web_scraping_service.scrape_url = original_scrape
+

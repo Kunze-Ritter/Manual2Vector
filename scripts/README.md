@@ -26,6 +26,7 @@ The `scripts/` directory contains standalone utilities for setup, maintenance, d
 |------------|-------------|-------|--------|
 | `cleanup_database.py` | Database cleanup operations | `python scripts/cleanup_database.py --dry-run` | Active |
 | `delete_document_data.py` | Delete specific document data | `python scripts/delete_document_data.py <document_id>` | Active |
+| `apply_migration_019_processing_queue_stage_column.py` | Add the missing `stage` column to `krai_system.processing_queue` | `python scripts/apply_migration_019_processing_queue_stage_column.py` | Active |
 | `list_documents.py` | List all documents in database | `python scripts/list_documents.py` | Active |
 | `sync_oem_to_database.py` | Sync OEM information to database | `python scripts/sync_oem_to_database.py` | Active |
 
@@ -41,8 +42,6 @@ The `scripts/` directory contains standalone utilities for setup, maintenance, d
 
 | Script Name | Description | Usage | Status |
 |------------|-------------|-------|--------|
-| `cleanup_r2_storage.py` | R2 storage cleanup operations | `python scripts/cleanup_r2_storage.py` | Active |
-| `delete_r2_bucket_contents.py` | Delete R2 bucket contents | `python scripts/delete_r2_bucket_contents.py` | Active |
 | `init_minio.py` | Initialize MinIO storage | `python scripts/init_minio.py` | Active |
 
 ### Setup & Configuration

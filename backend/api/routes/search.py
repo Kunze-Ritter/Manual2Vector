@@ -1,4 +1,4 @@
-"""
+﻿"""
 Search API Routes - Multimodal and Two-stage Search
 
 FastAPI routes for advanced search capabilities including:
@@ -9,7 +9,7 @@ FastAPI routes for advanced search capabilities including:
 
 import logging
 import os
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, AsyncGenerator
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
 from datetime import datetime
@@ -20,7 +20,8 @@ from core.data_models import (
     MultimodalSearchRequest, MultimodalSearchResponse,
     TwoStageSearchRequest, TwoStageSearchResponse
 )
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
+from services.database_factory import create_database_adapter
 from services.ai_service import AIService
 from services.multimodal_search_service import MultimodalSearchService
 
@@ -34,11 +35,15 @@ class ImageContextSearchRequest(BaseModel):
     limit: Optional[int] = 5
 
 # Dependencies (will be injected by app.py)
-def get_database_service() -> DatabaseService:
+async def get_database_service() -> AsyncGenerator[DatabaseAdapter, None]:
     """Get database service instance"""
-    # This will be overridden by app.py with proper dependency injection
-    from api.dependencies.database import get_database
-    return DatabaseService(get_database())
+    # Fallback dependency for standalone route usage.
+    database_service = create_database_adapter()
+    await database_service.connect()
+    try:
+        yield database_service
+    finally:
+        await database_service.disconnect()
 
 def get_ai_service() -> AIService:
     """Get AI service instance"""
@@ -46,7 +51,7 @@ def get_ai_service() -> AIService:
     return AIService()
 
 def get_multimodal_search_service(
-    database_service: DatabaseService = Depends(get_database_service),
+    database_service: DatabaseAdapter = Depends(get_database_service),
     ai_service: AIService = Depends(get_ai_service)
 ) -> MultimodalSearchService:
     """Get multimodal search service instance"""
@@ -56,7 +61,7 @@ def get_multimodal_search_service(
 @router.post("/", response_model=SearchResponse)
 async def semantic_search(
     request: SearchRequest,
-    database_service: DatabaseService = Depends(get_database_service),
+    database_service: DatabaseAdapter = Depends(get_database_service),
     ai_service: AIService = Depends(get_ai_service)
 ):
     """
@@ -103,7 +108,7 @@ async def semantic_search(
 async def search_suggestions(
     query: str = Query(..., min_length=2),
     limit: int = Query(10, ge=1, le=20),
-    database_service: DatabaseService = Depends(get_database_service)
+    database_service: DatabaseAdapter = Depends(get_database_service)
 ):
     """
     Get search suggestions based on partial query
@@ -261,7 +266,7 @@ async def search_error_codes(
     query: str = Query(..., min_length=2),
     manufacturer: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=50),
-    database_service: DatabaseService = Depends(get_database_service)
+    database_service: DatabaseAdapter = Depends(get_database_service)
 ):
     """
     Search error codes with optional manufacturer filter
@@ -298,7 +303,7 @@ async def vector_similarity_search(
     vector: List[float],
     limit: int = Query(10, ge=1, le=100),
     threshold: float = Query(0.5, ge=0.0, le=1.0),
-    database_service: DatabaseService = Depends(get_database_service)
+    database_service: DatabaseAdapter = Depends(get_database_service)
 ):
     """
     Search using raw vector similarity
@@ -336,3 +341,4 @@ async def vector_similarity_search(
 
 # Setup logging
 logger = logging.getLogger("krai.api.search")
+

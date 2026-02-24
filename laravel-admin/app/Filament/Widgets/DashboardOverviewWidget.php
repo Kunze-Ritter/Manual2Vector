@@ -58,7 +58,7 @@ class DashboardOverviewWidget extends BaseWidget
         if ($failed > 0) {
             $color = 'warning';
         }
-        if ($failed > $completed / 10) {
+        if ($completed > 0 && $failed > $completed / 10) {
             $color = 'danger';
         }
 

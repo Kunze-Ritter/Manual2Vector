@@ -261,7 +261,7 @@ async def anonymize_snapshot(
             'jsonb_columns': ['metadata']
         },
         'krai_intelligence_chunks.csv': {
-            'text_columns': ['chunk_text'],
+            'text_columns': ['text_chunk'],
             'jsonb_columns': []
         },
         'krai_content_images.csv': {

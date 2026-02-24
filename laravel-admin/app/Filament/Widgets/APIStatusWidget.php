@@ -28,6 +28,15 @@ class APIStatusWidget extends BaseWidget
     
     public function handleStartService($service)
     {
+        if (!auth()->user()?->isAdmin()) {
+            \Filament\Notifications\Notification::make()
+                ->title('Nicht autorisiert')
+                ->body('Nur Administratoren können Services starten.')
+                ->danger()
+                ->send();
+            return;
+        }
+
         try {
             $containerMap = [
                 'ollama' => 'krai-ollama-prod',
@@ -168,7 +177,7 @@ class APIStatusWidget extends BaseWidget
     {
         return Cache::remember('ollama_status', 30, function () {
             try {
-                $response = Http::timeout(5)->get(env('OLLAMA_URL', 'http://krai-ollama-prod:11434') . '/api/version');
+                $response = Http::timeout(5)->get(config('krai.ollama_url', env('OLLAMA_URL', 'http://krai-ollama-prod:11434')) . '/api/version');
 
                 if ($response->successful()) {
                     $data = $response->json();
@@ -205,7 +214,7 @@ class APIStatusWidget extends BaseWidget
 
     protected function getOpenAIStatus(): array
     {
-        $apiKey = env('OPENAI_API_KEY');
+        $apiKey = config('services.openai.key', env('OPENAI_API_KEY'));
         
         if (!$apiKey || $apiKey === 'your-openai-api-key-here') {
             return [
@@ -341,7 +350,7 @@ class APIStatusWidget extends BaseWidget
 
         try {
             $redis = new \Redis();
-            $redis->connect(env('REDIS_HOST', 'krai-redis-prod'), env('REDIS_PORT', 6379));
+            $redis->connect(config('database.redis.default.host', env('REDIS_HOST', 'krai-redis-prod')), (int) config('database.redis.default.port', env('REDIS_PORT', 6379)));
             $redis->ping();
             
             $info = $redis->info();

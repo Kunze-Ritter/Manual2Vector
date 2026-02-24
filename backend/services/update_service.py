@@ -1,4 +1,4 @@
-"""
+﻿"""
 Update Service for KR-AI-Engine
 Handles document updates and version management
 """
@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 
 class UpdateService:
     """
@@ -20,7 +20,7 @@ class UpdateService:
     - Rollback operations
     """
     
-    def __init__(self, database_service: DatabaseService):
+    def __init__(self, database_service: DatabaseAdapter):
         self.database_service = database_service
         self.logger = logging.getLogger("krai.update")
         self._setup_logging()
@@ -103,3 +103,4 @@ class UpdateService:
         except Exception as e:
             self.logger.error(f"Failed to rollback update: {e}")
             return False
+

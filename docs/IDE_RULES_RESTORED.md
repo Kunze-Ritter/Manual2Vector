@@ -460,7 +460,7 @@ OLLAMA_HOST=http://localhost:11434
 - [ ] Alle Environment Variables gesetzt
 - [ ] PostgreSQL 15+ mit pgvector Extension
 - [ ] Ollama mit Embedding Models
-- [ ] MinIO/R2 für Object Storage
+- [ ] MinIO für Object Storage
 - [ ] Redis für Caching
 - [ ] Backup Strategy aktiv
 

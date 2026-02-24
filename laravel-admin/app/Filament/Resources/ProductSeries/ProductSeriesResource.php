@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class ProductSeriesResource extends Resource
@@ -37,6 +38,11 @@ class ProductSeriesResource extends Resource
     public static function table(Table $table): Table
     {
         return ProductSeriesTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['manufacturer']);
     }
 
     public static function getRelations(): array

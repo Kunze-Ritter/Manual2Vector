@@ -47,6 +47,8 @@ class UploadProcessor(BaseProcessor):
         super().__init__(name="upload_processor")
         self.stage = Stage.UPLOAD
         self.database = database_adapter
+        self.database_service = database_adapter
+        self.db_adapter = database_adapter
         
         self.max_file_size_bytes = max_file_size_mb * 1024 * 1024
         # CURRENT SCOPE: PDF/PDFZ only
@@ -285,8 +287,10 @@ class UploadProcessor(BaseProcessor):
         try:
             import fitz  # PyMuPDF
             doc = fitz.open(file_path)
-            page_count = len(doc)
-            doc.close()
+            try:
+                page_count = len(doc)
+            finally:
+                doc.close()
             
             if page_count == 0:
                 return {'valid': False, 'error': "PDF has no pages"}
@@ -320,21 +324,21 @@ class UploadProcessor(BaseProcessor):
         
         try:
             doc = fitz.open(file_path)
-            
-            # PDF metadata
-            pdf_meta = doc.metadata
-            metadata.update({
-                'page_count': len(doc),
-                'title': pdf_meta.get('title', '') or file_path.stem,
-                'author': pdf_meta.get('author', ''),
-                'subject': pdf_meta.get('subject', ''),
-                'creator': pdf_meta.get('creator', ''),
-                'producer': pdf_meta.get('producer', ''),
-                'creation_date': pdf_meta.get('creationDate', ''),
-                'modification_date': pdf_meta.get('modDate', '')
-            })
-            
-            doc.close()
+            try:
+                # PDF metadata
+                pdf_meta = doc.metadata
+                metadata.update({
+                    'page_count': len(doc),
+                    'title': pdf_meta.get('title', '') or file_path.stem,
+                    'author': pdf_meta.get('author', ''),
+                    'subject': pdf_meta.get('subject', ''),
+                    'creator': pdf_meta.get('creator', ''),
+                    'producer': pdf_meta.get('producer', ''),
+                    'creation_date': pdf_meta.get('creationDate', ''),
+                    'modification_date': pdf_meta.get('modDate', '')
+                })
+            finally:
+                doc.close()
             
         except Exception as e:
             self.logger.warning(f"Could not extract PDF metadata: {e}")

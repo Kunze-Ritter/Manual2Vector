@@ -30,9 +30,111 @@ def read_statements(path: Path) -> list:
     statements = []
     current = []
     depth = 0
+    in_single_quote = False
+    in_double_quote = False
+    in_line_comment = False
+    in_block_comment = False
+    dollar_tag = None
     i = 0
+
+    def _match_dollar_tag(start: int):
+        if text[start] != "$":
+            return None
+        end = start + 1
+        while end < len(text) and text[end] != "$":
+            ch = text[end]
+            if not (ch.isalnum() or ch == "_"):
+                return None
+            end += 1
+        if end < len(text) and text[end] == "$":
+            return text[start : end + 1]
+        return None
+
     while i < len(text):
         c = text[i]
+
+        if in_line_comment:
+            current.append(c)
+            if c == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+
+        if in_block_comment:
+            current.append(c)
+            if c == "*" and i + 1 < len(text) and text[i + 1] == "/":
+                current.append("/")
+                i += 2
+                in_block_comment = False
+                continue
+            i += 1
+            continue
+
+        if dollar_tag is not None:
+            if text.startswith(dollar_tag, i):
+                current.append(dollar_tag)
+                i += len(dollar_tag)
+                dollar_tag = None
+                continue
+            current.append(c)
+            i += 1
+            continue
+
+        if in_single_quote:
+            current.append(c)
+            if c == "'" and i + 1 < len(text) and text[i + 1] == "'":
+                current.append("'")
+                i += 2
+                continue
+            if c == "'":
+                in_single_quote = False
+            i += 1
+            continue
+
+        if in_double_quote:
+            current.append(c)
+            if c == '"' and i + 1 < len(text) and text[i + 1] == '"':
+                current.append('"')
+                i += 2
+                continue
+            if c == '"':
+                in_double_quote = False
+            i += 1
+            continue
+
+        if c == "-" and i + 1 < len(text) and text[i + 1] == "-":
+            current.append("-")
+            current.append("-")
+            i += 2
+            in_line_comment = True
+            continue
+
+        if c == "/" and i + 1 < len(text) and text[i + 1] == "*":
+            current.append("/")
+            current.append("*")
+            i += 2
+            in_block_comment = True
+            continue
+
+        if c == "'":
+            current.append(c)
+            in_single_quote = True
+            i += 1
+            continue
+
+        if c == '"':
+            current.append(c)
+            in_double_quote = True
+            i += 1
+            continue
+
+        tag = _match_dollar_tag(i)
+        if tag is not None:
+            current.append(tag)
+            i += len(tag)
+            dollar_tag = tag
+            continue
+
         if c == "(":
             depth += 1
             current.append(c)
@@ -84,8 +186,9 @@ async def main():
             except asyncpg.PostgresError as e:
                 # Idempotent: skip if alert_queue already renamed (now a view or missing)
                 msg = str(e).lower()
-                if ("alert_queue" in msg and "rename" in stmt.lower() and
-                        ("is not a table" in msg or "does not exist" in msg)):
+                stmt_lower = stmt.lower()
+                if ("rename" in stmt_lower and
+                        ("is not a table" in msg or "does not exist" in msg or "already exists" in msg)):
                     print(f"  [{i}/{len(statements)}] SKIP (already applied): {first_line}")
                 else:
                     raise

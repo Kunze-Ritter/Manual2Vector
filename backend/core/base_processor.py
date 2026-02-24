@@ -339,7 +339,11 @@ class BaseProcessor(ABC):
             context.request_id = f"req_{uuid4().hex[:8]}"
         
         # Ensure RetryPolicyManager can load policies from DB when adapter is available.
-        adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+        adapter = (
+            getattr(self, 'db_adapter', None)
+            or getattr(self, 'database_service', None)
+            or getattr(self, 'database_adapter', None)
+        )
         if adapter is not None:
             RetryPolicyManager.set_db_adapter(adapter)
 
@@ -670,8 +674,12 @@ class BaseProcessor(ABC):
         """
         if self._idempotency_checker is None:
             # Lazy initialization - requires database adapter
-            # Subclasses may set db_adapter or database_service (pipeline passes database_service)
-            adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+            # Subclasses may set db_adapter, database_service, or database_adapter
+            adapter = (
+                getattr(self, 'db_adapter', None)
+                or getattr(self, 'database_service', None)
+                or getattr(self, 'database_adapter', None)
+            )
             if adapter is not None:
                 # Lazy import to break circular dependency
                 from backend.core.idempotency import IdempotencyChecker
@@ -686,7 +694,11 @@ class BaseProcessor(ABC):
             ErrorLogger instance if database adapter is available, None otherwise
         """
         if self._error_logger is None:
-            adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+            adapter = (
+                getattr(self, 'db_adapter', None)
+                or getattr(self, 'database_service', None)
+                or getattr(self, 'database_adapter', None)
+            )
             if adapter is not None:
                 try:
                     from backend.services.error_logging_service import ErrorLogger
@@ -706,7 +718,11 @@ class BaseProcessor(ABC):
         """
         if self._retry_orchestrator is None:
             error_logger = self._get_error_logger()
-            adapter = getattr(self, 'db_adapter', None) or getattr(self, 'database_service', None)
+            adapter = (
+                getattr(self, 'db_adapter', None)
+                or getattr(self, 'database_service', None)
+                or getattr(self, 'database_adapter', None)
+            )
             if adapter is not None and error_logger:
                 try:
                     self._retry_orchestrator = RetryOrchestrator(

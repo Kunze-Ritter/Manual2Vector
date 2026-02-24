@@ -51,7 +51,7 @@
 ### Scripts (Obsolete/Debug)
 - ❌ `README_BUCKET_DELETE.md`, `README_DELETE_DOCUMENT.md`
 - ❌ `README_R2_CLEANUP.md`, `README_VIDEO_ENRICHMENT.md`
-- ❌ `cleanup_r2_storage.py`, `delete_r2_bucket_contents.py`
+- ❌ Legacy object storage cleanup scripts (removed)
 - ❌ `apply_migration_124.py`, `apply_migration_90.py`
 - ❌ All `check_*.py` debug scripts (~20 files)
 - ❌ All `*.sql` files in scripts/ (HP merges, cleanup scripts)

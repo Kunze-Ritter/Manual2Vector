@@ -80,7 +80,7 @@ Wenn du die Seite öffnest, siehst du:
     },
     "storage": {
       "status": "configured",
-      "message": "R2 credentials present"
+      "message": "Object storage configured"
     }
   }
 }

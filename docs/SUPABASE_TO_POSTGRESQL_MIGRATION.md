@@ -7,7 +7,7 @@
 
 ## 📋 Introduction
 
-This guide documents the completed architectural shift from cloud-based Supabase and Cloudflare R2 to local-first PostgreSQL and MinIO. The KRAI project successfully completed this migration in November 2024 (KRAI-002) to provide better data sovereignty, reduced costs, and improved performance for local deployments.
+This guide documents the completed architectural shift from cloud-based Supabase and external object storage to local-first PostgreSQL and MinIO. The KRAI project successfully completed this migration in November 2024 (KRAI-002) to provide better data sovereignty, reduced costs, and improved performance for local deployments.
 
 ### Migration Status
 
@@ -51,17 +51,11 @@ This guide documents the completed architectural shift from cloud-based Supabase
 
 ### Storage Variables
 
-| Old (Cloudflare R2) | New (MinIO) | Notes |
-|---------------------|-------------|-------|
-| `R2_ACCESS_KEY_ID` | `OBJECT_STORAGE_ACCESS_KEY` | MinIO access key |
-| `R2_SECRET_ACCESS_KEY` | `OBJECT_STORAGE_SECRET_KEY` | MinIO secret key |
-| `R2_ENDPOINT_URL` | `OBJECT_STORAGE_ENDPOINT` | MinIO S3-compatible endpoint |
-| `R2_BUCKET_NAME_DOCUMENTS` | *(managed by MinIO)* | Buckets created automatically |
-| `R2_REGION` | `OBJECT_STORAGE_REGION` | AWS region identifier |
-| `R2_PUBLIC_URL_*` | `OBJECT_STORAGE_PUBLIC_URL` | Single public URL for all buckets |
-| `UPLOAD_IMAGES_TO_R2` | *(not needed)* | MinIO is default storage |
-| `UPLOAD_DOCUMENTS_TO_R2` | *(not needed)* | MinIO is default storage |
+| Old | New (MinIO) | Notes |
+|-----|-------------|-------|
 | `MINIO_ENDPOINT` | `OBJECT_STORAGE_ENDPOINT` | Renamed for consistency |
+| `MINIO_ACCESS_KEY` | `OBJECT_STORAGE_ACCESS_KEY` | Renamed for consistency |
+| `MINIO_SECRET_KEY` | `OBJECT_STORAGE_SECRET_KEY` | Renamed for consistency |
 
 ### AI Service Variables
 
@@ -200,60 +194,13 @@ MinIO provides S3-compatible object storage that runs locally in Docker.
 **3. S3 API Compatibility:**
 MinIO implements the S3 API, so existing S3 client libraries work without modification.
 
-### Migrating from R2 to MinIO
-
-If you have existing data in Cloudflare R2:
-
-**1. Install AWS CLI or MinIO Client:**
-```bash
-# Using MinIO Client (mc)
-wget https://dl.min.io/client/mc/release/linux-amd64/mc
-chmod +x mc
-sudo mv mc /usr/local/bin/
-```
-
-**2. Configure Aliases:**
-```bash
-# R2 source
-mc alias set r2 https://your-account-id.eu.r2.cloudflarestorage.com \
-  YOUR_R2_ACCESS_KEY YOUR_R2_SECRET_KEY
-
-# MinIO destination
-mc alias set local http://localhost:9000 \
-  minioadmin minioadmin
-```
-
-**3. Mirror Buckets:**
-```bash
-# Mirror documents bucket
-mc mirror r2/your-documents-bucket local/documents
-
-# Mirror images bucket
-mc mirror r2/your-images-bucket local/images
-
-# Mirror parts bucket
-mc mirror r2/your-parts-bucket local/parts
-```
-
-**4. Verify Migration:**
-```bash
-mc ls local/documents
-mc ls local/images
-mc ls local/parts
-```
-
 ### Public URL Configuration
 
-**R2 vs MinIO:**
-- **R2:** Separate public URLs per bucket (`R2_PUBLIC_URL_DOCUMENTS`, `R2_PUBLIC_URL_ERROR`, etc.)
-- **MinIO:** Single public URL with bucket paths (`OBJECT_STORAGE_PUBLIC_URL=http://localhost:9000`)
+MinIO uses a single public base URL with bucket paths:
+- `OBJECT_STORAGE_PUBLIC_URL=http://localhost:9000`
 
 **Frontend Access:**
 ```javascript
-// Old R2 approach
-const imageUrl = `${R2_PUBLIC_URL_DOCUMENTS}/${imagePath}`;
-
-// New MinIO approach
 const imageUrl = `${OBJECT_STORAGE_PUBLIC_URL}/documents/${imagePath}`;
 ```
 
@@ -375,11 +322,6 @@ DATABASE_CONNECTION_URL=postgresql://krai_user:<password>@krai-postgres:5432/kra
 
 **3. Update Storage Variables:**
 ```bash
-# Comment out R2 variables
-#R2_ACCESS_KEY_ID=your-r2-key
-#R2_SECRET_ACCESS_KEY=your-r2-secret
-#R2_ENDPOINT_URL=https://your-account.r2.cloudflarestorage.com
-
 # Set MinIO variables
 OBJECT_STORAGE_TYPE=s3
 OBJECT_STORAGE_ENDPOINT=http://krai-minio:9000
@@ -572,7 +514,7 @@ DATABASE_CONNECTION_URL=postgresql://user:password@host:port/database
 
 ## 🔙 Rollback Procedure
 
-If you need to temporarily revert to Supabase/R2:
+If you need to temporarily revert to Supabase:
 
 **1. Restore Backup:**
 ```bash

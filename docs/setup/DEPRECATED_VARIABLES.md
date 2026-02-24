@@ -49,32 +49,11 @@ DATABASE_CONNECTION_URL=postgresql://krai_user:<password>@krai-postgres:5432/kra
 
 | Variable Name | Deprecated Since | Replaced By | Migration Notes |
 |---------------|------------------|-------------|-----------------|
-| `R2_ACCESS_KEY_ID` | 2024-Q4 | `OBJECT_STORAGE_ACCESS_KEY` | MinIO access key |
-| `R2_SECRET_ACCESS_KEY` | 2024-Q4 | `OBJECT_STORAGE_SECRET_KEY` | MinIO secret key |
-| `R2_ENDPOINT_URL` | 2024-Q4 | `OBJECT_STORAGE_ENDPOINT` | MinIO S3-compatible endpoint |
-| `R2_BUCKET_NAME_DOCUMENTS` | 2024-Q4 | *(managed by MinIO)* | Buckets created automatically |
-| `R2_REGION` | 2024-Q4 | `OBJECT_STORAGE_REGION` | AWS region identifier |
-| `R2_PUBLIC_URL_DOCUMENTS` | 2024-Q4 | `OBJECT_STORAGE_PUBLIC_URL` | Single public URL for all buckets |
-| `R2_PUBLIC_URL_ERROR` | 2024-Q4 | `OBJECT_STORAGE_PUBLIC_URL` | Single public URL for all buckets |
-| `R2_PUBLIC_URL_PARTS` | 2024-Q4 | `OBJECT_STORAGE_PUBLIC_URL` | Single public URL for all buckets |
-| `UPLOAD_IMAGES_TO_R2` | 2024-Q4 | *(not needed)* | MinIO is default storage |
-| `UPLOAD_DOCUMENTS_TO_R2` | 2024-Q4 | *(not needed)* | MinIO is default storage |
 | `MINIO_ENDPOINT` | 2024-Q4 | `OBJECT_STORAGE_ENDPOINT` | Renamed for consistency |
 | `MINIO_ACCESS_KEY` | 2024-Q4 | `OBJECT_STORAGE_ACCESS_KEY` | Renamed for consistency |
 | `MINIO_SECRET_KEY` | 2024-Q4 | `OBJECT_STORAGE_SECRET_KEY` | Renamed for consistency |
 
 ### Migration Example
-
-**Old (Cloudflare R2):**
-```bash
-R2_ACCESS_KEY_ID=your-r2-access-key-id
-R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
-R2_ENDPOINT_URL=https://your-account-id.eu.r2.cloudflarestorage.com
-R2_BUCKET_NAME_DOCUMENTS=your-bucket-name
-R2_PUBLIC_URL_DOCUMENTS=https://pub-your-documents-bucket.r2.dev
-R2_PUBLIC_URL_ERROR=https://pub-your-error-bucket.r2.dev
-R2_PUBLIC_URL_PARTS=https://pub-your-parts-bucket.r2.dev
-```
 
 **New (MinIO):**
 ```bash
@@ -119,10 +98,10 @@ Search your `.env` file for deprecated variables:
 
 ```bash
 # Linux/macOS
-grep -E "SUPABASE_|R2_|OLLAMA_BASE_URL|AI_SERVICE_URL|MINIO_ENDPOINT" .env
+grep -E "SUPABASE_|OLLAMA_BASE_URL|AI_SERVICE_URL|MINIO_ENDPOINT" .env
 
 # Windows (PowerShell)
-Select-String -Path .env -Pattern "SUPABASE_|R2_|OLLAMA_BASE_URL|AI_SERVICE_URL|MINIO_ENDPOINT"
+Select-String -Path .env -Pattern "SUPABASE_|OLLAMA_BASE_URL|AI_SERVICE_URL|MINIO_ENDPOINT"
 ```
 
 ### Step 2: Update Configuration
@@ -217,9 +196,9 @@ The following documentation files have been updated to reflect the new variable 
 
 ### Why were these variables deprecated?
 
-The project migrated from cloud-based Supabase and Cloudflare R2 to local-first PostgreSQL and MinIO for better data sovereignty, reduced costs, and improved performance.
+The project migrated from cloud-based Supabase and external object storage to local-first PostgreSQL and MinIO for better data sovereignty, reduced costs, and improved performance.
 
-### Can I still use Supabase/R2?
+### Can I still use Supabase?
 
 Yes, but it's not recommended. Uncomment the deprecated variables in your `.env` file and set `DATABASE_TYPE=supabase`. However, support may be removed in future versions.
 
@@ -243,7 +222,7 @@ Potentially, but not immediately. We will provide ample warning and migration ti
 Most scripts have been updated to use the adapter pattern. For scripts that still use deprecated variables:
 1. Check `scripts/README_MIGRATION.md` for migration examples
 2. Update to use `create_database_adapter()` from `backend/services/database_factory.py`
-3. Replace direct Supabase/R2 calls with adapter methods
+3. Replace direct Supabase/object-storage calls with adapter methods
 
 ---
 
@@ -261,4 +240,4 @@ Most scripts have been updated to use the adapter pattern. For scripts that stil
 
 **Last Updated:** 2024-11-18  
 **Deprecation Status:** Active (variables commented out in `.env` files)  
-**Support Status:** PostgreSQL + MinIO (Production), Supabase + R2 (Deprecated)
+**Support Status:** PostgreSQL + MinIO (Production), Supabase (Deprecated)

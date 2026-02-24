@@ -38,9 +38,10 @@ def create_database_adapter(database_type: str = None) -> DatabaseAdapter:
     if database_type == 'postgresql':
         # Get PostgreSQL configuration from environment
         # Check multiple environment variables in order of preference
+        # Prefer container/internal connection URL before local-host fallback.
         postgres_url = (
-            os.getenv('POSTGRES_URL') or 
-            os.getenv('DATABASE_CONNECTION_URL')
+            os.getenv('DATABASE_CONNECTION_URL') or
+            os.getenv('POSTGRES_URL')
         )
         if not postgres_url:
             raise EnvironmentError(

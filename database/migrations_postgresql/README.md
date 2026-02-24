@@ -89,6 +89,15 @@ psql "$POSTGRES_URL" -f database/migrations_postgresql/017_video_enrichment_colu
 
 ---
 
+### 7. `019_add_processing_queue_stage_column.sql` (optional)
+**Erstellt:** Fügt der Tabelle `krai_system.processing_queue` eine nicht nullable `stage`-Spalte hinzu, damit Queue-Helpers (z. B. SVG-Uploads) den auslösenden Pipeline-Stage dokumentieren.
+**Anwenden (bei alten Datenbanken ohne Spalte):**
+```bash
+python scripts/apply_migration_019_processing_queue_stage_column.py
+```
+
+---
+
 ## 🚀 Installation
 
 ### Voraussetzungen

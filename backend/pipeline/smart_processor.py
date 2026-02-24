@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 
 # Import services
-from backend.services.database_service import DatabaseService
+from backend.services.database_factory import create_database_adapter
 from backend.services.storage_factory import create_storage_service
 from backend.services.ai_service import AIService
 from backend.services.config_service import ConfigService
@@ -68,17 +68,7 @@ class KRSmartProcessor:
             raise RuntimeError("No .env files found")
         
         # Initialize services (PostgreSQL adapter)
-        db_type = os.getenv('DATABASE_TYPE', 'postgresql').lower()
-        postgres_url = (
-            os.getenv('DATABASE_CONNECTION_URL')
-            or os.getenv('POSTGRES_URL')
-            or os.getenv('DATABASE_URL')
-        )
-
-        self.database_service = DatabaseService(
-            postgres_url=postgres_url,
-            database_type='postgresql'
-        )
+        self.database_service = create_database_adapter()
         await self.database_service.connect()
         
         self.storage_service = create_storage_service()

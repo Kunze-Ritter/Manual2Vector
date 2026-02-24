@@ -140,6 +140,7 @@ class StorageOverview extends Page implements HasActions
     {
         return Document::query()
             ->orderBy('filename')
+            ->limit(500)
             ->get(['id', 'filename']);
     }
 

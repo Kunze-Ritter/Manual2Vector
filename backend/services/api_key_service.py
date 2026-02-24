@@ -165,7 +165,7 @@ class APIKeyService:
     async def cleanup_expired_keys(self) -> None:
         async with self.pool.acquire() as conn:
             await conn.execute(
-                "DELETE FROM krai_system.api_keys WHERE expires_at < NOW() - INTERVAL '$1 days'",
+                "DELETE FROM krai_system.api_keys WHERE expires_at < NOW() - make_interval(days => $1)",
                 self.config.API_KEY_GRACE_PERIOD_DAYS,
             )
         logger.info("Cleaned up expired API keys")

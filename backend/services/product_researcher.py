@@ -1,4 +1,4 @@
-"""
+﻿"""
 ProductResearcher Service
 
 Researches products on the internet, scrapes product pages, analyzes with LLM,
@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import asyncio
 
-from services.database_service import DatabaseService
+from services.database_adapter import DatabaseAdapter
 from services.web_scraping_service import WebScrapingService, FirecrawlUnavailableError
 
 
@@ -41,7 +41,7 @@ class ProductResearcher:
     
     def __init__(
         self,
-        database_service: DatabaseService,
+        database_service: DatabaseAdapter,
         web_scraping_service: WebScrapingService,
         ollama_url: str = "http://krai-ollama:11434"
     ):
@@ -589,3 +589,4 @@ Return ONLY the JSON object, no other text."""
             model=model,
             **kwargs
         )
+
