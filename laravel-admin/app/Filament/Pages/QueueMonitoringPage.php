@@ -8,6 +8,8 @@ use Filament\Pages\Page;
 
 class QueueMonitoringPage extends Page
 {
+    protected string $view = 'filament.pages.queue-monitoring';
+
     protected static ?string $navigationLabel = 'Warteschlangen';
 
     protected static \UnitEnum|string|null $navigationGroup = 'Monitoring';

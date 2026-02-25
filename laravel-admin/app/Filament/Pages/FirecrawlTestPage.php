@@ -15,6 +15,8 @@ class FirecrawlTestPage extends Page implements HasForms
 {
     use InteractsWithForms;
 
+    protected string $view = 'filament.pages.firecrawl-test';
+
     protected static ?string $navigationLabel = 'Firecrawl Test';
     protected static \UnitEnum|string|null $navigationGroup = 'Services';
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-globe-alt';

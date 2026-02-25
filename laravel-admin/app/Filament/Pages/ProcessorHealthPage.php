@@ -7,6 +7,8 @@ use Filament\Pages\Page;
 
 class ProcessorHealthPage extends Page
 {
+    protected string $view = 'filament.pages.processor-health';
+
     protected static ?string $navigationLabel = 'Prozessor-Status';
 
     protected static \UnitEnum|string|null $navigationGroup = 'Monitoring';

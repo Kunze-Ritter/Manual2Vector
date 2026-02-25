@@ -7,6 +7,8 @@ use Filament\Pages\Page;
 
 class PipelineStatusPage extends Page
 {
+    protected string $view = 'filament.pages.pipeline-status';
+
     protected static ?string $navigationLabel = 'Pipeline-Status';
 
     protected static \UnitEnum|string|null $navigationGroup = 'Monitoring';

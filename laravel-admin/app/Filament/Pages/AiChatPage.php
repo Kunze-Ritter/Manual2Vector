@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 
 class AiChatPage extends Page
 {
+    protected string $view = 'filament.pages.ai-chat-page';
+
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
     protected static ?string $navigationLabel = 'AI Chat';

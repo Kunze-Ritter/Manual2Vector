@@ -18,6 +18,8 @@ class StorageOverview extends Page implements HasActions
 {
     use InteractsWithActions;
 
+    protected string $view = 'filament.pages.storage-overview';
+
     protected static ?string $navigationLabel = 'Bilder & Storage';
 
     protected static string | UnitEnum | null $navigationGroup = 'Content';
