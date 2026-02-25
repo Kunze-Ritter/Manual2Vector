@@ -86,10 +86,10 @@ class PipelineErrorResource extends Resource
     public static function getStatusIcon(string $status): string
     {
         return match($status) {
-            'pending' => '❌',
-            'retrying' => '🔄',
-            'resolved' => '✅',
-            default => '⚠️',
+            'pending'  => 'heroicon-o-x-circle',
+            'retrying' => 'heroicon-o-arrow-path',
+            'resolved' => 'heroicon-o-check-circle',
+            default    => 'heroicon-o-exclamation-triangle',
         };
     }
 }

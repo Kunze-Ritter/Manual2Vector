@@ -10,11 +10,11 @@ use Filament\Forms\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ViewField;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 
 class SettingsFormSchema
 {
-    public static function configure(Form $schema): Form
+    public static function configure(Schema $schema): Schema
     {
         return $schema->schema([
             Tabs::make('settings_tabs')

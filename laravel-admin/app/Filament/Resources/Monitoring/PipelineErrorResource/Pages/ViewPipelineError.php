@@ -4,21 +4,20 @@ namespace App\Filament\Resources\Monitoring\PipelineErrorResource\Pages;
 
 use App\Filament\Resources\Monitoring\PipelineErrorResource;
 use Filament\Actions;
-use Filament\Infolists\Components\Grid;
-use Filament\Infolists\Components\Section;
-use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Schema;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
 
 class ViewPipelineError extends ViewRecord
 {
     protected static string $resource = PipelineErrorResource::class;
 
-    public function infolist(Infolist $infolist): Infolist
+    public function infolist(Schema $schema): Schema
     {
-        return $infolist
-            ->schema([
+        return $schema->components([
                 Section::make('Fehlermeldung')
                     ->schema([
                         TextEntry::make('error_message')

@@ -8,7 +8,7 @@ use App\Filament\Resources\Settings\SettingsResource;
 use Filament\Actions\Action;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\File;
@@ -59,7 +59,7 @@ class ManageSettings extends Page implements HasForms
         $this->form->fill($this->loadEnvValues());
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return SettingsFormSchema::configure($form)->statePath('data');
     }

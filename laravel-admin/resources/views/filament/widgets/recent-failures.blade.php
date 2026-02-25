@@ -63,7 +63,7 @@
                                     <td class="px-3 py-4 whitespace-nowrap">
                                         @if ($error->document)
                                             <a 
-                                                href="{{ \App\Filament\Resources\Documents\DocumentResource::getUrl('view', ['record' => $error->document_id]) }}"
+                                                href="{{ \App\Filament\Resources\Documents\DocumentResource::getUrl('edit', ['record' => $error->document_id]) }}"
                                                 class="text-sm text-primary-600 dark:text-primary-400 hover:underline"
                                             >
                                                 {{ Str::limit($error->document->filename, 30) }}

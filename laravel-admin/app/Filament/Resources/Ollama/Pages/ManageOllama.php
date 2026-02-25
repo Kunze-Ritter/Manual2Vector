@@ -6,7 +6,7 @@ use App\Filament\Resources\Ollama\OllamaResource;
 use Filament\Actions;
 use Filament\Actions\Action;
 use Filament\Forms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRecords;
 use Filament\Tables;
