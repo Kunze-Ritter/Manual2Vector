@@ -612,42 +612,42 @@ class ImageProcessor(BaseProcessor):
                             # Open with PIL to get dimensions
                             with Image.open(io.BytesIO(image_bytes)) as pil_image:
                                 width, height = pil_image.size
-                        
-                        # Check minimum size
-                        if width * height < self.min_image_size:
+                            
+                            # Check minimum size
+                            if width * height < self.min_image_size:
+                                continue
+                            
+                            # Compute image bounding box using display list
+                            image_bbox = self._get_image_bbox(page, img_index)
+                            
+                            # Save image
+                            image_filename = f"page_{page_num:04d}_img_{img_index:03d}.{image_ext}"
+                            image_path = output_dir / image_filename
+                            
+                            with open(image_path, "wb") as img_file:
+                                img_file.write(image_bytes)
+                            
+                            # Store image info
+                            images.append({
+                                'path': str(image_path),
+                                'filename': image_filename,
+                                'page_number': page_num + 1,  # 1-indexed - standardized key
+                                'width': width,
+                                'height': height,
+                                'format': image_ext,
+                                'size_bytes': len(image_bytes),
+                                'bbox': image_bbox,  # Add bounding box
+                                'extracted_at': datetime.utcnow().isoformat()
+                            })
+                            
+                            image_counter += 1
+                            
+                        except Exception as e:
+                            self.logger.debug(f"Failed to extract image {img_index} from page {page_num}: {e}")
                             continue
-                        
-                        # Compute image bounding box using display list
-                        image_bbox = self._get_image_bbox(page, img_index)
-                        
-                        # Save image
-                        image_filename = f"page_{page_num:04d}_img_{img_index:03d}.{image_ext}"
-                        image_path = output_dir / image_filename
-                        
-                        with open(image_path, "wb") as img_file:
-                            img_file.write(image_bytes)
-                        
-                        # Store image info
-                        images.append({
-                            'path': str(image_path),
-                            'filename': image_filename,
-                            'page_number': page_num + 1,  # 1-indexed - standardized key
-                            'width': width,
-                            'height': height,
-                            'format': image_ext,
-                            'size_bytes': len(image_bytes),
-                            'bbox': image_bbox,  # Add bounding box
-                            'extracted_at': datetime.utcnow().isoformat()
-                        })
-                        
-                        image_counter += 1
-                        
-                    except Exception as e:
-                        self.logger.debug(f"Failed to extract image {img_index} from page {page_num}: {e}")
-                        continue
-                
-                if image_counter >= self.max_images_per_doc:
-                    break
+                    
+                    if image_counter >= self.max_images_per_doc:
+                        break
             finally:
                 pdf_document.close()
             
