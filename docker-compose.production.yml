@@ -43,8 +43,6 @@ services:
         condition: service_healthy
       krai-minio:
         condition: service_healthy
-      krai-ollama:
-        condition: service_healthy
     command: >
       uvicorn api.app:app --host 0.0.0.0 --port 8000 --log-level debug --timeout-keep-alive 300
 
@@ -111,34 +109,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # Ollama AI Service - production with GPU
-  krai-ollama:
-    image: ollama/ollama:latest
-    container_name: krai-ollama-prod
-    env_file:
-      - .env
-    restart: always
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - krai-network
-    gpus: all
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep ollama || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    # GPU support - production setup
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   # Redis Cache
   krai-redis:
@@ -199,7 +169,7 @@ services:
       - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
       - BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY}
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
       - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-false}
@@ -212,8 +182,6 @@ services:
         condition: service_healthy
       krai-playwright:
         condition: service_healthy
-      krai-ollama:
-        condition: service_started
       krai-postgres:
         condition: service_healthy
       krai-minio:
@@ -241,7 +209,7 @@ services:
       - PLAYWRIGHT_MICROSERVICE_URL=http://krai-playwright:3000/scrape
       - BULL_AUTH_KEY=${FIRECRAWL_BULL_AUTH_KEY}
       - USE_DB_AUTHENTICATION=false
-      - OLLAMA_URL=${OLLAMA_URL:-http://krai-ollama:11434}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - MODEL_NAME=${FIRECRAWL_MODEL_NAME:-llama3.2:latest}
       - MODEL_EMBEDDING_NAME=${FIRECRAWL_EMBEDDING_MODEL:-nomic-embed-text:latest}
       - ALLOW_LOCAL_WEBHOOKS=${FIRECRAWL_ALLOW_LOCAL_WEBHOOKS:-false}
@@ -264,7 +232,6 @@ services:
 volumes:
   krai_postgres_data:
   minio_data:
-  ollama_data:
   redis_data:
 
 networks:

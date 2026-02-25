@@ -79,6 +79,23 @@
 
                         {{-- Message Input Form --}}
                         <form wire:submit.prevent="sendMessage" class="space-y-3 mt-4">
+                            {{-- Prompt Templates --}}
+                            @php $templates = $this->getPromptTemplates(); @endphp
+                            @if(count($templates) > 0)
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($templates as $tpl)
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                            x-on:click="$wire.set('currentMessage', {{ json_encode($tpl['prompt_text']) }}); $nextTick(() => $el.closest('form').querySelector('textarea').focus())"
+                                            title="{{ $tpl['description'] ?? $tpl['title'] }}"
+                                        >
+                                            {{ $tpl['title'] }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
+
                             <textarea
                                 wire:model.defer="currentMessage"
                                 rows="3"

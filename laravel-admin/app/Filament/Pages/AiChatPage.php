@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\PromptTemplate;
 use App\Services\AiAgentService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -185,12 +186,19 @@ class AiChatPage extends Page
         });
     }
 
-    /**
-     * Get AiAgentService instance on demand.
-     * Avoids Livewire lifecycle issues with protected typed properties.
-     */
     private function getAiAgent(): AiAgentService
     {
         return app(AiAgentService::class);
+    }
+
+    public function getPromptTemplates(): array
+    {
+        return Cache::remember('prompt_templates.active', 300, function () {
+            try {
+                return PromptTemplate::active()->get()->toArray();
+            } catch (\Throwable) {
+                return [];
+            }
+        });
     }
 }
