@@ -15,7 +15,7 @@ services:
   krai-engine:
     build:
       context: .
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile
     image: krai-engine:latest
     container_name: krai-engine-prod
     restart: always

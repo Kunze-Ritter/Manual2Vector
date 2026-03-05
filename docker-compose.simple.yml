@@ -5,7 +5,8 @@ services:
   krai-engine:
     build:
       context: .
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile
+    # Für GPU Support: docker-compose -f docker-compose.yml up -d
     container_name: krai-engine-prod
     restart: always
     ports:

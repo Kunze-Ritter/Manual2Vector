@@ -5,7 +5,7 @@ services:
   krai-engine:
     build:
       context: .
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile
     container_name: krai-engine-prod
     restart: always
     ports:

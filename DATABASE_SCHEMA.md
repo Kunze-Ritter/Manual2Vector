@@ -1,7 +1,7 @@
 # KRAI Database Schema Documentation
 ================================================================================
 
-**Zuletzt aktualisiert:** 20.12.2025 um 17:00 Uhr
+**Zuletzt aktualisiert:** 05.03.2026 um 14:30 Uhr
 
 **Quelle:** PostgreSQL Database (Production Structure - Migration from Supabase completed November 2024, KRAI-002)
 
@@ -36,6 +36,34 @@
 - `krai_content.links` - Links
 - `krai_content.images` - Bilder
 - `krai_parts.parts_catalog` - Ersatzteile
+- `krai_system.processing_queue` - Pipeline-Queue
+
+### ⚠️ Known Column Name Traps (Historisch bedingte Fehlerquellen)
+
+| FALSCH | RICHTIG | Tabelle | Beschreibung |
+|--------|---------|---------|--------------|
+| `chunk_text` | `text_chunk` | `krai_intelligence.chunks` | Text-Inhalt |
+| `enrichment_error` | `metadata->>'enrichment_error'` | `krai_content.videos` | Keine eigene Spalte, in JSONB |
+| `tags` | `metadata->>'tags'` | `krai_content.videos` | Keine eigene Spalte, in JSONB |
+| `error_code` | `error_code` | `krai_intelligence.error_codes` | Immer Kleinbuchstaben! |
+
+### 🔑 Wichtige Query-Muster
+
+```sql
+-- Alle Chunks mit Embeddings (NEU: embedding Spalte direkt in chunks!)
+SELECT id, text_chunk, embedding FROM krai_intelligence.chunks 
+WHERE embedding IS NOT NULL LIMIT 10;
+
+-- Videos mit Fehler (metadata JSONB)
+SELECT id, title, metadata->>'enrichment_error' as error 
+FROM krai_content.videos 
+WHERE metadata->>'enrichment_error' IS NOT NULL;
+
+-- Error Code Hierarchy (ab Migration 018)
+SELECT error_code, error_description, parent_code, is_category 
+FROM krai_intelligence.error_codes 
+WHERE parent_code = '13.B9' ORDER BY error_code;
+```
 
 ---
 

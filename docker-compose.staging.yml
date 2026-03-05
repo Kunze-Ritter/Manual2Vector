@@ -78,7 +78,7 @@ services:
   backend-staging:
     build:
       context: .
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile
     image: krai-engine:staging
     container_name: krai-backend-staging
     ports:
