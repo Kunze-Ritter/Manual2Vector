@@ -3,6 +3,10 @@ Embedding Processor - Generate vector embeddings for semantic search
 
 Stage 7 of the processing pipeline.
 
+ARCHITECTURE (Refactored 2026-03-05):
+- embedding_config.py: Configuration, session, batch management
+- embedding_processor.py: Main facade (this file)
+
 Uses embeddinggemma via Ollama for local, fast embeddings.
 Stores vectors in PostgreSQL (krai_intelligence.chunks.embedding) for similarity search.
 
@@ -36,6 +40,13 @@ from backend.core.base_processor import BaseProcessor, Stage
 from .stage_tracker import StageTracker
 from backend.pipeline.metrics import metrics
 from backend.processors.logger import text_stats
+
+# Import from refactored modules
+from .embedding_config import (
+    create_embedding_session,
+    BatchStateManager,
+    PromptLimitManager,
+)
 
 
 class EmbeddingProcessor(BaseProcessor):
