@@ -2,10 +2,10 @@
 
 Extracts error codes using manufacturer-specific patterns from JSON config.
 
-PERFORMANCE OPTIMIZATIONS:
-- Batch regex compilation (98x fewer document scans)
-- Multiprocessing support for CPU parallelization
-- Early exit when good solutions found
+ARCHITECTURE (Refactored 2026-03-05):
+- error_code_patterns.py: Regex patterns, constants, config loading
+- error_code_hierarchy.py: Parent code derivation, category creation
+- error_code_extractor.py: Main facade (this file)
 
 OEM/REBRAND SUPPORT:
 - Automatically detects OEM engine manufacturer
@@ -27,6 +27,28 @@ from backend.utils.manufacturer_normalizer import normalize_manufacturer
 from backend.config.oem_mappings import get_effective_manufacturer
 from .chunk_linker import link_error_codes_to_chunks
 
+# Import from refactored modules
+from .error_code_patterns import (
+    REJECT_CODES,
+    TECHNICAL_TERMS,
+    RECOMMENDED_ACTION_PATTERN,
+    SOLUTION_KEYWORDS_PATTERN,
+    NUMBERED_STEPS_PATTERN,
+    BULLET_PATTERN,
+    STEP_LINE_PATTERN,
+    STEP_MATCH_PATTERN,
+    SECTION_END_NOTE,
+    SECTION_END_TITLE,
+    SECTION_END_NUMBERED,
+    CLASSIFICATION_PATTERN,
+    SENTENCE_END_PATTERN,
+    MAX_BATCH_CODE_LENGTH,
+    load_error_code_config,
+    slugify_error_code as _slugify,
+)
+
+from .error_code_hierarchy import derive_parent_code, create_category_entries
+
 try:
     from rich.progress import (
         Progress,
@@ -42,60 +64,6 @@ except ImportError:
     RICH_PROGRESS_AVAILABLE = False
 
 logger = get_logger()
-
-# Words that are NOT error codes (reject these!)
-REJECT_CODES = {
-    'descriptions', 'information', 'lookup', 'troubleshooting',
-    'specify', 'displays', 'field', 'system', 'file', 'page',
-    'section', 'chapter', 'table', 'figure', 'error', 'code',
-    'manual', 'document', 'version', 'revision', 'contents'
-}
-
-# Technical terms that indicate real error context
-TECHNICAL_TERMS = {
-    'fuser', 'sensor', 'motor', 'cartridge', 'drum', 'roller',
-    'replace', 'check', 'clean', 'reset', 'calibrate', 'inspect',
-    'toner', 'paper', 'jam', 'feed', 'pickup', 'transfer',
-    'formatter', 'engine', 'scanner', 'adf', 'duplex', 'tray',
-    'thermistor', 'heater', 'solenoid', 'clutch', 'gear', 'belt'
-}
-
-# PERFORMANCE: Pre-compile regex patterns (avoid recompilation in hot loops)
-# These patterns are used 3919+ times during enrichment!
-RECOMMENDED_ACTION_PATTERN = re.compile(
-    r'(?:recommended\s+action|corrective\s+action|troubleshooting\s+steps?|service\s+procedure|procedure|remedy|repair\s+procedure|measures\s+to\s+take|correction)'
-    r'(?:\s+for\s+(?:customers?|technicians?|agents?|users?|when\s+an\s+alert\s+occurs)?)?'
-    r'\s*[\n:]+((?:(?:\d+[\.\)]|•|-|\*|step\s+\d+)\s+.{15,500}?[\n\r]?){1,})',  # Non-greedy, limited length
-    re.IGNORECASE | re.MULTILINE
-)
-
-SOLUTION_KEYWORDS_PATTERN = re.compile(
-    r'(?:solution|fix|remedy|resolution|procedure|action|steps?)'
-    r'\s*[:]\s*(.{50,1500}?)',  # Non-greedy
-    re.IGNORECASE
-)
-NUMBERED_STEPS_PATTERN = re.compile(
-    r'((?:(?:\d+[\.\)]|Step\s+\d+)\s+.{20,500}?[\n\r]?){2,})',  # Non-greedy, limited length
-    re.MULTILINE | re.IGNORECASE
-)
-
-BULLET_PATTERN = re.compile(
-    r'((?:(?:•|-|\*|–)\s+.{15,500}?[\n\r]?){2,})',  # Non-greedy, limited length
-    re.MULTILINE
-)
-
-# Additional pre-compiled patterns for _extract_solution (used in nested loops!)
-# These are called 9000+ times (3052 codes × ~3 matches each)
-STEP_LINE_PATTERN = re.compile(r'^(?:\s{0,4}\d+[\.\)]|•|-|\*|[a-z][\.\)])\s+', re.MULTILINE)
-STEP_MATCH_PATTERN = re.compile(r'(?:\d+[\.\)]|Step\s+\d+)', re.IGNORECASE)
-SECTION_END_NOTE = re.compile(r'\n\s*(?:note|warning|caution|important|tip)', re.IGNORECASE)
-SECTION_END_TITLE = re.compile(r'\n\s*[A-Z][a-z]+\s+[A-Z]')
-SECTION_END_NUMBERED = re.compile(r'\n\s*\d+\.\d+\s')
-CLASSIFICATION_PATTERN = re.compile(r'Classification\s*\n\s*(.+?)(?:\n\s*Cause|\n\s*Measures|$)', re.IGNORECASE | re.DOTALL)
-SENTENCE_END_PATTERN = re.compile(r'[.!?\n]{1,2}')
-
-
-MAX_BATCH_CODE_LENGTH = 128
 
 
 class ErrorCodeExtractor:
@@ -132,7 +100,7 @@ class ErrorCodeExtractor:
     
     @staticmethod
     def _slugify(name: str) -> str:
-        return re.sub(r"[^a-z0-9]", "", name.lower())
+        return _slugify(name)
 
     def _reset_missing_manufacturer_events(self):
         self._missing_manufacturer_events.clear()
