@@ -1,0 +1,83 @@
+# Pre-commit hooks for KRAI Engine
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # ===========================================
+  # Formatters (run first)
+  # ===========================================
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+
+  # ===========================================
+  # Linting
+  # ===========================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.1
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # ===========================================
+  # Type Checking (optional, can be slow)
+  # ===========================================
+  # Uncomment if you want mypy in pre-commit (slower)
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.11.2
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies: [types-all]
+  #       args: [--config-file=pyproject.toml]
+
+  # ===========================================
+  # Security
+  # ===========================================
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.0
+    hooks:
+      - id: bandit
+        args: [-x, "tests/"]
+
+  # ===========================================
+  # Git hooks
+  # ===========================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=50000']
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+# Configure ruff to run on these file types
+default_stages: [pre-commit]
+
+# Exclude files/directories
+exclude: |
+  (?x)(
+    ^\.github/
+    | ^\.venv/
+    | ^venv/
+    | ^node_modules/
+    | ^build/
+    | ^dist/
+    | \.egg-info/
+    | \.pytest_cache/
+    | __pycache__/
+    | legacy/
+    | tests/legacy/
+  )

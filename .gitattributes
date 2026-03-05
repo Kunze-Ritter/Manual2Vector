@@ -1,0 +1,45 @@
+# Git attributes for KRAI Engine
+# ============================================
+
+# Default: LF for all files
+* text=auto
+
+# Python files - always LF
+*.py text eol=lf
+
+# YAML files - always LF  
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# JSON files
+*.json text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+
+# Dockerfiles
+Dockerfile* text eol=lf
+
+# Config files
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+
+# SQL files
+*.sql text eol=lf
+
+# Markdown files
+*.md text eol=lf
+
+# Binary files - leave as-is
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+
+# Node modules (if any)
+node_modules/ -diff
