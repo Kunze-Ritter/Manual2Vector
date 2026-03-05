@@ -1,5 +1,8 @@
 # KRAI Project TODO
 
+> **Wichtige Info:** Für eine kompakte Projekt-Übersicht, see `/MASTER-TODO.md`
+> Diese Datei enthält detaillierte Bug-Fixes und Änderungen.
+
 - [x] **Docker Health Check: Fixed Bash Persistency Test Early Exit** ✅ (11:09)
   - Wrapped all `docker exec` and `docker inspect` calls in `test_data_persistency()` with `set +e`/`set -e` blocks
   - Captured exit codes explicitly and branched on them to call `print_status`/`increment_exit_code`
@@ -289,7 +292,7 @@
   - Removed: Alle Supabase-Referenzen aus DATABASE_SCHEMA.md
   - Created: `database/README.md` - Vollständige PostgreSQL Setup-Anleitung
   - Created: `database/migrations/archive/` für alte Migrationen
-  - **Files:** 
+  - **Files:**
     - `database/migrations_postgresql/001_core_schema.sql` (Schemas, Tables, Extensions, Indexes)
     - `database/migrations_postgresql/002_views.sql` (16 Public Views)
     - `database/migrations_postgresql/003_functions.sql` (RPC Functions, Triggers)
@@ -1208,7 +1211,7 @@
     - `pytest.ini` – neue Marker `master_pipeline`, `batch`, `concurrency`, `error_recovery`, `status_tracking` registriert.
   - **Result:** Die Master-Pipeline kann nun vollständig mit `pytest` getestet werden – sowohl gegen reine Mocks als auch gegen reale Datenbank-/Storage-/AI-Services. Orchestrierung, Smart Processing, Batch/Hardware-Waker, Fehlerpfade und Stage-Status sind konsistent abgedeckt.
 
-- [x] **Monitoring Detail Pages Polling & Data Injection Fixes** 
+- [x] **Monitoring Detail Pages Polling & Data Injection Fixes**
   - Removed redundant Blade data fetches on Processor/Pipeline/Queue pages; use injected view data
   - Hardened queue timestamp helpers against invalid/missing timestamps
   - Standardized Filament polling via static `$pollingInterval` using `krai.monitoring` config
@@ -1221,7 +1224,7 @@
   - **Files:** `laravel-admin/app/Providers/Filament/KradminPanelProvider.php`, `laravel-admin/app/Filament/Resources/*`, `laravel-admin/app/Filament/Pages/ProcessorHealthPage.php`, `laravel-admin/app/Filament/Pages/QueueMonitoringPage.php`, `laravel-admin/config/krai.php`
   - **Result:** Consistent grouped navigation with badges for failed processors and pending queue items; widgets ordered logically.
 
-- [x] **Laravel Dashboard Performance Infra Upgrade** 
+- [x] **Laravel Dashboard Performance Infra Upgrade**
   - Added Redis service with healthcheck and wired laravel-admin dependency in docker-compose.
   - Scoped laravel-admin bind mounts to app/config/resources only; moved dependencies to named volumes and added nginx frontend service.
   - Rebuilt Dockerfile to PHP-FPM with Opcache + redis extension and nginx stage; added Laravel nginx config.
@@ -1231,7 +1234,7 @@
 
 ### Completed Tasks
 
-- [x] **Extend Mock Master Pipeline When New Stages Ship** 
+- [x] **Extend Mock Master Pipeline When New Stages Ship**
   - **Task:** Sobald KRMasterPipeline um Parts/Series/Structured Extractor-Stages erweitert wird, `mock_master_pipeline` um die passenden Processor-Keys ergänzen und neue Orchestrierungs-Tests (ähnlich Full-Pipeline/Silver-Flow) hinzufügen.
   - **Files to modify:**
     - `tests/processors/conftest.py`
@@ -1241,7 +1244,7 @@
   - **Effort:** 1-2 hours
   - **Status:** TODO
 
-- [x] **Run focused link extraction test suite locally** 
+- [x] **Run focused link extraction test suite locally**
   - **Task:** Execute the updated link extraction and enrichment tests and inspect any regressions or flaky behavior.
   - **Example:**
     - `pytest tests/processors/test_link_extractor_unit.py`
@@ -1254,7 +1257,7 @@
   - **Result:** Link extractor unit, link enrichment integration, and link extraction E2E tests all passing locally.
   - **Status:** DONE
 
-- [x] **Test Series Processor Components** 
+- [x] **Test Series Processor Components**
   - **Task:** Create unit and E2E tests for SeriesProcessor
   - **Files to create:**
     - `tests/processors/test_series_processor_unit.py`
@@ -1263,13 +1266,13 @@
   - **Effort:** 2 hours
   - **Status:** DONE
 
-- [x] **Test Storage Processor Components** 
+- [x] **Test Storage Processor Components**
   - **Task:** Create unit and E2E tests for StorageProcessor
   - **Files to create:**
     - `tests/processors/test_storage_processor_unit.py`
     - `tests/processors/test_storage_processor_e2e.py`
   - **Priority:** HIGH
-- [x] **Create Integration Flow Tests** 
+- [x] **Create Integration Flow Tests**
   - **Task:** Create E2E tests for complete Metadata → Parts → Series → Storage flow
   - **File created:** `tests/processors/test_metadata_parts_series_storage_flow_e2e.py`
   - **Priority:** HIGH
@@ -1277,20 +1280,20 @@
   - **Result:** Happy-path cross-stage flow (Metadata → Parts → Series → Storage) covered with unified mock DB + storage service
   - **Status:** DONE
 
-- [x] **Add YouTube metadata failure-path unit tests** 
+- [x] **Add YouTube metadata failure-path unit tests**
   - Added tests to cover request exceptions and missing/empty `items` responses in `_fetch_youtube_metadata()`.
   - **File:** `tests/processors/test_link_extractor_unit.py`
   - **Result:** Ensures YouTube metadata failures are handled gracefully and return `None` without raising.
   - **Status:** TODO
 
-- [x] **Update Pytest Configuration** 
+- [x] **Update Pytest Configuration**
   - **Task:** Add new markers for metadata/parts/series/storage tests
   - **File to modify:** `pytest.ini`
   - **Priority:** MEDIUM
   - **Effort:** 30 minutes
   - **Status:** DONE
 
-- [x] **Create Test Documentation** 
+- [x] **Create Test Documentation**
   - **Task:** Create comprehensive documentation for test suites
   - **File created:** `tests/processors/README_METADATA_PARTS_SERIES_STORAGE_TESTS.md`
   - **Priority:** LOW
@@ -1298,13 +1301,13 @@
   - **Result:** Central overview of Metadata/Parts/Series/Storage processor tests, markers, and example pytest commands
   - **Status:** DONE
 
-- - [x] **Clean Up Old Test Files** 
+- - [x] **Clean Up Old Test Files**
   - **Task:** Remove old non-pytest test file
   - **File deleted:** `tests/processors/test_storage.py`
   - **Result:** Legacy storage harness removed; StorageProcessor behaviour now covered by pytest unit/E2E tests
   - **Status:** DONE
 
-- [x] **Verify storage test cleanup & add debounced cancellable search** 
+- [x] **Verify storage test cleanup & add debounced cancellable search**
   - **Storage Tests:** Confirmed legacy `tests/processors/test_storage.py` has been fully removed from the repository. `pytest tests/processors/ --collect-only` could not be executed in the current shell because `pytest` is not installed, but the file itself no longer exists and StorageProcessor behaviour is covered by `test_storage_processor_unit.py` and `test_storage_processor_e2e.py`.
   - **Search Debounce:** Implemented a 300ms debounce on the shared `FilterBar` search input so that typing does not trigger a new documents/error-codes query on every keystroke.
   - **Request Cancellation:** Wired React Query's `signal` through `useDocuments`/`useErrorCodes` into `documentsApi.getDocuments()` / `errorCodesApi.getErrorCodes()` and axios, so in-flight list/search requests are cancelled when superseded by newer ones. Axios cancellations (`ERR_CANCELED`) are now treated as benign instead of generic 500-style errors.
@@ -1316,7 +1319,7 @@
     - `frontend/src/components/shared/FilterBar.tsx`
   - **Result:** Document and error-code list searches now behave like a debounced, latest-only search box, avoiding stale results when responses arrive out of order while keeping the existing FilterBar API and Playwright performance tests intact.
 
-- [x] **Embedding & Search Processor Test Suite** 
+- [x] **Embedding & Search Processor Test Suite**
   - **Completed:** Vollständige pytest-basierte Tests für EmbeddingProcessor (Stage 7) und SearchProcessor (Search Indexing), inkl. Unit-, E2E-, Qualitäts-, Relevanz- und Pipeline-Tests.
   - **Files Created:**
     - `tests/processors/test_embedding_processor_unit.py`
@@ -1334,7 +1337,7 @@
     - `tests/processors/README_EMBEDDING_SEARCH_TESTS.md`
   - **Result:** Für jeden eingebetteten Chunk existiert nun ein passender Eintrag in `mock_database_adapter.chunks`, `legacy_embeddings` und der multi-modal Embeddings-Tabelle mit konsistenter `document_id`-/`chunk_type`-Metadatenlage; Similarity-Suchen über beide Repräsentationen liefern übereinstimmende Top-Treffer, und das Legacy-Harness beeinflusst automatisierte Pytest-Runs nicht mehr.
 
-- [x] **Embedding & Search Processor Test Suite** 
+- [x] **Embedding & Search Processor Test Suite**
   - **Completed:** Vollständige pytest-basierte Tests für EmbeddingProcessor (Stage 7) und SearchProcessor (Search Indexing), inkl. Unit-, E2E-, Qualitäts-, Relevanz- und Pipeline-Tests.
   - **Files Created:**
     - `tests/processors/test_embedding_processor_unit.py`
@@ -1368,10 +1371,10 @@
 
 ### Session Statistics (2025-12-09)
 
-**Time:** 09:00-09:20 (20 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 6  
-**Bugs Fixed:** 2 (cache tag errors on non-taggable stores; missing Http import)  
+**Time:** 09:00-09:20 (20 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 6
+**Bugs Fixed:** 2 (cache tag errors on non-taggable stores; missing Http import)
 **Features Added:** 3 (Redis default cache config, lazy/polling tuning, StorageOverview deferred load/infinite scroll)
 
 **Key Achievements:**
@@ -1383,10 +1386,10 @@
 
 ### Session Statistics (2025-12-08)
 
-**Time:** 15:56-16:55 (59 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 6  
-**Bugs Fixed:** 2 (search placeholder mismatch, download path fallback)  
+**Time:** 15:56-16:55 (59 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 6
+**Bugs Fixed:** 2 (search placeholder mismatch, download path fallback)
 **Features Added:** 1 (StorageOverview grid/filters + bulk actions)
 
 **Key Achievements:**
@@ -1398,10 +1401,10 @@
 
 ### Session Statistics (2025-12-09)
 
-**Time:** 09:20-10:25 (65 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 12  
-**Bugs Fixed:** 1 (duplicate monitoring fetches via cache misses)  
+**Time:** 09:20-10:25 (65 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 12
+**Bugs Fixed:** 1 (duplicate monitoring fetches via cache misses)
 **Features Added:** 3 (monitoring batch/dedup, profiler middleware, benchmark CLI + perf doc)
 
 **Key Achievements:**
@@ -1413,10 +1416,10 @@
 
 ### Session Statistics (2025-12-09)
 
-**Time:** 14:20-14:50 (30 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 5  
-**Bugs Fixed:** 0  
+**Time:** 14:20-14:50 (30 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 5
+**Bugs Fixed:** 0
 **Features Added:** 3 (Redis service, PHP-FPM/nginx build, DB pooling/env tuning)
 
 **Key Achievements:**
@@ -1426,10 +1429,10 @@
 
 ### Session Statistics (2025-12-09)
 
-**Time:** 16:59-17:20 (21 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 5  
-**Bugs Fixed:** 1 (profiler running in prod)  
+**Time:** 16:59-17:20 (21 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 5
+**Bugs Fixed:** 1 (profiler running in prod)
 **Features Added:** 3 (eager loading for Filament resources, monitoring TTL env docs, monitoring batch endpoints expansion)
 
 **Key Achievements:**
@@ -1437,7 +1440,7 @@
 2. Monitoring cache TTL env vars and profiler toggle documented in `.env.example`.
 3. MonitoringService now respects MONITORING_BASE_URL and batches queue/pipeline alongside dashboard data.
 
-**Next Focus:** Validate monitoring dashboard with new batch data and confirm profiler toggle behavior across environments. 
+**Next Focus:** Validate monitoring dashboard with new batch data and confirm profiler toggle behavior across environments.
 
 **Last Updated:** 2025-12-09 (21:57)
 **Current Focus:** Validate monitoring batch additions and profiler gating
@@ -1445,23 +1448,23 @@
 
 ### Session Statistics (2025-12-09)
 
-**Time:** 21:45-21:57 (12 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 1  
-**Bugs Fixed:** 0  
+**Time:** 21:45-21:57 (12 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 1
+**Bugs Fixed:** 0
 **Features Added:** 1 (Ollama models table view)
 
 **Key Achievements:**
 1. Added responsive Ollama models table view with refresh/delete actions and pull trigger placeholder.
 
-**Next Focus:** Wire pull modal implementation and confirm delete refresh flows end-to-end. 
+**Next Focus:** Wire pull modal implementation and confirm delete refresh flows end-to-end.
 
 ### Session Statistics (2025-12-09)
 
-**Time:** 23:40-23:59 (19 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 4  
-**Bugs Fixed:** 0  
+**Time:** 23:40-23:59 (19 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 4
+**Bugs Fixed:** 0
 **Features Added:** 1 (AI Agent service integration)
 
 **Key Achievements:**
@@ -1473,10 +1476,10 @@
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 00:05-00:25 (20 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 2  
-**Bugs Fixed:** 0  
+**Time:** 00:05-00:25 (20 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 2
+**Bugs Fixed:** 0
 **Features Added:** 1 (AiAgentService envelope/logging alignment)
 
 **Key Achievements:**
@@ -1488,13 +1491,13 @@
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 07:35-07:55 (20 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 4  
-**Bugs Fixed:** 0  
+**Time:** 07:35-07:55 (20 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 4
+**Bugs Fixed:** 0
 **Features Added:** 1 (AI Chat floating sidebar widget)
 
-- [x] **AI Chat floating sidebar widget** 
+- [x] **AI Chat floating sidebar widget**
   - Built AiChatWidget Livewire overlay with streaming toggle and history controls.
   - Added SSE streaming endpoint and registered widget across Filament panel.
   - Ensured markdown rendering and responsive/dark-mode friendly UI.
@@ -1502,11 +1505,11 @@
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 08:12-08:35 (23 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 4  
-**Bugs Fixed:** 1 (chat history duplication & SSE privacy)  
-**Features Added:** 0  
+**Time:** 08:12-08:35 (23 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 4
+**Bugs Fixed:** 1 (chat history duplication & SSE privacy)
+**Features Added:** 0
 
 **Key Achievements:**
 1. Centralized AI chat history persistence and removed duplicate sync/stream sends.
@@ -1516,11 +1519,11 @@
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 09:04-09:08 (4 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 1  
-**Bugs Fixed:** 1 (env binding crash)  
-**Features Added:** 0  
+**Time:** 09:04-09:08 (4 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 1
+**Bugs Fixed:** 1 (env binding crash)
+**Features Added:** 0
 
 **Key Achievements:**
 1. Resolved ReflectionException by switching to Env::get in bootstrap middleware config.
@@ -1529,25 +1532,25 @@
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 09:38-09:54 (16 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 4 (2 created, 2 deleted, 1 modified)  
-**Bugs Fixed:** 2 (navigationGroup and navigationIcon type declarations)  
-**Features Added:** 1 (AI Chat full page)  
+**Time:** 09:38-09:54 (16 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 4 (2 created, 2 deleted, 1 modified)
+**Bugs Fixed:** 2 (navigationGroup and navigationIcon type declarations)
+**Features Added:** 1 (AI Chat full page)
 
 **Key Achievements:**
 1. ✅ Converted AI Chat from floating widget to dedicated Filament page
 2. ✅ Improved UX with two-column layout and proper status/controls sidebar
 
-**Next Focus:** Test AI Agent connectivity and verify monitoring widgets show data correctly 
+**Next Focus:** Test AI Agent connectivity and verify monitoring widgets show data correctly
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 11:49-11:52 (3 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 2  
-**Bugs Fixed:** 3 (base_url default, error URL diagnostics, timeout messages)  
-**Features Added:** 0  
+**Time:** 11:49-11:52 (3 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 2
+**Bugs Fixed:** 3 (base_url default, error URL diagnostics, timeout messages)
+**Features Added:** 0
 
 **Key Achievements:**
 1. ✅ Updated AI Agent base_url default to krai-backend-prod
@@ -1562,11 +1565,11 @@
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 12:08-12:10 (2 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 3  
-**Bugs Fixed:** 1 (Pipeline Status widget HTTP 404 errors with no diagnostics)  
-**Features Added:** 1 (Error classification and diagnostic UI)  
+**Time:** 12:08-12:10 (2 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 3
+**Bugs Fixed:** 1 (Pipeline Status widget HTTP 404 errors with no diagnostics)
+**Features Added:** 1 (Error classification and diagnostic UI)
 
 **Key Achievements:**
 1. ✅ Added error classification to Pipeline Status widget (DNS, connection, timeout, 404, auth, server errors)
@@ -1577,11 +1580,11 @@
 
 ### Session Statistics (2025-12-10)
 
-**Time:** 12:59-13:01 (2 minutes)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 2  
-**Bugs Fixed:** 1 (Potential double-slash URLs in MonitoringService)  
-**Features Added:** 1 (Enhanced error diagnostics with both monitoring and engine URLs)  
+**Time:** 12:59-13:01 (2 minutes)
+**Commits:** 0 (working copy)
+**Files Changed:** 2
+**Bugs Fixed:** 1 (Potential double-slash URLs in MonitoringService)
+**Features Added:** 1 (Enhanced error diagnostics with both monitoring and engine URLs)
 
 **Key Achievements:**
 1. ✅ Normalized MonitoringService base URL to prevent double-slash URL construction
@@ -1596,12 +1599,12 @@
 
 ### 📊 Session Statistics (2025-12-10)
 
-**Time:** 14:23-14:25 (2 minutes)  
-**Commits:** 1+ commits  
-**Files Changed:** 5+ files  
-**Migrations Created:** 0  
-**Bugs Fixed:** 2 (Missing dashboard endpoint, incorrect service names in config)  
-**Features Added:** 3 (Dashboard router registration, error classification system, comprehensive error messages)  
+**Time:** 14:23-14:25 (2 minutes)
+**Commits:** 1+ commits
+**Files Changed:** 5+ files
+**Migrations Created:** 0
+**Bugs Fixed:** 2 (Missing dashboard endpoint, incorrect service names in config)
+**Features Added:** 3 (Dashboard router registration, error classification system, comprehensive error messages)
 
 **Key Achievements:**
 1. ✅ Fixed dashboard router to use shared DatabaseAdapter for consistent connection pooling
@@ -1632,12 +1635,12 @@
 
 ### 📊 Session Statistics (2025-12-17)
 
-**Time:** 00:40-14:05 (13h 25m)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 16+  
-**Migrations Created:** 1 (124_add_unified_embeddings_table)  
-**Bugs Fixed:** 11 (Supabase client calls in embedding/link/image/storage paths; async await misuse in link related-chunk lookup; missing UUID import; broken page_text reconstruction paths; embedding HTTP retry masking real 500 cause; visual embedding bf16 unsupported dtype; duplicate extraction logs; chunk insert metadata jsonb typing; legacy embeddings relation missing; Ollama context length overflow handled; missing unified_embeddings fallback)  
-**Features Added:** 1 (Context-based image handoff to StorageProcessor without processing_queue payload)  
+**Time:** 00:40-14:05 (13h 25m)
+**Commits:** 0 (working copy)
+**Files Changed:** 16+
+**Migrations Created:** 1 (124_add_unified_embeddings_table)
+**Bugs Fixed:** 11 (Supabase client calls in embedding/link/image/storage paths; async await misuse in link related-chunk lookup; missing UUID import; broken page_text reconstruction paths; embedding HTTP retry masking real 500 cause; visual embedding bf16 unsupported dtype; duplicate extraction logs; chunk insert metadata jsonb typing; legacy embeddings relation missing; Ollama context length overflow handled; missing unified_embeddings fallback)
+**Features Added:** 1 (Context-based image handoff to StorageProcessor without processing_queue payload)
 
 **Key Achievements:**
 1. ✅ Removed Supabase client usage from core processors and switched to PostgreSQL adapter queries
@@ -1648,12 +1651,12 @@
 
 ### 📊 Session Statistics (2025-12-18)
 
-**Time:** 19:00-21:00 (2h 00m)  
-**Commits:** 0 (working copy)  
-**Files Changed:** 4  
-**Migrations Created:** 0  
-**Bugs Fixed:** 0  
-**Features Added:** 1 (Disable legacy object storage bucket auto-creation; keep only `images` required)  
+**Time:** 19:00-21:00 (2h 00m)
+**Commits:** 0 (working copy)
+**Files Changed:** 4
+**Migrations Created:** 0
+**Bugs Fixed:** 0
+**Features Added:** 1 (Disable legacy object storage bucket auto-creation; keep only `images` required)
 
 **Key Achievements:**
 1. ✅ Deleted unused MinIO buckets and verified only `images` remains
@@ -1662,14 +1665,14 @@
 
 ### 📊 Session Statistics (2025-12-20)
 
-**Time:** 16:00-18:00 (2h 00m)  
-**Commits:** 0 (working copy)  
-**Files Created:** 8 (7 migrations/docs + CLEANUP_SUMMARY.md)  
-**Files Modified:** 3  
-**Files DELETED:** ~200+ (systematic cleanup)  
-**Directories DELETED:** ~15 (empty/obsolete)  
-**Migrations Created:** 4 (88 + 3 consolidated PostgreSQL)  
-**Documentation Updated:** 5 (DATABASE_SCHEMA.md, database/README.md, migrations_postgresql/README.md, migrations/README.md, CLEANUP_SUMMARY.md)  
+**Time:** 16:00-18:00 (2h 00m)
+**Commits:** 0 (working copy)
+**Files Created:** 8 (7 migrations/docs + CLEANUP_SUMMARY.md)
+**Files Modified:** 3
+**Files DELETED:** ~200+ (systematic cleanup)
+**Directories DELETED:** ~15 (empty/obsolete)
+**Migrations Created:** 4 (88 + 3 consolidated PostgreSQL)
+**Documentation Updated:** 5 (DATABASE_SCHEMA.md, database/README.md, migrations_postgresql/README.md, migrations/README.md, CLEANUP_SUMMARY.md)
 
 **Key Achievements:**
 1. ✅ Konsolidiert 130+ Migrationen zu 3 PostgreSQL-only Dateien
@@ -1724,7 +1727,7 @@
   - Implemented `_detect_manufacturer_from_pages()` method analyzing first 3 and last 2 pages
   - First pages target: Introduction, branding, "Service Manual for [Manufacturer]", copyright lines
   - Last pages target: Imprint, full company names (HP Inc., Konica Minolta, Inc.), trademark info
-  - Uses word-boundary regex matching with `known_manufacturers` list and `normalize_manufacturer()` 
+  - Uses word-boundary regex matching with `known_manufacturers` list and `normalize_manufacturer()`
   - Handles edge cases: documents <3 pages (use all), documents <5 pages (skip last pages to avoid overlap)
   - Performance optimization: First 2000 chars per page for first pages analysis
   - Updated detection priority: Filename → Title → **First/Last Pages** → AI (chunks) → Filename parsing
@@ -1972,7 +1975,7 @@
 14. ✅ Fixed database persistence bugs (JSONB merge, method calls)
 15. ✅ Cleaned up .env (removed Supabase, added Google/Perplexity keys)
 
-**Next Focus:** Deep Firecrawl worker debugging (internal queue/worker issue) or accept BeautifulSoup fallback as solution 
+**Next Focus:** Deep Firecrawl worker debugging (internal queue/worker issue) or accept BeautifulSoup fallback as solution
 
 - [x] **Project Rules: Restore Original Content + Mark Future Features** ✅ (15:03)
   - Restored original TODO management, DB schema, code style sections that were overwritten
@@ -2017,7 +2020,7 @@
 **Current Focus:** RetryOrchestrator critical fixes - deterministic lock IDs, schema alignment, exception handling
 **Next Session:** Test retry orchestrator with concurrent processes to validate lock consistency and error status updates
 
-- [x] **Firecrawl: Cloud API Test** 
+- [x] **Firecrawl: Cloud API Test**
   - Tested official Firecrawl Cloud API (https://api.firecrawl.dev)
   - **Direct Scrape:** HP support page partially worked (2/7 keywords)
   - **Search Endpoint:** Excellent results! Found 5 highly relevant pages
@@ -2027,7 +2030,7 @@
   - **Result:** Cloud API significantly better than self-hosted - no timeouts, search works, PDF extraction works
   - **Recommendation:** Use Firecrawl Cloud API for production instead of self-hosted
 
-- [x] **Firecrawl: Specification Extraction Implementation** 
+- [x] **Firecrawl: Specification Extraction Implementation**
   - Implemented `extract_specifications_with_search()` method in `ManufacturerVerificationService`
   - Uses Firecrawl Cloud API `/v1/search` to find public spec sources (NO service manuals!)
   - Search queries: "{manufacturer} {model} specifications", "datasheet", "specs"
@@ -3780,7 +3783,7 @@ Das **DatabaseAdapter-Removal-Projekt ist zu 100% erfolgreich abgeschlossen**! A
   - Added Playwright port 3000 clarification (internal Firecrawl service, not user dashboard)
   - Updated UI framework references from React to Laravel/Filament in project management docs
   - Added notes to historical documents clarifying Laravel/Filament is now used
-  - **Files:** 
+  - **Files:**
     - `docs/QUICK_START_PHASES_1_6.md` - Dashboard port 3000→80, removed React Frontend from services, removed frontend directory structure, added Playwright clarification
     - `docs/dashboard/USER_GUIDE.md` - Dashboard port 3000→80, added Laravel/Filament clarification
     - `docs/setup/INSTALLATION_GUIDE.md` - Dashboard port 3000→80
@@ -4163,7 +4166,7 @@ Das **DatabaseAdapter-Removal-Projekt ist zu 100% erfolgreich abgeschlossen**! A
   - Fixed: Step 1 and Step 2 critical failures (exit code 2) were immediately exiting without generating final report
   - Changed: Removed `exit 2` in critical failure branches; now sets `OVERALL_EXIT_CODE=2` and continues to final report
   - Changed: Updated error messages from "Aborting workflow" to "Continuing to final report"
-  - **Files:** 
+  - **Files:**
     - `scripts/full-docker-setup.sh` (lines 208-211, 247-250)
     - `scripts/full-docker-setup.ps1` (lines 179-181, 216-219)
   - **Result:** Final report is now always emitted even on critical failures, showing failed step's exit code, duration, and timestamp
@@ -4191,7 +4194,7 @@ Das **DatabaseAdapter-Removal-Projekt ist zu 100% erfolgreich abgeschlossen**! A
   - Created `dynamic_rate_limit()` helper function to return RATE_LIMIT_API_KEY when API key present
   - Added dynamic rate limit functions: `rate_limit_*_dynamic()` for auth, upload, search, standard, health
   - Updated 4 endpoints to use dynamic rate limits: `/health`, `/upload`, `/upload/directory`, `/status/{document_id}`
-  - **Files:** 
+  - **Files:**
     - `backend/api/app.py` (middleware registration, imports, startup, endpoints)
     - `backend/api/middleware/rate_limit_middleware.py` (dynamic functions)
   - **Result:** API key requests now get 1000/min rate limit instead of standard limits; middleware validates keys from database pool
