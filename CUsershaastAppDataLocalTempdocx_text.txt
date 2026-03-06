@@ -1,0 +1,56 @@
+Nachforderungen: Kunze & Ritter GmbH
+
+Frist zur Beantwortung: 05.03.2026
+Vorhabens-ID: 926-241-950/2026-1/1
+Vorhaben: Entwicklung eines lokalen, multimodalen KI-Assistenzsystems zur Effizienzsteigerung des herstellerunabhängigen Wartungsservices bei Druckern und Multifunktionsgeräten
+
+Sehr geehrte Damen und Herren,
+
+vielen Dank für Ihren Antrag auf Erteilung einer Bescheinigung vom 12.01.2026. Damit wir Ihren Antrag inhaltlich prüfen können, benötigen wir ergänzende Informationen zu Ihrem Vorhaben.
+
+Neuartigkeit
+Ihre Ausführungen bezüglich der Neuartigkeit bedürfen weiterer Erläuterungen.
+Die Abgrenzung zum Stand der Technik in Ihrer Branche bzw. zu bestehenden Produkten, Verfahren oder Dienstleistungen Ihres Unternehmens ist unzureichend beschrieben. Grundsätzlich setzt das Kriterium der Neuartigkeit voraus, dass die Arbeiten darauf abzielen, neue Kenntnisse und Fertigkeiten zu gewinnen oder vorhandenes Wissen in neuer Weise zu nutzen. Ein Produkt, Verfahren oder eine Dienstleistung kann nicht mehr als neuartig angesehen werden, wenn das primäre Ziel der Tätigkeiten über eine prototypische Entwicklung hinausgeht oder bereits die Markteinführung ist.
+Der Arbeitsplan enthält im Wesentlichen nur Zielstellungen, teilweise in Kombination mit bekannten Technologien oder technischen Begriffen des Software Engineerings oder der KI-Integration und -anpassung. Zudem sind Begriffe wie Erhebung, Recherche, Entwicklung, Umsetzung, Aufbau oder Untersuchung ohne Bezugnahme zu verwendeten Methoden, Verfahren bzw. wie die Ziele erreicht werden sollen nicht aussagekräftig genug für eine Bewertung. 
+1. Bitte geben Sie die in den Arbeitsschritten verwendeten Ansätze, Methoden, Verfahren oder Technologien an, sofern sie sich vom Stand der Technik oder Routinearbeiten unterscheiden, was davon neu oder weiterentwickelt werden soll bzw. zu neuen Wissen oder Erkenntnissen führt, die für die Zielerreichung notwendig sind. Bitte mit Zuordnung zu den Arbeitsschritten / Arbeitspaketen bzw. konkretisierten Arbeitsschritten bitte mit Fokus auf die vorhabenspezifisch risikoreichen Arbeiten.
+
+Risiko
+Ihre Ausführungen bezüglich der Risiken bedürfen weiterer Erläuterungen.
+Grundsätzlich setzt das Kriterium Risiko / Unwägbarkeiten voraus, dass wissenschaftliche bzw. technische Hemmnisse oder Herausforderungen bestehen, die das Vorhaben verzögern oder gar die Zielerreichung gefährden und so im Extremfall zum Scheitern des Vorhabens führen könnten. Die Risiken / Unwägbarkeiten müssen in konkreter Bezugnahme zu den beschriebenen Entwicklungstätigkeiten stehen. Nicht berücksichtigt werden wirtschaftliche bzw. finanzielle Risiken.
+In der Risikodarstellung sind bisher nur generelle Risiken genannt, die zum Teil vorhersehbar sind und denen mit bekannten Methoden, Verfahren, Technologien des Software Engineerings, Datenmodellierung, KI-basierter prädiktiver Instandhaltung oder Cloud-Computing begegnet werden kann. 
+2. Bitte begründen und beschreiben Sie konkrete vorhabenspezifische technische Risiken bzw. deren Ursachen und ordnen diese den neuen, weiterentwickelten oder vorhabenspezifisch mit zur Zielerreichung notwendigem Erkenntnisgewinn angepassten Ansätzen, Methoden, Verfahren oder Technologien und den entsprechenden Arbeitsschritten / Arbeitspaketen zu.
+
+Bitte lassen Sie uns diese Informationen und ggf. geforderte Anlagen innerhalb der genannten Frist zukommen.
+
+Bitte beachten Sie, dass ergänzende oder weiterführende Projektbeschreibungen, die in Textform als Anlage beigefügt werden, in der Prüfung grundsätzlich nicht berücksichtigt werden.
+
+Wir weisen darauf hin, dass die Anforderung ergänzender Informationen zu einem Vorhaben grundsätzlich einmalig erfolgt.
+Wir bedanken uns für Ihre Unterstützung.
+
+Mit freundlichen Grüßen
+
+Ihre Bescheinigungsstelle
+
+
+
+Antwortschreiben:
+Neuartigkeit
+Der Arbeitsplan enthält im Wesentlichen nur Zielstellungen, teilweise in Kombination mit bekannten Technologien oder technischen Begriffen des Software Engineerings oder der KI-Integration und -anpassung. Zudem sind Begriffe wie Erhebung, Recherche, Entwicklung, Umsetzung, Aufbau oder Untersuchung ohne Bezugnahme zu verwendeten Methoden, Verfahren bzw. wie die Ziele erreicht werden sollen nicht aussagekräftig genug für eine Bewertung. 
+1. Bitte geben Sie die in den Arbeitsschritten verwendeten Ansätze, Methoden, Verfahren oder Technologien an, sofern sie sich vom Stand der Technik oder Routinearbeiten unterscheiden, was davon neu oder weiterentwickelt werden soll bzw. zu neuen Wissen oder Erkenntnissen führt, die für die Zielerreichung notwendig sind. Bitte mit Zuordnung zu den Arbeitsschritten / Arbeitspaketen bzw. konkretisierten Arbeitsschritten bitte mit Fokus auf die vorhabenspezifisch risikoreichen Arbeiten.
+Antworttext:
+Zur übersichtlichen Beantwortung Ihrer Frage haben wir einen ausführlichen Arbeitsplan erstellt, der die in den einzelnen Arbeitspaketen verwendeten Ansätze, Methoden, Verfahren & Technologien aufführt (sofern diese sich vom SdT/Routinearbeiten abgrenzen lassen) & eine Einordnung hinsichtlich Weiterentwicklung/Neuentwicklung/Wissens-/Erkenntnisgewinn zulässt (s. Anhang).
+
+Risiko
+In der Risikodarstellung sind bisher nur generelle Risiken genannt, die zum Teil vorhersehbar sind und denen mit bekannten Methoden, Verfahren, Technologien des Software Engineerings, Datenmodellierung, KI-basierter prädiktiver Instandhaltung oder Cloud-Computing begegnet werden kann. 
+2. Bitte begründen und beschreiben Sie konkrete vorhabenspezifische technische Risiken bzw. deren Ursachen und ordnen diese den neuen, weiterentwickelten oder vorhabenspezifisch mit zur Zielerreichung notwendigem Erkenntnisgewinn angepassten Ansätzen, Methoden, Verfahren oder Technologien und den entsprechenden Arbeitsschritten / Arbeitspaketen zu.
+Antworttext:
+1. Risiko: Entw. domänenspezif. Predictive-Maintenance-Modelle mit Small-Data-Ansatz (APs 9.1–9.3).
+Ein zentrales wiss.-techn. Risiko liegt in der Ableitung valider Prognosemodelle zur Vorhersage von Ausfallereignissen & Wartungszyklen (Predictive Maintenance) unter begrenzter Datenverfügbarkeit. Die verfügbaren historischen Servicedaten weisen typischerweise extrem heterogene Strukturen auf (differierende Gerätetypen, wechselnde Firmwarestände, unvollständige Zeitreihen, xyz). Klassische ML-Modelle neigen unter diesen Bedingungen zu Überanpassung oder fehlerhafter Modellkonvergenz. Ziel ist daher die Entw. hybrider Modelle, die Systemwissen (Fehlercodes, Herstellerabhängigkeiten) mit sequentiellen Lernmethoden (xyz) kombinieren & lokal lauffähig bleiben. Das Risiko besteht darin, dass die geringe Datenbasis keine ausreichende Generalisierbarkeit erlaubt & die resultierenden Vorhersagen zu unpräzise oder instabil werden. Insb. die Prognose von Restlebensdauer & Wartungsintervallen bei selten auftretenden Fehlern (Long-Tail-Events) stellt ein ungelöstes Forschungsproblem dar. Kann trotz des Einsatzes aktiver Lernverfahren & xyz (AP 9.2) keine ausreichende Prognosegüte (xyz) erreicht werden, gilt das Vorhaben als gescheitert.
+2. Risiko: Semantische Harmonisierung & Qualitätsbewertung heterogener OEM-Servicedaten
+(Arbeitspakete 2.1–2.3; 5.3–5.4)
+Ein weiteres Risiko besteht in der Entw. einer domänenspezif. Ontologie & Datenharmonisierungslogik zur Vereinheitlichung hersteller- & formatübergreifender Wartungsdokumente (PDFs, Videos, E-Mails, Protokolle). Der aktuelle SdT sieht keine interoperablen Datenstandards für die Hersteller vor. Die semantische Zuordnung von Begriffen wie "Fehlercode E37" oder "Paper Feed Issue" zu einheitlichen Problemklassen erfordert komplexe NLP- & Clustering-Verfahren, bei denen schon kleine Abweichungen zu Fehlern bei semantischen Verknüpfungen führen können. Unzureichend harmonisierte Datenbestände gefährden sowohl die Qualität der Wissensbasis als auch die Treffsicherheit späterer KI-Antworten. Im Projekt müssen daher Datenstandards & quantitative Qualitätsmetriken neu entwickelt werden müssen. Durch eine iterative Ontologie-Validierung mit unseren Technikern sowie den Aufbau eines Quality-Scoring-Systems (AP 2.3) zur permanenten Bewertung von Redundanz, Vollständigkeit & semantischer Konsistenz (Ziel: semantische Konsistenz ≥ xyz; strukturelle Vollständigkeit > xyz) soll diesem Risiko wiss-technisch begegnet werden.
+3. Risiko: Lokale Systemarchitektur im KRITIS-Kontext (Arbeitspakete 1.2; 4.1–4.4; 7.5).
+Ein drittes Risiko liegt in der erstmaligen Umsetzung einer vollständig lokal betriebenen, multimodalen KI-Architektur im sensiblen KRITIS-Umfeld (zB öffentliche Verwaltungen). Der SdT umfasst ausschließlich cloudbasierte Assistenzsysteme. Im Projekt soll dagegen ein isoliertes, DSGVO- & KRITIS-konformes "Local-First"-System entstehen, das sämtliche Prozesse auf Edge-Geräten selbständig ausführt - ohne Zugriff auf externe Cloud-Services. Das Risiko besteht darin, dass bislang keine erprobten Referenzarchitekturen existieren, die sowohl KI-Leistung als auch IT-Sicherheitsanforderungen (zB Auditability, Least-Privilege-Modelle, Recovery-Mechanismen) gleichzeitig erfüllen. Besonders die Kaskadierung containerisierter Microservices mit restriktivem Rechte- & Netzwerkmodell kann unvorhersehbare Laufzeit- & Kommunikationskonflikte verursachen. Zudem ist die Integration von Security-by-Design-Mechanismen auf Edge-Hardware forschungsseitig kaum dokumentiert. Kann trotz Simulation kritischer Daten- & Kommunikationspfade & Aufbau redundanter Recovery-Mechanismen & Security-Penetrationstests in AP 4.4 & 7.5 keine Stabile Ausführung aller containerisierten KI- & Datendienste (Downtime ≤ 5 min pro Monat, kein Datenverlust bei Reboots) unter Einhaltung KRITIS-konformer Sicherheitsrichtlinien erreicht werden, gilt das Vorhaben als gescheitert.
+4. Risiko: Multimodale KI-Verarbeitung auf ressourcenbeschränkter Edge-Hardware (Arbeitspakete 3.1–3.3; 5.2; 8.3).
+Die größte technische Unsicherheit betrifft die Integration & performante Ausführung multimodaler KI-Modelle auf begrenzter Edge-Infrastruktur mit lokaler GPU bzw. CPU-Ressource. Während moderne LLMs & Vision-Modelle (zB xyz) hohe Rechenleistungen (xyz) erfordern, steht im geplanten Einsatzumfeld (Service-Laptops, -Smartphones) nur ein Bruchteil dieser Rechenleistung zur Verfügung. Die komprimierte Ausführung beeinflusst Genauigkeit, Antwortzeit & Robustheit der Modelle in bisher nicht quantifizierter Weise. Zudem kann die gleichzeitige Verarbeitung multimodaler Inputs bei begrenztem Speicher zu Latenzsteigerungen führen, die den Interaktionsfluss des Systems mit den Servicetechnikern empfindlich stören und die Toolnutzung ineffizient machen. Die technische Herausforderung liegt in der Balance zwischen Multimodalität, Genauigkeit & Echtzeitfähigkeit unter Ressourcenrestriktionen.
+
