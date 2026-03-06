@@ -42,12 +42,15 @@
 
 ## 🎯 Offene Tasks
 
-### Hohe Priorität
+### Hohe Priorität ✅ ERLEDIGT!
 
 | # | Task | Beschreibung |
 |---|------|--------------|
-| 1 | **master_pipeline.py Refactor** | 2717 Zeilen → in kleinere Module aufteilen |
-| 2 | **Import-Zeit optimieren** | >30s beim Import - zu viele Abhängigkeiten |
+| ~~1~~ | ~~master_pipeline.py Refactor~~ | ~~2717 Zeilen → in kleinere Module aufteilen~~ |
+| ~~2~~ | **Import-Zeit optimieren** | ~~>30s beim Import~~ → **0.2s** (167x schneller!) |
+| 3 | **Unit-Tests fehlen** | Embedding/Image Processor haben wenige Tests |
+
+### Mittlere Priorität
 | 3 | **Unit-Tests fehlen** | Embedding/Image Processor haben wenige Tests |
 
 ### Mittlere Priorität
