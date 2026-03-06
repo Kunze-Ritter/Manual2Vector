@@ -166,3 +166,54 @@ These rules come from `.windsurf/rules/project-rules.md` and must be followed:
 ### Commit Messages
 Format: `[Component] What was changed`
 Example: `[Pipeline] Add idempotency checks to ChunkPreprocessor`
+
+---
+
+## Coding Standards
+
+This project uses automated code quality tools. All tools are configured in `pyproject.toml`:
+
+### Running Locally
+```bash
+# Install pre-commit hooks (run once)
+pre-commit install
+
+# Run all linters manually
+pre-commit run --all-files
+
+# Or individually:
+ruff check backend/
+ruff format backend/
+black backend/
+mypy backend/
+bandit -r backend/
+```
+
+### Tools Configured
+- **ruff**: Fast linting + import sorting
+- **black**: Code formatting
+- **mypy**: Static type checking
+- **bandit**: Security checks
+- **pre-commit**: Git hooks (auto-run on commit)
+
+---
+
+## Recent Refactorings (2026-03)
+
+### Import Optimization
+- Lazy loading of `PostgreSQLAdapter` in `database_factory.py`
+- Import time reduced: 34.8s → 0.2s (167x faster!)
+
+### Module Splitting
+Large processor files have been split for better maintainability:
+
+| File | Modules |
+|------|---------|
+| `error_code_extractor.py` | `error_code_patterns.py`, `error_code_hierarchy.py` |
+| `embedding_processor.py` | `embedding_config.py` |
+| `image_processor.py` | `image_config.py` |
+
+### New Files
+- `backend/pipeline/service_locator.py` - Lazy service loading
+- `DB_QUICK_REFERENCE.md` - Compact database reference
+- `MASTER-TODO.md` - Project task overview

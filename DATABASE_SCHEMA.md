@@ -1,11 +1,13 @@
 # KRAI Database Schema Documentation
 ================================================================================
 
-**Zuletzt aktualisiert:** 05.03.2026 um 14:30 Uhr
+**Zuletzt aktualisiert:** 06.03.2026 um 11:30 Uhr
 
 **Quelle:** PostgreSQL Database (Production Structure - Migration from Supabase completed November 2024, KRAI-002)
 
 **Setup:** Siehe `database/README.md` für PostgreSQL Installation
+
+**Aktuelle Migration:** 024 (fehlende Indizes für queue processing und JSONB queries)
 
 ## ⚠️ WICHTIGE INFORMATIONEN
 
