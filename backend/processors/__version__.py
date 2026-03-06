@@ -4,7 +4,7 @@ Auto-updated with each significant release
 """
 
 __version__ = "0.50.0"
-__commit__ = "197cd0e"
+__commit__ = "adb46e5"
 __date__ = "2026-03-06"
 
 # Version History:
