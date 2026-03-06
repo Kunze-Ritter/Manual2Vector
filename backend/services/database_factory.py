@@ -3,6 +3,8 @@ Database Factory Module
 
 Provides factory functions for creating database adapter instances
 based on environment configuration.
+
+OPTIMIERUNG: Lazy imports to reduce initial load time
 """
 
 import os
@@ -10,7 +12,6 @@ import logging
 from typing import Optional
 
 from .database_adapter import DatabaseAdapter
-from .postgresql_adapter import PostgreSQLAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,9 @@ def create_database_adapter(database_type: str = None) -> DatabaseAdapter:
     logger.info(f"Creating database adapter for type: {database_type}")
     
     if database_type == 'postgresql':
+        # Lazy import to reduce initial load time
+        from .postgresql_adapter import PostgreSQLAdapter
+        
         # Get PostgreSQL configuration from environment
         # Check multiple environment variables in order of preference
         # Prefer container/internal connection URL before local-host fallback.
