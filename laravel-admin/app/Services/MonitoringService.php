@@ -9,20 +9,19 @@ use Illuminate\Support\Facades\Log;
 
 class MonitoringService
 {
-    private string $baseUrl;
-    private ?string $serviceJwt;
-    private TokenService $tokenService;
     private static array $pendingRequests = [];
 
-    public function __construct(?string $baseUrl = null, ?string $serviceJwt = null)
-    {
+    private TokenService $tokenService;
+
+    public function __construct(
+        private ?string $baseUrl = null,
+        private ?string $serviceJwt = null,
+    ) {
         $resolvedUrl = $baseUrl
             ?? config('krai.monitoring.base_url')
             ?? config('krai.engine_url', 'http://krai-engine:8000');
 
-        // Normalize base URL by removing trailing slashes to prevent double-slash URLs
         $this->baseUrl = rtrim($resolvedUrl, '/');
-
         $this->serviceJwt = $serviceJwt ?? config('krai.service_jwt');
         $this->tokenService = new TokenService($this->baseUrl, $this->serviceJwt);
     }
@@ -45,7 +44,7 @@ class MonitoringService
 
         $jwt = $this->tokenService->getToken();
         if ($jwt) {
-            $headers['Authorization'] = 'Bearer ' . $jwt;
+            $headers['Authorization'] = 'Bearer '.$jwt;
         }
 
         return $headers;
@@ -114,7 +113,7 @@ class MonitoringService
                 } catch (\Illuminate\Http\Client\RequestException $e) {
                     $errorMessage = str_contains($e->getMessage(), 'timed out')
                         ? 'Dashboard query timeout (check database performance)'
-                        : 'Request failed: ' . $e->getMessage();
+                        : 'Request failed: '.$e->getMessage();
 
                     Log::error('Request error fetching dashboard overview', [
                         'message' => $e->getMessage(),
@@ -247,7 +246,7 @@ class MonitoringService
         return $this->deduplicatedRequest($cacheKey, $ttl, function () use ($ttl, $cacheKey) {
             return Cache::remember($cacheKey, $ttl, function () {
                 $url = "{$this->baseUrl}/api/v1/monitoring/pipeline";
-                
+
                 // Log the request for debugging
                 Log::debug('Fetching pipeline status', [
                     'url' => $url,
@@ -255,7 +254,7 @@ class MonitoringService
                     'config_monitoring_base_url' => config('krai.monitoring.base_url'),
                     'config_engine_url' => config('krai.engine_url'),
                 ]);
-                
+
                 try {
                     $response = $this->createHttpClient()
                         ->get($url);
@@ -488,13 +487,13 @@ class MonitoringService
     {
         $ttl = config('krai.monitoring.cache_ttl.performance', 60);
         $cacheKey = 'monitoring.performance';
-        
+
         return $this->deduplicatedRequest($cacheKey, $ttl, function () use ($ttl, $cacheKey) {
             return Cache::remember($cacheKey, $ttl, function () {
                 try {
                     $response = $this->createHttpClient()
                         ->get("{$this->baseUrl}/api/v1/monitoring/performance");
-                    
+
                     if ($response->successful()) {
                         return [
                             'success' => true,
@@ -502,12 +501,12 @@ class MonitoringService
                             'error' => null,
                         ];
                     }
-                    
+
                     Log::error('Failed to fetch performance metrics', [
                         'status' => $response->status(),
                         'body' => $response->body(),
                     ]);
-                    
+
                     return [
                         'success' => false,
                         'data' => [],
@@ -517,7 +516,7 @@ class MonitoringService
                     Log::error('Exception fetching performance metrics', [
                         'message' => $e->getMessage(),
                     ]);
-                    
+
                     return [
                         'success' => false,
                         'data' => [],
@@ -530,11 +529,11 @@ class MonitoringService
 
     public function getBatchMonitoringData(array $endpoints): array
     {
-        $cacheKey = 'monitoring.batch.' . md5(json_encode($endpoints));
+        $cacheKey = 'monitoring.batch.'.md5(json_encode($endpoints));
         $ttl = config('krai.monitoring.cache_ttl.dashboard', 120);
 
         return $this->deduplicatedRequest($cacheKey, $ttl, function () use ($endpoints, $cacheKey, $ttl) {
-            $lock = Cache::lock('lock.' . $cacheKey, 30);
+            $lock = Cache::lock('lock.'.$cacheKey, 30);
 
             return $lock->get(function () use ($endpoints, $cacheKey, $ttl) {
                 return Cache::remember($cacheKey, $ttl, function () use ($endpoints) {
@@ -618,7 +617,7 @@ class MonitoringService
         Cache::forget('monitoring.processors.badge');
         Cache::forget('monitoring.data_quality');
         Cache::forget('monitoring.performance');
-        
+
         // Also clear token cache to force re-authentication
         $this->tokenService->clearCache();
     }

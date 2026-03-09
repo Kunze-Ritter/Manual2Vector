@@ -2,34 +2,33 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
  * BackendApiService - Laravel service for communicating with FastAPI backend
- * 
+ *
  * Provides methods to interact with FastAPI pipeline error management endpoints:
  * - GET /api/v1/pipeline/errors - Fetch pipeline errors with filters
  * - POST /api/v1/pipeline/retry-stage - Retry a failed pipeline stage
  * - POST /api/v1/pipeline/mark-error-resolved - Mark an error as resolved
- * 
+ *
  * Uses JWT authentication via TokenService.
  */
 class BackendApiService
 {
-    private string $baseUrl;
-    private ?string $serviceJwt;
     private TokenService $tokenService;
 
     /**
      * Create a new BackendApiService instance
-     * 
-     * @param string|null $baseUrl Base URL for FastAPI backend (default: config('krai.engine_url'))
-     * @param string|null $serviceJwt Service JWT token (default: config('krai.service_jwt'))
+     *
+     * @param  string|null  $baseUrl  Base URL for FastAPI backend (default: config('krai.engine_url'))
+     * @param  string|null  $serviceJwt  Service JWT token (default: config('krai.service_jwt'))
      */
-    public function __construct(?string $baseUrl = null, ?string $serviceJwt = null)
-    {
+    public function __construct(
+        private ?string $baseUrl = null,
+        private ?string $serviceJwt = null,
+    ) {
         $this->baseUrl = rtrim($baseUrl ?? config('krai.engine_url', 'http://krai-engine:8000'), '/');
         $this->serviceJwt = $serviceJwt ?? config('krai.service_jwt');
         $this->tokenService = new TokenService($this->baseUrl, $this->serviceJwt);
@@ -37,13 +36,13 @@ class BackendApiService
 
     /**
      * Retry a failed pipeline stage for a document
-     * 
+     *
      * Calls POST /api/v1/pipeline/retry-stage to reprocess a specific stage.
-     * 
-     * @param string $documentId The document ID to retry
-     * @param string $stageName The pipeline stage name to retry
+     *
+     * @param  string  $documentId  The document ID to retry
+     * @param  string  $stageName  The pipeline stage name to retry
      * @return array Response array with keys: success (bool), data (array), error (string|null)
-     * 
+     *
      * @example
      * $result = $service->retryStage('doc-123', 'classification');
      * if ($result['success']) {
@@ -59,7 +58,7 @@ class BackendApiService
         try {
             $endpoint = "{$this->baseUrl}/api/v1/pipeline/retry-stage";
             $client = $this->createHttpClient();
-            
+
             $response = $client->post($endpoint, [
                 'document_id' => $documentId,
                 'stage_name' => $stageName,
@@ -67,6 +66,7 @@ class BackendApiService
 
             if ($response->successful()) {
                 $data = $response->json('data', []);
+
                 return [
                     'success' => true,
                     'data' => $data,
@@ -98,7 +98,7 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         } catch (\Illuminate\Http\Client\RequestException $e) {
             Log::error('BackendApiService::retryStage request error', [
@@ -111,7 +111,7 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         } catch (\Exception $e) {
             Log::error('BackendApiService::retryStage unexpected error', [
@@ -124,21 +124,21 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
 
     /**
      * Mark a pipeline error as resolved
-     * 
+     *
      * Calls POST /api/v1/pipeline/mark-error-resolved to mark an error as resolved.
-     * 
-     * @param string $errorId The error ID to mark as resolved
-     * @param string|null $userId Optional user ID who resolved the error
-     * @param string|null $notes Optional resolution notes
+     *
+     * @param  string  $errorId  The error ID to mark as resolved
+     * @param  string|null  $userId  Optional user ID who resolved the error
+     * @param  string|null  $notes  Optional resolution notes
      * @return array Response array with keys: success (bool), data (array), error (string|null)
-     * 
+     *
      * @example
      * $result = $service->markErrorResolved('error-456', 'user-789', 'Fixed by reprocessing');
      * if ($result['success']) {
@@ -154,7 +154,7 @@ class BackendApiService
         try {
             $endpoint = "{$this->baseUrl}/api/v1/pipeline/mark-error-resolved";
             $client = $this->createHttpClient();
-            
+
             $response = $client->post($endpoint, [
                 'error_id' => $errorId,
                 'user_id' => $userId,
@@ -163,6 +163,7 @@ class BackendApiService
 
             if ($response->successful()) {
                 $data = $response->json('data', []);
+
                 return [
                     'success' => true,
                     'data' => $data,
@@ -194,7 +195,7 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         } catch (\Illuminate\Http\Client\RequestException $e) {
             Log::error('BackendApiService::markErrorResolved request error', [
@@ -207,7 +208,7 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         } catch (\Exception $e) {
             Log::error('BackendApiService::markErrorResolved unexpected error', [
@@ -220,21 +221,21 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
 
     /**
      * Get pipeline errors with optional filters
-     * 
+     *
      * Calls GET /api/v1/pipeline/errors to fetch error records.
-     * 
-     * @param array $filters Optional filters for the query
-     *                       Supported keys: document_id, stage_name, error_type, status,
-     *                       date_from, date_to, page, page_size
+     *
+     * @param  array  $filters  Optional filters for the query
+     *                          Supported keys: document_id, stage_name, error_type, status,
+     *                          date_from, date_to, page, page_size
      * @return array Response array with keys: success (bool), data (array), error (string|null)
-     * 
+     *
      * @example
      * $result = $service->getErrors([
      *     'stage_name' => 'classification',
@@ -253,7 +254,7 @@ class BackendApiService
         try {
             $endpoint = "{$this->baseUrl}/api/v1/pipeline/errors";
             $client = $this->createHttpClient();
-            
+
             $queryParams = [];
             foreach ($filters as $key => $value) {
                 if ($value !== null) {
@@ -264,11 +265,12 @@ class BackendApiService
                     }
                 }
             }
-            
+
             $response = $client->get($endpoint, $queryParams);
 
             if ($response->successful()) {
                 $data = $response->json('data', []);
+
                 return [
                     'success' => true,
                     'data' => $data,
@@ -298,7 +300,7 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         } catch (\Illuminate\Http\Client\RequestException $e) {
             Log::error('BackendApiService::getErrors request error', [
@@ -310,7 +312,7 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         } catch (\Exception $e) {
             Log::error('BackendApiService::getErrors unexpected error', [
@@ -322,16 +324,16 @@ class BackendApiService
             return [
                 'success' => false,
                 'data' => [],
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
 
     /**
      * Validate service configuration
-     * 
+     *
      * Checks if required configuration values are set.
-     * 
+     *
      * @return bool True if configuration is valid, false otherwise
      */
     public function validateConfiguration(): bool
@@ -343,10 +345,10 @@ class BackendApiService
             $isValid = false;
         }
 
-        $hasJwt = !empty($this->serviceJwt);
-        $hasCredentials = !empty(env('KRAI_ENGINE_ADMIN_USERNAME')) && !empty(env('KRAI_ENGINE_ADMIN_PASSWORD'));
+        $hasJwt = ! empty($this->serviceJwt);
+        $hasCredentials = ! empty(env('KRAI_ENGINE_ADMIN_USERNAME')) && ! empty(env('KRAI_ENGINE_ADMIN_PASSWORD'));
 
-        if (!$hasJwt && !$hasCredentials) {
+        if (! $hasJwt && ! $hasCredentials) {
             Log::warning('BackendApiService: Neither service_jwt nor admin credentials are configured');
             $isValid = false;
         }
@@ -356,7 +358,7 @@ class BackendApiService
 
     /**
      * Create HTTP client with proper headers and timeout
-     * 
+     *
      * @return \Illuminate\Http\Client\PendingRequest
      */
     private function createHttpClient()
@@ -366,8 +368,6 @@ class BackendApiService
 
     /**
      * Build HTTP headers including authentication
-     * 
-     * @return array
      */
     private function buildHeaders(): array
     {

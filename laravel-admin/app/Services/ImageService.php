@@ -8,16 +8,12 @@ use Illuminate\Support\Facades\Log;
 
 class ImageService
 {
-    private string $baseUrl;
-
-    private string $serviceJwt;
-
-    private int $cacheTtl;
-
-    private int $statsCacheTtl;
-
-    public function __construct(?string $baseUrl = null, ?string $serviceJwt = null, ?int $cacheTtl = null, ?int $statsCacheTtl = null)
-    {
+    public function __construct(
+        private ?string $baseUrl = null,
+        private ?string $serviceJwt = null,
+        private ?int $cacheTtl = null,
+        private ?int $statsCacheTtl = null,
+    ) {
         $config = config('krai');
         $this->baseUrl = rtrim($baseUrl ?? ($config['engine_url'] ?? ''), '/');
         $this->serviceJwt = $serviceJwt ?? ($config['service_jwt'] ?? '');
@@ -29,7 +25,7 @@ class ImageService
     private function client()
     {
         return Http::timeout(30)->withHeaders([
-            'Authorization' => 'Bearer ' . $this->serviceJwt,
+            'Authorization' => 'Bearer '.$this->serviceJwt,
             'Accept' => 'application/json',
         ]);
     }
@@ -44,7 +40,7 @@ class ImageService
 
         return $cache->remember($cacheKey, $this->cacheTtl, function () use ($filters, $page, $pageSize, $sortBy, $sortOrder) {
             try {
-                $response = $this->client()->get($this->baseUrl . '/api/v1/images', [
+                $response = $this->client()->get($this->baseUrl.'/api/v1/images', [
                     ...$filters,
                     'page' => $page,
                     'page_size' => $pageSize,
@@ -55,6 +51,7 @@ class ImageService
                 if ($response->successful()) {
                     $json = $response->json();
                     $data = is_array($json) && array_key_exists('data', $json) ? $json['data'] : $json;
+
                     return [
                         'success' => true,
                         'data' => $data,
@@ -77,7 +74,7 @@ class ImageService
     public function getImage(string $imageId, bool $includeRelations = false): array
     {
         try {
-            $response = $this->client()->get($this->baseUrl . '/api/v1/images/' . $imageId, [
+            $response = $this->client()->get($this->baseUrl.'/api/v1/images/'.$imageId, [
                 'include_relations' => $includeRelations ? '1' : '0',
             ]);
 
@@ -106,7 +103,7 @@ class ImageService
 
         return $cache->remember($cacheKey, $this->cacheTtl, function () use ($documentId, $page, $pageSize) {
             try {
-                $response = $this->client()->get($this->baseUrl . '/api/v1/images/by-document/' . $documentId, [
+                $response = $this->client()->get($this->baseUrl.'/api/v1/images/by-document/'.$documentId, [
                     'page' => $page,
                     'page_size' => $pageSize,
                 ]);
@@ -129,7 +126,7 @@ class ImageService
 
     public function getImageStats(): array
     {
-        $cacheKey = 'images.stats.g' . $this->cacheGeneration();
+        $cacheKey = 'images.stats.g'.$this->cacheGeneration();
 
         $store = Cache::getStore();
         $supportsTags = $store instanceof \Illuminate\Cache\TaggableStore;
@@ -137,7 +134,7 @@ class ImageService
 
         return $cache->remember($cacheKey, $this->statsCacheTtl, function () {
             try {
-                $response = $this->client()->get($this->baseUrl . '/api/v1/images/stats');
+                $response = $this->client()->get($this->baseUrl.'/api/v1/images/stats');
 
                 if ($response->successful()) {
                     return ['success' => true, 'data' => $response->json(), 'error' => null];
@@ -158,7 +155,7 @@ class ImageService
     public function deleteImage(string $imageId, bool $deleteFromStorage = false, bool $invalidateCache = true): array
     {
         try {
-            $response = $this->client()->delete($this->baseUrl . '/api/v1/images/' . $imageId, [
+            $response = $this->client()->delete($this->baseUrl.'/api/v1/images/'.$imageId, [
                 'delete_from_storage' => $deleteFromStorage ? '1' : '0',
             ]);
 
@@ -166,6 +163,7 @@ class ImageService
                 if ($invalidateCache) {
                     $this->clearCache();
                 }
+
                 return ['success' => true, 'data' => $response->json(), 'error' => null];
             }
 
@@ -206,9 +204,10 @@ class ImageService
     public function downloadImage(string $imageId)
     {
         try {
-            return $this->client()->get($this->baseUrl . '/api/v1/images/' . $imageId . '/download');
+            return $this->client()->get($this->baseUrl.'/api/v1/images/'.$imageId.'/download');
         } catch (\Throwable $e) {
             Log::channel('krai-images')->error('Error downloading image', ['exception' => $e]);
+
             return null;
         }
     }
@@ -217,7 +216,7 @@ class ImageService
     {
         $maxTotalBytes = (int) config('krai.images.bulk_download_max_bytes', 500 * 1024 * 1024); // 500 MB default
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $tmpPath = tempnam(sys_get_temp_dir(), 'images_zip_');
         if ($tmpPath === false) {
             return null;
@@ -231,8 +230,9 @@ class ImageService
 
         foreach ($imageIds as $id) {
             $response = $this->downloadImage($id);
-            if (!$response || !$response->successful()) {
+            if (! $response || ! $response->successful()) {
                 Log::channel('krai-images')->warning('Skipping image in bulk download', ['id' => $id]);
+
                 continue;
             }
 
@@ -247,7 +247,7 @@ class ImageService
                 break;
             }
 
-            $filename = $id . '.bin';
+            $filename = $id.'.bin';
             $disposition = $response->header('Content-Disposition');
             if ($disposition && preg_match('/filename="?([^";]+)"?/i', $disposition, $matches)) {
                 $filename = trim($matches[1]);
@@ -268,6 +268,7 @@ class ImageService
         $store = Cache::getStore();
         if ($store instanceof \Illuminate\Cache\TaggableStore) {
             Cache::tags(['images'])->flush();
+
             return;
         }
 
