@@ -14,12 +14,13 @@ use Illuminate\Support\Facades\Log;
  * - POST /api/v1/pipeline/retry-stage - Retry a failed pipeline stage
  * - POST /api/v1/pipeline/mark-error-resolved - Mark an error as resolved
  * 
- * Uses JWT authentication with automatic token caching and refresh.
+ * Uses JWT authentication via TokenService.
  */
 class BackendApiService
 {
     private string $baseUrl;
     private ?string $serviceJwt;
+    private TokenService $tokenService;
 
     /**
      * Create a new BackendApiService instance
@@ -31,6 +32,7 @@ class BackendApiService
     {
         $this->baseUrl = rtrim($baseUrl ?? config('krai.engine_url', 'http://krai-engine:8000'), '/');
         $this->serviceJwt = $serviceJwt ?? config('krai.service_jwt');
+        $this->tokenService = new TokenService($this->baseUrl, $this->serviceJwt);
     }
 
     /**
@@ -374,68 +376,11 @@ class BackendApiService
             'Content-Type' => 'application/json',
         ];
 
-        $token = $this->getOrCreateServiceJwt();
+        $token = $this->tokenService->getToken();
         if ($token) {
             $headers['Authorization'] = "Bearer {$token}";
         }
 
         return $headers;
-    }
-
-    /**
-     * Get or create service JWT token with caching
-     * 
-     * Attempts to retrieve cached token or perform auto-login to obtain new token.
-     * Tokens are cached for 55 minutes.
-     * 
-     * @return string|null JWT token or null on failure
-     */
-    private function getOrCreateServiceJwt(): ?string
-    {
-        if ($this->serviceJwt) {
-            return $this->serviceJwt;
-        }
-
-        $cacheKey = 'krai.service_jwt.cached';
-        $cachedToken = Cache::get($cacheKey);
-        
-        if ($cachedToken) {
-            return $cachedToken;
-        }
-
-        $username = env('KRAI_ENGINE_ADMIN_USERNAME');
-        $password = env('KRAI_ENGINE_ADMIN_PASSWORD');
-
-        if (empty($username) || empty($password)) {
-            Log::warning('BackendApiService: Cannot auto-login, credentials not configured');
-            return null;
-        }
-
-        try {
-            $response = $this->createHttpClient()->post("{$this->baseUrl}/api/v1/auth/login", [
-                'username' => $username,
-                'password' => $password,
-            ]);
-
-            if ($response->successful()) {
-                $token = $response->json('data.access_token');
-                
-                if ($token) {
-                    Cache::put($cacheKey, $token, now()->addMinutes(55));
-                    return $token;
-                }
-            }
-
-            Log::warning('BackendApiService: Auto-login failed', [
-                'status_code' => $response->status(),
-                'error' => $response->json('detail') ?? $response->body(),
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('BackendApiService: Auto-login exception', [
-                'message' => $e->getMessage(),
-            ]);
-        }
-
-        return null;
     }
 }

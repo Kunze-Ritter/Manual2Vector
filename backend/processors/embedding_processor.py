@@ -52,7 +52,7 @@ from .embedding_config import (
 class EmbeddingProcessor(BaseProcessor):
     """
     Stage 7: Embedding Processor
-    
+
     Generates vector embeddings for chunks to enable semantic search.
     """
 
@@ -87,7 +87,7 @@ class EmbeddingProcessor(BaseProcessor):
     ):
         """
         Initialize embedding processor
-        
+
         Args:
             database_adapter: Database adapter/service for storage
             ollama_url: Ollama API URL (default: from env)
@@ -106,45 +106,47 @@ class EmbeddingProcessor(BaseProcessor):
         self.embedding_dimension = embedding_dimension
 
         # Unified multi-modal embeddings support
-        
+
         # Phase 5: Context embedding configuration
-        self.enable_context_embeddings = os.getenv('ENABLE_CONTEXT_EMBEDDINGS', 'true').lower() == 'true'
-        self.context_embedding_dimension = int(os.getenv('CONTEXT_EMBEDDING_DIMENSION', str(embedding_dimension)))
-        
+        self.enable_context_embeddings = os.getenv("ENABLE_CONTEXT_EMBEDDINGS", "true").lower() == "true"
+        self.context_embedding_dimension = int(os.getenv("CONTEXT_EMBEDDING_DIMENSION", str(embedding_dimension)))
+
         # Ollama configuration
-        self.ollama_url = ollama_url or os.getenv('OLLAMA_URL', 'http://localhost:11434')
+        self.ollama_url = ollama_url or os.getenv("OLLAMA_URL", "http://localhost:11434")
         # Read model from env if not provided
-        self.model_name = model_name or os.getenv('OLLAMA_MODEL_EMBEDDING', 'nomic-embed-text:latest')
+        self.model_name = model_name or os.getenv("OLLAMA_MODEL_EMBEDDING", "nomic-embed-text:latest")
 
         # HTTP session & retry configuration
-        self.request_timeout = float(os.getenv('EMBEDDING_REQUEST_TIMEOUT', '30'))
-        self.max_retries = int(os.getenv('EMBEDDING_REQUEST_MAX_RETRIES', '4'))
-        self.retry_base_delay = float(os.getenv('EMBEDDING_RETRY_BASE_DELAY', '1.0'))
-        self.retry_jitter = float(os.getenv('EMBEDDING_RETRY_JITTER', '0.5'))
-        self.max_prompt_chars = int(os.getenv('EMBEDDING_MAX_PROMPT_CHARS', '0'))
-        self.default_prompt_chars = int(os.getenv('EMBEDDING_DEFAULT_PROMPT_CHARS', '0'))
+        self.request_timeout = float(os.getenv("EMBEDDING_REQUEST_TIMEOUT", "30"))
+        self.max_retries = int(os.getenv("EMBEDDING_REQUEST_MAX_RETRIES", "4"))
+        self.retry_base_delay = float(os.getenv("EMBEDDING_RETRY_BASE_DELAY", "1.0"))
+        self.retry_jitter = float(os.getenv("EMBEDDING_RETRY_JITTER", "0.5"))
+        self.max_prompt_chars = int(os.getenv("EMBEDDING_MAX_PROMPT_CHARS", "0"))
+        self.default_prompt_chars = int(os.getenv("EMBEDDING_DEFAULT_PROMPT_CHARS", "0"))
         self.session = self._create_session()
 
         # Adaptive batching configuration
-        self.target_latency_lower = float(os.getenv('EMBEDDING_TARGET_LATENCY_LOWER', '1.0'))
-        self.target_latency_upper = float(os.getenv('EMBEDDING_TARGET_LATENCY_UPPER', '2.0'))
-        state_path_env = os.getenv('EMBEDDING_BATCH_STATE_PATH')
-        default_state_dir = Path(os.getenv('KRAI_STATE_DIR', Path.cwd() / 'state'))
+        self.target_latency_lower = float(os.getenv("EMBEDDING_TARGET_LATENCY_LOWER", "1.0"))
+        self.target_latency_upper = float(os.getenv("EMBEDDING_TARGET_LATENCY_UPPER", "2.0"))
+        state_path_env = os.getenv("EMBEDDING_BATCH_STATE_PATH")
+        default_state_dir = Path(os.getenv("KRAI_STATE_DIR", Path.cwd() / "state"))
         default_state_dir.mkdir(parents=True, exist_ok=True)
-        self.batch_state_path = Path(state_path_env) if state_path_env else default_state_dir / 'embedding_batch_state.json'
+        self.batch_state_path = (
+            Path(state_path_env) if state_path_env else default_state_dir / "embedding_batch_state.json"
+        )
         self._batch_latency_window: deque = deque(maxlen=50)
         self._consecutive_error_batches = 0
         self._consecutive_successful_batches = 0
-        self._error_recovery_threshold = int(os.getenv('EMBEDDING_ERROR_RECOVERY_THRESHOLD', '5'))
+        self._error_recovery_threshold = int(os.getenv("EMBEDDING_ERROR_RECOVERY_THRESHOLD", "5"))
         self._load_persisted_batch_size()
 
-        prompt_state_path_env = os.getenv('EMBEDDING_PROMPT_LIMIT_STATE_PATH')
+        prompt_state_path_env = os.getenv("EMBEDDING_PROMPT_LIMIT_STATE_PATH")
         self.prompt_limit_state_path = (
             Path(prompt_state_path_env)
             if prompt_state_path_env
-            else default_state_dir / 'embedding_prompt_limit_state.json'
+            else default_state_dir / "embedding_prompt_limit_state.json"
         )
-        self.prompt_limit_floor = int(os.getenv('EMBEDDING_PROMPT_LIMIT_FLOOR', '512'))
+        self.prompt_limit_floor = int(os.getenv("EMBEDDING_PROMPT_LIMIT_FLOOR", "512"))
         self._prompt_limit_by_model: Dict[str, int] = {}
         self._load_persisted_prompt_limits()
 
@@ -153,10 +155,23 @@ class EmbeddingProcessor(BaseProcessor):
             self.stage_tracker = StageTracker(self.database_adapter)
         else:
             self.stage_tracker = None
-        
+
         # Check Ollama availability
         self.ollama_available = self._check_ollama()
-    
+
+    def close(self) -> None:
+        """Cleanup resources - call when processor is no longer needed."""
+        if hasattr(self, "session") and self.session:
+            self.session.close()
+            self.session = None
+
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        try:
+            self.close()
+        except Exception:
+            pass
+
     def _create_session(self) -> requests.Session:
         """Create a persistent HTTP session with retry-aware adapter."""
         session = requests.Session()
@@ -172,8 +187,8 @@ class EmbeddingProcessor(BaseProcessor):
         )
         adapter = HTTPAdapter(
             max_retries=retry,
-            pool_connections=int(os.getenv('EMBEDDING_HTTP_POOL_CONNECTIONS', '10')),
-            pool_maxsize=int(os.getenv('EMBEDDING_HTTP_POOL_MAXSIZE', '20'))
+            pool_connections=int(os.getenv("EMBEDDING_HTTP_POOL_CONNECTIONS", "10")),
+            pool_maxsize=int(os.getenv("EMBEDDING_HTTP_POOL_MAXSIZE", "20")),
         )
         session.mount("http://", adapter)
         session.mount("https://", adapter)
@@ -189,13 +204,8 @@ class EmbeddingProcessor(BaseProcessor):
                 if node_state:
                     persisted_batch = node_state.get("batch_size")
                     if persisted_batch:
-                        self.batch_size = max(
-                            self.min_batch_size,
-                            min(self.max_batch_size, int(persisted_batch))
-                        )
-                        self.logger.debug(
-                            "Restored batch_size=%s for node=%s", self.batch_size, self.node_id
-                        )
+                        self.batch_size = max(self.min_batch_size, min(self.max_batch_size, int(persisted_batch)))
+                        self.logger.debug("Restored batch_size=%s for node=%s", self.batch_size, self.node_id)
         except Exception as exc:
             self.logger.warning("Failed to load persisted batch size: %s", exc)
 
@@ -206,10 +216,7 @@ class EmbeddingProcessor(BaseProcessor):
             if self.batch_state_path.exists():
                 with self.batch_state_path.open("r", encoding="utf-8") as f:
                     state = json.load(f)
-            state[self.node_id] = {
-                "batch_size": self.batch_size,
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }
+            state[self.node_id] = {"batch_size": self.batch_size, "updated_at": datetime.now(timezone.utc).isoformat()}
             with self.batch_state_path.open("w", encoding="utf-8") as f:
                 json.dump(state, f, indent=2)
         except Exception as exc:
@@ -223,15 +230,11 @@ class EmbeddingProcessor(BaseProcessor):
                 models = state.get("models") if isinstance(state, dict) else None
                 if isinstance(models, dict):
                     self._prompt_limit_by_model = {
-                        str(k): int(v)
-                        for k, v in models.items()
-                        if v is not None and str(v).isdigit() and int(v) > 0
+                        str(k): int(v) for k, v in models.items() if v is not None and str(v).isdigit() and int(v) > 0
                     }
                 elif isinstance(state, dict):
                     self._prompt_limit_by_model = {
-                        str(k): int(v)
-                        for k, v in state.items()
-                        if v is not None and str(v).isdigit() and int(v) > 0
+                        str(k): int(v) for k, v in state.items() if v is not None and str(v).isdigit() and int(v) > 0
                     }
         except Exception as exc:
             self.logger.warning("Failed to load persisted prompt limits: %s", exc)
@@ -323,10 +326,7 @@ class EmbeddingProcessor(BaseProcessor):
         if failed_count <= 0 or self.batch_size <= self.min_batch_size:
             return
         # Scale down more aggressively with higher failure counts
-        step = min(
-            self.batch_adjust_step * max(1, (failed_count + 1) // 2),
-            self.batch_size - self.min_batch_size
-        )
+        step = min(self.batch_adjust_step * max(1, (failed_count + 1) // 2), self.batch_size - self.min_batch_size)
         new_size = max(self.min_batch_size, self.batch_size - step)
         if new_size != self.batch_size:
             self.logger.info(
@@ -371,9 +371,9 @@ class EmbeddingProcessor(BaseProcessor):
                 response = requests.get(f"{self.ollama_url}/api/tags", timeout=2)
 
                 if response.status_code == 200:
-                    models = response.json().get('models', [])
+                    models = response.json().get("models", [])
 
-                    model_names = [m.get('name', '').lower() for m in models]
+                    model_names = [m.get("name", "").lower() for m in models]
 
                     if any(self.model_name in name for name in model_names):
                         self.logger.success(f"Ollama available with {self.model_name}")
@@ -389,35 +389,35 @@ class EmbeddingProcessor(BaseProcessor):
                 self.logger.warning(f"Ollama check failed: {e}")
                 self.logger.info("Make sure Ollama is running: ollama serve")
                 return False
-    
+
     def is_configured(self) -> bool:
         """Check if embedding processor is properly configured"""
         return self.ollama_available and self.database_adapter is not None
-    
+
     def get_configuration_status(self) -> Dict[str, Any]:
         """Get detailed configuration status for debugging"""
         return {
-            'is_configured': self.is_configured(),
-            'ollama_available': self.ollama_available,
-            'ollama_url': self.ollama_url,
-            'model_name': self.model_name,
-            'database_configured': self.database_adapter is not None,
-            'embedding_dimension': self.embedding_dimension,
-            'batch_size': self.batch_size,
+            "is_configured": self.is_configured(),
+            "ollama_available": self.ollama_available,
+            "ollama_url": self.ollama_url,
+            "model_name": self.model_name,
+            "database_configured": self.database_adapter is not None,
+            "embedding_dimension": self.embedding_dimension,
+            "batch_size": self.batch_size,
         }
 
     @staticmethod
     def _vector_literal(values: List[float]) -> str:
         return "[" + ",".join(f"{v:.8f}" for v in values) + "]"
-    
+
     async def process(self, context) -> Dict[str, Any]:
         """Async pipeline entrypoint wrapping `process_document`."""
-        if not hasattr(context, 'document_id'):
+        if not hasattr(context, "document_id"):
             raise ValueError("Processing context must include 'document_id'")
 
-        chunks = getattr(context, 'chunks', None)
+        chunks = getattr(context, "chunks", None)
         if chunks is None:
-            chunks = getattr(context, 'chunk_data', None)
+            chunks = getattr(context, "chunk_data", None)
 
         if chunks is None:
             # Context carries no chunks (e.g. smart-processing resumption path).
@@ -448,22 +448,22 @@ class EmbeddingProcessor(BaseProcessor):
                             context.document_id,
                         )
                         return {
-                            'success': True,
-                            'embeddings_created': 0,
-                            'message': 'All chunks already embedded',
+                            "success": True,
+                            "embeddings_created": 0,
+                            "message": "All chunks already embedded",
                         }
                 except Exception as exc:
                     self.logger.error("Failed to load chunks from DB: %s", exc)
                     return {
-                        'success': False,
-                        'error': f'No chunks in context and DB fetch failed: {exc}',
-                        'embeddings_created': 0,
+                        "success": False,
+                        "error": f"No chunks in context and DB fetch failed: {exc}",
+                        "embeddings_created": 0,
                     }
             else:
                 return {
-                    'success': False,
-                    'error': 'No chunks provided for embedding generation',
-                    'embeddings_created': 0,
+                    "success": False,
+                    "error": "No chunks provided for embedding generation",
+                    "embeddings_created": 0,
                 }
 
         # Normalize chunk payloads so downstream code can rely on `chunk_id` + `text`.
@@ -473,54 +473,52 @@ class EmbeddingProcessor(BaseProcessor):
             if isinstance(chunk, dict):
                 normalized = dict(chunk)
             else:
-                normalized = {'text': chunk}
+                normalized = {"text": chunk}
 
-            chunk_id = normalized.get('chunk_id') or normalized.get('id')
+            chunk_id = normalized.get("chunk_id") or normalized.get("id")
             if chunk_id is not None:
-                normalized['chunk_id'] = chunk_id
+                normalized["chunk_id"] = chunk_id
 
             text_value = (
-                normalized.get('text')
-                or normalized.get('chunk_text')
-                or normalized.get('text_chunk')
-                or normalized.get('content')
+                normalized.get("text")
+                or normalized.get("chunk_text")
+                or normalized.get("text_chunk")
+                or normalized.get("content")
             )
             if text_value is None:
-                text_value = ''
+                text_value = ""
             if not isinstance(text_value, str):
                 text_value = str(text_value)
-            normalized['text'] = text_value
-            normalized['_chunk_index'] = idx
+            normalized["text"] = text_value
+            normalized["_chunk_index"] = idx
             normalized_chunks.append(normalized)
 
-        track_stage = getattr(context, 'track_stage', True)
+        track_stage = getattr(context, "track_stage", True)
 
         loop = asyncio.get_running_loop()
-        manufacturer = getattr(context, 'manufacturer', None) or getattr(context, 'processing_config', {}).get('manufacturer')
-        document_type = getattr(context, 'document_type', None) or getattr(context, 'processing_config', {}).get('document_type')
+        manufacturer = getattr(context, "manufacturer", None) or getattr(context, "processing_config", {}).get(
+            "manufacturer"
+        )
+        document_type = getattr(context, "document_type", None) or getattr(context, "processing_config", {}).get(
+            "document_type"
+        )
 
         with metrics.stage_timer(
-            stage=self.stage.value,
-            manufacturer=manufacturer or 'unknown',
-            document_type=document_type or 'unknown'
+            stage=self.stage.value, manufacturer=manufacturer or "unknown", document_type=document_type or "unknown"
         ) as timer:
             try:
-                result = await self.process_document(
-                    context.document_id,
-                    normalized_chunks,
-                    track_stage
-                )
+                result = await self.process_document(context.document_id, normalized_chunks, track_stage)
             except Exception as exc:
                 timer.stop(success=False, error_label=str(exc))
                 raise
             else:
                 timer.stop(
-                    success=bool(result.get('success')),
-                    error_label=str(result.get('error')) if result.get('error') else None
+                    success=bool(result.get("success")),
+                    error_label=str(result.get("error")) if result.get("error") else None,
                 )
 
         # After processing text chunks, handle image and table embeddings if available
-        if hasattr(context, 'image_embeddings') and context.image_embeddings:
+        if hasattr(context, "image_embeddings") and context.image_embeddings:
             image_result = await self.store_embeddings_batch(
                 context.image_embeddings,
                 context=context,
@@ -528,7 +526,7 @@ class EmbeddingProcessor(BaseProcessor):
             )
             self.logger.info(f"Stored {image_result['success_count']} image embeddings")
 
-        if hasattr(context, 'table_embeddings') and context.table_embeddings:
+        if hasattr(context, "table_embeddings") and context.table_embeddings:
             table_result = await self.store_embeddings_batch(
                 context.table_embeddings,
                 context=context,
@@ -539,34 +537,27 @@ class EmbeddingProcessor(BaseProcessor):
         return result
 
     async def process_document(
-        self,
-        document_id: UUID,
-        chunks: List[Dict[str, Any]],
-        track_stage: bool = True
+        self, document_id: UUID, chunks: List[Dict[str, Any]], track_stage: bool = True
     ) -> Dict[str, Any]:
         """
         Generate embeddings for all chunks in a document
-        
+
         Args:
             document_id: Document UUID
             chunks: List of chunk dicts with 'text' field
-            
+
         Returns:
             Dict with processing results
         """
         if not self.is_configured():
-            return {
-                'success': False,
-                'error': 'Embedding processor not configured',
-                'embeddings_created': 0
-            }
-        
+            return {"success": False, "error": "Embedding processor not configured", "embeddings_created": 0}
+
         # Start stage tracking
         stage_tracker = self.stage_tracker if track_stage and self.stage_tracker else None
 
         if stage_tracker:
             await self.stage_tracker.start_stage(str(document_id), self.stage.value)
-        
+
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
             try:
                 adapter.info("Generating embeddings for %d chunks...", len(chunks))
@@ -585,7 +576,7 @@ class EmbeddingProcessor(BaseProcessor):
                 while processed_count < total_chunks:
                     batch_index += 1
                     current_batch_size = self.batch_size
-                    batch = chunks[processed_count:processed_count + current_batch_size]
+                    batch = chunks[processed_count : processed_count + current_batch_size]
                     if not batch:
                         break
 
@@ -596,17 +587,17 @@ class EmbeddingProcessor(BaseProcessor):
                         batch_index,
                         total_batches,
                         len(batch),
-                        current_batch_size
+                        current_batch_size,
                     )
 
                     batch_start = time.perf_counter()
                     batch_result = await self._embed_batch(batch, document_id)
                     batch_latency = time.perf_counter() - batch_start
 
-                    batch_stats = [text_stats(chunk.get('text', '')) for chunk in batch]
-                    batch_total_chars = sum(stat['length'] for stat in batch_stats)
-                    batch_non_empty = sum(1 for stat in batch_stats if not stat['empty'])
-                    batch_truncated = sum(1 for stat in batch_stats if stat.get('truncated'))
+                    batch_stats = [text_stats(chunk.get("text", "")) for chunk in batch]
+                    batch_total_chars = sum(stat["length"] for stat in batch_stats)
+                    batch_non_empty = sum(1 for stat in batch_stats if not stat["empty"])
+                    batch_truncated = sum(1 for stat in batch_stats if stat.get("truncated"))
                     total_characters += batch_total_chars
                     total_non_empty_chunks += batch_non_empty
                     total_truncated_chunks += batch_truncated
@@ -625,14 +616,14 @@ class EmbeddingProcessor(BaseProcessor):
                         self._record_batch_latency(batch_latency)
                         self._adjust_batch_size(batch_latency)
 
-                    failed_count = len(batch_result['failed_chunks'])
+                    failed_count = len(batch_result["failed_chunks"])
                     if failed_count > 0:
                         self._on_batch_errors(failed_count)
                     else:
                         self._on_batch_success()
 
-                    total_embedded += batch_result['success_count']
-                    failed_chunks.extend(batch_result['failed_chunks'])
+                    total_embedded += batch_result["success_count"]
+                    failed_chunks.extend(batch_result["failed_chunks"])
                     processed_count += len(batch)
                     if (processed_count % progress_batch_size == 0) or (processed_count == total_chunks):
                         adapter.warning(
@@ -649,13 +640,13 @@ class EmbeddingProcessor(BaseProcessor):
                             self.stage.value,
                             progress,
                             metadata={
-                                'chunks_embedded': total_embedded,
-                                'batch': f"{batch_index}/{total_batches}",
-                                'batch_latency': round(batch_latency, 3),
-                                'batch_chars': batch_total_chars,
-                                'batch_non_empty': batch_non_empty,
-                                'batch_truncated': batch_truncated,
-                            }
+                                "chunks_embedded": total_embedded,
+                                "batch": f"{batch_index}/{total_batches}",
+                                "batch_latency": round(batch_latency, 3),
+                                "batch_chars": batch_total_chars,
+                                "batch_non_empty": batch_non_empty,
+                                "batch_truncated": batch_truncated,
+                            },
                         )
 
                 processing_time = time.time() - start_time
@@ -672,37 +663,33 @@ class EmbeddingProcessor(BaseProcessor):
                             adapter=adapter,
                         )
                         context_time = time.time() - context_start
-                        adapter.info("Generated %d context embeddings in %.1fs", context_embeddings_created, context_time)
+                        adapter.info(
+                            "Generated %d context embeddings in %.1fs", context_embeddings_created, context_time
+                        )
                     except Exception as e:
                         adapter.error("Failed to generate context embeddings: %s", e)
                         # Don't fail the entire embedding stage for context embedding errors
 
                 if stage_tracker:
                     metadata = {
-                        'embeddings_created': total_embedded,
-                        'context_embeddings_created': context_embeddings_created,
-                        'processing_time': round(processing_time, 2),
-                        'chunks_per_second': round(chunks_per_second, 2),
-                        'failed_chunks': len(failed_chunks),
-                        'total_characters': total_characters,
-                        'non_empty_chunks': total_non_empty_chunks,
-                        'truncated_chunks': total_truncated_chunks,
+                        "embeddings_created": total_embedded,
+                        "context_embeddings_created": context_embeddings_created,
+                        "processing_time": round(processing_time, 2),
+                        "chunks_per_second": round(chunks_per_second, 2),
+                        "failed_chunks": len(failed_chunks),
+                        "total_characters": total_characters,
+                        "non_empty_chunks": total_non_empty_chunks,
+                        "truncated_chunks": total_truncated_chunks,
                     }
 
                     if total_embedded == 0 and failed_chunks:
                         await stage_tracker.fail_stage(
-                            str(document_id),
-                            self.stage.value,
-                            f"Failed to embed all {len(failed_chunks)} chunks"
+                            str(document_id), self.stage.value, f"Failed to embed all {len(failed_chunks)} chunks"
                         )
                     else:
                         if failed_chunks:
-                            metadata['status'] = 'partial'
-                        await stage_tracker.complete_stage(
-                            str(document_id),
-                            self.stage.value,
-                            metadata=metadata
-                        )
+                            metadata["status"] = "partial"
+                        await stage_tracker.complete_stage(str(document_id), self.stage.value, metadata=metadata)
 
                 self.logger.success(
                     "Created %d embeddings in %.1fs (%.1f chunks/s) | total_chars=%d truncated=%d",
@@ -721,18 +708,18 @@ class EmbeddingProcessor(BaseProcessor):
                     )
 
                 return {
-                    'success': total_embedded > 0,
-                    'partial_success': partial_success,
-                    'embeddings_created': total_embedded,
-                    'context_embeddings_created': context_embeddings_created,
-                    'error': (
+                    "success": total_embedded > 0,
+                    "partial_success": partial_success,
+                    "embeddings_created": total_embedded,
+                    "context_embeddings_created": context_embeddings_created,
+                    "error": (
                         f"Failed to embed all {len(failed_chunks)} chunks"
                         if total_embedded == 0 and len(failed_chunks) > 0
                         else None
                     ),
-                    'failed_count': len(failed_chunks),
-                    'failed_chunks': failed_chunks,
-                    'processing_time': processing_time
+                    "failed_count": len(failed_chunks),
+                    "failed_chunks": failed_chunks,
+                    "processing_time": processing_time,
                 }
 
             except Exception as e:
@@ -741,51 +728,36 @@ class EmbeddingProcessor(BaseProcessor):
                 adapter.error("Embedding generation failed: %s", e)
 
                 if self.stage_tracker:
-                    await self.stage_tracker.fail_stage(
-                        str(document_id),
-                        self.stage.value,
-                        error_msg
-                    )
+                    await self.stage_tracker.fail_stage(str(document_id), self.stage.value, error_msg)
 
-                return {
-                    'success': False,
-                    'error': error_msg,
-                    'embeddings_created': 0
-                }
-    
-    async def _embed_batch(
-        self,
-        chunks: List[Dict[str, Any]],
-        document_id: UUID
-    ) -> Dict[str, Any]:
+                return {"success": False, "error": error_msg, "embeddings_created": 0}
+
+    async def _embed_batch(self, chunks: List[Dict[str, Any]], document_id: UUID) -> Dict[str, Any]:
         """
         Generate embeddings for a batch of chunks (parallel requests to Ollama).
         """
-        parallel = int(os.getenv('EMBEDDING_PARALLEL_REQUESTS', '4'))
+        parallel = int(os.getenv("EMBEDDING_PARALLEL_REQUESTS", "4"))
         semaphore = asyncio.Semaphore(parallel)
         loop = asyncio.get_event_loop()
         success_count = 0
         failed_chunks = []
 
         async def _embed_one(chunk: Dict[str, Any]) -> Dict[str, Any]:
-            chunk_id = chunk.get('chunk_id') or chunk.get('id')
+            chunk_id = chunk.get("chunk_id") or chunk.get("id")
             text_value = (
-                chunk.get('text') or chunk.get('chunk_text')
-                or chunk.get('text_chunk') or chunk.get('content') or ''
+                chunk.get("text") or chunk.get("chunk_text") or chunk.get("text_chunk") or chunk.get("content") or ""
             )
             if not isinstance(text_value, str):
                 text_value = str(text_value)
 
             async with semaphore:
                 try:
-                    embedding = await loop.run_in_executor(
-                        None, self._generate_embedding, text_value
-                    )
+                    embedding = await loop.run_in_executor(None, self._generate_embedding, text_value)
                 except Exception as exc:
-                    return {'ok': False, 'chunk_id': chunk_id, 'error': str(exc)}
+                    return {"ok": False, "chunk_id": chunk_id, "error": str(exc)}
 
             if embedding is None:
-                return {'ok': False, 'chunk_id': chunk_id, 'error': 'Failed to generate embedding'}
+                return {"ok": False, "chunk_id": chunk_id, "error": "Failed to generate embedding"}
 
             try:
                 stored = await self._store_embedding(
@@ -795,32 +767,31 @@ class EmbeddingProcessor(BaseProcessor):
                     chunk_data=chunk,
                 )
             except Exception as exc:
-                return {'ok': False, 'chunk_id': chunk_id, 'error': str(exc)}
+                return {"ok": False, "chunk_id": chunk_id, "error": str(exc)}
 
             if stored:
-                return {'ok': True, 'chunk_id': chunk_id}
-            return {'ok': False, 'chunk_id': chunk_id, 'error': 'Failed to store embedding'}
+                return {"ok": True, "chunk_id": chunk_id}
+            return {"ok": False, "chunk_id": chunk_id, "error": "Failed to store embedding"}
 
         results = await asyncio.gather(*[_embed_one(c) for c in chunks], return_exceptions=True)
 
         for result in results:
             if isinstance(result, Exception):
-                failed_chunks.append({'chunk_id': None, 'error': str(result)})
-            elif result.get('ok'):
+                failed_chunks.append({"chunk_id": None, "error": str(result)})
+            elif result.get("ok"):
                 success_count += 1
             else:
-                failed_chunks.append({'chunk_id': result.get('chunk_id'), 'error': result.get('error')})
+                failed_chunks.append({"chunk_id": result.get("chunk_id"), "error": result.get("error")})
 
-        return {'success_count': success_count, 'failed_chunks': failed_chunks}
+        return {"success_count": success_count, "failed_chunks": failed_chunks}
 
-    
     def _generate_embedding(self, text: str) -> Optional[List[float]]:
         """
         Generate embedding for text using Ollama
-        
+
         Args:
             text: Text to embed
-            
+
         Returns:
             Embedding vector or None
         """
@@ -840,11 +811,8 @@ class EmbeddingProcessor(BaseProcessor):
                     prompt = prompt[:prompt_limit]
                 response = self.session.post(
                     f"{self.ollama_url}/api/embeddings",
-                    json={
-                        "model": self.model_name,
-                        "prompt": prompt
-                    },
-                    timeout=self.request_timeout
+                    json={"model": self.model_name, "prompt": prompt},
+                    timeout=self.request_timeout,
                 )
 
                 if response.status_code == 200:
@@ -861,7 +829,7 @@ class EmbeddingProcessor(BaseProcessor):
                         last_error = f"invalid_json: {json_error}"
                         return None
 
-                    embedding = result.get('embedding')
+                    embedding = result.get("embedding")
 
                     if embedding and len(embedding) == self.embedding_dimension:
                         if attempt > 1:
@@ -873,7 +841,7 @@ class EmbeddingProcessor(BaseProcessor):
                         len(embedding) if embedding else 0,
                         attempt,
                         max_attempts,
-                        str(result)[:200]
+                        str(result)[:200],
                     )
                     last_error = "malformed_embedding"
                     return None
@@ -928,7 +896,7 @@ class EmbeddingProcessor(BaseProcessor):
                             text_length,
                             self.model_name,
                             body_preview,
-                            sleep_time
+                            sleep_time,
                         )
                         time.sleep(sleep_time)
                         last_error = f"status_{response.status_code}"
@@ -936,15 +904,15 @@ class EmbeddingProcessor(BaseProcessor):
                     last_error = f"status_{response.status_code}"
 
                 else:
-                    self.logger.error(
-                        "Embedding API error %s: %s",
-                        response.status_code,
-                        response.text[:200]
-                    )
+                    self.logger.error("Embedding API error %s: %s", response.status_code, response.text[:200])
                     last_error = f"status_{response.status_code}"
                     return None
 
-            except (requests_exceptions.ConnectionError, requests_exceptions.Timeout, requests_exceptions.RetryError) as exc:
+            except (
+                requests_exceptions.ConnectionError,
+                requests_exceptions.Timeout,
+                requests_exceptions.RetryError,
+            ) as exc:
                 retry_delay = self.retry_base_delay * (2 ** (attempt - 1))
                 jitter = random.uniform(0, self.retry_jitter)
                 sleep_time = retry_delay + jitter
@@ -954,25 +922,18 @@ class EmbeddingProcessor(BaseProcessor):
                         attempt,
                         max_attempts,
                         exc,
-                        sleep_time
+                        sleep_time,
                     )
                     time.sleep(sleep_time)
                     last_error = f"connection_error: {exc}"
                     continue
                 self.logger.error(
-                    "Embedding request failed after %d attempts due to connection issues: %s",
-                    max_attempts,
-                    exc
+                    "Embedding request failed after %d attempts due to connection issues: %s", max_attempts, exc
                 )
                 last_error = f"connection_error: {exc}"
                 return None
             except Exception as exc:
-                self.logger.error(
-                    "Embedding generation error on attempt %d/%d: %s",
-                    attempt,
-                    max_attempts,
-                    exc
-                )
+                self.logger.error("Embedding generation error on attempt %d/%d: %s", attempt, max_attempts, exc)
                 last_error = str(exc)
                 return None
 
@@ -982,38 +943,34 @@ class EmbeddingProcessor(BaseProcessor):
         self.logger.error(
             "Embedding generation failed after %d attempts%s",
             max_attempts,
-            f" (last_error={last_error})" if last_error else ""
+            f" (last_error={last_error})" if last_error else "",
         )
         return None
-    
+
     async def _store_embedding(
-        self,
-        chunk_id: str,
-        document_id: UUID,
-        embedding: List[float],
-        chunk_data: Dict[str, Any]
+        self, chunk_id: str, document_id: UUID, embedding: List[float], chunk_data: Dict[str, Any]
     ) -> bool:
         """
         Store embedding in krai_intelligence.chunks (embedding column)
-        
+
         Args:
             chunk_id: Chunk ID
             document_id: Document UUID
             embedding: Embedding vector
             chunk_data: Chunk metadata
-            
+
         Returns:
             True if successful
         """
         if not self.database_adapter:
             return False
-        
+
         try:
             # Prepare record for krai_intelligence.chunks table
             # Note: This uses direct PostgreSQL writes (krai_intelligence.chunks)
-            
+
             # Preserve existing metadata from chunk (includes header metadata, etc.)
-            existing_metadata = chunk_data.get('metadata', {})
+            existing_metadata = chunk_data.get("metadata", {})
             if isinstance(existing_metadata, str):
                 try:
                     existing_metadata = json.loads(existing_metadata)
@@ -1021,20 +978,20 @@ class EmbeddingProcessor(BaseProcessor):
                     existing_metadata = {}
             if not isinstance(existing_metadata, dict):
                 existing_metadata = {}
-            
+
             # Update with required fields (don't overwrite if already exists)
             metadata = {
-                'char_count': existing_metadata.get('char_count', len(chunk_data.get('text', ''))),
-                'word_count': existing_metadata.get('word_count', len(chunk_data.get('text', '').split())),
-                'chunk_type': existing_metadata.get('chunk_type', chunk_data.get('chunk_type', 'text')),
-                'embedded_at': datetime.now(timezone.utc).isoformat()
+                "char_count": existing_metadata.get("char_count", len(chunk_data.get("text", ""))),
+                "word_count": existing_metadata.get("word_count", len(chunk_data.get("text", "").split())),
+                "chunk_type": existing_metadata.get("chunk_type", chunk_data.get("chunk_type", "text")),
+                "embedded_at": datetime.now(timezone.utc).isoformat(),
             }
-            
+
             # Merge with existing metadata (preserve header_metadata, etc.)
             for key, value in existing_metadata.items():
                 if key not in metadata:  # Don't overwrite the standard fields
                     metadata[key] = value
-            
+
             embedding_literal = self._vector_literal(embedding)
             metadata_update = self._make_json_safe(metadata)
 
@@ -1052,35 +1009,35 @@ class EmbeddingProcessor(BaseProcessor):
 
             await self._store_unified_embedding(
                 source_id=str(chunk_id),
-                source_type='text',
+                source_type="text",
                 embedding=embedding,
-                embedding_context=(chunk_data.get('text', '') or '')[:500],
+                embedding_context=(chunk_data.get("text", "") or "")[:500],
                 metadata={
-                    'chunk_type': chunk_data.get('chunk_type', 'text'),
-                    'page_start': chunk_data.get('page_start'),
-                    'page_end': chunk_data.get('page_end'),
-                    'chunk_index': chunk_data.get('chunk_index', 0),
-                    'document_id': str(document_id),
+                    "chunk_type": chunk_data.get("chunk_type", "text"),
+                    "page_start": chunk_data.get("page_start"),
+                    "page_end": chunk_data.get("page_end"),
+                    "chunk_index": chunk_data.get("chunk_index", 0),
+                    "document_id": str(document_id),
                 },
             )
 
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to store embedding (chunk={chunk_id}): {e}")
             return False
-    
+
     async def _store_unified_embedding(
         self,
         source_id: str,
         source_type: str,  # 'text', 'image', 'table'
         embedding: List[float],
         embedding_context: str,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
     ) -> bool:
         """
         Store embedding in unified_embeddings table for unified multi-modal search
-        
+
         Args:
             source_id: Source ID (chunk_id, image_id, table_id)
             source_type: Type of source ('text', 'image', 'table')
@@ -1088,26 +1045,26 @@ class EmbeddingProcessor(BaseProcessor):
             embedding: Embedding vector
             embedding_context: Context text for the embedding
             metadata: Additional metadata
-            
+
         Returns:
             True if successful
         """
         if not self.database_adapter:
             return False
-        
+
         try:
             # Prepare record for unified_embeddings table
             embedding_data = {
-                'source_id': source_id,
-                'source_type': source_type,
-                'model_name': self.model_name,
-                'embedding': embedding,  # pgvector will handle this
-                'embedding_context': embedding_context[:500] if embedding_context else None,
-                'metadata': metadata or {}
+                "source_id": source_id,
+                "source_type": source_type,
+                "model_name": self.model_name,
+                "embedding": embedding,  # pgvector will handle this
+                "embedding_context": embedding_context[:500] if embedding_context else None,
+                "metadata": metadata or {},
             }
 
             embedding_data = self._make_json_safe(embedding_data)
-            
+
             embedding_literal = self._vector_literal(embedding)
             await self.database_adapter.execute_query(
                 """
@@ -1122,15 +1079,15 @@ class EmbeddingProcessor(BaseProcessor):
                     embedding_literal,
                     self.model_name,
                     embedding_context[:500] if embedding_context else None,
-                    json.dumps(embedding_data.get('metadata') or {}),
+                    json.dumps(embedding_data.get("metadata") or {}),
                 ],
             )
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to store unified embedding ({source_type}={source_id}): {e}")
             return False
-    
+
     async def store_embeddings_batch(
         self,
         embeddings: List[Dict[str, Any]],
@@ -1140,7 +1097,7 @@ class EmbeddingProcessor(BaseProcessor):
     ) -> Dict[str, Any]:
         """
         Store batch of embeddings (text, image, table) in unified_embeddings
-        
+
         Args:
             embeddings: List of embedding dictionaries with keys:
                 - source_id: Source ID
@@ -1148,52 +1105,52 @@ class EmbeddingProcessor(BaseProcessor):
                 - embedding: Embedding vector
                 - embedding_context: Context text
                 - metadata: Additional metadata
-                
+
         Returns:
             Dict with success_count, failed_count
         """
         if not self.database_adapter:
-            return {'success_count': 0, 'failed_count': len(embeddings)}
-        
+            return {"success_count": 0, "failed_count": len(embeddings)}
+
         success_count = 0
         failed_count = 0
         embeddings_created = 0
         errors = []
-        
+
         try:
             for emb_data in embeddings:
                 try:
                     # Validate source_type
-                    source_type = emb_data.get('source_type')
-                    if source_type not in ['text', 'image', 'table', 'context']:
+                    source_type = emb_data.get("source_type")
+                    if source_type not in ["text", "image", "table", "context"]:
                         self.logger.warning(f"Invalid source_type: {source_type}")
                         failed_count += 1
                         continue
-                    
+
                     # Store embedding
                     success = await self._store_unified_embedding(
-                        source_id=str(emb_data['source_id']),
-                        source_type=emb_data['source_type'],
-                        embedding=emb_data['embedding'],
-                        embedding_context=emb_data.get('embedding_context'),
-                        metadata=emb_data.get('metadata'),
+                        source_id=str(emb_data["source_id"]),
+                        source_type=emb_data["source_type"],
+                        embedding=emb_data["embedding"],
+                        embedding_context=emb_data.get("embedding_context"),
+                        metadata=emb_data.get("metadata"),
                     )
-                    
+
                     if success:
                         success_count += 1
                     else:
                         failed_count += 1
-                        
+
                 except Exception as e:
                     self.logger.error(f"Failed to store batch embedding: {e}")
                     failed_count += 1
-            
+
             # Process image embeddings if available (from VisualEmbeddingProcessor)
             # Note: This is currently disabled as VisualEmbeddingProcessor stores embeddings directly
             # If you want EmbeddingProcessor to handle image embeddings, set ENABLE_IMAGE_EMBEDDINGS_HANDLING=true
             if (
-                os.getenv('ENABLE_IMAGE_EMBEDDINGS_HANDLING', 'false').lower() == 'true'
-                and hasattr(context, 'image_embeddings')
+                os.getenv("ENABLE_IMAGE_EMBEDDINGS_HANDLING", "false").lower() == "true"
+                and hasattr(context, "image_embeddings")
                 and context.image_embeddings
                 and document_id is not None
             ):
@@ -1201,22 +1158,19 @@ class EmbeddingProcessor(BaseProcessor):
                 for img_emb in context.image_embeddings:
                     try:
                         await self._store_image_embedding(
-                            img_emb['id'],
-                            img_emb['embedding'],
-                            img_emb.get('metadata', {}),
-                            document_id
+                            img_emb["id"], img_emb["embedding"], img_emb.get("metadata", {}), document_id
                         )
                         embeddings_created += 1
                     except Exception as e:
                         self.logger.error(f"Failed to store image embedding: {e}")
                         errors.append(f"Image embedding storage failed: {e}")
-            
+
             # Process table embeddings if available (from TableProcessor)
             # Note: This is currently disabled as TableProcessor stores embeddings directly
             # If you want EmbeddingProcessor to handle table embeddings, set ENABLE_TABLE_EMBEDDINGS_HANDLING=true
             if (
-                os.getenv('ENABLE_TABLE_EMBEDDINGS_HANDLING', 'false').lower() == 'true'
-                and hasattr(context, 'table_embeddings')
+                os.getenv("ENABLE_TABLE_EMBEDDINGS_HANDLING", "false").lower() == "true"
+                and hasattr(context, "table_embeddings")
                 and context.table_embeddings
                 and document_id is not None
             ):
@@ -1224,57 +1178,50 @@ class EmbeddingProcessor(BaseProcessor):
                 for table_emb in context.table_embeddings:
                     try:
                         await self._store_table_embedding(
-                            table_emb['id'],
-                            table_emb['embedding'],
-                            table_emb.get('metadata', {}),
-                            document_id
+                            table_emb["id"], table_emb["embedding"], table_emb.get("metadata", {}), document_id
                         )
                         embeddings_created += 1
                     except Exception as e:
                         self.logger.error(f"Failed to store table embedding: {e}")
                         errors.append(f"Table embedding storage failed: {e}")
-            
+
             self.logger.info(f"Batch embedding storage: {success_count} success, {failed_count} failed")
-            return {'success_count': success_count, 'failed_count': failed_count}
-            
+            return {"success_count": success_count, "failed_count": failed_count}
+
         except Exception as e:
             self.logger.error(f"Batch embedding storage failed: {e}")
-            return {'success_count': success_count, 'failed_count': len(embeddings)}
-    
+            return {"success_count": success_count, "failed_count": len(embeddings)}
+
     def search_similar(
-        self,
-        query_text: str,
-        limit: int = 10,
-        document_id: Optional[UUID] = None,
-        similarity_threshold: float = 0.5
+        self, query_text: str, limit: int = 10, document_id: Optional[UUID] = None, similarity_threshold: float = 0.5
     ) -> List[Dict[str, Any]]:
         """
         Search for similar chunks using vector similarity
-        
+
         Args:
             query_text: Search query
             limit: Number of results to return
             document_id: Optional filter by document
             similarity_threshold: Minimum similarity score (0-1)
-            
+
         Returns:
             List of similar chunks with scores
         """
         if not self.is_configured():
             self.logger.warning("Search not available - processor not configured")
             return []
-        
+
         try:
             # Generate embedding for query
             query_embedding = self._generate_embedding(query_text)
-            
+
             if query_embedding is None:
                 self.logger.error("Failed to generate query embedding")
                 return []
-            
+
             self.logger.warning("Similarity search is not available in sync mode")
             return []
-            
+
         except Exception as e:
             self.logger.error(f"Similarity search failed: {e}")
             return []
@@ -1282,20 +1229,20 @@ class EmbeddingProcessor(BaseProcessor):
     async def _generate_context_embeddings(self, document_id: UUID, adapter) -> int:
         """
         Generate embeddings for context fields of media items (images, videos, links).
-        
+
         Args:
             document_id: Document UUID
             adapter: Logger adapter
-            
+
         Returns:
             Number of context embeddings created
         """
         if not self.database_adapter:
             adapter.debug("Context embeddings unavailable - skipping")
             return 0
-        
+
         total_context_embeddings = 0
-        
+
         try:
             images_result = await self.database_adapter.execute_query(
                 """
@@ -1313,47 +1260,49 @@ class EmbeddingProcessor(BaseProcessor):
                 for image in images_result:
                     # Combine context fields for embedding
                     context_parts = []
-                    
-                    if image.get('context_caption'):
-                        context_parts.append(image['context_caption'])
-                    if image.get('page_header'):
-                        context_parts.append(image['page_header'])
-                    if image.get('figure_reference'):
-                        context_parts.append(image['figure_reference'])
-                    
+
+                    if image.get("context_caption"):
+                        context_parts.append(image["context_caption"])
+                    if image.get("page_header"):
+                        context_parts.append(image["page_header"])
+                    if image.get("figure_reference"):
+                        context_parts.append(image["figure_reference"])
+
                     # Add related entities
-                    if image.get('related_error_codes'):
-                        context_parts.extend([f"Error: {code}" for code in image['related_error_codes']])
-                    if image.get('related_products'):
-                        context_parts.extend([f"Product: {product}" for product in image['related_products']])
-                    if image.get('surrounding_paragraphs'):
-                        context_parts.extend(image['surrounding_paragraphs'])
-                    
+                    if image.get("related_error_codes"):
+                        context_parts.extend([f"Error: {code}" for code in image["related_error_codes"]])
+                    if image.get("related_products"):
+                        context_parts.extend([f"Product: {product}" for product in image["related_products"]])
+                    if image.get("surrounding_paragraphs"):
+                        context_parts.extend(image["surrounding_paragraphs"])
+
                     if context_parts:
-                        context_text = ' | '.join(context_parts)
-                        
+                        context_text = " | ".join(context_parts)
+
                         # Generate embedding
                         embedding = self._generate_embedding(context_text)
                         if embedding:
-                            image_embeddings.append({
-                                'source_id': image['id'],
-                                'source_type': 'context',
-                                'embedding': embedding,
-                                'embedding_context': context_text,
-                                'metadata': {
-                                    'media_type': 'image',
-                                    'media_id': image['id'],
-                                    'document_id': str(document_id)
+                            image_embeddings.append(
+                                {
+                                    "source_id": image["id"],
+                                    "source_type": "context",
+                                    "embedding": embedding,
+                                    "embedding_context": context_text,
+                                    "metadata": {
+                                        "media_type": "image",
+                                        "media_id": image["id"],
+                                        "document_id": str(document_id),
+                                    },
                                 }
-                            })
-                
+                            )
+
                 # Store image context embeddings
                 if image_embeddings:
                     result = await self.store_embeddings_batch(
                         image_embeddings,
                         document_id=document_id,
                     )
-                    total_context_embeddings += result.get('success_count', 0)
+                    total_context_embeddings += result.get("success_count", 0)
                     adapter.info(f"Stored {result.get('success_count', 0)} image context embeddings")
 
             videos_result = await self.database_adapter.execute_query(
@@ -1371,40 +1320,42 @@ class EmbeddingProcessor(BaseProcessor):
 
                 for video in videos_result:
                     context_parts = []
-                    
-                    if video.get('context_description'):
-                        context_parts.append(video['context_description'])
-                    if video.get('page_header'):
-                        context_parts.append(video['page_header'])
-                    
-                    if video.get('related_error_codes'):
-                        context_parts.extend([f"Error: {code}" for code in video['related_error_codes']])
-                    if video.get('related_products'):
-                        context_parts.extend([f"Product: {product}" for product in video['related_products']])
-                    
+
+                    if video.get("context_description"):
+                        context_parts.append(video["context_description"])
+                    if video.get("page_header"):
+                        context_parts.append(video["page_header"])
+
+                    if video.get("related_error_codes"):
+                        context_parts.extend([f"Error: {code}" for code in video["related_error_codes"]])
+                    if video.get("related_products"):
+                        context_parts.extend([f"Product: {product}" for product in video["related_products"]])
+
                     if context_parts:
-                        context_text = ' | '.join(context_parts)
-                        
+                        context_text = " | ".join(context_parts)
+
                         embedding = self._generate_embedding(context_text)
                         if embedding:
-                            video_embeddings.append({
-                                'source_id': video['id'],
-                                'source_type': 'context',
-                                'embedding': embedding,
-                                'embedding_context': context_text,
-                                'metadata': {
-                                    'media_type': 'video',
-                                    'media_id': video['id'],
-                                    'document_id': str(document_id)
+                            video_embeddings.append(
+                                {
+                                    "source_id": video["id"],
+                                    "source_type": "context",
+                                    "embedding": embedding,
+                                    "embedding_context": context_text,
+                                    "metadata": {
+                                        "media_type": "video",
+                                        "media_id": video["id"],
+                                        "document_id": str(document_id),
+                                    },
                                 }
-                            })
-                
+                            )
+
                 if video_embeddings:
                     result = await self.store_embeddings_batch(
                         video_embeddings,
                         document_id=document_id,
                     )
-                    total_context_embeddings += result.get('success_count', 0)
+                    total_context_embeddings += result.get("success_count", 0)
                     adapter.info(f"Stored {result.get('success_count', 0)} video context embeddings")
 
             links_result = await self.database_adapter.execute_query(
@@ -1422,40 +1373,42 @@ class EmbeddingProcessor(BaseProcessor):
 
                 for link in links_result:
                     context_parts = []
-                    
-                    if link.get('context_description'):
-                        context_parts.append(link['context_description'])
-                    if link.get('page_header'):
-                        context_parts.append(link['page_header'])
-                    
-                    if link.get('related_error_codes'):
-                        context_parts.extend([f"Error: {code}" for code in link['related_error_codes']])
-                    if link.get('related_products'):
-                        context_parts.extend([f"Product: {product}" for product in link['related_products']])
-                    
+
+                    if link.get("context_description"):
+                        context_parts.append(link["context_description"])
+                    if link.get("page_header"):
+                        context_parts.append(link["page_header"])
+
+                    if link.get("related_error_codes"):
+                        context_parts.extend([f"Error: {code}" for code in link["related_error_codes"]])
+                    if link.get("related_products"):
+                        context_parts.extend([f"Product: {product}" for product in link["related_products"]])
+
                     if context_parts:
-                        context_text = ' | '.join(context_parts)
-                        
+                        context_text = " | ".join(context_parts)
+
                         embedding = self._generate_embedding(context_text)
                         if embedding:
-                            link_embeddings.append({
-                                'source_id': link['id'],
-                                'source_type': 'context',
-                                'embedding': embedding,
-                                'embedding_context': context_text,
-                                'metadata': {
-                                    'media_type': 'link',
-                                    'media_id': link['id'],
-                                    'document_id': str(document_id)
+                            link_embeddings.append(
+                                {
+                                    "source_id": link["id"],
+                                    "source_type": "context",
+                                    "embedding": embedding,
+                                    "embedding_context": context_text,
+                                    "metadata": {
+                                        "media_type": "link",
+                                        "media_id": link["id"],
+                                        "document_id": str(document_id),
+                                    },
                                 }
-                            })
-                
+                            )
+
                 if link_embeddings:
                     result = await self.store_embeddings_batch(
                         link_embeddings,
                         document_id=document_id,
                     )
-                    total_context_embeddings += result.get('success_count', 0)
+                    total_context_embeddings += result.get("success_count", 0)
                     adapter.info(f"Stored {result.get('success_count', 0)} link context embeddings")
 
             try:
@@ -1489,7 +1442,7 @@ class EmbeddingProcessor(BaseProcessor):
                     # Combine context fields for embedding
                     context_parts = []
 
-                    metadata = table.get('metadata')
+                    metadata = table.get("metadata")
                     if isinstance(metadata, str):
                         try:
                             metadata = json.loads(metadata)
@@ -1498,10 +1451,10 @@ class EmbeddingProcessor(BaseProcessor):
                     if not isinstance(metadata, dict):
                         metadata = {}
 
-                    context_text_field = table.get('context_text') or metadata.get('context_text')
-                    caption_field = table.get('caption') or metadata.get('caption')
-                    page_header_field = table.get('page_header') or metadata.get('page_header')
-                    markdown_field = table.get('table_markdown')
+                    context_text_field = table.get("context_text") or metadata.get("context_text")
+                    caption_field = table.get("caption") or metadata.get("caption")
+                    page_header_field = table.get("page_header") or metadata.get("page_header")
+                    markdown_field = table.get("table_markdown")
 
                     if context_text_field:
                         context_parts.append(context_text_field)
@@ -1511,36 +1464,38 @@ class EmbeddingProcessor(BaseProcessor):
                         context_parts.append(page_header_field)
                     if markdown_field:
                         context_parts.append(markdown_field)
-                    
+
                     if context_parts:
-                        context_text = ' | '.join(context_parts)
-                        
+                        context_text = " | ".join(context_parts)
+
                         # Generate embedding
                         embedding = self._generate_embedding(context_text)
                         if embedding:
-                            table_embeddings.append({
-                                'source_id': table['id'],
-                                'source_type': 'context',
-                                'embedding': embedding,
-                                'embedding_context': context_text,
-                                'metadata': {
-                                    'media_type': 'table',
-                                    'media_id': table['id'],
-                                    'document_id': str(document_id)
+                            table_embeddings.append(
+                                {
+                                    "source_id": table["id"],
+                                    "source_type": "context",
+                                    "embedding": embedding,
+                                    "embedding_context": context_text,
+                                    "metadata": {
+                                        "media_type": "table",
+                                        "media_id": table["id"],
+                                        "document_id": str(document_id),
+                                    },
                                 }
-                            })
-                
+                            )
+
                 # Store table context embeddings
                 if table_embeddings:
                     result = await self.store_embeddings_batch(
                         table_embeddings,
                         document_id=document_id,
                     )
-                    total_context_embeddings += result.get('success_count', 0)
+                    total_context_embeddings += result.get("success_count", 0)
                     adapter.info(f"Stored {result.get('success_count', 0)} table context embeddings")
-            
+
             return total_context_embeddings
-            
+
         except Exception as e:
             adapter.error(f"Failed to generate context embeddings: {e}")
             return 0
@@ -1549,19 +1504,19 @@ class EmbeddingProcessor(BaseProcessor):
 # Example usage
 if __name__ == "__main__":
     from uuid import uuid4
-    
+
     processor = EmbeddingProcessor()
-    
+
     if processor.is_configured():
         print("✅ Embedding Processor configured")
         print(f"   Model: {processor.model_name}")
         print(f"   Dimension: {processor.embedding_dimension}")
         print(f"   Batch size: {processor.batch_size}")
-        
+
         # Test embedding
         test_text = "This is a test sentence for embedding generation."
         embedding = processor._generate_embedding(test_text)
-        
+
         if embedding:
             print(f"\n✅ Test embedding generated!")
             print(f"   Dimension: {len(embedding)}")

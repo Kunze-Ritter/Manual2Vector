@@ -11,18 +11,20 @@ class MonitoringService
 {
     private string $baseUrl;
     private ?string $serviceJwt;
+    private TokenService $tokenService;
     private static array $pendingRequests = [];
 
     public function __construct(?string $baseUrl = null, ?string $serviceJwt = null)
     {
         $resolvedUrl = $baseUrl
             ?? config('krai.monitoring.base_url')
-            ?? config('krai.engine_url', env('KRAI_ENGINE_URL', 'http://krai-engine:8000'));
+            ?? config('krai.engine_url', 'http://krai-engine:8000');
 
         // Normalize base URL by removing trailing slashes to prevent double-slash URLs
         $this->baseUrl = rtrim($resolvedUrl, '/');
 
         $this->serviceJwt = $serviceJwt ?? config('krai.service_jwt');
+        $this->tokenService = new TokenService($this->baseUrl, $this->serviceJwt);
     }
 
     /**
@@ -41,54 +43,12 @@ class MonitoringService
             'Content-Type' => 'application/json',
         ];
 
-        $jwt = $this->serviceJwt ?: $this->getOrCreateServiceJwt();
+        $jwt = $this->tokenService->getToken();
         if ($jwt) {
             $headers['Authorization'] = 'Bearer ' . $jwt;
         }
 
         return $headers;
-    }
-
-    private function getOrCreateServiceJwt(): ?string
-    {
-        $cacheKey = 'krai.service_jwt.cached';
-        $cached = Cache::get($cacheKey);
-        if (is_string($cached) && $cached !== '') {
-            return $cached;
-        }
-
-        $username = env('KRAI_ENGINE_ADMIN_USERNAME');
-        $password = env('KRAI_ENGINE_ADMIN_PASSWORD');
-        if (!$username || !$password) {
-            return null;
-        }
-
-        try {
-            $response = Http::timeout(5)->acceptJson()->post("{$this->baseUrl}/api/v1/auth/login", [
-                'username' => $username,
-                'password' => $password,
-                'remember_me' => false,
-            ]);
-
-            if ($response->successful()) {
-                $token = $response->json('data.access_token');
-                if (is_string($token) && $token !== '') {
-                    Cache::put($cacheKey, $token, 55 * 60);
-                    return $token;
-                }
-            }
-
-            Log::warning('MonitoringService auto-login failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('MonitoringService auto-login exception', [
-                'message' => $e->getMessage(),
-            ]);
-        }
-
-        return null;
     }
 
     /**
@@ -658,6 +618,9 @@ class MonitoringService
         Cache::forget('monitoring.processors.badge');
         Cache::forget('monitoring.data_quality');
         Cache::forget('monitoring.performance');
+        
+        // Also clear token cache to force re-authentication
+        $this->tokenService->clearCache();
     }
 
     private function deduplicatedRequest(string $key, int $ttl, callable $callback): mixed

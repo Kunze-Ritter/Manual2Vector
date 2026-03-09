@@ -26,6 +26,16 @@ class APIStatusWidget extends BaseWidget
     
     protected $listeners = ['startService' => 'handleStartService'];
     
+    /**
+     * Whitelist of allowed service identifiers for Docker operations
+     */
+    private const ALLOWED_SERVICES = [
+        'ollama' => 'krai-ollama-prod',
+        'backend' => 'krai-backend-prod',
+        'redis' => 'krai-redis-prod',
+        'firecrawl' => 'krai-firecrawl-api-prod',
+    ];
+    
     public function handleStartService($service)
     {
         if (!auth()->user()?->isAdmin()) {
@@ -37,46 +47,68 @@ class APIStatusWidget extends BaseWidget
             return;
         }
 
+        // Validate input - only allow whitelisted services
+        if (!is_string($service) || !isset(self::ALLOWED_SERVICES[$service])) {
+            \Filament\Notifications\Notification::make()
+                ->title('Invalid service')
+                ->body('Service not allowed')
+                ->danger()
+                ->send();
+            return;
+        }
+
         try {
-            $containerMap = [
-                'ollama' => 'krai-ollama-prod',
-                'backend' => 'krai-backend-prod',
-                'redis' => 'krai-redis-prod',
-                'firecrawl' => 'krai-firecrawl-api-prod',
-            ];
+            $containerName = self::ALLOWED_SERVICES[$service];
             
-            if (!isset($containerMap[$service])) {
+            // Validate container name format (alphanumeric, dashes, underscores only)
+            if (!preg_match('/^[a-zA-Z0-9_-]+$/', $containerName)) {
                 \Filament\Notifications\Notification::make()
-                    ->title('Service not found')
+                    ->title('Invalid container name')
                     ->danger()
                     ->send();
                 return;
             }
             
-            $container = $containerMap[$service];
-            $command = "docker start {$container}";
+            // Use docker start with validated container name (no shell injection possible)
+            $command = ['docker', 'start', $containerName];
+            $descriptorSpec = [
+                0 => ['pipe', 'r'],  // stdin
+                1 => ['pipe', 'w'],  // stdout
+                2 => ['pipe', 'w'],  // stderr
+            ];
             
-            exec($command, $output, $returnCode);
+            $process = proc_open($command, $descriptorSpec, $pipes);
             
-            if ($returnCode === 0) {
-                \Filament\Notifications\Notification::make()
-                    ->title('Service started')
-                    ->body("Successfully started {$service}")
-                    ->success()
-                    ->send();
+            if (is_resource($process)) {
+                fclose($pipes[0]);
+                $stdout = stream_get_contents($pipes[1]);
+                fclose($pipes[1]);
+                $stderr = stream_get_contents($pipes[2]);
+                fclose($pipes[2]);
+                $returnCode = proc_close($process);
+                
+                if ($returnCode === 0) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Service gestartet')
+                        ->body("{$service} wurde erfolgreich gestartet")
+                        ->success()
+                        ->send();
                     
-                // Clear cache to force refresh
-                Cache::forget("{$service}_status");
+                    // Clear cache to force refresh
+                    Cache::forget("{$service}_status");
+                } else {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Service konnte nicht gestartet werden')
+                        ->body($stderr ?: "Exit code: {$returnCode}")
+                        ->danger()
+                        ->send();
+                }
             } else {
-                \Filament\Notifications\Notification::make()
-                    ->title('Failed to start service')
-                    ->body("Could not start {$service}")
-                    ->danger()
-                    ->send();
+                throw new \RuntimeException('Failed to start process');
             }
         } catch (\Exception $e) {
             \Filament\Notifications\Notification::make()
-                ->title('Error')
+                ->title('Fehler')
                 ->body($e->getMessage())
                 ->danger()
                 ->send();

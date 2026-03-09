@@ -135,6 +135,22 @@ class ImageProcessor(BaseProcessor):
         self._vision_model_checked_at: float = 0.0
         self.vision_model_cache_ttl = float(os.getenv("VISION_MODEL_CACHE_TTL_SECONDS", "300"))
 
+    def close(self) -> None:
+        """Cleanup resources - call when processor is no longer needed."""
+        if hasattr(self, "ocr_executor") and self.ocr_executor:
+            self.ocr_executor.shutdown(wait=True)
+            self.ocr_executor = None
+        if hasattr(self, "session") and self.session:
+            self.session.close()
+            self.session = None
+
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        try:
+            self.close()
+        except Exception:
+            pass
+
         # Check OCR availability
         if self.enable_ocr:
             try:
