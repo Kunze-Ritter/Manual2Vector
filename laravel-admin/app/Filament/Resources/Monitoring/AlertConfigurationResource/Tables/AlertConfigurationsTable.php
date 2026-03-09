@@ -17,6 +17,7 @@ class AlertConfigurationsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->stackedOnMobile()
             ->columns([
                 IconColumn::make('is_enabled')
                     ->label('Status')

@@ -24,6 +24,7 @@ class PipelineErrorsTable
     public static function make(Table $table): Table
     {
         return $table
+            ->stackedOnMobile()
             ->columns([
                 IconColumn::make('status')
                     ->label('')

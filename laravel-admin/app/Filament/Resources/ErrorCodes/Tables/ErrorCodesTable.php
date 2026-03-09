@@ -16,6 +16,7 @@ class ErrorCodesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->stackedOnMobile()
             ->columns([
                 TextColumn::make('error_code')
                     ->label('Code')
