@@ -4,7 +4,7 @@ Auto-updated with each significant release
 """
 
 __version__ = "0.50.0"
-__commit__ = "b224275"
+__commit__ = "f276301"
 __date__ = "2026-03-09"
 
 # Version History:
