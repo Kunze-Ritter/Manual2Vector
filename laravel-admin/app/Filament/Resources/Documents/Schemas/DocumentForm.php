@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Documents\Schemas;
 
+use App\Enums\DocumentProcessingStatus;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -48,6 +49,7 @@ class DocumentForm
 
                 TextInput::make('processing_status')
                     ->label('Processing Status')
+                    ->formatStateUsing(fn ($state) => $state?->label() ?? DocumentProcessingStatus::tryFrom((string) $state)?->label() ?? (string) $state)
                     ->disabled(),
 
                 TextInput::make('confidence_score')

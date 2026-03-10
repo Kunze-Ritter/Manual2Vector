@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Enums\UserRole;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -14,7 +15,7 @@ class UsersTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->stackedOnMobile()
+
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')
@@ -28,6 +29,7 @@ class UsersTable
 
                 TextColumn::make('role')
                     ->label('Rolle')
+                    ->formatStateUsing(fn ($state) => $state?->label() ?? UserRole::tryFrom((string) $state)?->label() ?? (string) $state)
                     ->sortable(),
 
                 TextColumn::make('created_at')
@@ -38,11 +40,7 @@ class UsersTable
             ->filters([
                 SelectFilter::make('role')
                     ->label('Rolle')
-                    ->options([
-                        'admin' => 'Admin',
-                        'editor' => 'Editor',
-                        'viewer' => 'Viewer',
-                    ]),
+                    ->options(UserRole::options()),
             ])
             ->recordActions([
                 EditAction::make(),

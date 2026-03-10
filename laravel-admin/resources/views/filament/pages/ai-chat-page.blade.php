@@ -5,330 +5,192 @@
     @endphp
 
     @if($healthOk)
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {{-- Chat Interface (Left Column - 2/3 width) --}}
-            <div class="lg:col-span-2">
-                <x-filament::card>
-                    {{-- Header with Status --}}
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-                        <div class="flex items-center space-x-3">
-                            <x-filament::icon icon="heroicon-o-sparkles" class="h-6 w-6 text-primary-500" />
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">KRAI AI Assistant</h3>
-                                <x-filament::badge :color="$healthOk ? 'success' : 'danger'" size="sm">
-                                    {{ $healthOk ? 'Online' : 'Offline' }}
-                                </x-filament::badge>
+        <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 h-[calc(100vh-10rem)]">
+            <aside class="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <x-filament::button wire:click="newChat" icon="heroicon-o-plus" class="w-full" color="primary">
+                        Neuer Chat
+                    </x-filament::button>
+                </div>
+
+                <div class="px-4 pt-4 pb-2">
+                    <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sessions</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
+                    @forelse($chatSessions as $chatSession)
+                        @php
+                            $isActive = ($chatSession['session_key'] ?? '') === ($sessionId ?? '');
+                            $title = $chatSession['title'] ?: 'Unbenannter Chat';
+                        @endphp
+                        <div class="group rounded-lg {{ $isActive ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800/60 border border-transparent' }}">
+                            <button
+                                wire:click="switchSession('{{ $chatSession['session_key'] }}')"
+                                class="w-full text-left px-3 py-2"
+                            >
+                                <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ $title }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ \Carbon\Carbon::parse($chatSession['last_active'] ?? now())->format('d.m.Y H:i') }}</p>
+                            </button>
+                            <div class="px-3 pb-2">
+                                <button
+                                    wire:click.stop="deleteSession('{{ $chatSession['session_key'] }}')"
+                                    class="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                    title="Session loeschen"
+                                >
+                                    Loeschen
+                                </button>
                             </div>
                         </div>
+                    @empty
+                        <p class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Noch keine Sessions vorhanden.</p>
+                    @endforelse
+                </div>
+
+                <div class="p-3 border-t border-gray-200 dark:border-gray-700">
+                    <div class="text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                        <p class="font-medium">Slash Commands</p>
+                        <p><code>/help</code> <code>/errors</code> <code>/products</code> <code>/docs</code> <code>/stats</code></p>
                     </div>
+                </div>
+            </aside>
 
-                    {{-- Messages Container --}}
-                    <div 
-                        x-data="aiChatPage()"
-                        x-init="init()"
-                        class="space-y-4"
-                    >
-                        <div 
-                            class="overflow-y-auto space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg h-[calc(100vh-20rem)] md:h-[600px]"
-                            x-ref="messagesContainer"
-                        >
-                            @foreach($messages as $message)
-                                @if(($message['role'] ?? '') === 'user')
-                                    {{-- User Message --}}
-                                    <div class="flex justify-end">
-                                        <div class="bg-primary-100 dark:bg-primary-900 text-primary-900 dark:text-primary-100 rounded-lg p-3 max-w-[80%] shadow-sm">
-                                            <p class="text-sm whitespace-pre-line">{{ $message['content'] ?? '' }}</p>
-                                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                                {{ \Carbon\Carbon::parse($message['timestamp'] ?? now())->format('H:i') }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                @else
-                                    {{-- Assistant Message --}}
-                                    <div class="flex justify-start">
-                                        <div class="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg p-3 max-w-[80%] shadow-sm">
-                                            <div class="text-sm prose dark:prose-invert prose-sm max-w-none">
-                                                {!! \Illuminate\Support\Str::markdown($message['content'] ?? '', [
-                                                    'html_input' => 'strip',
-                                                    'allow_unsafe_links' => false,
-                                                ]) !!}
-                                            </div>
-                                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                                {{ \Carbon\Carbon::parse($message['timestamp'] ?? now())->format('H:i') }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                @endif
-                            @endforeach
+            <section class="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                <x-filament::icon icon="heroicon-o-sparkles" class="w-5 h-5" />
+                            </div>
+                            <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-primary-600 rounded-full"></span>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-white">KRAI AI Workspace</h2>
+                            <p class="text-xs text-white/80 truncate">{{ $sessionTitle ?: 'Aktive Session' }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button wire:click="clearHistory" class="p-2 hover:bg-white/10 rounded-full transition" title="Chat loeschen">
+                            <x-filament::icon icon="heroicon-o-trash" class="w-5 h-5" />
+                        </button>
+                        <button wire:click="$refresh" class="p-2 hover:bg-white/10 rounded-full transition" title="Aktualisieren">
+                            <x-filament::icon icon="heroicon-o-arrow-path" class="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
 
-                            {{-- Streaming Indicator --}}
-                            <div
-                                x-show="isStreaming"
-                                x-ref="streamingMessage"
-                                class="flex justify-start"
-                            >
-                                <div class="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg p-3 max-w-[80%] shadow-sm">
-                                    <div class="flex space-x-1">
-                                        <span class="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
-                                        <span class="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:0.15s]"></span>
-                                        <span class="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:0.3s]"></span>
+                <div class="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-800" wire:poll.8s>
+                    <div class="h-full overflow-y-auto p-4 space-y-4" x-ref="chatContainer">
+                        @if(count($messages) === 0)
+                            <div class="flex justify-center py-8">
+                                <div class="text-center max-w-xl">
+                                    <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 flex items-center justify-center">
+                                        <x-filament::icon icon="heroicon-o-sparkles" class="w-10 h-10 text-primary-600 dark:text-primary-400" />
+                                    </div>
+                                    <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Agent Chat wie OpenWebUI</h3>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-4">Nutze freie Fragen oder Slash-Commands fuer strukturierte Daten aus der DB.</p>
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <button wire:click="$set('currentMessage', '/help')" class="px-4 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full hover:border-primary-500 hover:text-primary-600 transition">
+                                            /help
+                                        </button>
+                                        <button wire:click="$set('currentMessage', '/errors 13.B9 5')" class="px-4 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full hover:border-primary-500 hover:text-primary-600 transition">
+                                            /errors
+                                        </button>
+                                        <button wire:click="$set('currentMessage', '/products printer 5')" class="px-4 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full hover:border-primary-500 hover:text-primary-600 transition">
+                                            /products
+                                        </button>
+                                        <button wire:click="$set('currentMessage', '/stats')" class="px-4 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full hover:border-primary-500 hover:text-primary-600 transition">
+                                            /stats
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        @endif
 
-                        {{-- Message Input Form --}}
-                        <form wire:submit.prevent="sendMessage" class="space-y-3 mt-4">
-                            {{-- Prompt Templates --}}
-                            @php $templates = $this->getPromptTemplates(); @endphp
-                            @if(count($templates) > 0)
-                                <div class="flex flex-wrap gap-2">
-                                    @foreach($templates as $tpl)
-                                        <button
-                                            type="button"
-                                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                                            x-on:click="$wire.set('currentMessage', {{ json_encode($tpl['prompt_text']) }}); $nextTick(() => $el.closest('form').querySelector('textarea').focus())"
-                                            title="{{ $tpl['description'] ?? $tpl['title'] }}"
-                                        >
-                                            {{ $tpl['title'] }}
-                                        </button>
-                                    @endforeach
+                        @foreach($messages as $index => $message)
+                            @if(($message['role'] ?? '') === 'user')
+                                <div class="flex justify-end">
+                                    <div class="flex items-end gap-2 max-w-[80%]">
+                                        <div class="bg-primary-500 text-white rounded-2xl rounded-br-sm px-4 py-2.5 shadow-md">
+                                            <p class="text-sm whitespace-pre-wrap">{{ $message['content'] ?? '' }}</p>
+                                            <p class="text-[10px] text-white/60 text-right mt-1">
+                                                {{ \Carbon\Carbon::parse($message['timestamp'] ?? now())->format('H:i') }}
+                                            </p>
+                                        </div>
+                                        <div class="w-8 h-8 rounded-full bg-primary-400 flex items-center justify-center flex-shrink-0">
+                                            <x-filament::icon icon="heroicon-o-user" class="w-4 h-4 text-white" />
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="flex justify-start">
+                                    <div class="flex items-end gap-2 max-w-[85%]">
+                                        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
+                                            <x-filament::icon icon="heroicon-o-sparkles" class="w-4 h-4 text-white" />
+                                        </div>
+                                        <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-sm">
+                                            <div class="prose dark:prose-invert prose-sm max-w-none">
+                                                {!! \Illuminate\Support\Str::markdown($message['content'] ?? '', ['html_input' => 'strip', 'allow_unsafe_links' => false]) !!}
+                                            </div>
+                                            <p class="text-[10px] text-gray-400 mt-1">
+                                                {{ \Carbon\Carbon::parse($message['timestamp'] ?? now())->format('H:i') }}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             @endif
+                        @endforeach
+                    </div>
+                </div>
 
+                <div class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3">
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        <button wire:click="$set('currentMessage', '/help')" class="px-2.5 py-1 text-xs rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-500">/help</button>
+                        <button wire:click="$set('currentMessage', '/errors 13.B9 5')" class="px-2.5 py-1 text-xs rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-500">/errors</button>
+                        <button wire:click="$set('currentMessage', '/products printer 5')" class="px-2.5 py-1 text-xs rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-500">/products</button>
+                        <button wire:click="$set('currentMessage', '/docs service manual 5')" class="px-2.5 py-1 text-xs rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-500">/docs</button>
+                        <button wire:click="$set('currentMessage', '/stats')" class="px-2.5 py-1 text-xs rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-500">/stats</button>
+                    </div>
+
+                    <form wire:submit.prevent="sendMessage" class="flex items-end gap-2">
+                        <div class="flex-1">
                             <textarea
-                                wire:model.defer="currentMessage"
-                                rows="3"
-                                placeholder="Frage stellen... (Enter zum Senden, Shift+Enter für neue Zeile)"
-                                class="w-full block rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                                x-on:keydown.enter.prevent="if(!$event.shiftKey) $wire.sendMessage()"
+                                wire:model="currentMessage"
+                                rows="1"
+                                placeholder="Nachricht oder /command eingeben..."
+                                class="w-full block rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:text-white resize-none py-2.5 px-4"
+                                x-data="{ height: '' }"
+                                x-on:input="$el.style.height = ''; $el.style.height = Math.min($el.scrollHeight, 160) + 'px'"
+                                x-on:keydown.enter.prevent="$wire.sendMessage()"
                             ></textarea>
-                            <div class="flex items-center justify-between">
-                                <x-filament::button
-                                    type="submit"
-                                    icon="heroicon-o-paper-airplane"
-                                    color="primary"
-                                    wire:loading.attr="disabled"
-                                    wire:target="sendMessage"
-                                >
-                                    Senden
-                                </x-filament::button>
-                            </div>
-                        </form>
-                    </div>
-                </x-filament::card>
-            </div>
-
-            {{-- Status & Controls (Right Column - 1/3 width) --}}
-            <div class="space-y-6">
-                {{-- Status Card --}}
-                <x-filament::card>
-                    <div class="space-y-4">
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Agent Status</h4>
-                            <div class="flex items-center space-x-2">
-                                <span class="h-3 w-3 rounded-full {{ $healthOk ? 'bg-success-500' : 'bg-danger-500' }} animate-pulse"></span>
-                                <span class="text-sm text-gray-600 dark:text-gray-400">
-                                    {{ $healthOk ? 'Online und bereit' : 'Offline' }}
-                                </span>
-                            </div>
                         </div>
-
-                        <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Session Info</h4>
-                            <div class="space-y-2 text-sm">
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Session ID:</span>
-                                    <p class="text-gray-900 dark:text-gray-100 font-mono text-xs break-all">{{ $sessionId }}</p>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Nachrichten:</span>
-                                    <p class="text-gray-900 dark:text-gray-100 font-semibold">{{ count($messages) }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </x-filament::card>
-
-                {{-- Action Buttons Card --}}
-                <x-filament::card>
-                    <div class="space-y-3">
-                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Aktionen</h4>
-                        
-                        <x-filament::button
-                            wire:click="refreshMessages"
-                            icon="heroicon-o-arrow-path"
-                            color="secondary"
-                            class="w-full"
-                            outlined
+                        <button
+                            type="submit"
+                            class="p-2.5 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white rounded-full transition shadow-md"
+                            wire:loading.attr="disabled"
+                            wire:target="sendMessage"
                         >
-                            Aktualisieren
-                        </x-filament::button>
-
-                        <x-filament::button
-                            wire:click="clearHistory"
-                            icon="heroicon-o-trash"
-                            color="danger"
-                            class="w-full"
-                            outlined
-                        >
-                            Verlauf löschen
-                        </x-filament::button>
-                    </div>
-                </x-filament::card>
-
-                {{-- Help Card --}}
-                <x-filament::card>
-                    <div class="space-y-2">
-                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tipps</h4>
-                        <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                            <li class="flex items-start">
-                                <x-filament::icon icon="heroicon-m-check" class="h-3 w-3 mr-1 mt-0.5 text-success-500" />
-                                <span>Enter zum Senden</span>
-                            </li>
-                            <li class="flex items-start">
-                                <x-filament::icon icon="heroicon-m-check" class="h-3 w-3 mr-1 mt-0.5 text-success-500" />
-                                <span>Shift+Enter für neue Zeile</span>
-                            </li>
-                            <li class="flex items-start">
-                                <x-filament::icon icon="heroicon-m-check" class="h-3 w-3 mr-1 mt-0.5 text-success-500" />
-                                <span>Markdown wird unterstützt</span>
-                            </li>
-                        </ul>
-                    </div>
-                </x-filament::card>
-            </div>
+                            <x-filament::icon icon="heroicon-o-paper-airplane" class="w-5 h-5" />
+                        </button>
+                    </form>
+                </div>
+            </section>
         </div>
     @else
-        {{-- Offline State --}}
         <div class="flex items-center justify-center min-h-[400px]">
             <x-filament::card class="max-w-md">
                 <div class="text-center p-6">
-                    <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-16 w-16 text-warning-500 mx-auto mb-4" />
+                    <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-warning-100 dark:bg-warning-900/30 flex items-center justify-center">
+                        <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-10 w-10 text-warning-600 dark:text-warning-400" />
+                    </div>
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">AI Agent ist offline</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        Der AI Agent ist momentan nicht verfügbar. Bitte versuchen Sie es später erneut.
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                        Der AI Agent ist nicht erreichbar.
                     </p>
-                    <x-filament::button
-                        wire:click="$refresh"
-                        icon="heroicon-o-arrow-path"
-                        color="secondary"
-                    >
+                    <x-filament::button wire:click="retryConnection" icon="heroicon-o-arrow-path" color="primary">
                         Erneut versuchen
                     </x-filament::button>
                 </div>
             </x-filament::card>
         </div>
     @endif
-
-    @push('scripts')
-        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-        <script>
-            function aiChatPage() {
-                return {
-                    isStreaming: false,
-                    controller: null,
-                    init() {
-                        window.addEventListener('chat:streaming-start', (e) => {
-                            this.startStreaming(e.detail.sessionId, e.detail.message);
-                        });
-
-                        // Scroll to bottom on mount
-                        this.scrollToBottom();
-                    },
-                    scrollToBottom() {
-                        this.$nextTick(() => {
-                            const container = this.$refs.messagesContainer;
-                            if (container) {
-                                container.scrollTop = container.scrollHeight;
-                            }
-                        });
-                    },
-                    startStreaming(sessionId, message) {
-                        this.isStreaming = true;
-                        if (this.controller) {
-                            this.controller.abort();
-                        }
-                        this.controller = new AbortController();
-                        const signal = this.controller.signal;
-                        const streamingDiv = this.$refs.streamingMessage;
-                        let fullResponse = '';
-
-                        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-                        fetch('/kradmin/ai-chat/stream', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
-                            },
-                            body: JSON.stringify({
-                                session_id: sessionId,
-                                message: message,
-                            }),
-                            signal,
-                        }).then(response => {
-                            if (!response.body) {
-                                throw new Error('Streaming response body missing');
-                            }
-                            const reader = response.body.getReader();
-                            const decoder = new TextDecoder();
-
-                            const processChunk = ({ done, value }) => {
-                                if (done) {
-                                    this.isStreaming = false;
-                                    this.$wire.call('refreshMessages');
-                                    this.scrollToBottom();
-                                    return;
-                                }
-
-                                const text = decoder.decode(value, { stream: true });
-                                const events = text.split('\n\n').filter(Boolean);
-
-                                events.forEach(event => {
-                                    const line = event.replace(/^data:\s*/, '').trim();
-
-                                    if (line === '[DONE]') {
-                                        this.isStreaming = false;
-                                        this.$wire.call('refreshMessages');
-                                        this.scrollToBottom();
-                                        return;
-                                    }
-
-                                    try {
-                                        const data = JSON.parse(line);
-                                        if (data.chunk) {
-                                            fullResponse += data.chunk;
-                                            if (streamingDiv) {
-                                                const parsed = marked.parse(fullResponse);
-                                                streamingDiv.querySelector('.bg-gray-100, .dark\\:bg-gray-800').innerHTML = 
-                                                    '<div class="text-sm prose dark:prose-invert prose-sm max-w-none">' + parsed + '</div>';
-                                            }
-                                            this.scrollToBottom();
-                                        }
-                                        if (data.error) {
-                                            console.error('Streaming error:', data.error);
-                                            this.isStreaming = false;
-                                            this.$wire.call('fallbackChat', message);
-                                        }
-                                    } catch (e) {
-                                        console.error('Parse error:', e);
-                                    }
-                                });
-
-                                return reader.read().then(processChunk);
-                            };
-
-                            return reader.read().then(processChunk);
-                        }).catch(error => {
-                            if (signal.aborted) return;
-                            console.error('Streaming failed:', error);
-                            this.isStreaming = false;
-                            this.$wire.call('fallbackChat', message);
-                        });
-                    },
-                };
-            }
-        </script>
-    @endpush
 </x-filament-panels::page>

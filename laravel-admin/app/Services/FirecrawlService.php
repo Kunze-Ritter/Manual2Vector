@@ -60,8 +60,7 @@ class FirecrawlService
     public function getHealth(): array
     {
         $lock = Cache::lock('lock.firecrawl.health', 15);
-
-        return $lock->get(function () {
+        $result = $lock->get(function () {
             return Cache::remember('firecrawl.health', $this->cacheTtl(), function () {
                 try {
                     $response = $this->callBackend('get', '/api/v1/scraping/health', [], $this->healthTimeout());
@@ -117,7 +116,18 @@ class FirecrawlService
                     }
                 }
             });
-        }) ?? Cache::get('firecrawl.health') ?? ['success' => false, 'data' => [], 'error' => 'Health check lock timeout'];
+        });
+
+        if (is_array($result)) {
+            return $result;
+        }
+
+        $cached = Cache::get('firecrawl.health');
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        return ['success' => false, 'data' => [], 'error' => 'Health check lock timeout'];
     }
 
     public function getBackendInfo(): array
@@ -154,10 +164,20 @@ class FirecrawlService
     {
         $cacheKey = "firecrawl.activity.{$limit}";
         $lock = Cache::lock('lock.' . $cacheKey, 15);
+        $result = $lock->get(
+            fn () => Cache::remember($cacheKey, $this->cacheTtl(), fn () => $this->callBackend('get', '/api/v1/scraping/logs', ['limit' => $limit], 10))
+        );
 
-        return $lock->get(fn () => Cache::remember($cacheKey, $this->cacheTtl(), fn () => $this->callBackend('get', '/api/v1/scraping/logs', ['limit' => $limit], 10)))
-            ?? Cache::get($cacheKey)
-            ?? ['success' => false, 'data' => [], 'error' => 'Activity lock timeout'];
+        if (is_array($result)) {
+            return $result;
+        }
+
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        return ['success' => false, 'data' => [], 'error' => 'Activity lock timeout'];
     }
 
     public function scrapeUrl(string $url, array $options = []): array

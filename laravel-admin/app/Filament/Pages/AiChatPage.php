@@ -2,10 +2,10 @@
 
 namespace App\Filament\Pages;
 
-use App\Models\PromptTemplate;
 use App\Services\AiAgentService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Support\Enums\Width;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -22,11 +22,26 @@ class AiChatPage extends Page
 
     protected static ?int $navigationSort = 1;
 
+    protected ?string $heading = '';
+
+    protected ?string $subheading = '';
+
+    public function getMaxContentWidth(): Width|string|null
+    {
+        return Width::Full;
+    }
+
     public array $messages = [];
+
+    public array $chatSessions = [];
 
     public string $sessionId = '';
 
+    public string $sessionTitle = '';
+
     public string $currentMessage = '';
+
+    public bool $isStreaming = false;
 
     public bool $agentAvailable = true;
 
@@ -39,97 +54,166 @@ class AiChatPage extends Page
         try {
             $health = $this->getAgentHealth();
 
-            if (!($health['success'] ?? false)) {
+            if (! ($health['success'] ?? false)) {
                 $this->agentAvailable = false;
                 $this->agentErrorMessage = $health['error'] ?? 'AI Agent ist nicht verfügbar';
                 $this->agentErrorType = $health['error_type'] ?? 'unknown';
-                $this->messages = [];
-                
-                // Show detailed error notification
-                $errorBody = $this->agentErrorMessage;
-                if (config('app.debug') && isset($health['attempted_url'])) {
-                    $errorBody .= "\n\nVersuchte URL: " . $health['attempted_url'];
-                }
-                
+
                 Notification::make()
                     ->title('AI Agent nicht erreichbar')
-                    ->body($errorBody)
+                    ->body($this->agentErrorMessage)
                     ->danger()
                     ->persistent()
                     ->send();
+
                 return;
             }
 
-            $aiAgent = $this->getAiAgent();
-            $this->sessionId = $aiAgent->generateSessionId(Auth::id());
-            $this->messages = $aiAgent->getSessionHistory($this->sessionId);
+            $this->loadSessions();
+
+            if (empty($this->chatSessions)) {
+                $this->sessionId = $this->getAiAgent()->createNewSession((string) Auth::id());
+                $this->loadSessions();
+            } else {
+                $this->sessionId = $this->chatSessions[0]['session_key'];
+            }
+
+            $this->sessionTitle = collect($this->chatSessions)->firstWhere('session_key', $this->sessionId)['title'] ?? '';
+            $this->messages = $this->getAiAgent()->getSessionHistory($this->sessionId);
+
         } catch (\Throwable $e) {
             $this->agentAvailable = false;
             $this->agentErrorMessage = $e->getMessage();
             $this->messages = [];
-            Log::error('AiChatPage mount failed: ' . $e->getMessage());
+            Log::error('AiChatPage mount failed: '.$e->getMessage());
+        }
+    }
+
+    public function loadSessions(): void
+    {
+        try {
+            $this->chatSessions = $this->getAiAgent()->getUserSessions((string) Auth::id());
+        } catch (\Throwable $e) {
+            Log::error('AiChatPage loadSessions failed: '.$e->getMessage());
+            $this->chatSessions = [];
+        }
+    }
+
+    public function newChat(): void
+    {
+        $this->sessionId = $this->getAiAgent()->createNewSession((string) Auth::id());
+        $this->loadSessions();
+        $this->sessionTitle = collect($this->chatSessions)->firstWhere('session_key', $this->sessionId)['title'] ?? '';
+        $this->messages = [];
+        $this->isStreaming = false;
+    }
+
+    public function switchSession(string $sessionKey): void
+    {
+        $this->sessionId = $sessionKey;
+        $this->sessionTitle = collect($this->chatSessions)->firstWhere('session_key', $sessionKey)['title'] ?? '';
+        $this->messages = $this->getAiAgent()->getSessionHistory($sessionKey);
+        $this->isStreaming = false;
+    }
+
+    public function deleteSession(string $sessionKey): void
+    {
+        $this->getAiAgent()->deleteSession($sessionKey);
+        $this->loadSessions();
+
+        if ($this->sessionId === $sessionKey) {
+            if (! empty($this->chatSessions)) {
+                $this->switchSession($this->chatSessions[0]['session_key']);
+            } else {
+                $this->newChat();
+            }
         }
     }
 
     public function sendMessage(): void
     {
-        $this->validate([
-            'currentMessage' => ['required', 'string', 'max:1000'],
-        ]);
+        $message = trim($this->currentMessage);
+        
+        if (empty($message)) {
+            return;
+        }
 
         $health = $this->getAgentHealth();
-        if (!($health['success'] ?? false)) {
-            $errorBody = $health['error'] ?? 'Nachricht kann aktuell nicht gesendet werden.';
-            if (config('app.debug') && isset($health['attempted_url'])) {
-                $errorBody .= "\n\nVerbindungs-URL: " . $health['attempted_url'];
-            }
-            
+        if (! ($health['success'] ?? false)) {
             Notification::make()
                 ->title('AI Agent ist offline')
-                ->body($errorBody)
+                ->body($health['error'] ?? 'Nachricht kann nicht gesendet werden.')
                 ->danger()
                 ->send();
             return;
         }
 
-        $message = $this->currentMessage;
-
-        $this->dispatchBrowserEvent('chat:streaming-start', [
-            'sessionId' => $this->sessionId,
-            'message' => $message,
-        ]);
-
+        $this->addUserMessage($message);
         $this->currentMessage = '';
-        $this->dispatchBrowserEvent('chat:message-sent');
+
+        try {
+            $aiAgent = $this->getAiAgent();
+            $result = $aiAgent->chat($message, $this->sessionId);
+
+            if ($result['success']) {
+                $response = $result['data']['response'] ?? 'Keine Antwort erhalten.';
+                $this->saveAssistantMessage($response);
+            } else {
+                $errorMsg = $result['error'] ?? 'Unbekannter Fehler';
+                $this->saveAssistantMessage("Entschuldigung, es ist ein Fehler aufgetreten: {$errorMsg}");
+                
+                Notification::make()
+                    ->title('Fehler')
+                    ->body($errorMsg)
+                    ->danger()
+                    ->send();
+            }
+        } catch (\Throwable $e) {
+            Log::error('Chat sendMessage failed: '.$e->getMessage());
+            $this->saveAssistantMessage("Entschuldigung, es ist ein Fehler aufgetreten: {$e->getMessage()}");
+        }
     }
 
-    public function fallbackChat(string $message): void
+    public function addUserMessage(string $message): void
     {
-        $aiAgent = $this->getAiAgent();
-        $result = $aiAgent->chat($message, $this->sessionId);
+        $this->getAiAgent()->addUserMessage($this->sessionId, $message);
 
-        if ($result['success']) {
-            $aiAgent->appendExchange(
-                $this->sessionId,
-                $message,
-                $result['data']['response'] ?? '',
-                true
-            );
-            $this->refreshMessages();
-            return;
+        $this->messages[] = [
+            'role' => 'user',
+            'content' => $message,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        $this->isStreaming = true;
+    }
+
+    public function saveAssistantMessage(string $content): void
+    {
+        $this->getAiAgent()->addAssistantMessage($this->sessionId, $content);
+
+        $this->messages[] = [
+            'role' => 'assistant',
+            'content' => $content,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        $this->isStreaming = false;
+        $this->loadSessions();
+
+        if (count($this->messages) === 2) {
+            $firstUserMessage = collect($this->messages)->firstWhere('role', 'user')['content'] ?? '';
+            if ($firstUserMessage) {
+                $title = mb_substr($firstUserMessage, 0, 50);
+                $this->getAiAgent()->renameSession($this->sessionId, $title);
+                $this->sessionTitle = $title;
+                $this->loadSessions();
+            }
         }
-
-        Notification::make()
-            ->title('Antwort vom AI Agent fehlgeschlagen')
-            ->body($result['error'] ?? 'Unbekannter Fehler')
-            ->danger()
-            ->send();
     }
 
     public function clearHistory(): void
     {
-        $aiAgent = $this->getAiAgent();
-        $aiAgent->clearSessionHistory($this->sessionId);
+        $this->getAiAgent()->clearSessionHistory($this->sessionId);
         $this->messages = [];
 
         Notification::make()
@@ -140,21 +224,15 @@ class AiChatPage extends Page
 
     public function refreshMessages(): void
     {
-        $aiAgent = $this->getAiAgent();
-        $this->messages = $aiAgent->getSessionHistory($this->sessionId);
-    }
+        if (empty($this->sessionId)) {
+            return;
+        }
 
-    public function retryConnection(): void
-    {
-        Cache::forget('ai_agent.health');
-        $this->mount();
-        
-        if ($this->agentAvailable) {
-            Notification::make()
-                ->title('Verbindung wiederhergestellt')
-                ->body('AI Agent ist jetzt online.')
-                ->success()
-                ->send();
+        try {
+            $this->messages = $this->getAiAgent()->getSessionHistory($this->sessionId);
+            $this->loadSessions();
+        } catch (\Throwable $e) {
+            Log::warning('AiChatPage refreshMessages failed: '.$e->getMessage());
         }
     }
 
@@ -162,23 +240,18 @@ class AiChatPage extends Page
     {
         return Cache::remember('ai_agent.health', 30, function () {
             try {
-                $aiAgent = $this->getAiAgent();
-                $health = $aiAgent->health();
-                
-                if (!($health['success'] ?? false)) {
+                $health = $this->getAiAgent()->health();
+
+                if (! ($health['success'] ?? false)) {
                     Log::warning('AI Agent health check failed', [
                         'error' => $health['error'] ?? 'Unknown error',
-                        'error_type' => $health['error_type'] ?? 'unknown',
-                        'url' => $health['attempted_url'] ?? 'unknown',
                     ]);
                 }
-                
+
                 return $health;
             } catch (\Throwable $e) {
-                Log::error('AI Agent health check exception', [
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
+                Log::error('AI Agent health check exception: '.$e->getMessage());
+
                 return [
                     'success' => false,
                     'error' => $e->getMessage(),
@@ -188,19 +261,33 @@ class AiChatPage extends Page
         });
     }
 
+    public function retryConnection(): void
+    {
+        Cache::forget('ai_agent.health');
+        $this->mount();
+
+        if ($this->agentAvailable) {
+            Notification::make()
+                ->title('Verbindung wiederhergestellt')
+                ->body('AI Agent ist jetzt online.')
+                ->success()
+                ->send();
+        }
+    }
+
+    protected function getViewData(): array
+    {
+        return [
+            'chatSessions' => $this->chatSessions,
+            'sessionId' => $this->sessionId,
+            'sessionTitle' => $this->sessionTitle,
+            'messages' => $this->messages,
+            'isStreaming' => $this->isStreaming,
+        ];
+    }
+
     private function getAiAgent(): AiAgentService
     {
         return app(AiAgentService::class);
-    }
-
-    public function getPromptTemplates(): array
-    {
-        return Cache::remember('prompt_templates.active', 300, function () {
-            try {
-                return PromptTemplate::active()->get()->toArray();
-            } catch (\Throwable) {
-                return [];
-            }
-        });
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Documents\Tables;
 
+use App\Enums\DocumentProcessingStatus;
+use App\Services\KraiEngineService;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\BulkAction;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
@@ -16,14 +18,13 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use App\Services\KraiEngineService;
 
 class DocumentsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
-            ->stackedOnMobile()
+
             ->columns([
                 TextColumn::make('filename')
                     ->label('Dateiname')
@@ -50,6 +51,7 @@ class DocumentsTable
 
                 TextColumn::make('processing_status')
                     ->label('Status')
+                    ->formatStateUsing(fn ($state) => $state?->label() ?? DocumentProcessingStatus::tryFrom((string) $state)?->label() ?? (string) $state)
                     ->sortable(),
 
                 TextColumn::make('stage_status')
@@ -59,7 +61,7 @@ class DocumentsTable
                         if (empty($stageStatus)) {
                             return 'Keine Stages';
                         }
-                        
+
                         $completed = collect($stageStatus)->filter(function ($status) {
                             return $status === 'completed';
                         })->count();
@@ -67,25 +69,32 @@ class DocumentsTable
                             return $status === 'failed';
                         })->count();
                         $total = count($stageStatus);
-                        
+
                         return sprintf('%d/%d ✓ | %d ✗', $completed, $total, $failed);
                     })
                     ->badge()
                     ->color(function ($record) {
                         $stageStatus = $record->stage_status ?? [];
-                        if (empty($stageStatus)) return 'gray';
-                        
+                        if (empty($stageStatus)) {
+                            return 'gray';
+                        }
+
                         $failed = collect($stageStatus)->filter(function ($status) {
                             return $status === 'failed';
                         })->count();
-                        if ($failed > 0) return 'danger';
-                        
+                        if ($failed > 0) {
+                            return 'danger';
+                        }
+
                         $completed = collect($stageStatus)->filter(function ($status) {
                             return $status === 'completed';
                         })->count();
                         $total = count($stageStatus);
-                        
-                        if ($completed === $total) return 'success';
+
+                        if ($completed === $total) {
+                            return 'success';
+                        }
+
                         return 'warning';
                     })
                     ->sortable()
@@ -133,13 +142,7 @@ class DocumentsTable
 
                 SelectFilter::make('processing_status')
                     ->label('Status')
-                    ->options([
-                        'pending' => 'Pending',
-                        'uploaded' => 'Uploaded',
-                        'processing' => 'Processing',
-                        'completed' => 'Completed',
-                        'failed' => 'Failed',
-                    ]),
+                    ->options(DocumentProcessingStatus::options()),
 
                 TernaryFilter::make('manual_review_required')
                     ->label('Review erforderlich'),
@@ -165,7 +168,7 @@ class DocumentsTable
 
                         return $query->whereRaw(
                             "extracted_metadata->'upload'->'uploaded_by'->>'username' ILIKE ?",
-                            ['%' . $escaped . '%']
+                            ['%'.$escaped.'%']
                         );
                     }),
             ])
@@ -175,7 +178,7 @@ class DocumentsTable
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
-                    
+
                     BulkAction::make('smartProcessBulk')
                         ->label('Smart verarbeiten')
                         ->icon('heroicon-o-sparkles')
@@ -218,15 +221,15 @@ class DocumentsTable
                         ->form([
                             Select::make('stage')
                                 ->label('Stage auswählen')
-                                ->options(collect(config('krai.stages'))->mapWithKeys(fn($stage, $key) => [$key => $stage['label']]))
-                                ->required()
+                                ->options(collect(config('krai.stages'))->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
+                                ->required(),
                         ])
                         ->action(function (Collection $records, array $data) {
                             $service = app(KraiEngineService::class);
                             $stage = $data['stage'];
                             $success = 0;
                             $failed = 0;
-                            
+
                             foreach ($records as $record) {
                                 $result = $service->processStage($record->id, $stage);
                                 if ($result['success']) {
@@ -235,12 +238,12 @@ class DocumentsTable
                                     $failed++;
                                 }
                             }
-                            
+
                             // Determine notification color based on results
                             $notification = Notification::make()
                                 ->title('Stage-Verarbeitung abgeschlossen')
                                 ->body(sprintf('%d erfolgreich, %d fehlgeschlagen', $success, $failed));
-                            
+
                             if ($failed === 0) {
                                 $notification->success();
                             } elseif ($success === 0) {
@@ -248,11 +251,11 @@ class DocumentsTable
                             } else {
                                 $notification->warning();
                             }
-                            
+
                             $notification->send();
                         })
                         ->deselectRecordsAfterCompletion(),
-                    
+
                     BulkAction::make('generateThumbnailsBulk')
                         ->label('Thumbnails generieren')
                         ->icon('heroicon-o-photo')
@@ -261,7 +264,7 @@ class DocumentsTable
                             $service = app(KraiEngineService::class);
                             $success = 0;
                             $failed = 0;
-                            
+
                             foreach ($records as $record) {
                                 $result = $service->generateThumbnail($record->id);
                                 if ($result['success']) {
@@ -270,12 +273,12 @@ class DocumentsTable
                                     $failed++;
                                 }
                             }
-                            
+
                             // Determine notification color based on results
                             $notification = Notification::make()
                                 ->title('Thumbnail-Generierung abgeschlossen')
                                 ->body(sprintf('%d erfolgreich, %d fehlgeschlagen', $success, $failed));
-                            
+
                             if ($failed === 0) {
                                 $notification->success();
                             } elseif ($success === 0) {
@@ -283,7 +286,7 @@ class DocumentsTable
                             } else {
                                 $notification->warning();
                             }
-                            
+
                             $notification->send();
                         })
                         ->deselectRecordsAfterCompletion(),
