@@ -3,13 +3,13 @@
 namespace App\Filament\Pages;
 
 use App\Services\FirecrawlService;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms;
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Grid;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Schema;
 
 class FirecrawlTestPage extends Page implements HasForms
 {
@@ -18,9 +18,13 @@ class FirecrawlTestPage extends Page implements HasForms
     protected string $view = 'filament.pages.firecrawl-test';
 
     protected static ?string $navigationLabel = 'Firecrawl Test';
+
     protected static \UnitEnum|string|null $navigationGroup = 'Services';
+
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-globe-alt';
+
     protected static ?int $navigationSort = 2;
+
     protected static ?string $pollingInterval = null;
 
     public array $formData = [
@@ -29,6 +33,7 @@ class FirecrawlTestPage extends Page implements HasForms
         'testOptions' => [],
         'testSchema' => [],
     ];
+
     public array $configData = [
         'provider' => null,
         'model_name' => null,
@@ -36,11 +41,17 @@ class FirecrawlTestPage extends Page implements HasForms
         'max_concurrency' => null,
         'block_media' => null,
     ];
+
     public ?array $health = null;
+
     public ?array $testResult = null;
+
     public ?bool $isLoading = false;
+
     public ?array $backendInfo = null;
+
     public ?array $configuration = null;
+
     public ?array $recentActivity = null;
 
     public function mount(): void
@@ -111,7 +122,7 @@ class FirecrawlTestPage extends Page implements HasForms
         $parsed = parse_url($url);
         $scheme = strtolower($parsed['scheme'] ?? '');
 
-        if (!in_array($scheme, ['http', 'https'], true)) {
+        if (! in_array($scheme, ['http', 'https'], true)) {
             throw new \InvalidArgumentException('Nur HTTP(S) URLs sind erlaubt.');
         }
 
@@ -140,11 +151,12 @@ class FirecrawlTestPage extends Page implements HasForms
         if (is_array($state)) {
             return $state;
         }
-        if (!is_string($state) || trim($state) === '') {
+        if (! is_string($state) || trim($state) === '') {
             return [];
         }
         try {
             $decoded = json_decode($state, true, 512, JSON_THROW_ON_ERROR);
+
             return is_array($decoded) ? $decoded : [];
         } catch (\Throwable) {
             return [];
@@ -156,6 +168,7 @@ class FirecrawlTestPage extends Page implements HasForms
         if (empty($state)) {
             return '';
         }
+
         return json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 
@@ -192,7 +205,6 @@ class FirecrawlTestPage extends Page implements HasForms
                         ->placeholder('{"title": "string"}')
                         ->rows(6)
                         ->maxLength(10000)
-                        ->visible(fn (Forms\Get $get) => $get('testType') === 'extract')
                         ->dehydrateStateUsing(fn ($state) => $this->decodeJson($state))
                         ->afterStateHydrated(fn ($component, $state) => $component->state($this->encodeJson($state))),
                 ])

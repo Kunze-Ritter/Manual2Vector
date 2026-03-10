@@ -51,7 +51,6 @@ class ProductSeriesRelationManager extends RelationManager
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ])
-            ->stackedOnMobile();
+            ]);
     }
 }

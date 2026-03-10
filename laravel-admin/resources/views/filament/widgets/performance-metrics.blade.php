@@ -1,11 +1,27 @@
-<x-filament-widgets::widget>
-    <x-filament::section>
-        <x-slot name="heading">
-            Performance Metrics
-        </x-slot>
-        
-        {{-- Render stats cards --}}
-        <x-filament-widgets::stats-overview-widget :stats="$this->getCachedStats()" />
+<x-filament::section>
+    <x-slot name="heading">
+        Performance Metrics
+    </x-slot>
+    
+    {{-- Stats cards --}}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        @foreach($this->getCachedStats() as $stat)
+            <div class="p-4 rounded-lg border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ $stat->getLabel() }}</p>
+                        <p class="text-2xl font-semibold mt-1">{{ $stat->getValue() }}</p>
+                    </div>
+                    <div class="p-2 rounded-full bg-{{ $stat->getColor() }}-100 dark:bg-{{ $stat->getColor() }}-900">
+                        <x-filament::icon :icon="$stat->getDescriptionIcon()" class="w-6 h-6 text-{{ $stat->getColor() }}-600" />
+                    </div>
+                </div>
+                @if($stat->getDescription())
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{{ $stat->getDescription() }}</p>
+                @endif
+            </div>
+        @endforeach
+    </div>
         
         {{-- Per-stage breakdown table --}}
         @if(!empty($stages))
@@ -52,4 +68,4 @@
             </div>
         @endif
     </x-filament::section>
-</x-filament-widgets::widget>
+

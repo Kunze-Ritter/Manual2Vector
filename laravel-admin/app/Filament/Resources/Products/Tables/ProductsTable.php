@@ -15,7 +15,7 @@ class ProductsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->stackedOnMobile()
+
             ->columns([
                 TextColumn::make('manufacturer.name')
                     ->label('Hersteller')

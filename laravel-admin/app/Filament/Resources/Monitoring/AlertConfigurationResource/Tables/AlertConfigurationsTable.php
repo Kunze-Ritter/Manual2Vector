@@ -17,7 +17,7 @@ class AlertConfigurationsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->stackedOnMobile()
+
             ->columns([
                 IconColumn::make('is_enabled')
                     ->label('Status')
@@ -106,7 +106,7 @@ class AlertConfigurationsTable
                     ->label('Aktivieren/Deaktivieren')
                     ->icon('heroicon-o-power')
                     ->action(function ($record) {
-                        $record->update(['is_enabled' => !$record->is_enabled]);
+                        $record->update(['is_enabled' => ! $record->is_enabled]);
                     }),
             ])
             ->bulkActions([

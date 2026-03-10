@@ -1,8 +1,7 @@
-<x-filament-widgets::widget>
-    <x-filament::section>
-        <x-slot name="heading">
-            Recent Pipeline Failures
-        </x-slot>
+<x-filament::section>
+    <x-slot name="heading">
+        Recent Pipeline Failures
+    </x-slot>
 
         @if ($recentErrors->isEmpty())
             <div class="flex flex-col items-center justify-center py-12 text-center">
@@ -146,4 +145,4 @@
             </div>
         @endif
     </x-filament::section>
-</x-filament-widgets::widget>
+

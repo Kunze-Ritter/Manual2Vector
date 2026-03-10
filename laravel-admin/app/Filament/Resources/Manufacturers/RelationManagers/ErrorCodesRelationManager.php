@@ -56,7 +56,6 @@ class ErrorCodesRelationManager extends RelationManager
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ])
-            ->stackedOnMobile();
+            ]);
     }
 }

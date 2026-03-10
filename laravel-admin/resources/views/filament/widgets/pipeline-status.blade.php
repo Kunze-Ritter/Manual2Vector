@@ -1,8 +1,7 @@
-<x-filament-widgets::widget>
-    <x-filament::section>
-        <x-slot name="heading">
-            Pipeline Status
-        </x-slot>
+<x-filament::section>
+    <x-slot name="heading">
+        Pipeline Status
+    </x-slot>
 
         @php
             $data = $this->getPipelineData();
@@ -224,4 +223,4 @@
             @endif
         @endif
     </x-filament::section>
-</x-filament-widgets::widget>
+

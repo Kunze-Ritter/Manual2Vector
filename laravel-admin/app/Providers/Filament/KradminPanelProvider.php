@@ -2,24 +2,23 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\APIStatusWidget;
+use App\Filament\Widgets\DashboardOverviewWidget;
+use App\Filament\Widgets\DataQualityWidget;
+use App\Filament\Widgets\PipelineStatusWidget;
+use App\Filament\Widgets\QueueStatusWidget;
+use App\Filament\Widgets\SystemMetricsWidget;
+use App\Filament\Widgets\VersionWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Navigation\NavigationGroup;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
-use App\Filament\Widgets\DashboardStatsWidget;
-use App\Filament\Widgets\APIStatusWidget;
-use App\Filament\Widgets\DashboardOverviewWidget;
-use App\Filament\Widgets\PipelineStatusWidget;
-use App\Filament\Widgets\QueueStatusWidget;
-use App\Filament\Widgets\DataQualityWidget;
-use App\Filament\Widgets\SystemMetricsWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -47,6 +46,7 @@ class KradminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
+                VersionWidget::class,
                 AccountWidget::class,
                 DashboardOverviewWidget::class,
                 APIStatusWidget::class,
@@ -54,7 +54,6 @@ class KradminPanelProvider extends PanelProvider
                 PipelineStatusWidget::class,
                 QueueStatusWidget::class,
                 DataQualityWidget::class,
-                FilamentInfoWidget::class,
             ])
             ->navigationGroups([
                 NavigationGroup::make('Content')

@@ -535,7 +535,7 @@ class MonitoringService
         return $this->deduplicatedRequest($cacheKey, $ttl, function () use ($endpoints, $cacheKey, $ttl) {
             $lock = Cache::lock('lock.'.$cacheKey, 30);
 
-            return $lock->get(function () use ($endpoints, $cacheKey, $ttl) {
+            $lockResult = $lock->get(function () use ($endpoints, $cacheKey, $ttl) {
                 return Cache::remember($cacheKey, $ttl, function () use ($endpoints) {
                     try {
                         $responses = Http::pool(function (Pool $pool) use ($endpoints) {
@@ -588,7 +588,9 @@ class MonitoringService
                         ];
                     }
                 });
-            }) ?? Cache::get($cacheKey) ?? ['success' => false, 'data' => [], 'error' => 'Cache lock timeout'];
+            });
+
+            return $lockResult ?? ['success' => false, 'data' => [], 'error' => 'Cache lock timeout'];
         });
     }
 

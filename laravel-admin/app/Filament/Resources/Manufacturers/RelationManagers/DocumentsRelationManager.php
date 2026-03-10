@@ -56,7 +56,6 @@ class DocumentsRelationManager extends RelationManager
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ])
-            ->stackedOnMobile();
+            ]);
     }
 }

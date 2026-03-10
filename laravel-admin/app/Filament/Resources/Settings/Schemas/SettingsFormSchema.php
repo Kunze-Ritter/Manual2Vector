@@ -46,7 +46,7 @@ class SettingsFormSchema
                                         ->url()
                                         ->placeholder('http://krai-ollama-prod:11434')
                                         ->hint('URL used by backend for Ollama')
-                                        ->visible(fn (Closure $get) => $get('AI_PROVIDER') === 'ollama')
+                                        ->visible(fn ($get) => $get('AI_PROVIDER') === 'ollama')
                                         ->columnSpanFull(),
                                 ]),
                             Section::make('LLM Models')
@@ -185,7 +185,7 @@ class SettingsFormSchema
                             Section::make('Ollama Management')
                                 ->icon('heroicon-o-server-stack')
                                 ->description('Manage local Ollama models and GPU settings.')
-                                ->visible(fn (Closure $get) => $get('AI_PROVIDER') === 'ollama')
+                                ->visible(fn ($get) => $get('AI_PROVIDER') === 'ollama')
                                 ->columns(['md' => 1, 'xl' => 1])
                                 ->schema([
                                     ViewField::make('ollama_status')
@@ -202,7 +202,7 @@ class SettingsFormSchema
                             Section::make('GPU Settings')
                                 ->icon('heroicon-o-adjustments-horizontal')
                                 ->description('Configure GPU acceleration for Ollama models.')
-                                ->visible(fn (Closure $get) => $get('AI_PROVIDER') === 'ollama')
+                                ->visible(fn ($get) => $get('AI_PROVIDER') === 'ollama')
                                 ->columns(['md' => 3, 'xl' => 3])
                                 ->schema([
                                     TextInput::make('OLLAMA_GPU_MEMORY')

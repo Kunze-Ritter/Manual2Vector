@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Monitoring\PipelineErrorResource\Tables;
 
 use App\Filament\Resources\Monitoring\PipelineErrorResource;
 use App\Models\PipelineError;
-use App\Services\BackendApiService;
+use Filament\Actions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -24,18 +24,16 @@ class PipelineErrorsTable
     public static function make(Table $table): Table
     {
         return $table
-            ->stackedOnMobile()
             ->columns([
                 IconColumn::make('status')
                     ->label('')
-                    ->icon(fn (PipelineError $record): string => match($record->status) {
+                    ->icon(fn (PipelineError $record): string => match ($record->status) {
                         'pending' => 'heroicon-o-x-circle',
                         'retrying' => 'heroicon-o-arrow-path',
                         'resolved' => 'heroicon-o-check-circle',
                         default => 'heroicon-o-exclamation-triangle',
                     })
-                    ->color(fn (PipelineError $record): string => 
-                        PipelineErrorResource::getStatusBadgeColor($record->status)
+                    ->color(fn (PipelineError $record): string => PipelineErrorResource::getStatusBadgeColor($record->status)
                     )
                     ->tooltip(fn (PipelineError $record): string => ucfirst($record->status)),
 
@@ -51,9 +49,8 @@ class PipelineErrorsTable
                     ->copyable()
                     ->copyMessage('Dokument-ID kopiert')
                     ->tooltip(fn (PipelineError $record): ?string => $record->document?->id)
-                    ->url(fn (PipelineError $record): ?string => 
-                        $record->document_id 
-                            ? route('filament.kradmin.resources.documents.documents.edit', $record->document_id)
+                    ->url(fn (PipelineError $record): ?string => $record->document_id
+                            ? route('filament.kradmin.resources.documents.edit', $record->document_id)
                             : null
                     )
                     ->color('primary'),
@@ -67,7 +64,7 @@ class PipelineErrorsTable
                 TextColumn::make('error_type')
                     ->label('Fehlertyp')
                     ->badge()
-                    ->color(fn (PipelineError $record): string => match($record->severity ?? 'medium') {
+                    ->color(fn (PipelineError $record): string => match ($record->severity ?? 'medium') {
                         'critical', 'high' => 'danger',
                         'medium' => 'warning',
                         'low' => 'info',
@@ -77,8 +74,7 @@ class PipelineErrorsTable
 
                 TextColumn::make('retry_count')
                     ->label('Retries')
-                    ->formatStateUsing(fn (PipelineError $record): string => 
-                        "{$record->retry_count}/{$record->max_retries}"
+                    ->formatStateUsing(fn (PipelineError $record): string => "{$record->retry_count}/{$record->max_retries}"
                     )
                     ->sortable(),
 
@@ -111,13 +107,14 @@ class PipelineErrorsTable
                     ->indicateUsing(function (array $data): array {
                         $indicators = [];
                         if ($data['created_from'] ?? null) {
-                            $indicators[] = Tables\Filters\Indicator::make('Von ' . \Carbon\Carbon::parse($data['created_from'])->toFormattedDateString())
+                            $indicators[] = Tables\Filters\Indicator::make('Von '.\Carbon\Carbon::parse($data['created_from'])->toFormattedDateString())
                                 ->removeField('created_from');
                         }
                         if ($data['created_until'] ?? null) {
-                            $indicators[] = Tables\Filters\Indicator::make('Bis ' . \Carbon\Carbon::parse($data['created_until'])->toFormattedDateString())
+                            $indicators[] = Tables\Filters\Indicator::make('Bis '.\Carbon\Carbon::parse($data['created_until'])->toFormattedDateString())
                                 ->removeField('created_until');
                         }
+
                         return $indicators;
                     }),
 
@@ -162,14 +159,14 @@ class PipelineErrorsTable
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                Actions\ViewAction::make(),
 
-                Tables\Actions\Action::make('retry')
+                Actions\Action::make('retry')
                     ->label('Retry')
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(fn (PipelineError $record): bool => $record->status !== 'resolved')
-                    ->disabled(fn () => !PipelineErrorResource::getBackendApiService()->validateConfiguration())
+                    ->disabled(fn () => ! PipelineErrorResource::getBackendApiService()->validateConfiguration())
                     ->requiresConfirmation()
                     ->modalHeading('Stage erneut versuchen')
                     ->modalDescription('Möchten Sie diese Stage wirklich erneut versuchen?')
@@ -208,7 +205,7 @@ class PipelineErrorsTable
                     })
                     ->after(fn ($action) => $action->getLivewire()->dispatch('$refresh')),
 
-                Tables\Actions\Action::make('resolve')
+                Actions\Action::make('resolve')
                     ->label('Als gelöst markieren')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
@@ -252,7 +249,7 @@ class PipelineErrorsTable
 
                                 Notification::make()
                                     ->title('Fehler lokal markiert')
-                                    ->body('Fehler lokal markiert, aber Backend-Synchronisation fehlgeschlagen: ' . ($result['error'] ?? 'Unbekannter Fehler'))
+                                    ->body('Fehler lokal markiert, aber Backend-Synchronisation fehlgeschlagen: '.($result['error'] ?? 'Unbekannter Fehler'))
                                     ->warning()
                                     ->send();
                             }
@@ -271,7 +268,7 @@ class PipelineErrorsTable
                     })
                     ->after(fn ($action) => $action->getLivewire()->dispatch('$refresh')),
 
-                Tables\Actions\Action::make('copyErrorId')
+                Actions\Action::make('copyErrorId')
                     ->label('Error-ID kopieren')
                     ->icon('heroicon-o-clipboard')
                     ->action(function (PipelineError $record) {
@@ -280,13 +277,13 @@ class PipelineErrorsTable
                     ->successNotificationTitle('Error-ID kopiert')
                     ->extraAttributes(function (PipelineError $record) {
                         return [
-                            'x-on:click' => 'navigator.clipboard.writeText("' . e($record->error_id) . '")',
+                            'x-on:click' => 'navigator.clipboard.writeText("'.e($record->error_id).'")',
                         ];
                     }),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('markResolved')
+                Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('markResolved')
                         ->label('Als gelöst markieren')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')

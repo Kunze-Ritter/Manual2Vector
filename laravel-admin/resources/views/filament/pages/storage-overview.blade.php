@@ -33,8 +33,8 @@
         <x-filament::section>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dokument</label>
                     <x-filament::input.wrapper>
-                        <x-filament::input.label value="Dokument" />
                         <select wire:model="filterDocument" class="filament-forms-select-component w-full">
                             <option value="">Alle</option>
                             @foreach ($documents as $doc)
@@ -44,32 +44,32 @@
                     </x-filament::input.wrapper>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Datum von</label>
                     <x-filament::input.wrapper>
-                        <x-filament::input.label value="Datum von" />
                         <x-filament::input type="date" wire:model="filterDateFrom" />
                     </x-filament::input.wrapper>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Datum bis</label>
                     <x-filament::input.wrapper>
-                        <x-filament::input.label value="Datum bis" />
                         <x-filament::input type="date" wire:model="filterDateTo" />
                     </x-filament::input.wrapper>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Suche</label>
                     <x-filament::input.wrapper>
-                        <x-filament::input.label value="Suche" />
                         <x-filament::input type="text" placeholder="Dateiname, OCR, AI..." wire:model.debounce.500ms="filterSearch" />
                     </x-filament::input.wrapper>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dateigröße min (MB)</label>
                     <x-filament::input.wrapper>
-                        <x-filament::input.label value="Dateigröße min (MB)" />
                         <x-filament::input type="number" wire:model="filterFileSizeMin" min="0" step="1" />
                     </x-filament::input.wrapper>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dateigröße max (MB)</label>
                     <x-filament::input.wrapper>
-                        <x-filament::input.label value="Dateigröße max (MB)" />
                         <x-filament::input type="number" wire:model="filterFileSizeMax" min="0" step="1" />
                     </x-filament::input.wrapper>
                 </div>

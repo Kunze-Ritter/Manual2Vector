@@ -7,13 +7,11 @@ use App\Services\KraiEngineService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Get;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Support\Facades\Http;
 
 class ListDocuments extends ListRecords
 {
@@ -62,7 +60,7 @@ class ListDocuments extends ListRecords
                         ->default('en'),
                     CheckboxList::make('stages')
                         ->label('Stages zur Verarbeitung (optional)')
-                        ->options(collect(config('krai.stages'))->mapWithKeys(fn($stage, $key) => [$key => $stage['label']]))
+                        ->options(collect(config('krai.stages'))->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
                         ->columns(3)
                         ->helperText('Leer lassen für vollständige Verarbeitung (alle Stages)')
                         ->default(null),
@@ -70,13 +68,13 @@ class ListDocuments extends ListRecords
                         ->label('Bei Fehler stoppen')
                         ->default(true)
                         ->helperText('Verarbeitung bei erstem Fehler abbrechen')
-                        ->visible(fn(Get $get) => !empty($get('stages'))),
+                        ->visible(fn ($get) => ! empty($get('stages'))),
                 ])
                 ->action(function (array $data): void {
                     $file = $data['file'];
                     $service = app(KraiEngineService::class);
                     $user = auth()->user();
-                    
+
                     // Upload document using service
                     $uploadResult = $service->uploadDocument(
                         $file,
@@ -84,36 +82,38 @@ class ListDocuments extends ListRecords
                         $data['language'] ?? 'en',
                         $user
                     );
-                    
-                    if (!$uploadResult['success']) {
+
+                    if (! $uploadResult['success']) {
                         Notification::make()
                             ->title('Upload fehlgeschlagen')
                             ->body($uploadResult['error'] ?? 'Der Upload konnte nicht durchgeführt werden.')
                             ->danger()
                             ->send();
+
                         return;
                     }
-                    
+
                     $documentId = $uploadResult['document_id'];
-                    
-                    if (!$documentId) {
+
+                    if (! $documentId) {
                         Notification::make()
                             ->title('Upload fehlgeschlagen')
                             ->body('Dokument-ID konnte nicht ermittelt werden.')
                             ->danger()
                             ->send();
+
                         return;
                     }
-                    
+
                     // If custom stages selected, process them
-                    if (!empty($data['stages'])) {
+                    if (! empty($data['stages'])) {
                         $stageResult = $service->processMultipleStages(
                             $documentId,
                             $data['stages'],
                             $data['stop_on_error'] ?? true,
                             $user
                         );
-                        
+
                         if ($stageResult['success']) {
                             Notification::make()
                                 ->title('Dokument hochgeladen und verarbeitet')
@@ -135,7 +135,7 @@ class ListDocuments extends ListRecords
                             ->success()
                             ->send();
                     }
-                    
+
                     // Refresh the documents table to show the new document
                     $this->resetTable();
                 }),
