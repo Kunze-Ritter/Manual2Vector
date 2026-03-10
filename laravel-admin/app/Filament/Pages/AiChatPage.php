@@ -102,9 +102,11 @@ class AiChatPage extends Page
     public function newChat(): void
     {
         $this->sessionId = $this->getAiAgent()->createNewSession((string) Auth::id());
+        Cache::forget('ai_agent.workspace_snapshot');
         $this->loadSessions();
         $this->sessionTitle = collect($this->chatSessions)->firstWhere('session_key', $this->sessionId)['title'] ?? '';
         $this->messages = [];
+        $this->currentMessage = '';
         $this->isStreaming = false;
     }
 
@@ -119,6 +121,7 @@ class AiChatPage extends Page
     public function deleteSession(string $sessionKey): void
     {
         $this->getAiAgent()->deleteSession($sessionKey);
+        Cache::forget('ai_agent.workspace_snapshot');
         $this->loadSessions();
 
         if ($this->sessionId === $sessionKey) {
@@ -133,9 +136,13 @@ class AiChatPage extends Page
     public function sendMessage(): void
     {
         $message = trim($this->currentMessage);
-        
+
         if (empty($message)) {
             return;
+        }
+
+        if ($this->sessionId === '') {
+            $this->newChat();
         }
 
         $health = $this->getAgentHealth();
@@ -177,6 +184,7 @@ class AiChatPage extends Page
     public function addUserMessage(string $message): void
     {
         $this->getAiAgent()->addUserMessage($this->sessionId, $message);
+        Cache::forget('ai_agent.workspace_snapshot');
 
         $this->messages[] = [
             'role' => 'user',
@@ -185,11 +193,13 @@ class AiChatPage extends Page
         ];
 
         $this->isStreaming = true;
+        $this->loadSessions();
     }
 
     public function saveAssistantMessage(string $content): void
     {
         $this->getAiAgent()->addAssistantMessage($this->sessionId, $content);
+        Cache::forget('ai_agent.workspace_snapshot');
 
         $this->messages[] = [
             'role' => 'assistant',
@@ -214,6 +224,7 @@ class AiChatPage extends Page
     public function clearHistory(): void
     {
         $this->getAiAgent()->clearSessionHistory($this->sessionId);
+        Cache::forget('ai_agent.workspace_snapshot');
         $this->messages = [];
 
         Notification::make()
@@ -277,12 +288,45 @@ class AiChatPage extends Page
 
     protected function getViewData(): array
     {
+        $health = $this->getAgentHealth();
+        $healthData = $health['data'] ?? [];
+
+        try {
+            $commandCatalog = $this->getAiAgent()->getCommandCatalog();
+        } catch (\Throwable $e) {
+            Log::warning('AiChatPage command catalog unavailable: '.$e->getMessage());
+            $commandCatalog = [];
+        }
+
+        try {
+            $workspaceSnapshot = Cache::remember('ai_agent.workspace_snapshot', 30, fn () => $this->getAiAgent()->getWorkspaceSnapshot());
+        } catch (\Throwable $e) {
+            Log::warning('AiChatPage workspace snapshot unavailable: '.$e->getMessage());
+            $workspaceSnapshot = [
+                'products' => 0,
+                'errors' => 0,
+                'documents' => 0,
+                'sessions' => count($this->chatSessions),
+                'messages' => count($this->messages),
+            ];
+        }
+
         return [
             'chatSessions' => $this->chatSessions,
+            'sessions' => $this->chatSessions,
             'sessionId' => $this->sessionId,
             'sessionTitle' => $this->sessionTitle,
             'messages' => $this->messages,
             'isStreaming' => $this->isStreaming,
+            'commandCatalog' => $commandCatalog,
+            'workspaceSnapshot' => $workspaceSnapshot,
+            'agentHealth' => $healthData,
+            'healthOk' => $health['success'] ?? false,
+            'agentStatus' => $healthData['status'] ?? 'unknown',
+            'agentVersion' => $healthData['version'] ?? 'n/a',
+            'agentName' => $healthData['agent'] ?? 'KRAI AI Agent',
+            'agentErrorMessage' => $this->agentErrorMessage,
+            'agentErrorType' => $this->agentErrorType,
         ];
     }
 
