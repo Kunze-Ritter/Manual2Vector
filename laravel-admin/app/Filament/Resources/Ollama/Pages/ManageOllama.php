@@ -12,7 +12,6 @@ use Filament\Resources\Pages\ManageRecords;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class ManageOllama extends ManageRecords
 {
@@ -146,7 +145,7 @@ class ManageOllama extends ManageRecords
     protected function isModelRunning(string $modelName): bool
     {
         try {
-            $response = Http::timeout(5)->post('http://krai-ollama-prod:11434/api/generate', [
+            $response = Http::timeout(5)->post(OllamaResource::getBaseUrl() . '/api/generate', [
                 'model' => $modelName,
                 'prompt' => 'test',
                 'stream' => false,
@@ -169,7 +168,7 @@ class ManageOllama extends ManageRecords
 
             // In a real implementation, you would use a background job
             // For now, we'll simulate the pull
-            $response = Http::timeout(300)->post('http://krai-ollama-prod:11434/api/pull', [
+            $response = Http::timeout(300)->post(OllamaResource::getBaseUrl() . '/api/pull', [
                 'name' => $modelName,
             ]);
 
@@ -196,7 +195,7 @@ class ManageOllama extends ManageRecords
     protected function deleteModel(string $modelName): void
     {
         try {
-            $response = Http::timeout(60)->delete('http://krai-ollama-prod:11434/api/delete', [
+            $response = Http::timeout(60)->delete(OllamaResource::getBaseUrl() . '/api/delete', [
                 'name' => $modelName,
             ]);
 

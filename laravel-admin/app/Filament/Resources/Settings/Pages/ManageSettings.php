@@ -87,7 +87,7 @@ class ManageSettings extends Page implements HasForms
 
     public function save(): void
     {
-        $state = $this->form->getState();
+        $state = array_intersect_key($this->form->getState(), array_flip(self::ALLOWED_ENV_KEYS));
 
         $envPath = env('KRAI_ROOT_ENV_PATH', base_path('.env'));
 
@@ -104,8 +104,7 @@ class ManageSettings extends Page implements HasForms
         $content = File::get($envPath);
         $lines = explode("\n", $content);
         $updatedLines = [];
-
-        $allowedKeys = array_keys($state);
+        $writtenKeys = [];
 
         foreach ($lines as $line) {
             $trimmed = trim($line);
@@ -122,14 +121,23 @@ class ManageSettings extends Page implements HasForms
             [$key] = explode('=', $trimmed, 2);
             $key = trim($key);
 
-            if (in_array($key, $allowedKeys, true)) {
-                $value = $state[$key] ?? null;
-                if (is_bool($value)) {
-                    $value = $value ? 'true' : 'false';
-                }
-                $updatedLines[] = "{$key}={$value}";
+            if (array_key_exists($key, $state)) {
+                $updatedLines[] = "{$key}={$this->serializeEnvValue($state[$key])}";
+                $writtenKeys[$key] = true;
             } else {
                 $updatedLines[] = $line;
+            }
+        }
+
+        $missingKeys = array_diff_key($state, $writtenKeys);
+
+        if ($missingKeys !== []) {
+            if ($updatedLines !== [] && trim(end($updatedLines)) !== '') {
+                $updatedLines[] = '';
+            }
+
+            foreach ($missingKeys as $key => $value) {
+                $updatedLines[] = "{$key}={$this->serializeEnvValue($value)}";
             }
         }
 
@@ -230,12 +238,26 @@ class ManageSettings extends Page implements HasForms
 
     public function getOllamaModelOptions(): array
     {
-        if (empty($this->models)) {
-            return [];
-        }
-
         return collect($this->models)
             ->pluck('name', 'name')
             ->toArray();
+    }
+
+    public function getOllamaModelOptionsWithFallback(array $fallbackModels = []): array
+    {
+        return $this->getOllamaModelOptions() + array_combine($fallbackModels, $fallbackModels);
+    }
+
+    protected function serializeEnvValue(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if ($value === null) {
+            return '';
+        }
+
+        return (string) $value;
     }
 }

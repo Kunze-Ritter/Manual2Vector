@@ -56,47 +56,47 @@ class SettingsFormSchema
                                 ->schema([
                                     Select::make('OLLAMA_MODEL_EMBEDDING')
                                         ->label('Embedding Model')
-                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptions() + [
-                                            'nomic-embed-text' => 'nomic-embed-text',
-                                            'mxbai-embed-large' => 'mxbai-embed-large',
-                                            'all-minilm' => 'all-minilm',
-                                        ])
+                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptionsWithFallback([
+                                            'nomic-embed-text',
+                                            'mxbai-embed-large',
+                                            'all-minilm',
+                                        ]))
                                         ->searchable()
-                                        ->hint('Model for vector generation'),
+                                        ->hint('Installed Ollama models are detected automatically.'),
                                     Select::make('OLLAMA_MODEL_EXTRACTION')
                                         ->label('Extraction Model')
-                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptions() + [
-                                            'llama3.1:8b' => 'llama3.1:8b',
-                                            'llama3.1:70b' => 'llama3.1:70b',
-                                            'llama3:8b' => 'llama3:8b',
-                                            'llama3:70b' => 'llama3:70b',
-                                            'qwen2.5:7b' => 'qwen2.5:7b',
-                                            'qwen2.5:14b' => 'qwen2.5:14b',
-                                        ])
+                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptionsWithFallback([
+                                            'llama3.1:8b',
+                                            'llama3.1:70b',
+                                            'llama3:8b',
+                                            'llama3:70b',
+                                            'qwen2.5:7b',
+                                            'qwen2.5:14b',
+                                        ]))
                                         ->searchable()
-                                        ->hint('Model for data extraction'),
+                                        ->hint('Installed Ollama models are detected automatically.'),
                                     Select::make('OLLAMA_MODEL_CHAT')
                                         ->label('Chat Model')
-                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptions() + [
-                                            'llama3.1:8b' => 'llama3.1:8b',
-                                            'llama3.1:70b' => 'llama3.1:70b',
-                                            'llama3:8b' => 'llama3:8b',
-                                            'llama3:70b' => 'llama3:70b',
-                                            'qwen2.5:7b' => 'qwen2.5:7b',
-                                            'qwen2.5:14b' => 'qwen2.5:14b',
-                                        ])
+                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptionsWithFallback([
+                                            'llama3.1:8b',
+                                            'llama3.1:70b',
+                                            'llama3:8b',
+                                            'llama3:70b',
+                                            'qwen2.5:7b',
+                                            'qwen2.5:14b',
+                                        ]))
                                         ->searchable()
-                                        ->hint('Model for chat responses'),
+                                        ->hint('Installed Ollama models are detected automatically.'),
                                     Select::make('OLLAMA_MODEL_VISION')
                                         ->label('Vision Model')
-                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptions() + [
-                                            'llava-phi3' => 'llava-phi3',
-                                            'llava' => 'llava',
-                                            'llava-llama3' => 'llava-llama3',
-                                            'moondream' => 'moondream',
-                                        ])
+                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptionsWithFallback([
+                                            'llava-phi3',
+                                            'llava',
+                                            'llava-llama3',
+                                            'moondream',
+                                        ]))
                                         ->searchable()
-                                        ->hint('Model for image analysis'),
+                                        ->hint('Installed Ollama models are detected automatically.'),
                                     TextInput::make('OLLAMA_NUM_CTX')
                                         ->label('Context Size')
                                         ->numeric()

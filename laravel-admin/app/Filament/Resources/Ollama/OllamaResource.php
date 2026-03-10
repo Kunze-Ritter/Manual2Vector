@@ -36,7 +36,7 @@ class OllamaResource extends Resource
     public static function getOllamaModels(): array
     {
         try {
-            $response = Http::timeout(10)->get('http://krai-ollama-prod:11434/api/tags');
+            $response = Http::timeout(10)->get(static::getBaseUrl() . '/api/tags');
             
             if ($response->successful()) {
                 return $response->json('models', []);
@@ -51,7 +51,7 @@ class OllamaResource extends Resource
     public static function getOllamaInfo(): array
     {
         try {
-            $response = Http::timeout(10)->get('http://krai-ollama-prod:11434/api/version');
+            $response = Http::timeout(10)->get(static::getBaseUrl() . '/api/version');
             
             if ($response->successful()) {
                 return $response->json();
@@ -61,6 +61,11 @@ class OllamaResource extends Resource
         }
         
         return [];
+    }
+
+    public static function getBaseUrl(): string
+    {
+        return rtrim((string) config('krai.ollama_url', env('OLLAMA_URL', 'http://krai-ollama-prod:11434')), '/');
     }
 
     protected static function formatSize(string $size): string
