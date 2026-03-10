@@ -449,4 +449,4 @@ def create_agent_api(pool: asyncpg.Pool) -> APIRouter:
         return {"status": "healthy", "agent": "KRAI AI Agent", "version": "2.0.0"}
 
     return router
-
+
