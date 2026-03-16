@@ -303,6 +303,45 @@ services:
       krai-playwright:
         condition: service_healthy
 
+  # OpenWebUI — Chat Frontend für Techniker (OpenAI-compatible)
+  krai-openwebui:
+    image: openwebui/open-webui:latest
+    container_name: krai-openwebui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      # Point OpenWebUI at the KRAI OpenAI-compatible wrapper
+      - OPENAI_API_BASE_URL=http://krai-engine:8000/v1
+      # Use KRAI_SERVICE_JWT as API key (must be a valid long-lived KRAI token)
+      - OPENAI_API_KEY=${KRAI_SERVICE_JWT}
+      # Disable direct Ollama access — all requests go through KRAI agent
+      - OLLAMA_BASE_URL=
+      - ENABLE_OLLAMA_API=false
+      - ENABLE_OPENAI_API=true
+      - DEFAULT_MODELS=krai
+      - WEBUI_NAME=${OPENWEBUI_NAME:-KRAI Techniker-Chat}
+      - WEBUI_SECRET_KEY=${OPENWEBUI_SECRET_KEY:-change-me-in-production}
+      - WEBUI_URL=${OPENWEBUI_URL:-http://localhost:3000}
+      # Allow image uploads (Fehlerbilder)
+      - ENABLE_IMAGE_GENERATION=false
+      - ENABLE_COMMUNITY_SHARING=false
+      - ENABLE_MODEL_FILTER=true
+      - MODEL_FILTER_LIST=krai
+    volumes:
+      - openwebui_data:/app/backend/data
+    networks:
+      - krai-network
+    depends_on:
+      krai-engine:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 networks:
   krai-network:
     driver: bridge
@@ -312,5 +351,6 @@ volumes:
   krai_redis_data:
   minio_data:
   ollama_data:
+  openwebui_data:
   laravel_vendor:
   laravel_node_modules:

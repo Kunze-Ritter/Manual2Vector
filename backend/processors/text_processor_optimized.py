@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 from uuid import UUID
 import hashlib
 
-from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage, ProcessingContext, ProcessingResult, ProcessingError
 from backend.core.data_models import IntelligenceChunkModel
 from .text_extractor import TextExtractor
 from .chunker import SmartChunker
@@ -73,7 +73,7 @@ class OptimizedTextProcessor(BaseProcessor):
             f"hierarchical={enable_hier}, error_sections={detect_err}, link_chunks={link_chunks})"
         )
     
-    async def process(self, context) -> Any:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """
         Process text extraction and chunking
         
@@ -216,10 +216,8 @@ class OptimizedTextProcessor(BaseProcessor):
         
         return saved_count
     
-    def _create_result(self, success: bool, message: str, data: Dict) -> 'ProcessingResult':
+    def _create_result(self, success: bool, message: str, data: Dict) -> ProcessingResult:
         """Create a processing result object using BaseProcessor helpers"""
-        from backend.core.base_processor import ProcessingResult, ProcessingStatus, ProcessingError
-        
         if success:
             return self.create_success_result(data=data, metadata={'message': message})
         else:

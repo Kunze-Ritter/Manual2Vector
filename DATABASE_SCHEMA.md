@@ -48,6 +48,8 @@
 | `enrichment_error` | `metadata->>'enrichment_error'` | `krai_content.videos` | Keine eigene Spalte, in JSONB |
 | `tags` | `metadata->>'tags'` | `krai_content.videos` | Keine eigene Spalte, in JSONB |
 | `error_code` | `error_code` | `krai_intelligence.error_codes` | Immer Kleinbuchstaben! |
+| `solution_text` | `solution_technician_text` | `krai_intelligence.error_codes` | Seit Migration 025 aufgeteilt in 3 Spalten |
+| `requires_technician` | *(entfernt)* | `krai_intelligence.error_codes` | Seit Migration 025 gelöscht |
 
 ### 🔑 Wichtige Query-Muster
 
@@ -498,19 +500,23 @@ Ein geplantes separates Embeddings-Table wurde nie implementiert.
 
 ### krai_intelligence.error_codes
 
+> **Migration 025** (2026-03): `solution_text` und `requires_technician` wurden durch 3 Level-Spalten ersetzt.
+> `manufacturer_id` ist jetzt für alle Rows befüllt (vorher NULL).
+
 | Spalte | Typ | Nullable | Default |
 |--------|-----|----------|---------|
 | `id` | uuid | NO | extensions.uuid_generate_v4() |
 | `chunk_id` | uuid | YES | - |
 | `document_id` | uuid | YES | - |
-| `manufacturer_id` | uuid | YES | - |
+| `manufacturer_id` | uuid | NO | — (immer befüllt seit Migration 025) |
 | `error_code` | character varying(20) | NO | - |
 | `error_description` | text | YES | - |
-| `solution_text` | text | YES | - |
+| `solution_customer_text` | text | YES | Level 1 – Anwender-Schritte (HP: "Recommended action for customers") |
+| `solution_agent_text` | text | YES | Level 2 – Call-Center (HP: "Recommended action for call-center agents") |
+| `solution_technician_text` | text | YES | Level 3 – Techniker bevorzugt (HP: "Recommended action for onsite technicians"; andere Hersteller: gesamter Lösungstext) |
 | `page_number` | int4 | YES | - |
 | `confidence_score` | numeric | YES | - |
 | `extraction_method` | character varying(50) | YES | - |
-| `requires_technician` | bool | YES | false |
 | `requires_parts` | bool | YES | false |
 | `estimated_fix_time_minutes` | int4 | YES | - |
 | `severity_level` | character varying(20) | YES | - |
@@ -520,6 +526,8 @@ Ein geplantes separates Embeddings-Table wurde nie implementiert.
 | `metadata` | jsonb | YES | '{}'::jsonb |
 | `product_id` | uuid | YES | - |
 | `video_id` | uuid | YES | - |
+| `parent_code` | text | YES | Übergeordneter Fehlercode (z.B. `13.B9` für `13.B9.Az`) |
+| `is_category` | bool | YES | true = Kategorie-Eintrag (kein echter Fehler) |
 
 ### krai_intelligence.feedback
 

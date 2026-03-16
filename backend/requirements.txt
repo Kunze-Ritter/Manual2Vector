@@ -104,7 +104,8 @@ asyncio>=3.4.3
 # ================================
 # OPTIONAL EXTRAS
 # ================================
-# openai>=1.0.0  # Enable remote OpenAI embeddings if needed (keep commented to avoid unnecessary install)
+openai>=1.0.0          # OpenAI API client (used by langchain-openai backend)
+langchain-openai>=0.3.0  # LangChain OpenAI integration (ChatOpenAI, OpenAIEmbeddings)
 
 # ================================
 # SECURITY

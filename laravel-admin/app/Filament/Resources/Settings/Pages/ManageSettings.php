@@ -8,9 +8,9 @@ use App\Filament\Resources\Settings\SettingsResource;
 use Filament\Actions\Action;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\File;
 
 class ManageSettings extends Page implements HasForms
@@ -25,14 +25,11 @@ class ManageSettings extends Page implements HasForms
         'AI_SERVICE_TYPE',
         'AI_SERVICE_URL',
         'OLLAMA_URL',
-        'AI_PROVIDER',
-        'OPENAI_API_KEY',
         'OLLAMA_GPU_MEMORY',
         'OLLAMA_GPU_LAYERS',
         'OLLAMA_NUM_GPU',
         'OLLAMA_MODEL_EMBEDDING',
         'OLLAMA_MODEL_EXTRACTION',
-        'OLLAMA_MODEL_CHAT',
         'OLLAMA_MODEL_VISION',
         'OLLAMA_NUM_CTX',
         'ENABLE_PRODUCT_EXTRACTION',
@@ -50,7 +47,9 @@ class ManageSettings extends Page implements HasForms
     ];
 
     public array $data = [];
+
     public array $models = [];
+
     public array $ollamaInfo = [];
 
     public function mount(): void
@@ -110,11 +109,13 @@ class ManageSettings extends Page implements HasForms
             $trimmed = trim($line);
             if ($trimmed === '' || str_starts_with($trimmed, '#')) {
                 $updatedLines[] = $line;
+
                 continue;
             }
 
             if (! str_contains($trimmed, '=')) {
                 $updatedLines[] = $line;
+
                 continue;
             }
 
@@ -170,14 +171,14 @@ class ManageSettings extends Page implements HasForms
     {
         try {
             $response = OllamaResource::deleteModel($modelName);
-            
+
             if ($response['success'] ?? false) {
                 Notification::make()
                     ->title('Model Deleted')
                     ->body("Model '{$modelName}' has been deleted successfully.")
                     ->success()
                     ->send();
-                
+
                 $this->refreshOllamaData();
             } else {
                 throw new \Exception($response['error'] ?? 'Unknown error');
@@ -185,7 +186,7 @@ class ManageSettings extends Page implements HasForms
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Delete Failed')
-                ->body("Failed to delete model '{$modelName}': " . $e->getMessage())
+                ->body("Failed to delete model '{$modelName}': ".$e->getMessage())
                 ->danger()
                 ->send();
         }

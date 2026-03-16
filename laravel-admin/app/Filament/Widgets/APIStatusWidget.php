@@ -5,16 +5,15 @@ namespace App\Filament\Widgets;
 use App\Services\FirecrawlService;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class APIStatusWidget extends BaseWidget
 {
     protected static ?int $sort = 2;
-    
+
     protected ?string $heading = 'API & Service Status';
-    
+
     protected ?string $description = 'Real-time monitoring of all connected services and APIs';
 
     protected function getPollingInterval(): ?string
@@ -23,9 +22,9 @@ class APIStatusWidget extends BaseWidget
 
         return is_numeric($interval) ? "{$interval}s" : $interval;
     }
-    
+
     protected $listeners = ['startService' => 'handleStartService'];
-    
+
     /**
      * Whitelist of allowed service identifiers for Docker operations
      */
@@ -35,40 +34,43 @@ class APIStatusWidget extends BaseWidget
         'redis' => 'krai-redis-prod',
         'firecrawl' => 'krai-firecrawl-api-prod',
     ];
-    
+
     public function handleStartService($service)
     {
-        if (!auth()->user()?->isAdmin()) {
+        if (! auth()->user()?->isAdmin()) {
             \Filament\Notifications\Notification::make()
                 ->title('Nicht autorisiert')
                 ->body('Nur Administratoren können Services starten.')
                 ->danger()
                 ->send();
+
             return;
         }
 
         // Validate input - only allow whitelisted services
-        if (!is_string($service) || !isset(self::ALLOWED_SERVICES[$service])) {
+        if (! is_string($service) || ! isset(self::ALLOWED_SERVICES[$service])) {
             \Filament\Notifications\Notification::make()
                 ->title('Invalid service')
                 ->body('Service not allowed')
                 ->danger()
                 ->send();
+
             return;
         }
 
         try {
             $containerName = self::ALLOWED_SERVICES[$service];
-            
+
             // Validate container name format (alphanumeric, dashes, underscores only)
-            if (!preg_match('/^[a-zA-Z0-9_-]+$/', $containerName)) {
+            if (! preg_match('/^[a-zA-Z0-9_-]+$/', $containerName)) {
                 \Filament\Notifications\Notification::make()
                     ->title('Invalid container name')
                     ->danger()
                     ->send();
+
                 return;
             }
-            
+
             // Use docker start with validated container name (no shell injection possible)
             $command = ['docker', 'start', $containerName];
             $descriptorSpec = [
@@ -76,9 +78,9 @@ class APIStatusWidget extends BaseWidget
                 1 => ['pipe', 'w'],  // stdout
                 2 => ['pipe', 'w'],  // stderr
             ];
-            
+
             $process = proc_open($command, $descriptorSpec, $pipes);
-            
+
             if (is_resource($process)) {
                 fclose($pipes[0]);
                 $stdout = stream_get_contents($pipes[1]);
@@ -86,14 +88,14 @@ class APIStatusWidget extends BaseWidget
                 $stderr = stream_get_contents($pipes[2]);
                 fclose($pipes[2]);
                 $returnCode = proc_close($process);
-                
+
                 if ($returnCode === 0) {
                     \Filament\Notifications\Notification::make()
                         ->title('Service gestartet')
                         ->body("{$service} wurde erfolgreich gestartet")
                         ->success()
                         ->send();
-                    
+
                     // Clear cache to force refresh
                     Cache::forget("{$service}_status");
                 } else {
@@ -118,7 +120,7 @@ class APIStatusWidget extends BaseWidget
     protected function getStats(): array
     {
         $stats = [];
-        
+
         // Ollama
         $ollamaStatus = $this->getOllamaStatus();
         $ollamaStat = Stat::make('Ollama', $ollamaStatus['status'] === 'online' ? 'Online' : 'Offline')
@@ -126,24 +128,16 @@ class APIStatusWidget extends BaseWidget
             ->descriptionIcon($ollamaStatus['icon'])
             ->color($ollamaStatus['status'] === 'online' ? 'success' : 'danger')
             ->chart($ollamaStatus['status'] === 'online' ? [100, 100, 100, 100, 100, 100, 100] : [0, 0, 0, 0, 0, 0, 0]);
-        
+
         if ($ollamaStatus['status'] !== 'online') {
             $ollamaStat->extraAttributes([
                 'wire:click' => "\$dispatch('startService', { service: 'ollama' })",
                 'class' => 'cursor-pointer hover:ring-2 hover:ring-primary-500',
             ]);
         }
-        
+
         $stats[] = $ollamaStat;
-        
-        // OpenAI
-        $openaiStatus = $this->getOpenAIStatus();
-        $stats[] = Stat::make('OpenAI', $openaiStatus['status'] === 'online' ? 'Online' : 'Not Configured')
-            ->description($openaiStatus['message'])
-            ->descriptionIcon($openaiStatus['icon'])
-            ->color($openaiStatus['status'] === 'online' ? 'success' : 'warning')
-            ->chart($openaiStatus['status'] === 'online' ? [100, 100, 100, 100, 100, 100, 100] : [0, 0, 0, 0, 0, 0, 0]);
-        
+
         // Backend
         $backendStatus = $this->getBackendStatus();
         $backendStat = Stat::make('Backend', $backendStatus['status'] === 'online' ? 'Online' : 'Offline')
@@ -151,16 +145,16 @@ class APIStatusWidget extends BaseWidget
             ->descriptionIcon($backendStatus['icon'])
             ->color($backendStatus['status'] === 'online' ? 'success' : 'danger')
             ->chart($backendStatus['status'] === 'online' ? [100, 100, 100, 100, 100, 100, 100] : [0, 0, 0, 0, 0, 0, 0]);
-        
+
         if ($backendStatus['status'] !== 'online') {
             $backendStat->extraAttributes([
                 'wire:click' => "\$dispatch('startService', { service: 'backend' })",
                 'class' => 'cursor-pointer hover:ring-2 hover:ring-primary-500',
             ]);
         }
-        
+
         $stats[] = $backendStat;
-        
+
         // Database
         $databaseStatus = $this->getDatabaseStatus();
         $stats[] = Stat::make('Database', $databaseStatus['status'] === 'online' ? 'Online' : 'Offline')
@@ -168,7 +162,7 @@ class APIStatusWidget extends BaseWidget
             ->descriptionIcon($databaseStatus['icon'])
             ->color($databaseStatus['status'] === 'online' ? 'success' : 'danger')
             ->chart($databaseStatus['status'] === 'online' ? [100, 100, 100, 100, 100, 100, 100] : [0, 0, 0, 0, 0, 0, 0]);
-        
+
         // Redis
         $redisStatus = $this->getRedisStatus();
         $stats[] = Stat::make('Redis', $redisStatus['status'] === 'online' ? 'Online' : ($redisStatus['status'] === 'not_installed' ? 'Not Installed' : 'Offline'))
@@ -176,7 +170,7 @@ class APIStatusWidget extends BaseWidget
             ->descriptionIcon($redisStatus['icon'])
             ->color($redisStatus['status'] === 'online' ? 'success' : ($redisStatus['status'] === 'not_installed' ? 'warning' : 'danger'))
             ->chart($redisStatus['status'] === 'online' ? [100, 100, 100, 100, 100, 100, 100] : [0, 0, 0, 0, 0, 0, 0]);
-        
+
         // Storage
         $storageStatus = $this->getStorageStatus();
         $stats[] = Stat::make('Storage', $storageStatus['status'] === 'online' ? 'Online' : 'Offline')
@@ -184,7 +178,7 @@ class APIStatusWidget extends BaseWidget
             ->descriptionIcon($storageStatus['icon'])
             ->color($storageStatus['status'] === 'online' ? 'success' : 'danger')
             ->chart($storageStatus['status'] === 'online' ? [100, 100, 100, 100, 100, 100, 100] : [0, 0, 0, 0, 0, 0, 0]);
-        
+
         // Firecrawl
         $firecrawlStatus = $this->getFirecrawlStatus();
         $firecrawlStat = Stat::make('Firecrawl', $firecrawlStatus['status'] === 'online' ? 'Online' : 'Offline')
@@ -192,16 +186,16 @@ class APIStatusWidget extends BaseWidget
             ->descriptionIcon($firecrawlStatus['icon'])
             ->color($firecrawlStatus['status'] === 'online' ? 'success' : 'danger')
             ->chart($firecrawlStatus['status'] === 'online' ? [100, 100, 100, 100, 100, 100, 100] : [0, 0, 0, 0, 0, 0, 0]);
-        
+
         if ($firecrawlStatus['status'] !== 'online') {
             $firecrawlStat->extraAttributes([
                 'wire:click' => "\$dispatch('startService', { service: 'firecrawl' })",
                 'class' => 'cursor-pointer hover:ring-2 hover:ring-primary-500',
             ]);
         }
-        
+
         $stats[] = $firecrawlStat;
-        
+
         return $stats;
     }
 
@@ -209,19 +203,20 @@ class APIStatusWidget extends BaseWidget
     {
         return Cache::remember('ollama_status', 30, function () {
             try {
-                $response = Http::timeout(5)->get(config('krai.ollama_url', env('OLLAMA_URL', 'http://krai-ollama-prod:11434')) . '/api/version');
+                $response = Http::timeout(5)->get(config('krai.ollama_url', env('OLLAMA_URL', 'http://krai-ollama-prod:11434')).'/api/version');
 
                 if ($response->successful()) {
                     $data = $response->json();
+
                     return [
                         'status' => 'online',
-                        'message' => 'Version: ' . ($data['version'] ?? 'Unknown'),
+                        'message' => 'Version: '.($data['version'] ?? 'Unknown'),
                         'icon' => 'heroicon-o-check-circle',
                         'color' => 'text-green-600',
                         'details' => [
                             'Version' => $data['version'] ?? 'Unknown',
                             'Build' => $data['build'] ?? 'Unknown',
-                        ]
+                        ],
                     ];
                 } else {
                     return [
@@ -229,7 +224,7 @@ class APIStatusWidget extends BaseWidget
                         'message' => 'Connection failed',
                         'icon' => 'heroicon-o-x-circle',
                         'color' => 'text-red-600',
-                        'details' => ['Error' => $response->status()]
+                        'details' => ['Error' => $response->status()],
                     ];
                 }
             } catch (\Exception $e) {
@@ -238,62 +233,7 @@ class APIStatusWidget extends BaseWidget
                     'message' => 'Service unavailable',
                     'icon' => 'heroicon-o-x-circle',
                     'color' => 'text-red-600',
-                    'details' => ['Error' => $e->getMessage()]
-                ];
-            }
-        });
-    }
-
-    protected function getOpenAIStatus(): array
-    {
-        $apiKey = config('services.openai.key', env('OPENAI_API_KEY'));
-        
-        if (!$apiKey || $apiKey === 'your-openai-api-key-here') {
-            return [
-                'status' => 'not_configured',
-                'message' => 'API Key not configured',
-                'icon' => 'heroicon-o-exclamation-triangle',
-                'color' => 'text-yellow-600',
-                'details' => ['Status' => 'Configure API Key in Settings']
-            ];
-        }
-
-        return Cache::remember('openai_status', 60, function () use ($apiKey) {
-            try {
-                $response = Http::timeout(10)
-                    ->withHeaders([
-                        'Authorization' => 'Bearer ' . $apiKey,
-                    ])
-                    ->get('https://api.openai.com/v1/models');
-
-                if ($response->successful()) {
-                    $models = $response->json('data', []);
-                    return [
-                        'status' => 'online',
-                        'message' => count($models) . ' models available',
-                        'icon' => 'heroicon-o-check-circle',
-                        'color' => 'text-green-600',
-                        'details' => [
-                            'Models' => count($models),
-                            'Endpoint' => 'api.openai.com'
-                        ]
-                    ];
-                } else {
-                    return [
-                        'status' => 'error',
-                        'message' => 'API Error: ' . $response->status(),
-                        'icon' => 'heroicon-o-x-circle',
-                        'color' => 'text-red-600',
-                        'details' => ['Error' => $response->json('error.message', 'Unknown')]
-                    ];
-                }
-            } catch (\Exception $e) {
-                return [
-                    'status' => 'offline',
-                    'message' => 'Connection failed',
-                    'icon' => 'heroicon-o-x-circle',
-                    'color' => 'text-red-600',
-                    'details' => ['Error' => $e->getMessage()]
+                    'details' => ['Error' => $e->getMessage()],
                 ];
             }
         });
@@ -312,7 +252,7 @@ class APIStatusWidget extends BaseWidget
                         'message' => 'Backend healthy',
                         'icon' => 'heroicon-o-check-circle',
                         'color' => 'text-green-600',
-                        'details' => ['Status' => 'Running']
+                        'details' => ['Status' => 'Running'],
                     ];
                 }
 
@@ -331,8 +271,8 @@ class APIStatusWidget extends BaseWidget
                     'color' => 'text-red-600',
                     'details' => [
                         'HTTP' => $response->status(),
-                        'Action' => 'Check container logs: docker logs krai-engine-prod'
-                    ]
+                        'Action' => 'Check container logs: docker logs krai-engine-prod',
+                    ],
                 ];
             } catch (\Exception $e) {
                 return $this->classifyServiceError($e, 'backend');
@@ -345,7 +285,7 @@ class APIStatusWidget extends BaseWidget
         try {
             $connection = \Illuminate\Support\Facades\DB::connection();
             $connection->getPdo();
-            
+
             return [
                 'status' => 'online',
                 'message' => 'PostgreSQL connected',
@@ -353,8 +293,8 @@ class APIStatusWidget extends BaseWidget
                 'color' => 'text-green-600',
                 'details' => [
                     'Driver' => 'PostgreSQL',
-                    'Database' => env('DB_DATABASE', 'krai')
-                ]
+                    'Database' => env('DB_DATABASE', 'krai'),
+                ],
             ];
         } catch (\Exception $e) {
             return [
@@ -362,7 +302,7 @@ class APIStatusWidget extends BaseWidget
                 'message' => 'Database disconnected',
                 'icon' => 'heroicon-o-x-circle',
                 'color' => 'text-red-600',
-                'details' => ['Error' => $e->getMessage()]
+                'details' => ['Error' => $e->getMessage()],
             ];
         }
     }
@@ -370,24 +310,24 @@ class APIStatusWidget extends BaseWidget
     protected function getRedisStatus(): array
     {
         // Check if Redis extension is available
-        if (!class_exists('Redis')) {
+        if (! class_exists('Redis')) {
             return [
                 'status' => 'not_installed',
                 'message' => 'Redis extension not installed',
                 'icon' => 'heroicon-o-exclamation-triangle',
                 'color' => 'text-yellow-600',
-                'details' => ['Status' => 'Install Redis PHP extension']
+                'details' => ['Status' => 'Install Redis PHP extension'],
             ];
         }
 
         try {
-            $redis = new \Redis();
+            $redis = new \Redis;
             $redis->connect(config('database.redis.default.host', env('REDIS_HOST', 'krai-redis-prod')), (int) config('database.redis.default.port', env('REDIS_PORT', 6379)));
             $redis->ping();
-            
+
             $info = $redis->info();
             $redis->close();
-            
+
             return [
                 'status' => 'online',
                 'message' => 'Redis connected',
@@ -396,8 +336,8 @@ class APIStatusWidget extends BaseWidget
                 'details' => [
                     'Version' => $info['redis_version'] ?? 'Unknown',
                     'Memory' => $info['used_memory_human'] ?? 'Unknown',
-                    'Clients' => $info['connected_clients'] ?? '0'
-                ]
+                    'Clients' => $info['connected_clients'] ?? '0',
+                ],
             ];
         } catch (\Exception $e) {
             // Specific error handling for Redis
@@ -409,8 +349,8 @@ class APIStatusWidget extends BaseWidget
                     'color' => 'text-red-600',
                     'details' => [
                         'Error' => 'Connection refused',
-                        'Action' => 'Run: docker start krai-redis-prod'
-                    ]
+                        'Action' => 'Run: docker start krai-redis-prod',
+                    ],
                 ];
             }
 
@@ -421,8 +361,8 @@ class APIStatusWidget extends BaseWidget
                 'color' => 'text-red-600',
                 'details' => [
                     'Error' => $e->getMessage(),
-                    'Action' => 'Check Redis configuration'
-                ]
+                    'Action' => 'Check Redis configuration',
+                ],
             ];
         }
     }
@@ -436,18 +376,18 @@ class APIStatusWidget extends BaseWidget
             $totalSpace = disk_total_space($storagePath);
             $usedSpace = $totalSpace - $freeSpace;
             $usagePercent = round(($usedSpace / $totalSpace) * 100, 1);
-            
+
             return [
                 'status' => 'online',
-                'message' => 'Storage OK (' . $usagePercent . '% used)',
+                'message' => 'Storage OK ('.$usagePercent.'% used)',
                 'icon' => 'heroicon-o-check-circle',
                 'color' => $usagePercent > 90 ? 'text-yellow-600' : 'text-green-600',
                 'details' => [
                     'Free' => $this->formatBytes($freeSpace),
                     'Used' => $this->formatBytes($usedSpace),
                     'Total' => $this->formatBytes($totalSpace),
-                    'Usage' => $usagePercent . '%'
-                ]
+                    'Usage' => $usagePercent.'%',
+                ],
             ];
         } catch (\Exception $e) {
             return [
@@ -455,7 +395,7 @@ class APIStatusWidget extends BaseWidget
                 'message' => 'Storage error',
                 'icon' => 'heroicon-o-x-circle',
                 'color' => 'text-red-600',
-                'details' => ['Error' => $e->getMessage()]
+                'details' => ['Error' => $e->getMessage()],
             ];
         }
     }
@@ -495,7 +435,7 @@ class APIStatusWidget extends BaseWidget
             } catch (\Exception $e) {
                 // Specific error handling for Firecrawl
                 $message = $e->getMessage();
-                
+
                 if (str_contains($message, '404')) {
                     return [
                         'status' => 'error',
@@ -504,11 +444,11 @@ class APIStatusWidget extends BaseWidget
                         'color' => 'text-yellow-600',
                         'details' => [
                             'Error' => 'Check FIRECRAWL_API_URL config',
-                            'Action' => 'Verify endpoint configuration'
-                        ]
+                            'Action' => 'Verify endpoint configuration',
+                        ],
                     ];
                 }
-                
+
                 if (str_contains($message, 'Connection refused')) {
                     return [
                         'status' => 'offline',
@@ -517,11 +457,11 @@ class APIStatusWidget extends BaseWidget
                         'color' => 'text-red-600',
                         'details' => [
                             'Error' => 'Connection refused',
-                            'Action' => 'Run: docker ps | grep firecrawl'
-                        ]
+                            'Action' => 'Run: docker ps | grep firecrawl',
+                        ],
                     ];
                 }
-                
+
                 if (str_contains($message, 'timed out')) {
                     return [
                         'status' => 'timeout',
@@ -530,8 +470,8 @@ class APIStatusWidget extends BaseWidget
                         'color' => 'text-yellow-600',
                         'details' => [
                             'Error' => 'Request timeout',
-                            'Action' => 'Check Firecrawl performance'
-                        ]
+                            'Action' => 'Check Firecrawl performance',
+                        ],
                     ];
                 }
 
@@ -540,7 +480,7 @@ class APIStatusWidget extends BaseWidget
                     'message' => 'Firecrawl unavailable',
                     'icon' => 'heroicon-o-x-circle',
                     'color' => 'text-red-600',
-                    'details' => ['Error' => $e->getMessage()]
+                    'details' => ['Error' => $e->getMessage()],
                 ];
             }
         });
@@ -552,20 +492,20 @@ class APIStatusWidget extends BaseWidget
     private function classifyServiceError(\Exception $e, string $service): array
     {
         $message = $e->getMessage();
-        
+
         if (str_contains($message, 'Connection refused')) {
             return [
                 'status' => 'offline',
-                'message' => ucfirst($service) . ' container offline',
+                'message' => ucfirst($service).' container offline',
                 'icon' => 'heroicon-o-x-circle',
                 'color' => 'text-red-600',
                 'details' => [
                     'Error' => 'Connection refused',
-                    'Action' => "Run: docker start krai-{$service}-prod"
-                ]
+                    'Action' => "Run: docker start krai-{$service}-prod",
+                ],
             ];
         }
-        
+
         if (str_contains($message, 'Could not resolve host')) {
             return [
                 'status' => 'dns_error',
@@ -574,34 +514,34 @@ class APIStatusWidget extends BaseWidget
                 'color' => 'text-yellow-600',
                 'details' => [
                     'Error' => 'Cannot resolve hostname',
-                    'Action' => 'Check Docker network configuration'
-                ]
+                    'Action' => 'Check Docker network configuration',
+                ],
             ];
         }
-        
+
         if (str_contains($message, 'timed out')) {
             return [
                 'status' => 'timeout',
-                'message' => ucfirst($service) . ' timeout',
+                'message' => ucfirst($service).' timeout',
                 'icon' => 'heroicon-o-clock',
                 'color' => 'text-yellow-600',
                 'details' => [
                     'Error' => 'Request timeout',
-                    'Action' => "Check {$service} performance and logs"
-                ]
+                    'Action' => "Check {$service} performance and logs",
+                ],
             ];
         }
-        
+
         // Generic error fallback
         return [
             'status' => 'offline',
-            'message' => ucfirst($service) . ' unavailable',
+            'message' => ucfirst($service).' unavailable',
             'icon' => 'heroicon-o-x-circle',
             'color' => 'text-red-600',
             'details' => [
                 'Error' => $e->getMessage(),
-                'Action' => "Check {$service} status: docker ps | grep {$service}"
-            ]
+                'Action' => "Check {$service} status: docker ps | grep {$service}",
+            ],
         ];
     }
 
@@ -611,9 +551,9 @@ class APIStatusWidget extends BaseWidget
         $bytes = max($bytes, 0);
         $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
-        
+
         $bytes /= pow(1024, $pow);
-        
-        return round($bytes, 1) . ' ' . $units[$pow];
+
+        return round($bytes, 1).' '.$units[$pow];
     }
 }

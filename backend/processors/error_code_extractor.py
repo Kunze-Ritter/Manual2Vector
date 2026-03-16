@@ -22,7 +22,7 @@ from multiprocessing import Pool, cpu_count
 from .logger import get_logger
 from .models import ExtractedErrorCode, ValidationError as ValError
 from .exceptions import ManufacturerPatternNotFoundError
-from backend.utils.hp_solution_filter import extract_hp_technician_solution, is_hp_multi_level_format
+from backend.utils.hp_solution_filter import extract_hp_technician_solution, extract_all_hp_levels
 from backend.utils.manufacturer_normalizer import normalize_manufacturer
 from backend.config.oem_mappings import get_effective_manufacturer
 from .chunk_linker import link_error_codes_to_chunks
@@ -189,8 +189,8 @@ class ErrorCodeExtractor:
         manufacturer_name = effective_manufacturer
         # OPTIMIZATION 1: Skip enrichment if all codes already have good solutions
         codes_needing_enrichment = [
-            ec for ec in error_codes 
-            if not ec.solution_text or len(ec.solution_text) <= 100
+            ec for ec in error_codes
+            if not ec.solution_technician_text or len(ec.solution_technician_text) <= 100
         ]
         
         if not codes_needing_enrichment:
@@ -306,7 +306,7 @@ class ErrorCodeExtractor:
             
             for error_code in error_codes:
                 # Skip if already has good solution
-                if error_code.solution_text and len(error_code.solution_text) > 100:
+                if error_code.solution_technician_text and len(error_code.solution_technician_text) > 100:
                     enriched_codes.append(error_code)
                     progress.update(task, advance=1)
                     continue
@@ -338,7 +338,7 @@ class ErrorCodeExtractor:
                 
                 # Try each occurrence to find the detailed section
                 best_description = error_code.error_description
-                best_solution = error_code.solution_text
+                best_solution_raw = error_code.solution_technician_text  # raw full text for enrichment
                 best_confidence = error_code.confidence
                 
                 for match_idx, (start_pos, end_pos) in enumerate(matches):
@@ -371,21 +371,24 @@ class ErrorCodeExtractor:
                     if processed_count == 0 and match_idx == 0:
                         self.logger.info(f"   Solution extracted, creating enriched code...")
                     
-                    if solution and len(solution) > len(best_solution or ''):
-                        best_solution = solution
+                    if solution and len(solution) > len(best_solution_raw or ''):
+                        best_solution_raw = solution
                         best_confidence = min(0.95, best_confidence + 0.1)
                         
                         # OPTIMIZATION 5: Early exit if we found a good solution
-                        if len(best_solution) > 200:
+                        if len(best_solution_raw) > 200:
                             break
                 
-                # Create enriched error code
+                # Split raw solution text into the 3 levels
                 enriched_manufacturer = getattr(error_code, 'manufacturer_name', manufacturer_name)
                 enriched_effective = getattr(error_code, 'effective_manufacturer', effective_manufacturer)
+                sol_levels = extract_all_hp_levels(best_solution_raw or '')
                 enriched_code = ExtractedErrorCode(
                     error_code=error_code.error_code,
                     error_description=best_description,
-                    solution_text=best_solution or "No solution found",
+                    solution_customer_text=sol_levels['customer'],
+                    solution_agent_text=sol_levels['agent'],
+                    solution_technician_text=sol_levels['technician'],
                     context_text=error_code.context_text,
                     confidence=best_confidence,
                     page_number=error_code.page_number,
@@ -631,11 +634,14 @@ class ErrorCodeExtractor:
                     hierarchy_rules = mfr_config.get("hierarchy_rules")
                     parent_code = self._derive_parent_code(code, hierarchy_rules)
 
+                    sol_levels = extract_all_hp_levels(solution or '')
                     try:
                         error_code = ExtractedErrorCode(
                             error_code=code,
                             error_description=description,
-                            solution_text=solution or "No solution found",
+                            solution_customer_text=sol_levels['customer'],
+                            solution_agent_text=sol_levels['agent'],
+                            solution_technician_text=sol_levels['technician'],
                             context_text=context,
                             confidence=confidence,
                             page_number=page_number,
@@ -724,7 +730,9 @@ class ErrorCodeExtractor:
                 category = ExtractedErrorCode(
                     error_code=parent,
                     error_description=description,
-                    solution_text=None,
+                    solution_customer_text=None,
+                    solution_agent_text=None,
+                    solution_technician_text=None,
                     context_text=best_child.context_text,
                     confidence=0.95,
                     page_number=best_child.page_number,
@@ -943,17 +951,11 @@ class ErrorCodeExtractor:
             lines = [l.strip() for l in bullets.split('\n') if l.strip()][:8]
             solution = '\n'.join(lines)
             
-            # HP-specific: Filter to technician-only solution
-            if is_hp_multi_level_format(combined_text):
-                solution = extract_hp_technician_solution(solution)
-            
+            # Return raw full-text — levels are split later at ExtractedErrorCode creation
             return solution
         
-        # No solution found - check if HP format and extract technician section
-        if is_hp_multi_level_format(combined_text):
-            return extract_hp_technician_solution(combined_text)
-        
-        return None
+        # No solution found — return full combined text (levels split at creation)
+        return combined_text if combined_text else None
     
     def _is_generic_description(self, description: str) -> bool:
         """
@@ -1122,7 +1124,6 @@ class ErrorCodeExtractor:
                 "description": code_data.get("description", ""),
                 "solution": code_data.get("solution", ""),
                 "severity": code_data.get("severity", "warning"),
-                "requires_technician": bool(code_data.get("requires_technician", False)),
                 "requires_parts": bool(code_data.get("requires_parts", False)),
                 "related_parts": code_data.get("related_parts") or [],
                 "confidence": confidence,
@@ -1223,9 +1224,8 @@ class ErrorCodeExtractor:
                 "code": ec.error_code,
                 "manufacturer": manufacturer_name,
                 "description": ec.error_description,
-                "solution": ec.solution_text,
+                "solution": ec.solution_technician_text or ec.solution_agent_text or ec.solution_customer_text,
                 "severity": ec.severity_level,
-                "requires_technician": ec.requires_technician,
                 "requires_parts": ec.requires_parts,
                 "related_parts": [],
                 "confidence": ec.confidence,

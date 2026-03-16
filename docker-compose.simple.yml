@@ -13,6 +13,9 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # Override localhost URL with Docker network hostname
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-krai_user}:${POSTGRES_PASSWORD}@krai-postgres:5432/${POSTGRES_DB:-krai}
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -33,7 +36,7 @@ services:
       krai-ollama:
         condition: service_started
     command: >
-      python main.py
+      uvicorn api.app:app --host 0.0.0.0 --port 8000
 
   # PostgreSQL Database - credentials from .env
   krai-postgres:
@@ -120,10 +123,39 @@ services:
       start_period: 30s
     # For GPU support, see docker-compose.yml
 
+  # OpenWebUI — Chat Frontend für Techniker (OpenAI-compatible)
+  krai-openwebui:
+    image: openwebui/open-webui:latest
+    container_name: krai-openwebui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OPENAI_API_BASE_URL=http://krai-engine:8000/v1
+      - OPENAI_API_KEY=${KRAI_SERVICE_JWT}
+      - OLLAMA_BASE_URL=
+      - ENABLE_OLLAMA_API=false
+      - ENABLE_OPENAI_API=true
+      - DEFAULT_MODELS=krai
+      - WEBUI_NAME=${OPENWEBUI_NAME:-KRAI Techniker-Chat}
+      - WEBUI_SECRET_KEY=${OPENWEBUI_SECRET_KEY:-change-me-in-production}
+      - WEBUI_URL=${OPENWEBUI_URL:-http://localhost:3000}
+      - ENABLE_IMAGE_GENERATION=false
+      - ENABLE_COMMUNITY_SHARING=false
+      - ENABLE_MODEL_FILTER=true
+      - MODEL_FILTER_LIST=krai
+    volumes:
+      - openwebui_data:/app/backend/data
+    networks:
+      - krai-network
+    depends_on:
+      - krai-engine
+
 volumes:
   krai_postgres_data:
   minio_data:
   ollama_data:
+  openwebui_data:
 
 networks:
   krai-network:

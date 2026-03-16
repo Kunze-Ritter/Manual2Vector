@@ -61,7 +61,7 @@ class ClassificationProcessor(BaseProcessor):
         
         self.logger.info("ClassificationProcessor initialized")
     
-    async def process(self, context) -> Any:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """
         Process classification
         
@@ -202,7 +202,7 @@ class ClassificationProcessor(BaseProcessor):
                     data={}
                 )
 
-    async def _hydrate_page_texts_from_chunks(self, context) -> None:
+    async def _hydrate_page_texts_from_chunks(self, context: ProcessingContext) -> None:
         """Populate context.page_texts from chunks when upstream context is missing."""
         if getattr(context, "page_texts", None):
             return
@@ -581,7 +581,7 @@ If uncertain, respond with "Unknown"."""
         return document_type, version
     
     async def _get_content_statistics(self, document_id: str) -> Dict:
-        """Get content statistics for document via DatabaseAdapter or Supabase client. Logs and returns zeros when stats cannot be gathered."""
+        """Get content statistics for document via DatabaseAdapter."""
         stats = {
             'total_error_codes': 0,
             'parts_count': 0
@@ -591,46 +591,29 @@ If uncertain, respond with "Unknown"."""
             self.logger.warning("Cannot get content statistics: no database_service available")
             return stats
 
-        has_adapter = hasattr(self.database_service, 'fetch_one') or hasattr(self.database_service, 'fetch_all')
-        has_client = hasattr(self.database_service, 'client') and self.database_service.client is not None
-
-        if not has_adapter and not has_client:
-            self.logger.warning(
-                "Cannot get content statistics: neither DatabaseAdapter (fetch_one/fetch_all) nor Supabase client available"
-            )
-            return stats
-
         try:
-            if has_adapter and hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
-                intel_schema = getattr(self.database_service, '_intelligence_schema', 'krai_intelligence')
-                async with self.database_service.pg_pool.acquire() as conn:
-                    ec_row = await conn.fetchrow(
-                        f"SELECT COUNT(*) as c FROM {intel_schema}.error_codes WHERE document_id = $1",
-                        document_id
-                    )
-                    stats['total_error_codes'] = int(ec_row['c']) if ec_row else 0
+            intel_schema = getattr(self.database_service, '_intelligence_schema', 'krai_intelligence')
+            
+            # Use direct fetch_one if available
+            if hasattr(self.database_service, 'fetch_one'):
+                ec_row = await self.database_service.fetch_one(
+                    f"SELECT COUNT(*) as c FROM {intel_schema}.error_codes WHERE document_id = $1",
+                    [document_id]
+                )
+                stats['total_error_codes'] = int(ec_row['c']) if ec_row else 0
 
-                    parts_row = await conn.fetchrow(
-                        """
-                        SELECT COUNT(DISTINCT pc.id) AS c
-                        FROM krai_core.document_products dp
-                        JOIN krai_parts.parts_catalog pc ON pc.product_id = dp.product_id
-                        WHERE dp.document_id = $1
-                        """,
-                        document_id
-                    )
-                    stats['parts_count'] = int(parts_row['c']) if parts_row else 0
-            elif has_client:
-                error_codes = self.database_service.client.table('error_codes').select('id').eq('document_id', document_id).execute()
-                stats['total_error_codes'] = len(error_codes.data) if error_codes.data else 0
-
-                doc_products = self.database_service.client.table('document_products').select('product_id').eq('document_id', document_id).execute()
-                product_ids = [row.get('product_id') for row in (doc_products.data or []) if row.get('product_id')]
-                if product_ids:
-                    parts = self.database_service.client.table('parts_catalog').select('id').in_('product_id', product_ids).execute()
-                    stats['parts_count'] = len(parts.data) if parts.data else 0
+                parts_row = await self.database_service.fetch_one(
+                    """
+                    SELECT COUNT(DISTINCT pc.id) AS c
+                    FROM krai_core.document_products dp
+                    JOIN krai_parts.parts_catalog pc ON pc.product_id = dp.product_id
+                    WHERE dp.document_id = $1
+                    """,
+                    [document_id]
+                )
+                stats['parts_count'] = int(parts_row['c']) if parts_row else 0
             else:
-                self.logger.warning("Content statistics fallback: adapter has no pg_pool, cannot gather stats")
+                self.logger.warning("Content statistics fallback: adapter does not support fetch_one")
         except Exception as e:
             self.logger.warning("Could not get content statistics: %s", e)
 
@@ -638,12 +621,15 @@ If uncertain, respond with "Unknown"."""
     
     async def _get_document_chunks(self, document_id: str, limit: int = 5) -> list:
         """Get first N chunks of document"""
-        if not self.database_service or not hasattr(self.database_service, 'client'):
+        if not self.database_service or not hasattr(self.database_service, 'fetch_all'):
             return []
         
         try:
-            result = self.database_service.client.table('chunks').select('content').eq('document_id', document_id).order('chunk_index').limit(limit).execute()
-            return result.data if result.data else []
+            result = await self.database_service.fetch_all(
+                "SELECT text_chunk as content FROM krai_intelligence.chunks WHERE document_id = $1 ORDER BY chunk_index LIMIT $2",
+                [document_id, limit]
+            )
+            return result or []
         except Exception as e:
             self.logger.warning(f"Could not get chunks: {e}")
             return []
@@ -673,15 +659,6 @@ If uncertain, respond with "Unknown"."""
                     document_id,
                     update_data
                 )
-            elif hasattr(self.database_service, 'client'):
-                supabase_update = {
-                    'manufacturer': manufacturer,
-                    'manufacturer_id': manufacturer_id,
-                    'document_type': document_type,
-                    'version': version,
-                    'models': model_candidates or []
-                }
-                self.database_service.client.table('documents').update(supabase_update).eq('id', document_id).execute()
             
             self.logger.info(f"Updated document classification in database")
         except Exception as e:
@@ -844,11 +821,11 @@ If uncertain, respond with "Unknown"."""
             adapter.info("Linked %s products to document", linked)
         return linked
     
-    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
+    def _create_result(self, success: bool, message: str, data: Dict) -> ProcessingResult:
         """Create a BaseProcessor-compatible result payload."""
-        return {
-            "success": success,
-            "data": data or {},
-            "metadata": {"message": message},
-            "error": None if success else message,
-        }
+        if success:
+            return self.create_success_result(data=data, metadata={"message": message})
+        
+        from backend.core.base_processor import ProcessingError
+        error = ProcessingError(message, self.name, "CLASSIFICATION_ERROR")
+        return self.create_error_result(error=error, metadata={})

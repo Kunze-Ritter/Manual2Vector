@@ -27,42 +27,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.processors.env_loader import load_all_env_files
+from backend.pipeline.service_locator import ServiceLocator
 
-# Import services
-# TODO: Replace with direct PostgreSQL connection
-# from backend.services.database_service import DatabaseService
-from backend.services.object_storage_service import ObjectStorageService
-from backend.services.storage_factory import create_storage_service
-from backend.services.database_factory import create_database_adapter
-from backend.services.ai_service import AIService
-from backend.services.config_service import ConfigService
-from backend.services.features_service import FeaturesService
-from backend.services.quality_check_service import QualityCheckService
-from backend.services.file_locator_service import FileLocatorService
-from backend.services.manufacturer_verification_service import ManufacturerVerificationService
-from backend.services.web_scraping_service import create_web_scraping_service
-from backend.services.performance_service import PerformanceCollector
-from backend.utils.colored_logging import apply_colored_logging_globally
-
-from backend.processors.upload_processor import UploadProcessor
-from backend.processors.text_processor_optimized import OptimizedTextProcessor
-from backend.processors.svg_processor import SVGProcessor
-from backend.processors.image_processor import ImageProcessor
-from backend.processors.classification_processor import ClassificationProcessor
-from backend.processors.chunk_preprocessor import ChunkPreprocessor
-from backend.processors.metadata_processor_ai import MetadataProcessorAI
-from backend.processors.link_extraction_processor_ai import LinkExtractionProcessorAI
-from backend.processors.storage_processor import StorageProcessor
-from backend.processors.embedding_processor import EmbeddingProcessor
-from backend.processors.search_processor import SearchProcessor
-from backend.processors.visual_embedding_processor import VisualEmbeddingProcessor
-from backend.processors.table_processor import TableProcessor
-from backend.processors.thumbnail_processor import ThumbnailProcessor
-from backend.processors.parts_processor import PartsProcessor
-from backend.processors.series_processor import SeriesProcessor
-from backend.processors.video_enrichment_processor import VideoEnrichmentProcessor
-from backend.processors.pipeline_config import get_pipeline_config
-
+# Standard imports
 from backend.core.base_processor import ProcessingContext
 
 class KRMasterPipeline:
@@ -80,10 +47,21 @@ class KRMasterPipeline:
         self.performance_service = performance_collector  # Use provided collector or will be initialized later
         self.processors = {}
         self.force_continue_on_errors = force_continue_on_errors
+        
+        # Setup pipeline config via ServiceLocator or direct import
+        try:
+            get_pipeline_config = ServiceLocator.get("get_pipeline_config")
+        except:
+            from backend.processors.pipeline_config import get_pipeline_config
         self.pipeline_config = get_pipeline_config()
         
-        # Setup colored logging globally (ERROR = RED, WARNING = YELLOW, INFO = GREEN)
-        apply_colored_logging_globally(level=logging.INFO)
+        # Setup colored logging globally
+        try:
+            apply_colored_logging_globally = ServiceLocator.get("apply_colored_logging_globally")
+            apply_colored_logging_globally(level=logging.INFO)
+        except:
+            pass
+            
         self.logger = logging.getLogger("krai.master_pipeline")
         self.interactive_console = sys.stdout.isatty()
         
@@ -210,75 +188,85 @@ class KRMasterPipeline:
             return False
     
     async def _initialize_services_after_env_loaded(self):
-        """Initialize services after environment variables are loaded"""
-        # Get PostgreSQL URL for direct connection (alternative method)
-        # Prefer explicit POSTGRES_URL or DATABASE_CONNECTION_URL; fall back to DATABASE_URL
+        """Initialize services after environment variables are loaded using ServiceLocator"""
+        # Get PostgreSQL URL for direct connection
         postgres_url = (
             os.getenv('POSTGRES_URL')
             or os.getenv('DATABASE_CONNECTION_URL')
             or os.getenv('DATABASE_URL')
         )
-        if postgres_url:
-            self.logger.info("✅ POSTGRES_URL: %s... (direct PostgreSQL connection)", postgres_url[:40])
-        else:
-            self.logger.warning("POSTGRES_URL not found - using direct PostgreSQL parameters")
         
-        # Ensure a concrete DatabaseAdapter exists before wiring processors
+        # Ensure a concrete DatabaseAdapter exists
         if self.database_adapter is None:
             if not postgres_url:
-                raise RuntimeError(
-                    "Database adapter is required but none was provided and POSTGRES_URL (or DATABASE_CONNECTION_URL/DATABASE_URL) is not set. "
-                    "Either pass a DatabaseAdapter to KRMasterPipeline(...) or set the database URL in the environment."
-                )
+                raise RuntimeError("Database adapter required but no URL provided.")
+            
+            create_database_adapter = ServiceLocator.get("create_database_adapter")
             adapter = create_database_adapter()
             await adapter.connect()
             self.database_adapter = adapter
             self.logger.info("✅ Database adapter created and connected (PostgreSQL)")
-        self.database_service = self.database_adapter
-        if self.database_service is None:
-            raise RuntimeError("initialize_services() cannot proceed with database_service being None.")
         
-        # Initialize object storage service
+        self.database_service = self.database_adapter
+        
+        # Initialize other services via ServiceLocator
+        create_storage_service = ServiceLocator.get("create_storage_service")
         self.storage_service = create_storage_service()
-        # Storage service factory supports MinIO, S3, R2, etc.
         await self.storage_service.connect()
         
-        # Initialize AI service
+        AIService = ServiceLocator.get("AIService")
         self.ai_service = AIService(ollama_url=os.getenv('OLLAMA_URL', 'http://localhost:11434'))
         await self.ai_service.connect()
         
-        # Initialize config service
+        ConfigService = ServiceLocator.get("ConfigService")
         self.config_service = ConfigService()
         
-        # Initialize features service
+        FeaturesService = ServiceLocator.get("FeaturesService")
         self.features_service = FeaturesService(self.ai_service, self.database_service)
         
-        # Initialize quality check service
+        QualityCheckService = ServiceLocator.get("QualityCheckService")
         self.quality_service = QualityCheckService(self.database_service)
         
-        # Initialize file locator service
+        FileLocatorService = ServiceLocator.get("FileLocatorService")
         self.file_locator = FileLocatorService()
         
-        # Initialize web scraping service for product discovery
+        create_web_scraping_service = ServiceLocator.get("create_web_scraping_service")
         web_scraping_service = create_web_scraping_service()
         
-        # Initialize manufacturer verification service for product discovery
+        ManufacturerVerificationService = ServiceLocator.get("ManufacturerVerificationService")
         self.manufacturer_verification_service = ManufacturerVerificationService(
             database_service=self.database_service,
             web_scraping_service=web_scraping_service
         )
         
-        # Initialize performance collector if not provided
+        # Initialize performance collector
         if self.performance_service is None:
+            PerformanceCollector = ServiceLocator.get("PerformanceCollector")
             self.performance_service = PerformanceCollector(
                 db_adapter=self.database_service,
                 logger=logging.getLogger("krai.performance")
             )
             self.logger.info("✅ Performance service initialized")
-        else:
-            self.logger.info("✅ Performance service provided (shared instance)")
         
-        # Initialize all processors - use sequential variables to avoid initialization ordering issues
+        # Initialize all processors via ServiceLocator
+        EmbeddingProcessor = ServiceLocator.get("EmbeddingProcessor")
+        TableProcessor = ServiceLocator.get("TableProcessor")
+        UploadProcessor = ServiceLocator.get("UploadProcessor")
+        OptimizedTextProcessor = ServiceLocator.get("OptimizedTextProcessor")
+        SVGProcessor = ServiceLocator.get("SVGProcessor")
+        ImageProcessor = ServiceLocator.get("ImageProcessor")
+        VisualEmbeddingProcessor = ServiceLocator.get("VisualEmbeddingProcessor")
+        ClassificationProcessor = ServiceLocator.get("ClassificationProcessor")
+        ChunkPreprocessor = ServiceLocator.get("ChunkPreprocessor")
+        LinkExtractionProcessorAI = ServiceLocator.get("LinkExtractionProcessorAI")
+        MetadataProcessorAI = ServiceLocator.get("MetadataProcessorAI")
+        PartsProcessor = ServiceLocator.get("PartsProcessor")
+        SeriesProcessor = ServiceLocator.get("SeriesProcessor")
+        StorageProcessor = ServiceLocator.get("StorageProcessor")
+        SearchProcessor = ServiceLocator.get("SearchProcessor")
+        ThumbnailProcessor = ServiceLocator.get("ThumbnailProcessor")
+        VideoEnrichmentProcessor = ServiceLocator.get("VideoEnrichmentProcessor")
+
         embedding_processor = EmbeddingProcessor(self.database_service, self.ai_service.ollama_url)
         table_processor = TableProcessor(self.database_service, embedding_processor)
         
@@ -316,7 +304,7 @@ class KRMasterPipeline:
             if processor and hasattr(processor, 'set_performance_collector'):
                 processor.set_performance_collector(self.performance_service)
         
-        self.logger.info("All services initialized!")
+        self.logger.info("All services initialized via ServiceLocator!")
 
     async def _get_document_row_by_filename(self, filename: str) -> Optional[Dict[str, Any]]:
         """Lookup document row by filename (used only to resume processing for local files)."""
@@ -1302,17 +1290,29 @@ class KRMasterPipeline:
     async def monitor_hardware(
         self,
         *,
-        sleep_interval: float = 5.0,
+        sleep_interval: Optional[float] = None,
         max_iterations: Optional[int] = None,
         sleep_func: Optional[Callable[[float], Awaitable[None]]] = None,
     ):
         """Monitor hardware usage and pipeline progress during processing.
 
         Args:
-            sleep_interval: Delay between status updates (defaults to 5 seconds).
+            sleep_interval: Delay between status updates (defaults to 5.0s or env).
             max_iterations: Optional guard to exit after N loops (used by tests).
             sleep_func: Optional awaitable used instead of asyncio.sleep for tests.
         """
+        # Determine interval from env or default
+        if sleep_interval is None:
+            env_val = os.getenv('HARDWARE_MONITOR_INTERVAL')
+            if env_val:
+                try:
+                    sleep_interval = float(env_val)
+                except ValueError:
+                    sleep_interval = 5.0
+            else:
+                # Default to 5s for interactive, 30s for non-interactive (logs only)
+                sleep_interval = 5.0 if self.interactive_console else 30.0
+
         last_doc_count = 0
         last_classified_count = 0
         last_chunk_count = 0
@@ -1522,26 +1522,46 @@ class KRMasterPipeline:
         return None
     
     async def _get_pipeline_status(self) -> Dict[str, Any]:
-        """Get comprehensive pipeline processing status"""
+        """Get comprehensive pipeline processing status using efficient COUNT queries."""
         try:
-            # Use base tables instead of missing views
-            docs_rows = await self.database_service.execute_query(
-                "SELECT * FROM krai_core.documents"
-            )
-            chunks_rows = await self.database_service.execute_query(
-                "SELECT * FROM krai_intelligence.chunks"
-            )
-            images_rows = await self.database_service.execute_query(
-                "SELECT * FROM krai_content.images"
-            )
+            # Check for PostgreSQL pool availability for optimized counting
+            if hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
+                async with self.database_service.pg_pool.acquire() as conn:
+                    # Single-trip count for all relevant tables
+                    res = await conn.fetchrow(
+                        """
+                        SELECT 
+                            (SELECT count(*) FROM krai_core.documents) as total_docs,
+                            (SELECT count(*) FROM krai_core.documents WHERE manufacturer IS NOT NULL) as classified_docs,
+                            (SELECT count(*) FROM krai_intelligence.chunks) as total_chunks,
+                            (SELECT count(*) FROM krai_content.images) as total_images
+                        """
+                    )
+                    total_docs = res['total_docs']
+                    classified_docs = res['classified_docs']
+                    total_chunks = res['total_chunks']
+                    total_images = res['total_images']
+                    
+                    # Fetch only recent activity (limit 3)
+                    recent_docs = await conn.fetch(
+                        "SELECT id, filename, created_at FROM krai_core.documents ORDER BY created_at DESC LIMIT 3"
+                    )
+            else:
+                # Fallback to standard execute_query with explicit counts
+                row_total = await self.database_service.execute_query("SELECT count(*) as count FROM krai_core.documents")
+                total_docs = row_total[0]['count'] if row_total else 0
+                
+                row_class = await self.database_service.execute_query("SELECT count(*) as count FROM krai_core.documents WHERE manufacturer IS NOT NULL")
+                classified_docs = row_class[0]['count'] if row_class else 0
+                
+                row_chunks = await self.database_service.execute_query("SELECT count(*) as count FROM krai_intelligence.chunks")
+                total_chunks = row_chunks[0]['count'] if row_chunks else 0
+                
+                row_images = await self.database_service.execute_query("SELECT count(*) as count FROM krai_content.images")
+                total_images = row_images[0]['count'] if row_images else 0
+                
+                recent_docs = await self.database_service.execute_query("SELECT id, filename, created_at FROM krai_core.documents ORDER BY created_at DESC LIMIT 3")
 
-            total_docs = len(docs_rows)
-            classified_docs = len([d for d in docs_rows if d.get('manufacturer')])
-            total_chunks = len(chunks_rows)
-            total_images = len(images_rows)
-
-            recent_docs = sorted(docs_rows, key=lambda x: x.get('created_at', ''), reverse=True)[:3] if docs_rows else []
-            
             # Calculate overall progress based on actual pipeline stages
             if total_docs > 0:
                 # Stage 1: Upload (always 100% if documents exist)
@@ -1566,13 +1586,30 @@ class KRMasterPipeline:
             else:
                 overall_progress = 0
             
-            # Determine current stage
+            # Determine current stage (heuristic from recent activity)
             current_stage = None
             if recent_docs:
                 latest_doc = recent_docs[0]
-                if latest_doc.get('manufacturer'):
+                doc_id = latest_doc['id']
+                
+                # Use faster exists checks instead of full table scans
+                if hasattr(self.database_service, 'pg_pool') and self.database_service.pg_pool:
+                    async with self.database_service.pg_pool.acquire() as conn:
+                        is_classified = await conn.fetchval(
+                            "SELECT EXISTS(SELECT 1 FROM krai_core.documents WHERE id = $1 AND manufacturer IS NOT NULL)",
+                            doc_id
+                        )
+                        has_chunks = await conn.fetchval(
+                            "SELECT EXISTS(SELECT 1 FROM krai_intelligence.chunks WHERE document_id = $1)",
+                            doc_id
+                        )
+                else:
+                    is_classified = False
+                    has_chunks = False
+                
+                if is_classified:
                     current_stage = f"Classification Complete - {latest_doc.get('filename', 'Unknown')}"
-                elif latest_doc.get('id') in [c.get('document_id') for c in chunks_rows]:
+                elif has_chunks:
                     current_stage = f"Text Processing Complete - {latest_doc.get('filename', 'Unknown')}"
                 else:
                     current_stage = f"Upload Complete - {latest_doc.get('filename', 'Unknown')}"

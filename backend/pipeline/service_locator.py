@@ -46,6 +46,7 @@ class ServiceLocator:
         "PartsProcessor": "backend.processors.parts_processor.PartsProcessor",
         "SeriesProcessor": "backend.processors.series_processor.SeriesProcessor",
         "VideoEnrichmentProcessor": "backend.processors.video_enrichment_processor.VideoEnrichmentProcessor",
+        "get_pipeline_config": "backend.processors.pipeline_config.get_pipeline_config",
     }
     
     @classmethod

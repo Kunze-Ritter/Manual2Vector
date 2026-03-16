@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Settings\Schemas;
 
-use Closure;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Tabs;
@@ -65,18 +64,6 @@ class SettingsFormSchema
                                         ->hint('Installed Ollama models are detected automatically.'),
                                     Select::make('OLLAMA_MODEL_EXTRACTION')
                                         ->label('Extraction Model')
-                                        ->options(fn ($livewire) => $livewire->getOllamaModelOptionsWithFallback([
-                                            'llama3.1:8b',
-                                            'llama3.1:70b',
-                                            'llama3:8b',
-                                            'llama3:70b',
-                                            'qwen2.5:7b',
-                                            'qwen2.5:14b',
-                                        ]))
-                                        ->searchable()
-                                        ->hint('Installed Ollama models are detected automatically.'),
-                                    Select::make('OLLAMA_MODEL_CHAT')
-                                        ->label('Chat Model')
                                         ->options(fn ($livewire) => $livewire->getOllamaModelOptionsWithFallback([
                                             'llama3.1:8b',
                                             'llama3.1:70b',
@@ -158,34 +145,12 @@ class SettingsFormSchema
                                         ->columnSpanFull(),
                                 ]),
                         ]),
-                    Tab::make('AI Settings')
-                        ->icon('heroicon-o-sparkles')
+                    Tab::make('Ollama Settings')
+                        ->icon('heroicon-o-cpu-chip')
                         ->schema([
-                            Section::make('AI Provider')
-                                ->icon('heroicon-o-rocket-launch')
-                                ->description('Choose between local Ollama or cloud-based OpenAI services.')
-                                ->columns(['md' => 2, 'xl' => 2])
-                                ->schema([
-                                    Select::make('AI_PROVIDER')
-                                        ->label('AI Provider')
-                                        ->options([
-                                            'ollama' => 'Ollama (Local)',
-                                            'openai' => 'OpenAI (Cloud)',
-                                        ])
-                                        ->required()
-                                        ->reactive()
-                                        ->hint('Select your AI service provider'),
-                                    TextInput::make('OPENAI_API_KEY')
-                                        ->label('OpenAI API Key')
-                                        ->password()
-                                        ->placeholder('sk-...')
-                                        ->visible(fn (Closure $get) => $get('AI_PROVIDER') === 'openai')
-                                        ->columnSpanFull(),
-                                ]),
                             Section::make('Ollama Management')
                                 ->icon('heroicon-o-server-stack')
                                 ->description('Manage local Ollama models and GPU settings.')
-                                ->visible(fn ($get) => $get('AI_PROVIDER') === 'ollama')
                                 ->columns(['md' => 1, 'xl' => 1])
                                 ->schema([
                                     ViewField::make('ollama_status')
@@ -202,7 +167,6 @@ class SettingsFormSchema
                             Section::make('GPU Settings')
                                 ->icon('heroicon-o-adjustments-horizontal')
                                 ->description('Configure GPU acceleration for Ollama models.')
-                                ->visible(fn ($get) => $get('AI_PROVIDER') === 'ollama')
                                 ->columns(['md' => 3, 'xl' => 3])
                                 ->schema([
                                     TextInput::make('OLLAMA_GPU_MEMORY')

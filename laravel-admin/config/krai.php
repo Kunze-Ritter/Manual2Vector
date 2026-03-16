@@ -33,106 +33,106 @@ return [
             'description' => 'Dokument hochladen und validieren',
             'icon' => 'heroicon-o-arrow-up-tray',
             'group' => 'initialization',
-            'order' => 1
+            'order' => 1,
         ],
         'text_extraction' => [
             'label' => 'Text-Extraktion',
             'description' => 'Text aus PDF extrahieren',
             'icon' => 'heroicon-o-document-text',
             'group' => 'extraction',
-            'order' => 2
+            'order' => 2,
         ],
         'table_extraction' => [
             'label' => 'Tabellen-Extraktion',
             'description' => 'Tabellen strukturiert extrahieren',
             'icon' => 'heroicon-o-table-cells',
             'group' => 'extraction',
-            'order' => 3
+            'order' => 3,
         ],
         'svg_processing' => [
             'label' => 'SVG-Verarbeitung',
             'description' => 'Vektorgrafiken zu PNG konvertieren',
             'icon' => 'heroicon-o-photo',
             'group' => 'extraction',
-            'order' => 4
+            'order' => 4,
         ],
         'image_processing' => [
             'label' => 'Bild-Verarbeitung',
             'description' => 'Bilder extrahieren und verarbeiten',
             'icon' => 'heroicon-o-photo',
             'group' => 'extraction',
-            'order' => 5
+            'order' => 5,
         ],
         'visual_embedding' => [
             'label' => 'Visuelle Embeddings',
             'description' => 'Bild-Embeddings generieren',
             'icon' => 'heroicon-o-cube',
             'group' => 'enrichment',
-            'order' => 6
+            'order' => 6,
         ],
         'link_extraction' => [
             'label' => 'Link-Extraktion',
             'description' => 'URLs und Referenzen extrahieren',
             'icon' => 'heroicon-o-link',
             'group' => 'extraction',
-            'order' => 7
+            'order' => 7,
         ],
         'chunk_prep' => [
             'label' => 'Chunk-Vorbereitung',
             'description' => 'Text in Chunks aufteilen',
             'icon' => 'heroicon-o-squares-2x2',
             'group' => 'processing',
-            'order' => 8
+            'order' => 8,
         ],
         'classification' => [
             'label' => 'Klassifizierung',
             'description' => 'Dokumenttyp und Hersteller erkennen',
             'icon' => 'heroicon-o-tag',
             'group' => 'processing',
-            'order' => 9
+            'order' => 9,
         ],
         'metadata_extraction' => [
             'label' => 'Metadaten-Extraktion',
             'description' => 'Fehlercodes und Metadaten extrahieren',
             'icon' => 'heroicon-o-information-circle',
             'group' => 'processing',
-            'order' => 10
+            'order' => 10,
         ],
         'parts_extraction' => [
             'label' => 'Ersatzteil-Extraktion',
             'description' => 'Ersatzteile und Artikelnummern extrahieren',
             'icon' => 'heroicon-o-wrench-screwdriver',
             'group' => 'processing',
-            'order' => 11
+            'order' => 11,
         ],
         'series_detection' => [
             'label' => 'Serien-Erkennung',
             'description' => 'Produktserien erkennen',
             'icon' => 'heroicon-o-rectangle-stack',
             'group' => 'processing',
-            'order' => 12
+            'order' => 12,
         ],
         'storage' => [
             'label' => 'Speicherung',
             'description' => 'Daten in Object Storage speichern',
             'icon' => 'heroicon-o-cloud-arrow-up',
             'group' => 'finalization',
-            'order' => 13
+            'order' => 13,
         ],
         'embedding' => [
             'label' => 'Text-Embeddings',
             'description' => 'Text-Embeddings generieren',
             'icon' => 'heroicon-o-cube-transparent',
             'group' => 'enrichment',
-            'order' => 14
+            'order' => 14,
         ],
         'search_indexing' => [
             'label' => 'Such-Indexierung',
             'description' => 'Suchindex aktualisieren',
             'icon' => 'heroicon-o-magnifying-glass',
             'group' => 'finalization',
-            'order' => 15
-        ]
+            'order' => 15,
+        ],
     ],
 
     /*
@@ -147,10 +147,10 @@ return [
 
     'stage_groups' => [
         'initialization',
-        'extraction', 
+        'extraction',
         'processing',
         'enrichment',
-        'finalization'
+        'finalization',
     ],
 
     /*
@@ -177,7 +177,7 @@ return [
         'series_detection',
         'storage',
         'embedding',
-        'search_indexing'
+        'search_indexing',
     ],
 
     /*
@@ -209,22 +209,6 @@ return [
             'metrics' => env('MONITORING_METRICS_POLLING_INTERVAL', 60),
             'performance' => env('MONITORING_PERFORMANCE_POLLING_INTERVAL', 60),
             'pipeline' => env('MONITORING_PIPELINE_POLLING_INTERVAL', 15),
-        ],
-    ],
-
-    'ai_agent' => [
-        'base_url' => env('AI_AGENT_URL', 'http://krai-engine:8000/agent'),
-        'timeout' => [
-            'chat' => env('AI_AGENT_TIMEOUT_CHAT', 60),
-            'stream' => env('AI_AGENT_TIMEOUT_STREAM', 120),
-            'health' => env('AI_AGENT_TIMEOUT_HEALTH', 5),
-        ],
-        'cache_ttl' => [
-            'session_history' => env('AI_AGENT_CACHE_SESSION_TTL', 3600),
-        ],
-        'session' => [
-            'max_history_length' => env('AI_AGENT_MAX_HISTORY', 50),
-            'default_session_prefix' => 'krai_chat_',
         ],
     ],
 
@@ -297,7 +281,7 @@ return [
 |
 */
 
-if (!function_exists('krai_stages')) {
+if (! function_exists('krai_stages')) {
     /**
      * Get all KRAI stages
      */
@@ -307,7 +291,7 @@ if (!function_exists('krai_stages')) {
     }
 }
 
-if (!function_exists('krai_stage_label')) {
+if (! function_exists('krai_stage_label')) {
     /**
      * Get the German label for a stage
      */
@@ -317,7 +301,7 @@ if (!function_exists('krai_stage_label')) {
     }
 }
 
-if (!function_exists('krai_stage_icon')) {
+if (! function_exists('krai_stage_icon')) {
     /**
      * Get the icon for a stage
      */
@@ -327,7 +311,7 @@ if (!function_exists('krai_stage_icon')) {
     }
 }
 
-if (!function_exists('krai_stage_group')) {
+if (! function_exists('krai_stage_group')) {
     /**
      * Get the group for a stage
      */
@@ -337,7 +321,7 @@ if (!function_exists('krai_stage_group')) {
     }
 }
 
-if (!function_exists('krai_stages_by_group')) {
+if (! function_exists('krai_stages_by_group')) {
     /**
      * Get stages grouped by their group
      */
@@ -345,17 +329,17 @@ if (!function_exists('krai_stages_by_group')) {
     {
         $stages = krai_stages();
         $groups = [];
-        
+
         foreach ($stages as $key => $stage) {
             $group = $stage['group'];
             $groups[$group][$key] = $stage;
         }
-        
+
         return $groups;
     }
 }
 
-if (!function_exists('krai_stage_options')) {
+if (! function_exists('krai_stage_options')) {
     /**
      * Get stages formatted for form select options
      */
@@ -363,11 +347,11 @@ if (!function_exists('krai_stage_options')) {
     {
         $stages = krai_stages();
         $options = [];
-        
+
         foreach ($stages as $key => $stage) {
             $options[$key] = $stage['label'];
         }
-        
+
         return $options;
     }
 }

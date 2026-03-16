@@ -5,7 +5,6 @@ namespace App\Providers;
 use App\Services\FirecrawlService;
 use App\Services\KraiEngineService;
 use App\Services\MonitoringService;
-use App\Services\AiAgentService;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\ServiceProvider;
 
@@ -46,14 +45,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(FirecrawlService::class, function ($app) {
-            return new FirecrawlService();
-        });
-
-        $this->app->singleton(AiAgentService::class, function ($app) {
-            return new AiAgentService(
-                config('krai.ai_agent.base_url'),
-                config('krai.service_jwt')
-            );
+            return new FirecrawlService;
         });
     }
 

@@ -10,7 +10,7 @@ Uses pattern matching and AI for intelligent extraction.
 from typing import Any, Dict, List
 from pathlib import Path
 
-from backend.core.base_processor import BaseProcessor, Stage, ProcessingError
+from backend.core.base_processor import BaseProcessor, Stage, ProcessingError, ProcessingContext, ProcessingResult
 from backend.core.data_models import ErrorCodeModel
 from .error_code_extractor import ErrorCodeExtractor
 from .version_extractor import VersionExtractor
@@ -45,7 +45,7 @@ class MetadataProcessorAI(BaseProcessor):
         
         self.logger.info("MetadataProcessorAI initialized")
     
-    async def process(self, context) -> Any:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """
         Process metadata extraction
         
@@ -230,11 +230,12 @@ class MetadataProcessorAI(BaseProcessor):
                         document_id=str(document_id),
                         error_code=str(code_value),
                         error_description=getattr(error_code, 'error_description', None) or 'No description available',
-                        solution_text=getattr(error_code, 'solution_text', None) or 'Refer to service manual',
+                        solution_customer_text=getattr(error_code, 'solution_customer_text', None),
+                        solution_agent_text=getattr(error_code, 'solution_agent_text', None),
+                        solution_technician_text=getattr(error_code, 'solution_technician_text', None),
                         page_number=int(page_num),
                         confidence_score=float(getattr(error_code, 'confidence', 0) or 0),
                         extraction_method=getattr(error_code, 'extraction_method', None) or 'pattern',
-                        requires_technician=bool(getattr(error_code, 'requires_technician', False)),
                         requires_parts=bool(getattr(error_code, 'requires_parts', False)),
                         severity_level=str(getattr(error_code, 'severity_level', None) or 'low'),
                         parent_code=getattr(error_code, 'parent_code', None),
@@ -247,11 +248,12 @@ class MetadataProcessorAI(BaseProcessor):
                         'document_id': str(document_id),
                         'error_code': code_value,
                         'error_description': getattr(error_code, 'error_description', None),
-                        'solution_text': getattr(error_code, 'solution_text', None),
+                        'solution_customer_text': getattr(error_code, 'solution_customer_text', None),
+                        'solution_agent_text': getattr(error_code, 'solution_agent_text', None),
+                        'solution_technician_text': getattr(error_code, 'solution_technician_text', None),
                         'page_number': page_num,
                         'confidence_score': getattr(error_code, 'confidence', None),
                         'extraction_method': getattr(error_code, 'extraction_method', None),
-                        'requires_technician': getattr(error_code, 'requires_technician', False),
                         'requires_parts': getattr(error_code, 'requires_parts', False),
                         'severity_level': getattr(error_code, 'severity_level', None),
                         'chunk_id': getattr(error_code, 'chunk_id', None),
@@ -294,12 +296,8 @@ class MetadataProcessorAI(BaseProcessor):
         except Exception as e:
             adapter.warning("Failed to update document version: %s", e)
 
-    def _create_result(self, success: bool, message: str, data: Dict):
-        """Create a processing result object using BaseProcessor helpers.
-
-        Returns a ProcessingResult compatible with BaseProcessor.safe_process
-        and logging helpers instead of a custom ad-hoc result type.
-        """
+    def _create_result(self, success: bool, message: str, data: Dict) -> ProcessingResult:
+        """Create a processing result object using BaseProcessor helpers."""
 
         if success:
             # Attach human-readable message to metadata for downstream logging.

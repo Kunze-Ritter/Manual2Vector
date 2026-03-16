@@ -24,6 +24,7 @@ from services.database_adapter import DatabaseAdapter
 from services.database_factory import create_database_adapter
 from services.ai_service import AIService
 from services.multimodal_search_service import MultimodalSearchService
+from api.middleware.auth_middleware import require_permission
 
 # Create router
 router = APIRouter(prefix="/search", tags=["search"])
@@ -62,7 +63,8 @@ def get_multimodal_search_service(
 async def semantic_search(
     request: SearchRequest,
     database_service: DatabaseAdapter = Depends(get_database_service),
-    ai_service: AIService = Depends(get_ai_service)
+    ai_service: AIService = Depends(get_ai_service),
+    current_user: dict = Depends(require_permission("search:read")),
 ):
     """
     Semantic search across documents
@@ -108,7 +110,8 @@ async def semantic_search(
 async def search_suggestions(
     query: str = Query(..., min_length=2),
     limit: int = Query(10, ge=1, le=20),
-    database_service: DatabaseAdapter = Depends(get_database_service)
+    database_service: DatabaseAdapter = Depends(get_database_service),
+    current_user: dict = Depends(require_permission("search:read")),
 ):
     """
     Get search suggestions based on partial query
@@ -132,7 +135,8 @@ async def search_suggestions(
 @router.post("/multimodal", response_model=MultimodalSearchResponse)
 async def multimodal_search(
     request: MultimodalSearchRequest,
-    search_service: MultimodalSearchService = Depends(get_multimodal_search_service)
+    search_service: MultimodalSearchService = Depends(get_multimodal_search_service),
+    current_user: dict = Depends(require_permission("search:read")),
 ):
     """
     Multimodal search across all content types
@@ -176,7 +180,8 @@ async def multimodal_search(
 @router.post("/two-stage", response_model=TwoStageSearchResponse)
 async def two_stage_search(
     request: TwoStageSearchRequest,
-    search_service: MultimodalSearchService = Depends(get_multimodal_search_service)
+    search_service: MultimodalSearchService = Depends(get_multimodal_search_service),
+    current_user: dict = Depends(require_permission("search:read")),
 ):
     """
     Two-stage search with initial retrieval and reranking
@@ -222,7 +227,8 @@ async def two_stage_search(
 @router.post("/images/context")
 async def search_images_by_context(
     request: ImageContextSearchRequest,
-    search_service: MultimodalSearchService = Depends(get_multimodal_search_service)
+    search_service: MultimodalSearchService = Depends(get_multimodal_search_service),
+    current_user: dict = Depends(require_permission("search:read")),
 ):
     """
     Context-aware image search
@@ -266,7 +272,8 @@ async def search_error_codes(
     query: str = Query(..., min_length=2),
     manufacturer: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=50),
-    database_service: DatabaseAdapter = Depends(get_database_service)
+    database_service: DatabaseAdapter = Depends(get_database_service),
+    current_user: dict = Depends(require_permission("search:read")),
 ):
     """
     Search error codes with optional manufacturer filter
@@ -303,7 +310,8 @@ async def vector_similarity_search(
     vector: List[float],
     limit: int = Query(10, ge=1, le=100),
     threshold: float = Query(0.5, ge=0.0, le=1.0),
-    database_service: DatabaseAdapter = Depends(get_database_service)
+    database_service: DatabaseAdapter = Depends(get_database_service),
+    current_user: dict = Depends(require_permission("search:read")),
 ):
     """
     Search using raw vector similarity

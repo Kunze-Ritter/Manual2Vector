@@ -5,7 +5,12 @@
             "args": [
                 "artisan",
                 "boost:mcp"
-            ]
+            ],
+            "env": {
+                "CACHE_STORE": "file",
+                "QUEUE_CONNECTION": "sync",
+                "SESSION_DRIVER": "file"
+            }
         }
     }
 }

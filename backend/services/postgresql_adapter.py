@@ -35,6 +35,10 @@ class PostgreSQLAdapter(DatabaseAdapter):
     Uses schema prefix for multi-tenant support (e.g., krai_core, krai_content).
     """
     
+    # Regex patterns for placeholder conversion
+    _NAMED_PARAM_RE = re.compile(r"(?<!:):(?!:)([a-zA-Z0-9_]+)")
+    _POSITIONAL_PARAM_RE = re.compile(r"%s")
+
     def __init__(self, postgres_url: str, schema_prefix: str = "krai"):
         """Initialize PostgreSQL adapter with connection string."""
         super().__init__()
@@ -45,6 +49,9 @@ class PostgreSQLAdapter(DatabaseAdapter):
         self.postgres_url = postgres_url
         self.schema_prefix = schema_prefix
         self.pg_pool: Optional[asyncpg.Pool] = None
+        
+        # Query cache: original_query -> (formatted_query, param_names_or_is_positional)
+        self._query_cache: Dict[str, Tuple[str, Any]] = {}
         
         # Schema names
         self._core_schema = f"{schema_prefix}_core"
@@ -88,39 +95,66 @@ class PostgreSQLAdapter(DatabaseAdapter):
             values = list(params)
             # Convert psycopg %s placeholders to $1, $2, ...
             if "%s" in query:
-                placeholder_pattern = re.compile(r"%s")
-                index = 0
+                # Check cache
+                if query in self._query_cache:
+                    cached_query, cache_data = self._query_cache[query]
+                    if cache_data is True:  # True indicates positional mapping
+                        return cached_query, values
 
+                index = 0
                 def repl(_):
                     nonlocal index
                     index += 1
                     return f"${index}"
 
-                query = placeholder_pattern.sub(repl, query)
+                formatted_query = self._POSITIONAL_PARAM_RE.sub(repl, query)
+                # Store in cache
+                if len(self._query_cache) < 1000:
+                    self._query_cache[query] = (formatted_query, True)
+                return formatted_query, values
+            
             return query, values
 
         # Handle single scalar parameter
         if not isinstance(params, dict):
             return query, [params]
 
+        # Handle named parameters (dict)
+        # Check cache
+        if query in self._query_cache:
+            formatted_query, param_names = self._query_cache[query]
+            if isinstance(param_names, list):
+                try:
+                    return formatted_query, [params[name] for name in param_names]
+                except KeyError:
+                    # In case params changed keys for same query, re-prepare
+                    pass
+
         # Named parameters (ignore PostgreSQL type casts like '::text', '::uuid')
         # We only treat a single ':' followed by an identifier as a parameter,
         # not a double-colon type cast.
-        pattern = re.compile(r"(?<!:):(?!:)([a-zA-Z0-9_]+)")
-        values: List[Any] = []
+        param_names: List[str] = []
         index_map: Dict[str, int] = {}
+        values: List[Any] = []
 
         def replace(match: re.Match) -> str:
             name = match.group(1)
             if name not in params:
                 raise KeyError(f"Parameter '{name}' not provided for query")
             if name not in index_map:
-                index_map[name] = len(values) + 1
+                index_map[name] = len(param_names) + 1
+                param_names.append(name)
                 values.append(params[name])
             return f"${index_map[name]}"
 
-        query = pattern.sub(replace, query)
-        return query, values
+        formatted_query = self._NAMED_PARAM_RE.sub(replace, query)
+        
+        # Store in cache
+        if len(self._query_cache) >= 1000:
+            self._query_cache.clear()
+        self._query_cache[query] = (formatted_query, param_names)
+        
+        return formatted_query, values
 
     async def fetch_one(self, query: str, params: Optional[Any] = None):
         """Execute query and return a single row."""
@@ -1975,7 +2009,17 @@ class PostgreSQLAdapter(DatabaseAdapter):
             self.logger.error(f"Failed to check if stage can start: {e}")
             return False
     
-    async def get_stage_status(self, document_id: str, stage: str) -> Dict[str, Any]:
+    async def release_all_locks(self) -> bool:
+        """Release all advisory locks held by the current session."""
+        try:
+            await self.execute_query("SELECT pg_advisory_unlock_all()")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to release advisory locks: {e}")
+            return False
+
+    async def get_stage_status(self, document_id: str, stage_name: str) -> Dict[str, Any]:
+
         """Get status for a specific stage (from document stage_status JSON; no dedicated RPC)."""
         try:
             row = await self.fetch_one(

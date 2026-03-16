@@ -60,7 +60,7 @@ class UploadProcessor(BaseProcessor):
         # Stage tracking with database adapter
         self.stage_tracker = StageTracker(database_adapter) if database_adapter else None
     
-    async def process(self, context) -> ProcessingResult:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """Async entrypoint used by the pipeline framework.
 
         Wraps the synchronous ``process_upload`` helper and returns a

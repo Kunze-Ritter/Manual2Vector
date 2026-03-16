@@ -4,12 +4,76 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import json
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage, ProcessingContext, ProcessingResult, ProcessingError
+
+
+def _to_jpeg(content_bytes: bytes, quality: int = 85) -> tuple[bytes, str]:
+    """Convert image bytes to JPEG with a white background.
+
+    Raster images (PNG/GIF/etc.) are already converted to JPEG by ImageProcessor
+    at extraction time, so this function now only handles SVGs from SVGProcessor.
+    Already-JPEG and unrecognised formats are returned unchanged.
+
+    Returns (jpeg_bytes, new_filename_extension) where extension is '.jpg'
+    on success or '' when the content was unchanged.
+    """
+    try:
+        is_jpeg = content_bytes[:2] == b'\xff\xd8'
+        if is_jpeg:
+            return content_bytes, ''
+
+        is_svg = content_bytes.lstrip()[:5].lower().startswith(b'<svg') or content_bytes[:4] == b'\xef\xbb\xbf'
+        if is_svg:
+            # Rasterise SVG → JPEG using svglib + reportlab
+            try:
+                import tempfile
+                from svglib.svglib import svg2rlg
+                from reportlab.graphics import renderPM
+
+                with tempfile.NamedTemporaryFile(suffix='.svg', delete=False) as tf:
+                    tf.write(content_bytes)
+                    tmp_path = tf.name
+                try:
+                    drawing = svg2rlg(tmp_path)
+                finally:
+                    os.unlink(tmp_path)
+
+                if drawing and drawing.width > 0 and drawing.height > 0:
+                    buf = io.BytesIO()
+                    renderPM.drawToFile(drawing, buf, fmt='JPEG', bg=0xFFFFFF, dpi=150)
+                    if buf.tell() > 0:
+                        return buf.getvalue(), '.jpg'
+            except Exception:
+                pass  # Fall through — return original SVG unchanged
+            return content_bytes, ''
+
+        # Fallback: try PIL for any unexpected raster format
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(content_bytes))
+            if img.mode in ('RGBA', 'LA', 'P'):
+                bg = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                bg.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                img = bg
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            buf = io.BytesIO()
+            img.save(buf, format='JPEG', quality=quality, optimize=True)
+            return buf.getvalue(), '.jpg'
+        except Exception:
+            pass
+
+        return content_bytes, ''
+    except Exception:
+        return content_bytes, ''
 
 
 class StorageProcessor(BaseProcessor):
@@ -27,24 +91,27 @@ class StorageProcessor(BaseProcessor):
         if not self.storage_service:
             self.logger.warning("StorageProcessor initialized without object storage service")
 
-    async def process(self, context) -> Any:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """Store pending artifacts for the given document."""
         document_id = getattr(context, "document_id", None)
         if not document_id:
             raise ValueError("Processing context must include 'document_id'")
 
         with self.logger_context(document_id=document_id, stage=self.stage) as adapter:
-            images = getattr(context, 'images', None) or []
-            if images:
-                stored = await self._store_images_from_context(context, adapter)
-                return self._create_result(
-                    success=True,
-                    message="Storage stage completed",
-                    data={"saved_items": stored, "errors": []},
-                )
+            try:
+                images = getattr(context, 'images', None) or []
+                if images:
+                    stored = await self._store_images_from_context(context, adapter)
+                    return self._create_result(
+                        success=True,
+                        message="Storage stage completed",
+                        data={"saved_items": stored, "errors": []},
+                    )
 
-            adapter.info("No pending artifacts to store")
-            return self._create_result(True, "No pending artifacts", {"saved_items": 0})
+                adapter.info("No pending artifacts to store")
+                return self._create_result(True, "No pending artifacts", {"saved_items": 0})
+            except Exception as exc:
+                return self._create_result(False, f"Storage stage failed: {exc}", {})
 
     async def _store_images_from_context(self, context, adapter) -> int:
         if not self.storage_service:
@@ -76,6 +143,20 @@ class StorageProcessor(BaseProcessor):
                 content_bytes = fp.read()
 
             original_filename = image.get('filename') or path_obj.name
+
+            # Convert PNG/GIF/RGBA images to JPEG with white background so they
+            # render correctly in dark-mode UIs.
+            jpeg_bytes, new_ext = _to_jpeg(content_bytes)
+            if new_ext:
+                content_bytes = jpeg_bytes
+                stem = Path(original_filename).stem
+                original_filename = stem + new_ext
+                image['filename'] = original_filename
+                image['format'] = 'jpeg'
+                metadata_format = 'jpeg'
+            else:
+                metadata_format = image.get('format')
+
             metadata = {
                 'document_id': document_id,
                 'image_id': str(image_id),
@@ -83,7 +164,7 @@ class StorageProcessor(BaseProcessor):
                 'image_index': int(image.get('image_index') or index),
                 'width': image.get('width'),
                 'height': image.get('height'),
-                'format': image.get('format'),
+                'format': metadata_format,
                 'extracted_at': image.get('extracted_at'),
             }
 
@@ -224,10 +305,10 @@ class StorageProcessor(BaseProcessor):
 
         return stored
 
-    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
-        return {
-            "success": success,
-            "data": data or {},
-            "metadata": {"message": message},
-            "error": None if success else message,
-        }
+    def _create_result(self, success: bool, message: str, data: Dict) -> ProcessingResult:
+        """Create a processing result object using BaseProcessor helpers"""
+        if success:
+            return self.create_success_result(data=data, metadata={'message': message})
+        else:
+            error = ProcessingError(message, self.name, "STORAGE_ERROR")
+            return self.create_error_result(error=error, metadata={})

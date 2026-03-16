@@ -70,8 +70,16 @@ class ContextExtractionService:
             re.compile(r'Abbildung\s+\d+\.?\d*', re.IGNORECASE),
         ]
         
-        # Error code pattern (XX.XX.XX format)
-        self.error_code_pattern = re.compile(r'\d{2}\.\d{2}\.\d{2}')
+        # Error code patterns — ordered from most specific to least specific
+        # HP: XX.XX.XX with alphanumeric segments (e.g. 10.03.12, 53.A0.10, 50.FF.02)
+        # Konica Minolta/Ricoh: C-NNNN or SC-NNN
+        # Generic: XX.XX.XX all-numeric
+        self.error_code_patterns = [
+            re.compile(r'\b[0-9A-Fa-f]{2}\.[0-9A-Fa-fXx]{2}\.[0-9A-Fa-fXx]{2}\b'),  # HP alphanumeric
+            re.compile(r'\b[A-Z]{1,2}-?\d{3,5}\b'),  # Konica Minolta (C-2801), Ricoh (SC542)
+        ]
+        # Keep single pattern alias for backward-compat callers
+        self.error_code_pattern = self.error_code_patterns[0]
         
         # Product patterns (from chunker.py lines 438-444)
         self.product_patterns = [
@@ -404,9 +412,11 @@ class ContextExtractionService:
         """
         if not text:
             return []
-        
-        matches = self.error_code_pattern.findall(text)
-        return list(set(matches))  # Remove duplicates
+
+        matches: List[str] = []
+        for pattern in self.error_code_patterns:
+            matches.extend(pattern.findall(text))
+        return list(set(matches))
     
     def _extract_products(self, text: str) -> List[str]:
         """

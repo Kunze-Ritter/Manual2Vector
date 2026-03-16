@@ -8,113 +8,119 @@ We only want the technician-level solution
 
 import re
 import logging
-from typing import Optional
+from typing import Optional, Dict
 
 logger = logging.getLogger(__name__)
+
+# Section header patterns for each level (case-insensitive, flexible spacing)
+_CUSTOMER_HEADERS = [
+    r'Recommended\s+action\s+for\s+customers?\b',
+]
+_AGENT_HEADERS = [
+    r'Recommended\s+action\s+for\s+call[\-\s]center\s+agents?\b',
+    r'Recommended\s+action\s+for\s+call[\-\s]agents?\b',
+]
+_TECHNICIAN_HEADERS = [
+    r'Recommended\s+action\s+for\s+(?:onsite|on-site|service)\s+technicians?\b',
+    r'Service\s+technician\s+action\b',
+    r'Onsite\s+technician\b',
+]
+_COMBINED_AGENT_TECH_HEADERS = [
+    r'Recommended\s+action\s+for\s+call[\-\s](?:center\s+)?agents?(?:\s*,\s*|\s+and\s+)(?:and\s+)?(?:onsite\s+)?technicians?\b',
+]
+_GENERIC_HEADER = r'Recommended\s+action\b'
+_NEXT_CODE_STOP = re.compile(r'\n\d{2,3}\.\d{2}[\.\d]*\s+\S', re.MULTILINE)
+
+
+def _find_section(text: str, header_patterns: list) -> Optional[str]:
+    """Find the first matching section header and return text until next section."""
+    flags = re.IGNORECASE | re.DOTALL
+    for pat in header_patterns:
+        m = re.search(pat, text, flags)
+        if not m:
+            continue
+        start = m.end()
+        # Require section stopper to begin on its own line to avoid matching
+        # e.g. "onsite technicians" inside "agents and onsite technicians".
+        next_section = re.search(
+            r'(?:^|\n)\s*(?:Recommended\s+action|Service\s+technician\s+action|Onsite\s+technician)',
+            text[start:], re.IGNORECASE | re.MULTILINE,
+        )
+        stop = next_section.start() if next_section else len(text[start:])
+        code_stop = _NEXT_CODE_STOP.search(text[start: start + stop])
+        if code_stop:
+            stop = min(stop, code_stop.start())
+        return text[start: start + stop].strip()
+    return None
+
+
+def extract_all_hp_levels(text: str) -> Dict[str, Optional[str]]:
+    """
+    Extract all three solution levels from an HP chunk/solution text.
+
+    Returns a dict with keys:
+        - 'customer'    : solution_customer_text  (Level 1 — basic steps)
+        - 'agent'       : solution_agent_text      (Level 2 — call-center)
+        - 'technician'  : solution_technician_text (Level 3 — on-site preferred)
+
+    For non-HP or single-level text all keys except 'technician' will be None.
+    """
+    result: Dict[str, Optional[str]] = {'customer': None, 'agent': None, 'technician': None}
+    if not text:
+        return result
+
+    # Check for combined "agents and technicians" header FIRST to avoid
+    # partial matches of _AGENT_HEADERS, which stops at word boundary "agents"
+    # and leaves " and onsite technicians" as a confusing prefix.
+    combined = _find_section(text, _COMBINED_AGENT_TECH_HEADERS)
+    if combined:
+        agent_text = technician_text = combined
+        customer_text = _find_section(text, _CUSTOMER_HEADERS)
+    else:
+        customer_text   = _find_section(text, _CUSTOMER_HEADERS)
+        agent_text      = _find_section(text, _AGENT_HEADERS)
+        technician_text = _find_section(text, _TECHNICIAN_HEADERS)
+
+    if customer_text or agent_text or technician_text:
+        result['customer']   = _clean_solution_text(customer_text)   if customer_text   else None
+        result['agent']      = _clean_solution_text(agent_text)      if agent_text      else None
+        result['technician'] = _clean_solution_text(technician_text) if technician_text else None
+        return result
+
+    # No level headers — try generic "Recommended action"
+    generic = _find_section(text, [_GENERIC_HEADER])
+    if generic:
+        result['technician'] = _clean_solution_text(generic)
+        return result
+
+    # Last fallback: full text as technician level
+    result['technician'] = _clean_solution_text(text)
+    return result
 
 
 def extract_hp_technician_solution(solution_text: str) -> str:
     """
-    Extract only technician-specific solution from HP error codes
-    
-    HP Format:
-    - Recommended action for customers: (basic troubleshooting)
-    - Recommended action for call-agents: (part replacement)
-    - Recommended action for onsite technicians: (detailed repair)
-    
-    Args:
-        solution_text: Full solution text with all 3 sections
-        
-    Returns:
-        Technician-only solution or original text if not HP format
+    Backward-compatible wrapper — extract only the technician-level solution.
+    Prefer extract_all_hp_levels() for new code.
     """
-    
-    # Pattern to extract technician section
-    technician_patterns = [
-        # "Recommended action for onsite technicians:"
-        r'Recommended\s+action\s+for\s+(?:onsite|service)\s+technicians?\s*[:]\s*'
-        r'(.*?)'
-        r'(?=Recommended\s+action|^\d+\.\d+\s+[A-Z]|\Z)',
-        
-        # "Service technician action:"
-        r'Service\s+technician\s+action\s*[:]\s*'
-        r'(.*?)'
-        r'(?=Customer\s+action|Call\s+agent|^\d+\.\d+\s+[A-Z]|\Z)',
-        
-        # "Onsite technician:"
-        r'Onsite\s+technician\s*[:]\s*'
-        r'(.*?)'
-        r'(?=Customer|Call\s+agent|^\d+\.\d+\s+[A-Z]|\Z)',
-    ]
-    
-    for pattern in technician_patterns:
-        match = re.search(pattern, solution_text, re.IGNORECASE | re.DOTALL | re.MULTILINE)
-        if match:
-            technician_solution = match.group(1).strip()
-            logger.debug(f"✅ Extracted HP technician-specific solution ({len(technician_solution)} chars)")
-            
-            # Clean up the solution
-            cleaned = _clean_solution_text(technician_solution)
-            return cleaned
-    
-    # Not HP format or no technician section found
-    logger.debug("No HP technician section found, returning original solution")
-    return solution_text
+    levels = extract_all_hp_levels(solution_text)
+    return levels['technician'] or levels['agent'] or levels['customer'] or solution_text
 
 
-def _clean_solution_text(text: str) -> str:
+def _clean_solution_text(text: Optional[str]) -> Optional[str]:
     """
-    Clean up solution text
-    - Extract numbered steps
-    - Remove extra whitespace
-    - Limit to reasonable length
-    """
-    lines = text.split('\n')
-    filtered_lines = []
-    
-    for line in lines[:30]:  # Max 30 lines for detailed technician steps
-        line = line.strip()
-        
-        # Skip empty lines at start
-        if not filtered_lines and not line:
-            continue
-        
-        # Match steps: 1., 2., a), etc.
-        if re.match(r'^(?:\d+[\.\)]|[a-z][\.\)]|•|-|\*)\s+', line):
-            filtered_lines.append(line)
-        # Continuation of previous step
-        elif filtered_lines and len(line) > 20:
-            filtered_lines[-1] += ' ' + line
-        # Empty line between steps
-        elif filtered_lines and not line:
-            continue
-        # Stop at new section header
-        elif filtered_lines and re.match(r'^[A-Z][a-z]+\s+[A-Z]', line):
-            break
-    
-    if filtered_lines:
-        numbered_lines = []
-        step_counter = 1
-        for line in filtered_lines:
-            stripped = line.lstrip()
-            if re.match(r'^(\d+[\.\)]|[a-z][\.\)]|[-•*])\s+', stripped):
-                numbered_lines.append(stripped)
-                # Try to keep step counter in sync when explicit numbers exist
-                number_match = re.match(r'^(\d+)[\.\)]', stripped)
-                if number_match:
-                    try:
-                        step_counter = int(number_match.group(1)) + 1
-                    except ValueError:
-                        step_counter += 1
-                else:
-                    step_counter += 1
-            else:
-                numbered_lines.append(f"{step_counter}. {stripped}")
-                step_counter += 1
-        return '\n'.join(numbered_lines)
+    Clean up solution text: normalize whitespace and remove leading/trailing
+    blank lines.  Returns None if input is None or empty.
 
-    # Fallback: return first 1000 chars
-    return text[:1000].strip()
+    We deliberately do NOT truncate — the caller stores the full extracted
+    section so that the chat response can show every step and note that
+    appears in the service manual.
+    """
+    if not text or not text.strip():
+        return None
+    # Collapse runs of blank lines to a single blank line
+    cleaned = re.sub(r'\n{3,}', '\n\n', text)
+    return cleaned.strip()
 
 
 def is_hp_multi_level_format(text: str) -> bool:

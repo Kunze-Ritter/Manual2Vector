@@ -19,6 +19,7 @@ from pathlib import Path
 import os
 import secrets
 import sys
+import asyncio
 import logging
 import functools
 
@@ -57,8 +58,9 @@ from services.batch_task_service import BatchTaskService
 from services.transaction_manager import TransactionManager
 
 # Import API routers
-from api.agent_api import create_agent_api
+from api.agent_api import KRAIAgent, create_agent_api
 from api.routes import documents, products
+from api.routes.openai_compat import router as openai_compat_router
 from api.routes.error_codes import router as error_codes_router
 from api.routes.videos import router as videos_router
 from api.routes.images import router as images_router
@@ -417,6 +419,15 @@ alert_service: AlertService | None = None
 performance_collector: PerformanceCollector | None = None
 websocket_manager: websocket_api.WebSocketManager | None = None
 
+# Locks for async-safe singleton initialization
+_agent_app_lock = asyncio.Lock()
+_auth_service_lock = asyncio.Lock()
+_batch_task_service_lock = asyncio.Lock()
+_transaction_manager_lock = asyncio.Lock()
+_metrics_service_lock = asyncio.Lock()
+_alert_service_lock = asyncio.Lock()
+_performance_collector_lock = asyncio.Lock()
+
 
 # === AUTH SERVICE INITIALIZATION ===
 
@@ -424,8 +435,9 @@ async def ensure_auth_service() -> AuthService:
     """Ensure the singleton AuthService is available and registered."""
     global auth_service
     if auth_service is None:
-        # Use database pool for authentication
-        auth_service = await create_and_initialize_auth_service()
+        async with _auth_service_lock:
+            if auth_service is None:
+                auth_service = await create_and_initialize_auth_service()
     return auth_service
 
 
@@ -454,28 +466,32 @@ async def get_agent_app():
     """Get Agent API app"""
     global agent_app
     if agent_app is None:
-        pool = await get_pool()
-        agent_app = create_agent_api(pool)
+        async with _agent_app_lock:
+            if agent_app is None:
+                pool = await get_pool()
+                agent_app = create_agent_api(pool)
     return agent_app
 
 
 async def get_batch_task_service() -> BatchTaskService:
     """Return singleton BatchTaskService."""
-
     global batch_task_service
     if batch_task_service is None:
-        pool = await get_pool()
-        batch_task_service = BatchTaskService(pool)
+        async with _batch_task_service_lock:
+            if batch_task_service is None:
+                pool = await get_pool()
+                batch_task_service = BatchTaskService(pool)
     return batch_task_service
 
 
 async def get_transaction_manager() -> TransactionManager:
     """Return singleton TransactionManager."""
-
     global transaction_manager
     if transaction_manager is None:
-        pool = await get_pool()
-        transaction_manager = TransactionManager(pool)
+        async with _transaction_manager_lock:
+            if transaction_manager is None:
+                pool = await get_pool()
+                transaction_manager = TransactionManager(pool)
     return transaction_manager
 
 
@@ -483,11 +499,13 @@ async def get_metrics_service() -> MetricsService:
     """Return singleton MetricsService. Uses DatabaseAdapter for StageTracker and same connection source for metrics."""
     global metrics_service
     if metrics_service is None:
-        adapter = create_database_adapter()
-        await adapter.connect()
-        stage_tracker = StageTracker(adapter)
-        pool = getattr(adapter, 'pg_pool', None) or await get_pool()
-        metrics_service = MetricsService(pool, stage_tracker)
+        async with _metrics_service_lock:
+            if metrics_service is None:
+                adapter = create_database_adapter()
+                await adapter.connect()
+                stage_tracker = StageTracker(adapter)
+                pool = getattr(adapter, 'pg_pool', None) or await get_pool()
+                metrics_service = MetricsService(pool, stage_tracker)
     return metrics_service
 
 
@@ -495,10 +513,12 @@ async def get_alert_service() -> AlertService:
     """Return singleton AlertService."""
     global alert_service
     if alert_service is None:
-        adapter = create_database_adapter()
-        await adapter.connect()
-        metrics_svc = await get_metrics_service()
-        alert_service = AlertService(adapter, metrics_svc)
+        async with _alert_service_lock:
+            if alert_service is None:
+                adapter = create_database_adapter()
+                await adapter.connect()
+                metrics_svc = await get_metrics_service()
+                alert_service = AlertService(adapter, metrics_svc)
     return alert_service
 
 
@@ -506,10 +526,9 @@ async def get_performance_collector() -> PerformanceCollector:
     """Return singleton PerformanceCollector."""
     global performance_collector
     if performance_collector is None:
-        # TODO: Replace with direct PostgreSQL connection
-        # adapter = await get_database_adapter()
-        # performance_collector = PerformanceCollector(adapter, logger)
-        performance_collector = PerformanceCollector(None, logger)  # Temporary fix
+        async with _performance_collector_lock:
+            if performance_collector is None:
+                performance_collector = PerformanceCollector(None, logger)  # Temporary fix
     return performance_collector
 
 
@@ -851,7 +870,9 @@ async def startup_events():
     logger.info("Batch services initialized with asyncpg pool")
     
     # Initialize Agent API router with the live pool
-    agent_router = create_agent_api(pool)
+    krai_agent = KRAIAgent(pool)
+    app.state.krai_agent = krai_agent          # shared with openai_compat router
+    agent_router = create_agent_api(pool, agent=krai_agent)
     app.include_router(agent_router)
     
     # Initialize monitoring services
@@ -1041,8 +1062,6 @@ async def get_pipeline_status(
 async def get_document_logs(
     document_id: str,
     current_user: dict = Depends(require_permission('monitoring:read'))
-    # TODO: Replace with direct PostgreSQL connection
-    # adapter: DatabaseAdapter = Depends(get_database_adapter)
 ):
     """
     Get processing logs for a document
@@ -1103,8 +1122,6 @@ async def get_stage_statistics(
 @app.get("/monitoring/system", tags=["Monitoring"])
 async def get_system_metrics(
     current_user: dict = Depends(require_permission('monitoring:read'))
-    # TODO: Replace with direct PostgreSQL connection
-    # adapter: DatabaseAdapter = Depends(get_database_adapter)
 ):
     """
     Get system performance metrics
@@ -1161,6 +1178,9 @@ app.include_router(pipeline_errors.router, prefix="/api/v1")
 # Mount Monitoring API
 from api import monitoring_api
 app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
+
+# OpenAI-compatible wrapper — used by OpenWebUI and other OpenAI clients
+app.include_router(openai_compat_router)
 
 # Mount WebSocket API
 app.include_router(websocket_api.router, tags=["WebSocket"])

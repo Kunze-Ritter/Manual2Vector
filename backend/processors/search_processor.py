@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 import time
 
-from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage, ProcessingContext, ProcessingResult, ProcessingError
 from .stage_tracker import StageTracker
 from .search_analytics import SearchAnalytics
 
@@ -31,7 +31,7 @@ class SearchProcessor(BaseProcessor):
         from .search_analytics import SearchAnalytics
         self.analytics = SearchAnalytics(database_adapter)
 
-    async def process(self, context) -> Any:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """Finalize search indexing for the provided processing context."""
         document_id = str(context.document_id)
 
@@ -129,10 +129,10 @@ class SearchProcessor(BaseProcessor):
             logger = adapter if adapter else self.logger
             logger.debug("Failed updating document search flags: %s", exc)
 
-    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
-        return {
-            "success": success,
-            "data": data or {},
-            "metadata": {"message": message},
-            "error": None if success else message,
-        }
+    def _create_result(self, success: bool, message: str, data: Dict) -> ProcessingResult:
+        """Create a processing result object using BaseProcessor helpers"""
+        if success:
+            return self.create_success_result(data=data, metadata={'message': message})
+        else:
+            error = ProcessingError(message, self.name, "SEARCH_INDEXING_ERROR")
+            return self.create_error_result(error=error, metadata={})

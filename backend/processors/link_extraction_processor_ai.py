@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
-from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage, ProcessingContext, ProcessingResult, ProcessingError
 from .link_extractor import LinkExtractor
 from .text_extractor import TextExtractor
 from backend.services.context_extraction_service import ContextExtractionService
@@ -86,7 +86,7 @@ class LinkExtractionProcessorAI(BaseProcessor):
         else:
             self.logger.info("LinkExtractionProcessorAI initialized")
 
-    async def process(self, context) -> Any:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """Extract links for the provided processing context."""
         file_path = Path(context.file_path)
         document_id = getattr(context, "document_id", None)
@@ -765,10 +765,10 @@ class LinkExtractionProcessorAI(BaseProcessor):
         adapter.info("Extracted context for %d videos", len(videos_with_context))
         return videos_with_context
 
-    def _create_result(self, success: bool, message: str, data: Dict) -> Dict[str, Any]:
-        return {
-            "success": success,
-            "data": data or {},
-            "metadata": {"message": message},
-            "error": None if success else message,
-        }
+    def _create_result(self, success: bool, message: str, data: Dict) -> ProcessingResult:
+        """Create a processing result object using BaseProcessor helpers"""
+        if success:
+            return self.create_success_result(data=data, metadata={'message': message})
+        else:
+            error = ProcessingError(message, self.name, "LINK_EXTRACTION_ERROR")
+            return self.create_error_result(error=error, metadata={})

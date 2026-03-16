@@ -43,7 +43,7 @@ from requests import exceptions as requests_exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.base_processor import BaseProcessor, Stage, ProcessingContext, ProcessingResult
 from backend.pipeline.metrics import metrics
 from backend.processors.logger import sanitize_document_name, text_stats
 from backend.services.context_extraction_service import ContextExtractionService
@@ -56,6 +56,37 @@ from .image_config import (
     calculate_latency_percentiles,
     check_tesseract_availability,
 )
+
+
+def _raster_to_jpeg(image_bytes: bytes, original_ext: str, quality: int = 85) -> tuple[bytes, str]:
+    """Convert raster image bytes to JPEG with a white background.
+
+    JPEG images are returned unchanged. Unrecognised formats are also returned
+    unchanged (with the original extension) so the pipeline can still store them.
+    """
+    is_jpeg = image_bytes[:2] == b'\xff\xd8'
+    if is_jpeg:
+        return image_bytes, "jpg"
+
+    is_raster = image_bytes[:4] in (b'\x89PNG', b'GIF8', b'RIFF') or original_ext.lower() in ("png", "gif", "webp", "bmp", "tiff", "tif")
+    if not is_raster:
+        return image_bytes, original_ext
+
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode in ('RGBA', 'LA', 'P'):
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=quality, optimize=True)
+        return buf.getvalue(), "jpg"
+    except Exception:
+        return image_bytes, original_ext
 
 
 class ImageProcessor(BaseProcessor):
@@ -386,7 +417,7 @@ class ImageProcessor(BaseProcessor):
             self.logger.warning(f"Vision AI check failed: {e}")
             return False
 
-    async def process(self, context) -> dict[str, Any]:
+    async def process(self, context: ProcessingContext) -> ProcessingResult:
         """Async pipeline entrypoint wrapping `process_document`."""
         if not hasattr(context, "document_id") or not hasattr(context, "file_path"):
             raise ValueError("Processing context must include 'document_id' and 'file_path'")
@@ -395,7 +426,6 @@ class ImageProcessor(BaseProcessor):
         pdf_path = Path(context.file_path)
         output_dir = getattr(context, "output_dir", None)
 
-        loop = asyncio.get_running_loop()
         manufacturer = getattr(context, "manufacturer", None) or getattr(context, "processing_config", {}).get(
             "manufacturer"
         )
@@ -407,22 +437,34 @@ class ImageProcessor(BaseProcessor):
             stage=self.stage.value, manufacturer=manufacturer or "unknown", document_type=document_type or "unknown"
         ) as timer:
             try:
-                result = await self.process_document(
+                raw_result = await self.process_document(
                     document_id,
                     pdf_path,
                     output_dir,
                     context=context,
                 )
+                
+                if raw_result.get("success"):
+                    timer.stop(success=True)
+                    return self.create_success_result(
+                        data=raw_result, 
+                        metadata={
+                            "images_processed": raw_result.get("images_processed", 0),
+                            "total_extracted": raw_result.get("total_extracted", 0)
+                        }
+                    )
+                else:
+                    error_msg = str(raw_result.get("error", "Unknown error"))
+                    timer.stop(success=False, error_label=error_msg)
+                    from backend.core.base_processor import ProcessingError
+                    error = ProcessingError(error_msg, self.name, "IMAGE_PROCESSING_FAILED")
+                    return self.create_error_result(error=error, metadata={})
+                    
             except Exception as exc:
                 timer.stop(success=False, error_label=str(exc))
-                raise
-            else:
-                timer.stop(
-                    success=bool(result.get("success")),
-                    error_label=str(result.get("error")) if result.get("error") else None,
-                )
-
-        return result
+                from backend.core.base_processor import ProcessingError
+                error = ProcessingError(str(exc), self.name, "IMAGE_PROCESSING_EXCEPTION")
+                return self.create_error_result(error=error, metadata={})
 
     async def process_document(
         self,
@@ -612,6 +654,14 @@ class ImageProcessor(BaseProcessor):
 
                             image_bytes = base_image["image"]
                             image_ext = base_image["ext"]
+
+                            # Skip SVGs — they are handled by SVGProcessor
+                            if image_ext.lower() in ("svg", "svgz"):
+                                continue
+
+                            # Convert to JPEG with white background immediately so no
+                            # PNG/GIF files ever reach disk or storage.
+                            image_bytes, image_ext = _raster_to_jpeg(image_bytes, image_ext)
 
                             # Open with PIL to get dimensions
                             with Image.open(io.BytesIO(image_bytes)) as pil_image:

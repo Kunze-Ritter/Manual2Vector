@@ -215,11 +215,12 @@ class ErrorCodeModel(BaseModel):
     document_id: str
     error_code: str
     error_description: str = "No description available"
-    solution_text: str = "Refer to service manual"
+    solution_customer_text: Optional[str] = None    # Level 1: basic user steps
+    solution_agent_text: Optional[str] = None        # Level 2: call-center / 2nd level
+    solution_technician_text: Optional[str] = None   # Level 3: on-site technician (preferred)
     page_number: int
     confidence_score: float = 0.0
     extraction_method: str
-    requires_technician: bool = False
     requires_parts: bool = False
     estimated_fix_time_minutes: Optional[int] = None
     severity_level: str = "low"

@@ -2,10 +2,16 @@
     "mcpServers": {
         "laravel-boost": {
             "command": "php",
+            "cwd": "laravel-admin",
             "args": [
-                "laravel-admin/artisan",
+                "artisan",
                 "boost:mcp"
-            ]
+            ],
+            "env": {
+                "CACHE_STORE": "file",
+                "QUEUE_CONNECTION": "sync",
+                "SESSION_DRIVER": "file"
+            }
         }
     }
 }

@@ -18,11 +18,11 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, Union, List
 
 import asyncpg
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,7 @@ from langgraph.checkpoint.memory import MemorySaver
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from services.db_pool import get_pool
 from processors.env_loader import load_all_env_files
+from api.middleware.auth_middleware import require_permission
 
 project_root = Path(__file__).parent.parent.parent
 load_all_env_files(project_root)
@@ -50,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 class ChatMessage(BaseModel):
     """Chat message from user"""
-    message: str = Field(..., description="User's message")
+    message: Union[str, List[dict]] = Field(..., description="User's message (text or vision parts)")
     session_id: str = Field(..., description="Unique session ID for conversation memory")
     stream: bool = Field(default=False, description="Enable streaming response")
 
@@ -77,50 +78,91 @@ def create_tools(pool: asyncpg.Pool, ollama_base_url: str) -> list:
         """
         Search for printer/copier error codes in the KRAI database.
         Use this tool when the user asks about an error code or error message.
-        Input: error code or search term (e.g. "C9402", "Fehler 10.00.33", "Error C-1005")
+        Input: error code or search term (e.g. "C2801", "C-2801", "50.FF.02", "SC542", "10.00.33", "541-011")
         Returns: JSON with error description, solution steps, source document and page number.
         """
-        # Extract error code from natural-language query
-        matches = re.findall(r'\b\d+(?:\.\d+)+\b', query, re.IGNORECASE)  # dots: 10.00.33
-        if not matches:
-            matches = re.findall(r'\b[A-Z]-?\d{3,}\b', query, re.IGNORECASE)  # letter+digits: C9402
-        search_term = matches[0] if matches else query
+        # --- Extract the most likely error code from free-form query ---
+        # Priority order: dotted (10.00.33, 50.FF.02), dashed (541-011, C-2801),
+        # then alphanumeric prefix (SC542, C9402, E001).
+        _patterns = [
+            r'\b[A-Z0-9]{1,4}(?:[.\-][A-Z0-9]{1,4}){1,5}\b',  # 10.00.33 / 50.FF.02 / C-2801 / 541-011
+            r'\b[A-Z]{1,3}[-]?\d{3,6}\b',                       # SC542 / C9402 / E001
+            r'\b\d{2,}(?:\.\d+)+\b',                            # pure dotted numeric fallback
+        ]
+        extracted: str | None = None
+        for pat in _patterns:
+            m = re.search(pat, query, re.IGNORECASE)
+            if m:
+                extracted = m.group(0).upper()
+                break
+        search_term = extracted if extracted else query.strip()
+
+        # Produce normalized variants (e.g. "C-2801" → ["C-2801", "C2801"])
+        variants: list[str] = [search_term]
+        no_dash = search_term.replace('-', '')
+        if no_dash != search_term:
+            variants.append(no_dash)
+
+        _BASE_SQL = """
+            SELECT ec.error_code, ec.error_description, ec.solution_text,
+                   ec.page_number, ec.severity_level, ec.confidence_score,
+                   m.name     AS manufacturer_name,
+                   d.filename AS document_filename
+            FROM   krai_intelligence.error_codes ec
+            LEFT JOIN krai_intelligence.chunks      ch ON ec.chunk_id        = ch.id
+            LEFT JOIN krai_core.manufacturers        m  ON ec.manufacturer_id = m.id
+            LEFT JOIN krai_core.documents             d  ON ec.document_id    = d.id
+            WHERE  ec.is_category IS NOT TRUE
+        """
 
         try:
             async with pool.acquire() as conn:
-                rows = await conn.fetch(
-                    """
-                    SELECT ec.error_code, ec.error_description, ec.solution_text,
-                           ch.page_number, ec.severity_level, ec.confidence_score,
-                           m.name  AS manufacturer_name,
-                           d.filename AS document_filename
-                    FROM   krai_intelligence.error_codes ec
-                    LEFT JOIN krai_intelligence.chunks ch ON ec.chunk_id   = ch.id
-                    LEFT JOIN krai_core.manufacturers  m  ON ec.manufacturer_id = m.id
-                    LEFT JOIN krai_core.documents      d  ON ec.document_id = d.id
-                    WHERE  ec.error_code ILIKE $1
-                    ORDER  BY ec.confidence_score DESC
-                    LIMIT  5
-                    """,
-                    f'%{search_term}%',
-                )
+                rows = []
+
+                # Pass 1 — exact error_code match (all variants)
+                for v in variants:
+                    rows = await conn.fetch(
+                        _BASE_SQL + " AND ec.error_code ILIKE $1 ORDER BY ec.confidence_score DESC LIMIT 5",
+                        f'%{v}%',
+                    )
+                    if rows:
+                        break
+
+                # Pass 2 — substring in description / solution (broader match)
+                if not rows:
+                    rows = await conn.fetch(
+                        _BASE_SQL + """
+                            AND (   ec.error_description ILIKE $1
+                                 OR ec.solution_text     ILIKE $1)
+                            ORDER BY ec.confidence_score DESC
+                            LIMIT 5
+                        """,
+                        f'%{search_term}%',
+                    )
 
             if not rows:
                 return json.dumps(
-                    {"found": False, "message": f"Fehlercode '{search_term}' nicht in der Datenbank gefunden."},
+                    {
+                        "found": False,
+                        "searched_term": search_term,
+                        "message": (
+                            f"Fehlercode '{search_term}' nicht in der Datenbank gefunden. "
+                            "Bitte versuche es mit semantic_search oder prüfe die Schreibweise."
+                        ),
+                    },
                     ensure_ascii=False,
                 )
 
             results = [
                 {
-                    "error_code":         row["error_code"],
-                    "error_description":  row["error_description"],
-                    "solution_text":      row["solution_text"],
-                    "manufacturer":       row["manufacturer_name"],
-                    "document":           row["document_filename"],
-                    "page_number":        row["page_number"],
-                    "severity_level":     row["severity_level"],
-                    "confidence_score":   float(row["confidence_score"]) if row["confidence_score"] else 0.0,
+                    "error_code":        row["error_code"],
+                    "error_description": row["error_description"],
+                    "solution_text":     row["solution_text"],
+                    "manufacturer":      row["manufacturer_name"],
+                    "document":          row["document_filename"],
+                    "page_number":       row["page_number"],
+                    "severity_level":    row["severity_level"],
+                    "confidence_score":  float(row["confidence_score"]) if row["confidence_score"] else 0.0,
                 }
                 for row in rows
             ]
@@ -259,7 +301,7 @@ def create_tools(pool: asyncpg.Pool, ollama_base_url: str) -> list:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     """
-                    SELECT content, metadata, document_id, id AS chunk_id,
+                    SELECT text_chunk AS content, metadata, document_id, id AS chunk_id,
                            1 - (embedding <=> $1::vector) AS similarity
                     FROM   krai_intelligence.chunks
                     WHERE  embedding IS NOT NULL
@@ -303,21 +345,22 @@ _SYSTEM_PROMPT = SystemMessage(content="""Du bist **KRAI** – der KI-Assistent 
 Du hast Zugriff auf eine Datenbank mit Fehlercodes, Ersatzteilen, Videos und Servicehandbüchern.
 
 ## Deine Tools
-- **search_error_codes**: Fehlercode oder Fehlerbeschreibung suchen → gibt Fehlercode, Beschreibung, Lösung, Quelle zurück
-- **search_parts**: Ersatzteil nach Nummer oder Name suchen → gibt Teilenummer, Name, Hersteller zurück
-- **search_videos**: Tutorial-Video nach Gerät oder Thema suchen → gibt Titel, URL zurück
-- **semantic_search**: Freitextsuche in Servicehandbüchern für komplexe Fragen
+- **search_error_codes**: Fehlercode suchen (z.B. "C-2801", "10.00.33", "50.FF.02", "SC542") → Beschreibung, Lösung, Quelle
+- **search_parts**: Ersatzteil nach Nummer oder Name → Teilenummer, Name, Hersteller
+- **search_videos**: Tutorial-Video nach Gerät oder Thema → Titel, URL
+- **semantic_search**: Freitextsuche in Servicehandbüchern für komplexe oder beschreibende Fragen
 
 ## Regeln
-1. Nutze **immer zuerst das passende Tool** – antworte nie aus dem Gedächtnis über Geräte oder Fehlercodes.
-2. Gib **nur zurück was in den Tool-Ergebnissen steht** – erfinde keine Lösungen, Teilenummern oder Websiten.
-3. Bei `found: false` → antworte: "Keine Informationen in der Datenbank gefunden."
-4. Antworte immer auf **Deutsch**.
-5. Nutze **Markdown** für strukturierte Antworten (Überschriften, Listen, Fettschrift).
+1. **Immer zuerst das passende Tool nutzen** – nie aus dem Gedächtnis über Fehlercodes oder Teile antworten.
+2. **Nur zurückgeben was Tools liefern** – keine Lösungen, Teilenummern oder URLs erfinden.
+3. **Bei `found: false` von search_error_codes**: Rufe sofort **semantic_search** mit dem gleichen Begriff auf, bevor du aufgibst. Melde "Nicht gefunden" erst nach beiden Versuchen.
+4. **Fehlercode-Formate erkennen**: C-2801, C2801, 10.00.33, 50.FF.02, SC542, E-001 – alle sind gültige Codes.
+5. Antworte immer auf **Deutsch**.
+6. Nutze **Markdown** für strukturierte Antworten (Überschriften, Listen, Fettschrift).
 
 ## Antwortformat
 
-### Fehlercode
+### Fehlercode gefunden
 **Fehler [CODE] – [Beschreibung]** *(Hersteller)*
 
 **Lösung:**
@@ -333,6 +376,9 @@ Kategorie: [Kategorie] | Kompatibel mit: [Modell]
 ### Video
 🎬 **[Titel]**
 [URL]
+
+### Nicht gefunden
+"Fehlercode '[CODE]' wurde in der KRAI-Datenbank nicht gefunden. Bitte prüfe die Schreibweise oder wende dich an den Hersteller-Support."
 
 Antworte immer auf Deutsch.""")
 
@@ -350,18 +396,35 @@ class KRAIAgent:
 
         self.logger = logging.getLogger(__name__)
 
-        ollama_model = (
-            os.getenv("OLLAMA_MODEL_CHAT")
-            or os.getenv("OLLAMA_MODEL_TEXT", "llama3.2:latest")
-        )
-        self.logger.info("Connecting to Ollama at %s, model: %s", ollama_base_url, ollama_model)
+        llm_backend = os.getenv("LLM_BACKEND", "ollama").lower()
 
-        llm = ChatOllama(
-            model=ollama_model,
-            base_url=ollama_base_url,
-            temperature=0.0,
-            num_ctx=16384,
-        )
+        if llm_backend == "openai":
+            try:
+                from langchain_openai import ChatOpenAI  # optional dependency
+            except ImportError as exc:
+                raise RuntimeError(
+                    "LLM_BACKEND=openai requires langchain-openai. "
+                    "Install it: pip install langchain-openai"
+                ) from exc
+            openai_model = os.getenv("OPENAI_MODEL", "gpt-4o")
+            self.logger.info("Using OpenAI backend, model: %s", openai_model)
+            llm = ChatOpenAI(
+                model=openai_model,
+                api_key=os.getenv("OPENAI_API_KEY"),
+                temperature=0.0,
+            )
+        else:
+            ollama_model = (
+                os.getenv("OLLAMA_MODEL_CHAT")
+                or os.getenv("OLLAMA_MODEL_TEXT", "llama3.2:latest")
+            )
+            self.logger.info("Connecting to Ollama at %s, model: %s", ollama_base_url, ollama_model)
+            llm = ChatOllama(
+                model=ollama_model,
+                base_url=ollama_base_url,
+                temperature=0.0,
+                num_ctx=16384,
+            )
 
         tools = create_tools(pool, ollama_base_url)
         memory = MemorySaver()
@@ -375,8 +438,12 @@ class KRAIAgent:
 
         self.logger.info("KRAI Agent (LangGraph) initialized successfully")
 
-    async def chat(self, message: str, session_id: str) -> str:
-        """Process a message and return the full response."""
+    async def chat(self, message: Union[str, list], session_id: str) -> str:
+        """Process a message and return the full response.
+
+        ``message`` can be a plain string or a list of OpenAI-style content
+        parts (text + image_url) for vision requests.
+        """
         config = {"configurable": {"thread_id": session_id}}
         try:
             result = await self.agent.ainvoke(
@@ -390,8 +457,11 @@ class KRAIAgent:
             self.logger.error("chat error: %s", exc, exc_info=True)
             return f"Es ist ein Fehler aufgetreten: {exc}"
 
-    async def chat_stream(self, message: str, session_id: str) -> AsyncGenerator[str, None]:
-        """Process a message and stream the response token by token."""
+    async def chat_stream(self, message: Union[str, list], session_id: str) -> AsyncGenerator[str, None]:
+        """Process a message and stream the response token by token.
+
+        ``message`` can be a plain string or a list of content parts (vision).
+        """
         config = {"configurable": {"thread_id": session_id}}
         try:
             async for chunk, metadata in self.agent.astream(
@@ -414,13 +484,22 @@ class KRAIAgent:
 # FastAPI Router
 # ============================================================================
 
-def create_agent_api(pool: asyncpg.Pool) -> APIRouter:
-    """Create and return the FastAPI router for the KRAI agent."""
+def create_agent_api(pool: asyncpg.Pool, agent: "KRAIAgent | None" = None) -> APIRouter:
+    """Create and return the FastAPI router for the KRAI agent.
+
+    If ``agent`` is provided it is reused; otherwise a new KRAIAgent is
+    instantiated.  Passing an already-created agent avoids double-init when
+    the caller also stores it in ``app.state``.
+    """
     router = APIRouter(prefix="/agent", tags=["AI Agent"])
-    agent = KRAIAgent(pool)
+    if agent is None:
+        agent = KRAIAgent(pool)
 
     @router.post("/chat", response_model=ChatResponse)
-    async def chat(message: ChatMessage) -> ChatResponse:
+    async def chat(
+        message: ChatMessage,
+        current_user: dict = Depends(require_permission("agent:chat")),
+    ) -> ChatResponse:
         """Chat with the KRAI AI agent (single response)."""
         try:
             response = await agent.chat(message.message, message.session_id)
@@ -434,7 +513,10 @@ def create_agent_api(pool: asyncpg.Pool) -> APIRouter:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     @router.post("/chat/stream")
-    async def chat_stream(message: ChatMessage) -> StreamingResponse:
+    async def chat_stream(
+        message: ChatMessage,
+        current_user: dict = Depends(require_permission("agent:chat")),
+    ) -> StreamingResponse:
         """Chat with the KRAI AI agent (Server-Sent Events streaming)."""
         async def generate() -> AsyncGenerator[str, None]:
             async for chunk in agent.chat_stream(message.message, message.session_id):
@@ -449,4 +531,3 @@ def create_agent_api(pool: asyncpg.Pool) -> APIRouter:
         return {"status": "healthy", "agent": "KRAI AI Agent", "version": "2.0.0"}
 
     return router
-
