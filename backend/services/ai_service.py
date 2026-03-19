@@ -248,7 +248,7 @@ class AIService:
             
             prompt = f"""
             Analyze this technical document and classify it. Return a JSON response with:
-            - document_type: service_manual, parts_catalog, technical_bulletin, cpmd_database, user_manual, installation_guide, troubleshooting_guide
+            - document_type: service_manual, parts_catalog, technical_bulletin, cpmd_database (Control Panel Message Document / Control Panel Messages Document, common for HP), user_manual, installation_guide, troubleshooting_guide
             - manufacturer: Exact manufacturer name (HP Inc., Konica Minolta, Canon Inc., Lexmark International, etc.)
             - series: product series name (LaserJet Pro, Bizhub C, imageCLASS LBP, etc.)
             - models: ALL model numbers found in the document (not just filename) - include variations, options, and related models
@@ -262,6 +262,7 @@ class AIService:
             - Include option models and accessory models
             - Look for model patterns like M404dn, M404n, M404dw, etc.
             - Include any model variations or related models
+            - Treat CPMD / Control Panel Message(s) Document files as cpmd_database even if they contain error messages or service references
             
             Document text: {text[:3000]}...
             """

@@ -17,6 +17,8 @@ class TestDocumentTypeDetection:
         "title,filename,error_count,parts_count,expected",
         [
             ("Parts Guide", "canon_parts_catalog.pdf", 0, 10, "parts_catalog"),
+            ("Control Panel Messages Document (CPMD)", "hp_e877_cpmd.pdf", 8, 0, "cpmd_database"),
+            ("HP E877 CPMD", "hp_e877_cpmd.pdf", 0, 0, "cpmd_database"),
             ("Service Manual", "hp_service_manual.pdf", 5, 0, "service_manual"),
             ("User Guide", "hp_user_guide.pdf", 0, 0, "user_manual"),
             ("Installation Guide", "setup_guide.pdf", 0, 0, "installation_guide"),
@@ -37,6 +39,7 @@ class TestDocumentTypeDetection:
             filename=filename.lower(),
             error_codes_count=error_count,
             parts_count=parts_count,
+            manufacturer="HP",
         )
         assert result == expected
 
@@ -128,6 +131,19 @@ class TestDetectIntegration:
         doc_type, version = det.detect(pdf_metadata, stats, manufacturer="HP")
         assert doc_type == "service_manual"
         assert version in {"1.0", None}
+
+    def test_detect_full_hp_cpmd(self) -> None:
+        det = _make_detector()
+        pdf_metadata: Dict[str, Any] = {
+            "title": "Control Panel Messages Document (CPMD)",
+            "filename": "HP_E877_CPMD.pdf",
+            "creation_date": "D:20240115000000Z",
+        }
+        stats = {"total_error_codes": 12, "parts_count": 0}
+
+        doc_type, version = det.detect(pdf_metadata, stats, manufacturer="HP")
+        assert doc_type == "cpmd_database"
+        assert version is None
 
     def test_detect_full_canon_parts_catalog(self) -> None:
         det = _make_detector()

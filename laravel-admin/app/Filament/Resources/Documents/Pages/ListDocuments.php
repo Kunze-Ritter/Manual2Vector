@@ -47,7 +47,7 @@ class ListDocuments extends ListRecords
                             'service_manual' => 'Service Manual',
                             'parts_catalog' => 'Parts Catalog',
                             'technical_bulletin' => 'Technical Bulletin',
-                            'cpmd_database' => 'CPMD Database',
+                            'cpmd_database' => 'CPMD (Control Panel Message Document)',
                             'user_manual' => 'User Manual',
                             'installation_guide' => 'Installation Guide',
                             'troubleshooting_guide' => 'Troubleshooting Guide',
