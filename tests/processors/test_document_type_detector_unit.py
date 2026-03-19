@@ -1,9 +1,8 @@
-from typing import Dict, Any
+from typing import Any
 
 import pytest
 
 from backend.processors.document_type_detector import DocumentTypeDetector
-
 
 pytestmark = [pytest.mark.unit, pytest.mark.classification]
 
@@ -121,7 +120,7 @@ class TestDateVersionExtraction:
 class TestDetectIntegration:
     def test_detect_full_hp_service_manual(self) -> None:
         det = _make_detector()
-        pdf_metadata: Dict[str, Any] = {
+        pdf_metadata: dict[str, Any] = {
             "title": "HP LaserJet Service Manual v1.0",
             "filename": "hp_lj_sm_v1.0.pdf",
             "creation_date": "D:20240115000000Z",
@@ -134,7 +133,7 @@ class TestDetectIntegration:
 
     def test_detect_full_hp_cpmd(self) -> None:
         det = _make_detector()
-        pdf_metadata: Dict[str, Any] = {
+        pdf_metadata: dict[str, Any] = {
             "title": "Control Panel Messages Document (CPMD)",
             "filename": "HP_E877_CPMD.pdf",
             "creation_date": "D:20240115000000Z",
@@ -147,7 +146,7 @@ class TestDetectIntegration:
 
     def test_detect_full_canon_parts_catalog(self) -> None:
         det = _make_detector()
-        pdf_metadata: Dict[str, Any] = {
+        pdf_metadata: dict[str, Any] = {
             "title": "Canon imageRUNNER C5560 Parts Catalog",
             "filename": "canon_ir_c5560_parts.pdf",
             "creation_date": "D:20240808064126Z",
@@ -160,7 +159,7 @@ class TestDetectIntegration:
 
     def test_detect_with_empty_metadata(self) -> None:
         det = _make_detector()
-        pdf_metadata: Dict[str, Any] = {}
+        pdf_metadata: dict[str, Any] = {}
         stats = {"total_error_codes": 0, "parts_count": 0}
 
         doc_type, version = det.detect(pdf_metadata, stats, manufacturer=None)
