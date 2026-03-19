@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 from pathlib import Path
 
 from backend.core.base_processor import BaseProcessor, Stage
+from backend.core.types import ProcessingContext, ProcessingResult
 from .document_type_detector import DocumentTypeDetector
 from backend.utils.manufacturer_normalizer import (
     normalize_manufacturer, 
@@ -621,15 +622,33 @@ If uncertain, respond with "Unknown"."""
     
     async def _get_document_chunks(self, document_id: str, limit: int = 5) -> list:
         """Get first N chunks of document"""
-        if not self.database_service or not hasattr(self.database_service, 'fetch_all'):
+        if not self.database_service:
             return []
         
         try:
-            result = await self.database_service.fetch_all(
-                "SELECT text_chunk as content FROM krai_intelligence.chunks WHERE document_id = $1 ORDER BY chunk_index LIMIT $2",
-                [document_id, limit]
-            )
-            return result or []
+            if hasattr(self.database_service, 'fetch_all'):
+                result = await self.database_service.fetch_all(
+                    "SELECT text_chunk as content FROM krai_intelligence.chunks WHERE document_id = $1 ORDER BY chunk_index LIMIT $2",
+                    [document_id, limit]
+                )
+                return result or []
+
+            client = getattr(self.database_service, 'client', None)
+            if client is not None:
+                result = (
+                    client.table('chunks')
+                    .select('text_chunk')
+                    .eq('document_id', document_id)
+                    .order('chunk_index')
+                    .limit(limit)
+                    .execute()
+                )
+                return [
+                    {'content': row.get('text_chunk') or row.get('content', '')}
+                    for row in (result.data or [])
+                ]
+
+            return []
         except Exception as e:
             self.logger.warning(f"Could not get chunks: {e}")
             return []

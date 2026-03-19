@@ -42,7 +42,8 @@ class DocumentTypeDetector:
             title=title,
             filename=filename,
             error_codes_count=error_codes_count,
-            parts_count=parts_count
+            parts_count=parts_count,
+            manufacturer=manufacturer,
         )
         
         version = self._detect_version(
@@ -60,18 +61,21 @@ class DocumentTypeDetector:
         title: str,
         filename: str,
         error_codes_count: int,
-        parts_count: int
+        parts_count: int,
+        manufacturer: Optional[str] = None,
     ) -> str:
         """
         Detect document type
         
         Priority:
         1. Parts Catalog (dedicated parts list, no error codes)
-        2. Service Manual (error codes + procedures)
-        3. User Manual (no error codes, no parts)
-        4. Installation Guide
+        2. CPMD / Control Panel Message Document
+        3. Service Manual (error codes + procedures)
+        4. User Manual (no error codes, no parts)
+        5. Installation Guide
         """
         combined = f"{title} {filename}"
+        manufacturer_normalized = (manufacturer or "").lower()
         
         # 1. Parts Catalog Detection
         has_parts_keyword = any(kw in combined for kw in [
@@ -85,8 +89,24 @@ class DocumentTypeDetector:
         
         if has_parts_keyword and error_codes_count == 0:
             return 'parts_catalog'
-        
-        # 2. Service Manual Detection
+
+        # 2. CPMD Detection
+        has_cpmd_keyword = any(kw in combined for kw in [
+            'cpmd',
+            'control panel message document',
+            'control panel messages document',
+            'control panel message',
+            'control panel messages',
+            'numerical control panel messages',
+        ])
+        is_hp_cpmd_filename = 'cpmd' in filename and any(
+            marker in manufacturer_normalized for marker in ['hp', 'hewlett packard']
+        )
+
+        if has_cpmd_keyword or is_hp_cpmd_filename:
+            return 'cpmd_database'
+
+        # 3. Service Manual Detection
         has_service_keyword = any(kw in combined for kw in [
             'service manual',
             'service guide',
@@ -99,7 +119,7 @@ class DocumentTypeDetector:
         if has_service_keyword or error_codes_count > 0:
             return 'service_manual'
         
-        # 3. User Manual Detection
+        # 4. User Manual Detection
         has_user_keyword = any(kw in combined for kw in [
             'user guide',
             'user manual',
@@ -111,7 +131,7 @@ class DocumentTypeDetector:
         if has_user_keyword:
             return 'user_manual'
         
-        # 4. Installation Guide Detection
+        # 5. Installation Guide Detection
         has_install_keyword = any(kw in combined for kw in [
             'installation',
             'setup guide',
@@ -153,21 +173,23 @@ class DocumentTypeDetector:
         
         # Common version patterns
         patterns = [
-            r'v(\d+\.?\d*)',           # v1.0, v2
-            r'version\s*(\d+\.?\d*)',  # version 1.0
-            r'rev\.?\s*([A-Z0-9]+)',   # Rev A, Rev.2
-            r'edition\s*(\d+)',        # Edition 3
-            r'ausgabe\s*(\d+)',        # German: Ausgabe 2
+            (r'v(\d+\.?\d*)', None),                     # v1.0, v2
+            (r'version\s*(\d+\.?\d*)', None),            # version 1.0
+            (r'rev\.?\s*([A-Z0-9]+)', str.upper),        # Rev A, Rev.2
+            (r'edition\s*(\d+)', None),                  # Edition 3
+            (r'ausgabe\s*(\d+)', None),                  # German: Ausgabe 2
         ]
         
-        for pattern in patterns:
+        for pattern, transform in patterns:
             match = re.search(pattern, combined, re.IGNORECASE)
             if match:
-                return match.group(1)
+                value = match.group(1)
+                return transform(value) if transform else value
         
         # Strategy 3: Document code from filename
         # e.g., "A93E.pdf" → "A93E", "ACET011.pdf" → "ACET011"
-        doc_code_match = re.match(r'^([A-Z]{1,2}\d{2,4}[A-Z]?)', filename.upper())
+        basename = filename.rsplit('.', 1)[0].upper()
+        doc_code_match = re.match(r'^([A-Z]{1,6}\d{2,4}[A-Z]?)$', basename)
         if doc_code_match:
             return doc_code_match.group(1)
         

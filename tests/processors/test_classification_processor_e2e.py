@@ -76,13 +76,13 @@ class TestManufacturerDetection:
                 def limit(self, _n: int) -> "TestManufacturerDetection.DummyClient._Table":  # type: ignore[name-defined]
                     return self
 
-                def execute(self) -> "TestManufacturerDetection.DummyClient._Result":  # type: ignore[name-defined]
-                    return TestManufacturerDetection.DummyClient._Result([
+                def execute(self) -> "DummyClient._Result":
+                    return DummyClient._Result([
                         {"content": "Konica Minolta bizhub C4080"}
                     ])
 
-            def table(self, _name: str) -> "TestManufacturerDetection.DummyClient._Table":  # type: ignore[name-defined]
-                return TestManufacturerDetection.DummyClient._Table(self._text)
+            def table(self, _name: str) -> "DummyClient._Table":
+                return DummyClient._Table(self._text)
 
         class DummyDB:
             def __init__(self, text: str) -> None:
@@ -154,6 +154,34 @@ class TestDocumentTypeAndVersion:
         )
 
         assert doc_type in {"parts_catalog", "service_manual"}
+        assert version is None or isinstance(version, str)
+
+    async def test_detect_cpmd_document_type_from_hp_metadata(
+        self,
+        tmp_path: Path,
+        mock_database_adapter,
+    ) -> None:
+        pdf_path = tmp_path / "HP_E877_CPMD.pdf"
+        pdf_path.write_text("Dummy content")
+
+        processor = ClassificationProcessor(database_service=mock_database_adapter, ai_service=None, features_service=None)
+        ctx = _make_context(str(uuid4()), pdf_path)
+
+        doc_meta = {
+            "title": "Control Panel Messages Document (CPMD)",
+            "filename": pdf_path.name,
+            "created_at": "D:20240808064126Z",
+        }
+
+        doc_type, version = await processor._detect_document_type(  # type: ignore[attr-defined]
+            pdf_path,
+            doc_meta,
+            manufacturer="HP",
+            context=ctx,
+            adapter=processor.logger,
+        )
+
+        assert doc_type == "cpmd_database"
         assert version is None or isinstance(version, str)
 
 
