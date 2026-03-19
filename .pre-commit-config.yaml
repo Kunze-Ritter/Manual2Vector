@@ -9,7 +9,6 @@ repos:
     rev: 24.10.0
     hooks:
       - id: black
-        language_version: python3.11
 
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
@@ -64,6 +63,9 @@ repos:
         args: [--fix=lf]
 
 # Configure ruff to run on these file types
+default_language_version:
+  python: python3
+
 default_stages: [pre-commit]
 
 # Exclude files/directories
