@@ -1,0 +1,102 @@
+[
+  {
+    "question": "What causes error 13.B9.Az and how do I fix it?",
+    "ground_truth": "Paper jam in the fuser area. Open the front cover, remove jammed paper, check separation claws for wear.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I replace the fuser unit on a bizhub copier?",
+    "ground_truth": "Power off the device and wait for it to cool down. Remove the fuser unit by releasing the two latches, insert the replacement unit, and power on.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What is error code C-2801 on a Konica Minolta machine?",
+    "ground_truth": "Fuser temperature error. The fuser unit has failed to reach the required temperature within the specified time.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I clear a paper jam in the fuser area?",
+    "ground_truth": "Open the right side cover, carefully remove jammed paper without tearing, close the cover and press the reset button.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What does SC542 mean on a Ricoh printer?",
+    "ground_truth": "Fuser thermistor failure. The main thermistor detected an abnormal temperature. Replace the fuser unit.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I perform a drum unit replacement?",
+    "ground_truth": "Open the front door, remove the toner cartridge, pull out the old drum unit, insert the new drum unit, reinstall toner cartridge, close the door.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What error code indicates a laser scanner failure?",
+    "ground_truth": "Laser scanner errors typically appear as SC codes in Ricoh machines or C-codes in Konica Minolta. The specific code depends on which scanner component has failed.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I clean the corona wire on a laser printer?",
+    "ground_truth": "Open the drum unit access panel, locate the corona wire cleaner (usually a small tab), slide it back and forth several times, then return it to its home position.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What causes a low memory error during printing?",
+    "ground_truth": "Insufficient printer memory to process the print job. Solutions include reducing print resolution, simplifying the document, or adding more RAM to the printer.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I reset the maintenance counter after servicing?",
+    "ground_truth": "Access the service menu using the technician code, navigate to the counter reset section, and reset the appropriate maintenance counter for the component that was replaced.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What is a 50.4 fuser error on an HP printer?",
+    "ground_truth": "Inadequate power at the fuser. Check that the printer is connected to a dedicated power outlet, not a power strip or UPS. The fuser requires significant current at startup.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I calibrate color registration on a color copier?",
+    "ground_truth": "Run the automatic color registration adjustment from the maintenance menu. This adjusts the alignment of cyan, magenta, and yellow relative to black to ensure accurate color reproduction.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What causes streaks on printed pages?",
+    "ground_truth": "Streaks can be caused by a dirty or damaged drum unit, depleted toner cartridge, dirty transfer belt, or contaminated fuser unit. Clean or replace the affected component.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I access the service mode on a Konica Minolta bizhub?",
+    "ground_truth": "Enter the service mode by pressing the utility button, then entering the service technician access code (varies by model). This provides access to counter resets, adjustment settings, and diagnostic tests.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What does a flashing toner indicator mean?",
+    "ground_truth": "The toner cartridge is low on toner and will need to be replaced soon. You can typically continue printing for a limited number of pages before the printer stops.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I fix a wrinkled paper output issue?",
+    "ground_truth": "Wrinkled paper is usually caused by a worn fuser pressure roller or using paper that does not match the printer's specifications. Replace the fuser unit or use the correct paper type.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What is the procedure for replacing a transfer belt unit?",
+    "ground_truth": "Open the front panel, remove the waste toner box, release the transfer belt unit locking tabs, pull out the old unit, install the new unit ensuring it clicks into place, reinstall the waste toner box.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I troubleshoot a document feeder paper jam?",
+    "ground_truth": "Open the document feeder cover, remove any jammed originals by pulling gently in the direction of paper travel, check for torn paper scraps, close the cover and test with a few test originals.",
+    "scope_document_id": null
+  },
+  {
+    "question": "What causes image density problems on a copier?",
+    "ground_truth": "Image density issues can be caused by incorrect density settings, a worn drum unit, low toner, or a dirty optical system. Run an automatic density calibration or manually adjust the density setting.",
+    "scope_document_id": null
+  },
+  {
+    "question": "How do I perform a factory reset on a networked copier?",
+    "ground_truth": "Access the administrator settings, navigate to the network or system reset option. Be aware that a factory reset will clear all network settings, stored jobs, and custom settings. Back up configuration first.",
+    "scope_document_id": null
+  }
+]
