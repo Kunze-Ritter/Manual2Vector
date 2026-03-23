@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from processors.upload_processor import UploadProcessor, BatchUploadProcessor
 from processors.stage_tracker import StageTracker
+from core.base_processor import ProcessingContext
 from api.dependencies.auth import set_auth_service
 from api.dependencies.auth_factory import create_auth_service, create_and_initialize_auth_service
 from api.middleware.auth_middleware import AuthMiddleware, require_permission
@@ -72,6 +73,8 @@ from api import websocket as websocket_api
 from services.metrics_service import MetricsService
 from services.alert_service import AlertService
 from services.performance_service import PerformanceCollector
+from services.ai_service import AIService
+from services.reranking_service import RerankingService
 from processors.env_loader import load_all_env_files
 from config.security_config import get_security_config, get_cors_config
 from slowapi.errors import RateLimitExceeded
@@ -449,16 +452,16 @@ async def get_database_pool():
     return await get_pool()
 
 
-async def get_upload_processor():
+async def get_upload_processor(request: Request):
     """Get Upload Processor instance"""
     global upload_processor
     if upload_processor is None:
-        # UploadProcessor will be refactored to use pool directly
-        pool = await get_pool()
-        return UploadProcessor(
-            pool=pool,
-            stage_tracker=None
-        )
+        db_adapter = getattr(request.app.state, "db_adapter", None)
+        if db_adapter is None:
+            db_adapter = create_database_adapter()
+            await db_adapter.connect()
+            request.app.state.db_adapter = db_adapter
+        upload_processor = UploadProcessor(database_adapter=db_adapter)
     return upload_processor
 
 
@@ -776,6 +779,7 @@ async def health_check(request: Request, response: Response):
 @limiter.limit(rate_limit_standard_dynamic)
 async def upload_document(
     request: Request,
+    response: Response,
     file: UploadFile = File(...),
     document_type: str = "service_manual",
     force_reprocess: bool = False,
@@ -803,21 +807,32 @@ async def upload_document(
             content = await file.read()
             f.write(content)
         
-        # Process upload
-        result = processor.process_upload(
-            file_path=temp_path,
+        context = ProcessingContext(
+            document_id="",
+            file_path=str(temp_path),
+            file_hash="",
             document_type=document_type,
-            force_reprocess=force_reprocess
+            manufacturer=None,
+            model=None,
+            series=None,
+            version=None,
+            language="en",
         )
+        context.force_reprocess = force_reprocess
+
+        result = await processor.process(context)
+        result_data = result.data if isinstance(result.data, dict) else {}
         
         return UploadResponse(
-            success=result['success'],
-            document_id=result.get('document_id'),
-            status=result.get('status', 'error'),
-            message="Upload successful" if result['success'] else result.get('error', 'Upload failed'),
-            metadata=result.get('metadata')
+            success=result.success,
+            document_id=result_data.get('document_id'),
+            status=result_data.get('status', 'error'),
+            message="Upload successful" if result.success else (result.error.message if result.error else 'Upload failed'),
+            metadata=result_data.get('metadata')
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -870,7 +885,10 @@ async def startup_events():
     logger.info("Batch services initialized with asyncpg pool")
     
     # Initialize Agent API router with the live pool
-    krai_agent = KRAIAgent(pool)
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    ai_svc = AIService(ollama_url=ollama_url)
+    reranking_svc = RerankingService()
+    krai_agent = KRAIAgent(pool, ai_service=ai_svc, reranking_service=reranking_svc)
     app.state.krai_agent = krai_agent          # shared with openai_compat router
     agent_router = create_agent_api(pool, agent=krai_agent)
     app.include_router(agent_router)
