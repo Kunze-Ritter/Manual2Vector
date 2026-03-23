@@ -364,7 +364,7 @@ def test_queries() -> Dict[str, list]:
         'general': ["technical specifications", "user manual", "warranty information"]
     }
 
-async def _cleanup_test_data(database_service: DatabaseService):
+async def _cleanup_test_data(database_service: DatabaseAdapter):
     """Clean up test data from database."""
     try:
         # Clean up test documents
@@ -656,7 +656,7 @@ async def cleanup_link_enrichment_data(test_database: DatabaseAdapter):
 # ---------------------------
 
 async def create_test_link(
-    database: DatabaseService,
+    database: DatabaseAdapter,
     url: str,
     manufacturer_id: Optional[str] = None,
     document_id: Optional[str] = None
@@ -665,7 +665,7 @@ async def create_test_link(
     Helper to create a test link record in database.
     
     Args:
-        database: DatabaseService instance
+        database: DatabaseAdapter instance
         url: URL to create link for
         manufacturer_id: Optional manufacturer ID
         document_id: Optional document ID
@@ -691,7 +691,7 @@ async def create_test_link(
 
 
 async def wait_for_enrichment(
-    database: DatabaseService,
+    database: DatabaseAdapter,
     link_id: str,
     timeout: int = 30,
     check_interval: float = 0.5
@@ -700,7 +700,7 @@ async def wait_for_enrichment(
     Wait for link enrichment to complete.
     
     Args:
-        database: DatabaseService instance
+        database: DatabaseAdapter instance
         link_id: Link ID to wait for
         timeout: Maximum wait time in seconds
         check_interval: Time between status checks in seconds
@@ -724,14 +724,14 @@ async def wait_for_enrichment(
 
 
 async def verify_link_enrichment(
-    database: DatabaseService,
+    database: DatabaseAdapter,
     link_id: str
 ) -> Dict[str, Any]:
     """
     Verify link enrichment data quality.
     
     Args:
-        database: DatabaseService instance
+        database: DatabaseAdapter instance
         link_id: Link ID to verify
     
     Returns:
