@@ -286,9 +286,47 @@ def create_tools(
 ) -> list:
     """Create agent tools bound to the shared asyncpg pool."""
 
+    async def _vector_seed(query: str) -> dict:
+        """
+        Embed query and find the 20 most similar chunks via pgvector.
+        Returns chunk_ids, document_ids, product_ids (empty lists if ai_service is None or fails).
+
+        Uses plain ORDER BY + LIMIT (NOT DISTINCT ON) so pgvector evaluates similarity
+        globally and returns the true top-20.
+        """
+        if ai_service is None:
+            return {"chunk_ids": [], "document_ids": [], "product_ids": []}
+        try:
+            embedding = await ai_service.generate_embeddings(query)
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(
+                    """
+                    SELECT ch.id AS chunk_id,
+                           ch.document_id,
+                           dp.product_id
+                    FROM   krai_intelligence.chunks ch
+                    LEFT JOIN krai_core.document_products dp ON dp.document_id = ch.document_id
+                    WHERE  ch.embedding IS NOT NULL
+                    ORDER  BY ch.embedding <=> $1::vector
+                    LIMIT  20
+                    """,
+                    embedding,
+                )
+            return {
+                "chunk_ids":    [str(r["chunk_id"]) for r in rows],
+                "document_ids": list({str(r["document_id"]) for r in rows if r["document_id"]}),
+                "product_ids":  list({str(r["product_id"]) for r in rows if r["product_id"]}),
+            }
+        except Exception as e:
+            logger.warning("_vector_seed failed, falling back to ILIKE: %s", e)
+            return {"chunk_ids": [], "document_ids": [], "product_ids": []}
+
     @tool
     async def search_error_codes(query: str) -> str:
         """Search error codes and aggregate direct hits with related videos/documents."""
+
+        seed = await _vector_seed(query)
+        matched_chunk_ids = seed["chunk_ids"]
 
         search_term = extract_error_search_term(query)
         variants = build_error_code_variants(search_term)
@@ -301,6 +339,9 @@ def create_tools(
             exact_code_filters.append(f"ec.error_code ILIKE ${len(exact_params)}")
 
         exact_where = ["ec.is_category IS NOT TRUE", f"({' OR '.join(exact_code_filters)})"]
+        if matched_chunk_ids:
+            exact_params.append(matched_chunk_ids)
+            exact_where.append(f"ec.chunk_id = ANY(${len(exact_params)}::uuid[])")
         exact_where.extend(
             build_scope_filters(
                 exact_params,
@@ -359,6 +400,9 @@ def create_tools(
                         "COALESCE(ec.context_text, '') ILIKE $1"
                         ")",
                     ]
+                    if matched_chunk_ids:
+                        broad_params.append(matched_chunk_ids)
+                        broad_where.append(f"ec.chunk_id = ANY(${len(broad_params)}::uuid[])")
                     broad_where.extend(
                         build_scope_filters(
                             broad_params,
@@ -506,9 +550,17 @@ def create_tools(
         """Search repair videos with machine/product-aware filters."""
 
         scope = _serialize_scope()
+        seed = await _vector_seed(query)
         try:
             async with pool.acquire() as conn:
-                videos = await _fetch_related_videos(conn, query, scope, limit=10)
+                videos = await _fetch_related_videos(
+                    conn,
+                    query,
+                    scope,
+                    matched_document_ids=seed["document_ids"],
+                    matched_product_ids=seed["product_ids"],
+                    limit=10,
+                )
 
             if not videos:
                 return json.dumps(
