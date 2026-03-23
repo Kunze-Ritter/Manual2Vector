@@ -642,6 +642,20 @@ def create_tools(
                     *params,
                 )
 
+            # Rerank results using index-based reconstruction (handles duplicate content correctly)
+            if rows and reranking_service and reranking_service.enabled:
+                texts = [row["content"] for row in rows]
+                top_texts = reranking_service.rerank(query, texts)
+                used_indices: set = set()
+                reranked_rows = []
+                for text in top_texts:
+                    for i, candidate in enumerate(texts):
+                        if i not in used_indices and candidate == text:
+                            reranked_rows.append(rows[i])
+                            used_indices.add(i)
+                            break
+                rows = reranked_rows
+
             if not rows:
                 return json.dumps(
                     {"found": False, "scope": scope, "message": f"Keine relevanten Inhalte für '{query}' gefunden."},
