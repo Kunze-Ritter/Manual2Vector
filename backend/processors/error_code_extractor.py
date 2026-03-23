@@ -190,7 +190,7 @@ class ErrorCodeExtractor:
         # OPTIMIZATION 1: Skip enrichment if all codes already have good solutions
         codes_needing_enrichment = [
             ec for ec in error_codes
-            if not ec.solution_technician_text or len(ec.solution_technician_text) <= 100
+            if not ec.solution_technician_text or len(ec.solution_technician_text) <= 500
         ]
         
         if not codes_needing_enrichment:
@@ -355,7 +355,7 @@ class ErrorCodeExtractor:
                     description = self._extract_description(
                         full_document_text,
                         end_pos,
-                        max_length=500,
+                        max_length=1500,
                         code_start_pos=start_pos,
                     )
                     
@@ -376,7 +376,7 @@ class ErrorCodeExtractor:
                         best_confidence = min(0.95, best_confidence + 0.1)
                         
                         # OPTIMIZATION 5: Early exit if we found a good solution
-                        if len(best_solution_raw) > 200:
+                        if len(best_solution_raw) > 1500:
                             break
                 
                 # Split raw solution text into the 3 levels
@@ -818,7 +818,7 @@ class ErrorCodeExtractor:
             description = classification_match.group(1).strip()
             # Limit to max_length
             if len(description) > max_length:
-                description = description[:max_length].rsplit(' ', 1)[0] + '...'
+                description = description[:max_length].rsplit(' ', 1)[0]
             return description
         
         # Fallback: Extract text after code (original logic)
@@ -948,7 +948,7 @@ class ErrorCodeExtractor:
         match = BULLET_PATTERN.search(text_after)
         if match:
             bullets = match.group(1).strip()
-            lines = [l.strip() for l in bullets.split('\n') if l.strip()][:8]
+            lines = [l.strip() for l in bullets.split('\n') if l.strip()][:30]
             solution = '\n'.join(lines)
             
             # Return raw full-text — levels are split later at ExtractedErrorCode creation
