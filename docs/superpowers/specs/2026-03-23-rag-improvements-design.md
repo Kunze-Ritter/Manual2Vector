@@ -5,23 +5,113 @@
 
 ## Background
 
-KRAI's retrieval stack (LangGraph + pgvector + Ollama) is solid but has three concrete gaps:
+KRAI's retrieval stack (LangGraph + pgvector + Ollama) is solid but has four concrete gaps:
 
+0. **Data quality** — error code solution texts are truncated by premature early-exit logic; tables in service manuals are frequently missed by PyMuPDF's line-based detection.
 1. Agent tools use `ILIKE %query%` keyword matching instead of vector search, limiting semantic recall.
 2. No reranking step — pgvector cosine-similarity is used as the final ranking signal.
 3. No systematic way to measure whether retrieval or prompt changes improve answer quality.
 
-This spec covers targeted fixes for all three. LlamaIndex was evaluated and rejected: the project already uses LangChain/LangGraph for the agent layer, has a domain-specific `SmartChunker` that no generic framework can replace, and a custom pgvector schema that doesn't map cleanly to LlamaIndex abstractions.
+This spec covers fixes for all four. LlamaIndex was evaluated and rejected: the project already uses LangChain/LangGraph for the agent layer, has a domain-specific `SmartChunker` that no generic framework can replace, and a custom pgvector schema that doesn't map cleanly to LlamaIndex abstractions.
+
+**After Area 0 is implemented, all documents are deleted from the DB and reprocessed** to generate clean data before measuring Areas 1–3. Videos, products, models, series, and manufacturers are preserved.
 
 ---
 
 ## Rollout Order
 
-> **Area 3 (Evaluation) is built first** to capture a quality baseline before any retrieval changes land. Areas 1 and 2 are then measured against this baseline.
+1. **Area 0: Data quality fixes** — fix extraction bugs, then delete + reprocess all documents.
+2. **Area 3: Ragas evaluation script** — establish baseline on clean data.
+3. **Area 1: Vector search in agent tools** — highest impact on RAG quality.
+4. **Area 2: Reranking** — builds on the expanded candidate set from Area 1.
 
-1. **Ragas evaluation script** — establish baseline.
-2. **Vector search in agent tools** — highest impact on RAG quality.
-3. **Reranking** — builds on the expanded candidate set from step 2.
+---
+
+## Area 0: Data Quality Fixes
+
+### 0a — Error Code Solution Truncation
+
+Three bugs in `backend/processors/error_code_extractor.py` cause incomplete solution texts:
+
+**Bug 1 — Early exit at 200 chars (line ~379):**
+```python
+# CURRENT (wrong): stops searching as soon as ANY solution > 200 chars is found
+if len(best_solution_raw) > 200:
+    break
+```
+Fix: raise threshold to **1500 chars** — a full technician procedure with 10 steps is typically 800–1200 chars. Only exit early if a truly complete solution (> 1500 chars) is already found.
+
+**Bug 2 — Description hard-capped at 500 chars with `...` suffix (line ~821):**
+```python
+description = description[:max_length].rsplit(' ', 1)[0] + '...'
+```
+Fix: raise `max_length` from `500` → `1500`. The `...` suffix is misleading — remove it.
+
+**Bug 3 — Bullet-point solutions capped at 8 lines (line ~951):**
+```python
+lines = [l.strip() for l in bullets.split('\n') if l.strip()][:8]
+```
+Fix: raise from `[:8]` → `[:30]` to match the numbered-steps limit already used elsewhere.
+
+**Bug 4 — Skip enrichment if solution > 100 chars (line ~193):**
+```python
+if not ec.solution_technician_text or len(ec.solution_technician_text) <= 100
+```
+Fix: raise threshold from `100` → `500`. Codes with 101–499 chars of solution text may have partial solutions that should be enriched further.
+
+### 0b — Table Extraction: pdfplumber Fallback
+
+`backend/processors/table_processor.py` uses only PyMuPDF (`strategy='lines'`, fallback `strategy='text'`). Service manuals frequently use whitespace-separated "borderless" tables that PyMuPDF misses entirely.
+
+**Fix:** Add pdfplumber as a second fallback when both PyMuPDF strategies find zero tables on a page:
+
+```
+Page → PyMuPDF 'lines' → PyMuPDF 'text' → pdfplumber (new fallback) → give up
+```
+
+pdfplumber detects tables by analysing word positions and whitespace gaps, finding tables that have no visible borders. `pdfplumber` is not yet in `requirements.txt` — add it.
+
+Additionally fix `has_headers: True` hardcoded assumption: detect whether the first row looks like a header (all cells are short strings with no numeric content) instead of always assuming it is.
+
+### 0c — DB Cleanup Script
+
+After Area 0 fixes are implemented, a one-time cleanup script `scripts/reset_document_data.py` deletes all processed document data and triggers re-upload/reprocessing.
+
+**Tables to DELETE (cascade-safe order):**
+
+```sql
+-- Intelligence
+DELETE FROM krai_intelligence.error_codes;
+DELETE FROM krai_intelligence.solutions;
+DELETE FROM krai_intelligence.chunks;
+
+-- Content (except videos)
+DELETE FROM krai_content.images;
+DELETE FROM krai_content.links;
+DELETE FROM krai_content.tables;   -- if exists
+
+-- Parts
+DELETE FROM krai_parts.parts_catalog;
+DELETE FROM krai_parts.accessories;  -- if exists
+
+-- System state (allow reprocessing)
+DELETE FROM krai_system.stage_tracking;
+DELETE FROM krai_system.completion_markers;
+DELETE FROM krai_system.retries;
+
+-- Core documents last
+DELETE FROM krai_core.documents;
+```
+
+**Tables to PRESERVE (never touch):**
+- `krai_core.manufacturers`
+- `krai_core.products`
+- `krai_core.product_series`
+- `krai_content.videos`
+- `krai_content.video_products`
+- `krai_users.*`
+
+The script prints a confirmation prompt and requires `--confirm` flag before executing. It outputs a count of deleted rows per table.
 
 ---
 
