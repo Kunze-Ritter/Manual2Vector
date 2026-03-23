@@ -25,20 +25,23 @@ class MultimodalSearchService:
         self,
         database_service: DatabaseAdapter,
         ai_service: AIService,
+        reranking_service=None,  # RerankingService | None
         default_threshold: float = 0.5,
         default_limit: int = 10
     ):
         """
         Initialize Multimodal Search Service
-        
+
         Args:
             database_service: Database service for RPC function calls
             ai_service: AI service for embeddings and text generation
+            reranking_service: Optional reranking service for post-retrieval reranking
             default_threshold: Default similarity threshold (0.0-1.0)
             default_limit: Default maximum number of results
         """
         self.database_service = database_service
         self.ai_service = ai_service
+        self.reranking_service = reranking_service
         self.default_threshold = default_threshold
         self.default_limit = default_limit
         self.logger = logging.getLogger('krai.multimodal_search')
@@ -73,18 +76,39 @@ class MultimodalSearchService:
         try:
             # Generate query embedding
             query_embedding = await self.ai_service.generate_embeddings(query)
-            
+
+            # Expand fetch count when reranking is enabled
+            fetch_limit = (
+                self.reranking_service.candidates
+                if self.reranking_service and self.reranking_service.enabled
+                else (limit or self.default_limit)
+            )
+
             # Call RPC function via database adapter
             results = await self.database_service.match_multimodal(
                 query_embedding=query_embedding,
                 match_threshold=threshold or self.default_threshold,
-                match_count=limit or self.default_limit
+                match_count=fetch_limit
             )
-            
+
             # Filter by modalities if specified
             if modalities:
                 results = [r for r in results if r['source_type'] in modalities]
-            
+
+            # Rerank results if reranking service is available and enabled
+            if self.reranking_service and self.reranking_service.enabled and results:
+                texts = [r.get('content', '') for r in results]
+                top_n = limit or self.default_limit
+                top_texts = self.reranking_service.rerank(query, texts, top_n=top_n)
+                # Rebuild by index (NOT set-matching — fails on duplicate text)
+                text_to_original_idx = {t: i for i, t in enumerate(texts)}
+                reranked_results = []
+                for text in top_texts:
+                    idx = text_to_original_idx.get(text)
+                    if idx is not None:
+                        reranked_results.append(results[idx])
+                results = reranked_results
+
             # Enrich results with additional metadata
             enriched_results = await self._enrich_results(results)
             
