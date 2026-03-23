@@ -150,7 +150,7 @@ class TableProcessor(BaseProcessor):
                 # Extract tables from all pages
                 for page_num, page in enumerate(doc):
                     try:
-                        page_tables = self._extract_page_tables(page, page_num + 1)
+                        page_tables = self._extract_page_tables(page, page_num + 1, pdf_path=pdf_path)
                         all_tables.extend(page_tables)
                         
                         if page_tables:
@@ -213,20 +213,40 @@ class TableProcessor(BaseProcessor):
                     'embeddings_created': 0
                 }
     
-    def _extract_page_tables(self, page, page_number: int) -> List[Dict[str, Any]]:
+    def _detect_has_headers(self, raw_data: list) -> bool:
+        """
+        Detect whether first row looks like column headers.
+        Headers: all cells are short non-numeric strings.
+        Returns True if likely headers, False if first row is data.
+        """
+        if not raw_data or not raw_data[0]:
+            return True  # default to True when uncertain
+        first_row = [str(cell or "").strip() for cell in raw_data[0]]
+        # If all cells are purely numeric, it's data not headers
+        if all(re.match(r'^\d+([.,]\d+)?$', cell) for cell in first_row if cell):
+            return False
+        # If any cell is longer than 60 chars it's likely a data cell
+        if any(len(cell) > 60 for cell in first_row):
+            return False
+        return True
+
+    def _extract_page_tables(self, page, page_number: int, pdf_path: str = None) -> List[Dict[str, Any]]:
         """Extract tables from a single page"""
         tables = []
-        
+        pymupdf_detected = False
+
         with self.logger_context() as adapter:
             try:
                 # Try primary strategy
                 tabs = page.find_tables(strategy=self.strategy)
-                
+
                 # If no tables found, try fallback strategy
                 if not tabs.tables:
                     tabs = page.find_tables(strategy=self.fallback_strategy)
                     adapter.debug(f"Page {page_number}: Used fallback strategy '{self.fallback_strategy}'")
-                
+
+                pymupdf_detected = bool(tabs.tables)
+
                 # Process each detected table
                 for table_idx, tab in enumerate(tabs.tables):
                     try:
@@ -236,10 +256,82 @@ class TableProcessor(BaseProcessor):
                     except Exception as e:
                         adapter.warning(f"Failed to extract table {table_idx} on page {page_number}: {e}")
                         continue
-                
+
             except Exception as e:
                 adapter.warning(f"Table detection failed on page {page_number}: {e}")
-        
+
+        # pdfplumber fallback only when PyMuPDF detected no tables at all
+        if not pymupdf_detected and pdf_path:
+            plumber_tables = self._extract_page_tables_pdfplumber(pdf_path, page_number)
+            if plumber_tables:
+                with self.logger_context() as adapter:
+                    adapter.info(
+                        f"Page {page_number}: pdfplumber fallback found {len(plumber_tables)} table(s) missed by PyMuPDF"
+                    )
+            tables.extend(plumber_tables)
+
+        return tables
+
+    def _extract_page_tables_pdfplumber(self, pdf_path: str, page_number: int) -> list:
+        """
+        Fallback table extraction using pdfplumber.
+        Used when PyMuPDF finds no tables (e.g. borderless whitespace tables).
+        page_number is 1-indexed.
+        """
+        try:
+            import pdfplumber
+        except ImportError:
+            return []
+
+        tables = []
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                if page_number < 1 or page_number > len(pdf.pages):
+                    return []
+                page = pdf.pages[page_number - 1]
+                raw_tables = page.extract_tables()
+                for table_idx, raw_data in enumerate(raw_tables):
+                    if not raw_data or len(raw_data) < self.min_rows + 1:
+                        continue
+                    if not raw_data[0] or len(raw_data[0]) < self.min_cols:
+                        continue
+                    cleaned = [[str(c or "") for c in row] for row in raw_data]
+                    has_headers = self._detect_has_headers(cleaned)
+                    try:
+                        if has_headers:
+                            df = pd.DataFrame(cleaned[1:], columns=cleaned[0])
+                        else:
+                            df = pd.DataFrame(cleaned)
+                    except Exception:
+                        continue
+                    df = df.dropna(how='all')
+                    if len(df) < self.min_rows or len(df.columns) < self.min_cols:
+                        continue
+                    try:
+                        table_markdown = df.to_markdown(index=False, tablefmt='grid')
+                    except Exception:
+                        table_markdown = self._dataframe_to_markdown(df)
+                    tables.append({
+                        'id': str(uuid4()),
+                        'page_number': page_number,
+                        'table_index': table_idx,
+                        'table_type': 'data',  # default; no PyMuPDF bbox available
+                        'column_headers': cleaned[0] if has_headers else [],
+                        'row_count': len(df),
+                        'column_count': len(df.columns),
+                        'table_data': cleaned,
+                        'table_markdown': table_markdown,
+                        'caption': None,
+                        'context_text': None,
+                        'bbox': None,
+                        'metadata': {
+                            'extraction_strategy': 'pdfplumber',
+                            'has_headers': has_headers,
+                        },
+                    })
+        except Exception as e:
+            with self.logger_context() as adapter:
+                adapter.warning(f"pdfplumber fallback failed on page {page_number}: {e}")
         return tables
     
     def _extract_table_data(self, tab, page, page_number: int, table_index: int) -> Optional[Dict[str, Any]]:
@@ -310,7 +402,7 @@ class TableProcessor(BaseProcessor):
                     'metadata': {
                         'extraction_strategy': self.strategy,
                         'data_quality': self._assess_data_quality(df),
-                        'has_headers': True,  # Assume first row is headers
+                        'has_headers': self._detect_has_headers(raw_data),
                         'extraction_timestamp': pd.Timestamp.now().isoformat()
                     }
                 }
