@@ -262,7 +262,12 @@ class TableProcessor(BaseProcessor):
 
         # pdfplumber fallback only when PyMuPDF detected no tables at all
         if not pymupdf_detected and pdf_path:
-            plumber_tables = self._extract_page_tables_pdfplumber(pdf_path, page_number)
+            try:
+                import pdfplumber
+                with pdfplumber.open(pdf_path) as plumber_pdf:
+                    plumber_tables = self._extract_page_tables_pdfplumber(plumber_pdf, page_number)
+            except ImportError:
+                plumber_tables = []
             if plumber_tables:
                 with self.logger_context() as adapter:
                     adapter.info(
@@ -272,63 +277,57 @@ class TableProcessor(BaseProcessor):
 
         return tables
 
-    def _extract_page_tables_pdfplumber(self, pdf_path: str, page_number: int) -> list:
+    def _extract_page_tables_pdfplumber(self, pdf, page_number: int) -> list:
         """
-        Fallback table extraction using pdfplumber.
+        Fallback table extraction using an already-open pdfplumber PDF.
         Used when PyMuPDF finds no tables (e.g. borderless whitespace tables).
-        page_number is 1-indexed.
+        page_number is 1-indexed. The caller handles ImportError.
         """
-        try:
-            import pdfplumber
-        except ImportError:
-            return []
-
         tables = []
         try:
-            with pdfplumber.open(pdf_path) as pdf:
-                if page_number < 1 or page_number > len(pdf.pages):
-                    return []
-                page = pdf.pages[page_number - 1]
-                raw_tables = page.extract_tables()
-                for table_idx, raw_data in enumerate(raw_tables):
-                    if not raw_data or len(raw_data) < self.min_rows + 1:
-                        continue
-                    if not raw_data[0] or len(raw_data[0]) < self.min_cols:
-                        continue
-                    cleaned = [[str(c or "") for c in row] for row in raw_data]
-                    has_headers = self._detect_has_headers(cleaned)
-                    try:
-                        if has_headers:
-                            df = pd.DataFrame(cleaned[1:], columns=cleaned[0])
-                        else:
-                            df = pd.DataFrame(cleaned)
-                    except Exception:
-                        continue
-                    df = df.dropna(how='all')
-                    if len(df) < self.min_rows or len(df.columns) < self.min_cols:
-                        continue
-                    try:
-                        table_markdown = df.to_markdown(index=False, tablefmt='grid')
-                    except Exception:
-                        table_markdown = self._dataframe_to_markdown(df)
-                    tables.append({
-                        'id': str(uuid4()),
-                        'page_number': page_number,
-                        'table_index': table_idx,
-                        'table_type': 'data',  # default; no PyMuPDF bbox available
-                        'column_headers': cleaned[0] if has_headers else [],
-                        'row_count': len(df),
-                        'column_count': len(df.columns),
-                        'table_data': cleaned,
-                        'table_markdown': table_markdown,
-                        'caption': None,
-                        'context_text': None,
-                        'bbox': None,
-                        'metadata': {
-                            'extraction_strategy': 'pdfplumber',
-                            'has_headers': has_headers,
-                        },
-                    })
+            if page_number < 1 or page_number > len(pdf.pages):
+                return []
+            page = pdf.pages[page_number - 1]
+            raw_tables = page.extract_tables()
+            for table_idx, raw_data in enumerate(raw_tables):
+                if not raw_data or len(raw_data) < self.min_rows + 1:
+                    continue
+                if not raw_data[0] or len(raw_data[0]) < self.min_cols:
+                    continue
+                cleaned = [[str(c or "") for c in row] for row in raw_data]
+                has_headers = self._detect_has_headers(cleaned)
+                try:
+                    if has_headers:
+                        df = pd.DataFrame(cleaned[1:], columns=cleaned[0])
+                    else:
+                        df = pd.DataFrame(cleaned)
+                except Exception:
+                    continue
+                df = df.dropna(how='all')
+                if len(df) < self.min_rows or len(df.columns) < self.min_cols:
+                    continue
+                try:
+                    table_markdown = df.to_markdown(index=False, tablefmt='grid')
+                except Exception:
+                    table_markdown = self._dataframe_to_markdown(df)
+                tables.append({
+                    'id': str(uuid4()),
+                    'page_number': page_number,
+                    'table_index': table_idx,
+                    'table_type': 'data',  # default; no PyMuPDF bbox available
+                    'column_headers': cleaned[0] if has_headers else [],
+                    'row_count': len(df),
+                    'column_count': len(df.columns),
+                    'table_data': cleaned,
+                    'table_markdown': table_markdown,
+                    'caption': None,
+                    'context_text': None,
+                    'bbox': None,
+                    'metadata': {
+                        'extraction_strategy': 'pdfplumber',
+                        'has_headers': has_headers,
+                    },
+                })
         except Exception as e:
             with self.logger_context() as adapter:
                 adapter.warning(f"pdfplumber fallback failed on page {page_number}: {e}")
