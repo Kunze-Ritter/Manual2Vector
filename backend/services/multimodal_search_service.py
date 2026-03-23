@@ -100,13 +100,14 @@ class MultimodalSearchService:
                 texts = [r.get('content', '') for r in results]
                 top_n = limit or self.default_limit
                 top_texts = self.reranking_service.rerank(query, texts, top_n=top_n)
-                # Rebuild by index (NOT set-matching — fails on duplicate text)
-                text_to_original_idx = {t: i for i, t in enumerate(texts)}
+                used_indices: set[int] = set()
                 reranked_results = []
                 for text in top_texts:
-                    idx = text_to_original_idx.get(text)
-                    if idx is not None:
-                        reranked_results.append(results[idx])
+                    for i, candidate in enumerate(texts):
+                        if i not in used_indices and candidate == text:
+                            reranked_results.append(results[i])
+                            used_indices.add(i)
+                            break
                 results = reranked_results
 
             # Enrich results with additional metadata
