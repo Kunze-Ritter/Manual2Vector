@@ -93,6 +93,10 @@ def main():
         print("No samples collected. Is the backend running?")
         sys.exit(1)
 
+    if len(samples) < len(dataset) * 0.5:
+        print(f"⚠ Only {len(samples)}/{len(dataset)} samples collected — aborting evaluation (< 50%).")
+        sys.exit(1)
+
     print(f"\nEvaluating {len(samples)} samples with Ragas...")
     ds = Dataset.from_list(samples)
     result = evaluate(ds, metrics=[faithfulness, answer_relevancy, context_precision])
@@ -110,7 +114,7 @@ def main():
             "timestamp": timestamp,
             "backend": args.backend,
             "sample_count": len(samples),
-            "metrics": {k: float(v) for k, v in result.items()},
+            "metrics": {k: (float(v) if v == v else None) for k, v in result.items()},
             "samples": samples,
         }, f, indent=2)
     print(f"\nReport saved to: {out_path}")
