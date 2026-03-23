@@ -35,7 +35,7 @@ class KraiEngineService
             ]);
 
         if ($this->serviceToken) {
-            $client->withHeaders([
+            $client = $client->withHeaders([
                 'Authorization' => 'Bearer ' . $this->serviceToken,
             ]);
         }
@@ -53,7 +53,7 @@ class KraiEngineService
         }
 
         if ($user) {
-            $client->withHeaders([
+            $client = $client->withHeaders([
                 'X-Uploader-Username' => $user->name ?? null,
                 'X-Uploader-UserId' => (string) ($user->id ?? ''),
                 'X-Uploader-Source' => 'laravel-admin',
