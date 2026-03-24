@@ -6,6 +6,7 @@ All responses wrapped in SuccessResponse. Laravel reads $data['data'][...].
 
 from __future__ import annotations
 
+import json
 import logging
 
 import asyncpg
@@ -41,8 +42,6 @@ async def get_document_status(
     _: dict = Depends(require_permission("documents:read")),
 ) -> SuccessResponse[DocumentProcessingStatusResponse]:
     """Return document processing status. Derives current_stage/progress from stage_status JSONB."""
-    import json as _json
-
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, processing_status, stage_status FROM krai_core.documents WHERE id = $1",
@@ -54,7 +53,11 @@ async def get_document_status(
     raw_stage_status: dict = {}
     if row["stage_status"]:
         raw = row["stage_status"]
-        raw_stage_status = _json.loads(raw) if isinstance(raw, str) else raw
+        try:
+            raw_stage_status = json.loads(raw) if isinstance(raw, str) else raw
+        except json.JSONDecodeError:
+            logger.warning("Malformed stage_status JSONB for document %s — treating as empty", document_id)
+            raw_stage_status = {}
 
     # Derive current_stage: last stage that is not 'completed'
     current_stage: str | None = None
@@ -66,6 +69,8 @@ async def get_document_status(
         elif stage_val in ("processing", "pending", "failed"):
             current_stage = stage
             break
+        elif stage_val and stage_val not in ("", "skipped"):
+            logger.warning("Unknown stage status value '%s' for stage '%s' in document %s", stage_val, stage, document_id)
     progress = round(completed_count / len(CANONICAL_STAGES), 4) if CANONICAL_STAGES else 0.0
 
     return SuccessResponse(
@@ -87,8 +92,6 @@ async def get_document_stages(
     _: dict = Depends(require_permission("documents:read")),
 ) -> SuccessResponse[StageStatusResponse]:
     """Return per-stage status from stage_status JSONB. Returns found=false (not 404) when missing."""
-    import json as _json
-
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, stage_status FROM krai_core.documents WHERE id = $1",
@@ -104,7 +107,11 @@ async def get_document_stages(
         )
 
     raw = row["stage_status"]
-    stage_status = (_json.loads(raw) if isinstance(raw, str) else raw) or {}
+    try:
+        stage_status = (json.loads(raw) if isinstance(raw, str) else raw) or {}
+    except json.JSONDecodeError:
+        logger.warning("Malformed stage_status JSONB for document %s — treating as empty", document_id)
+        stage_status = {}
     return SuccessResponse(
         data=StageStatusResponse(
             document_id=document_id,
