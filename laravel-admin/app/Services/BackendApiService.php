@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -37,7 +38,7 @@ class BackendApiService
     /**
      * Retry a failed pipeline stage for a document
      *
-     * Calls POST /api/v1/pipeline/retry-stage to reprocess a specific stage.
+     * Calls the document stage retry endpoint for canonical retryable stages.
      *
      * @param  string  $documentId  The document ID to retry
      * @param  string  $stageName  The pipeline stage name to retry
@@ -55,14 +56,21 @@ class BackendApiService
      */
     public function retryStage(string $documentId, string $stageName): array
     {
+        $normalizedStageName = $this->normalizeRetryStageName($stageName);
+
+        if ($normalizedStageName === null) {
+            return [
+                'success' => false,
+                'data' => [],
+                'error' => "Retry is not supported for stage '{$stageName}' from the admin UI.",
+            ];
+        }
+
         try {
-            $endpoint = "{$this->baseUrl}/api/v1/pipeline/retry-stage";
+            $endpoint = "{$this->baseUrl}/api/v1/documents/{$documentId}/stages/{$normalizedStageName}/retry";
             $client = $this->createHttpClient();
 
-            $response = $client->post($endpoint, [
-                'document_id' => $documentId,
-                'stage_name' => $stageName,
-            ]);
+            $response = $client->post($endpoint);
 
             if ($response->successful()) {
                 $data = $response->json('data', []);
@@ -74,10 +82,11 @@ class BackendApiService
                 ];
             }
 
-            $errorMessage = $response->json('detail') ?? $response->body();
+            $errorMessage = $this->extractErrorMessage($response);
             Log::error('BackendApiService::retryStage failed', [
                 'document_id' => $documentId,
                 'stage_name' => $stageName,
+                'normalized_stage_name' => $normalizedStageName,
                 'status_code' => $response->status(),
                 'error' => $errorMessage,
             ]);
@@ -171,7 +180,7 @@ class BackendApiService
                 ];
             }
 
-            $errorMessage = $response->json('detail') ?? $response->body();
+            $errorMessage = $this->extractErrorMessage($response);
             Log::error('BackendApiService::markErrorResolved failed', [
                 'error_id' => $errorId,
                 'user_id' => $userId,
@@ -278,7 +287,7 @@ class BackendApiService
                 ];
             }
 
-            $errorMessage = $response->json('detail') ?? $response->body();
+            $errorMessage = $this->extractErrorMessage($response);
             Log::error('BackendApiService::getErrors failed', [
                 'filters' => $filters,
                 'status_code' => $response->status(),
@@ -356,6 +365,42 @@ class BackendApiService
         return $isValid;
     }
 
+    public function isRetrySupportedStage(string $stageName): bool
+    {
+        return $this->normalizeRetryStageName($stageName) !== null;
+    }
+
+    public function normalizeRetryStageName(string $stageName): ?string
+    {
+        $normalizedStageName = strtolower(trim($stageName));
+        $canonicalStages = array_keys(config('krai.stages', []));
+
+        if (in_array($normalizedStageName, $canonicalStages, true)) {
+            return $normalizedStageName;
+        }
+
+        return [
+            'upload_processor' => 'upload',
+            'text_processor' => 'text_extraction',
+            'tableprocessor' => 'table_extraction',
+            'table_processor' => 'table_extraction',
+            'svg_processor' => 'svg_processing',
+            'image_processor' => 'image_processing',
+            'visualembeddingprocessor' => 'visual_embedding',
+            'visual_embedding_processor' => 'visual_embedding',
+            'link_extraction_processor' => 'link_extraction',
+            'chunk_preprocessor' => 'chunk_prep',
+            'classification_processor' => 'classification',
+            'metadata_processor_ai' => 'metadata_extraction',
+            'parts_processor' => 'parts_extraction',
+            'series_processor' => 'series_detection',
+            'series_detection_processor' => 'series_detection',
+            'storage_processor' => 'storage',
+            'embedding_processor' => 'embedding',
+            'search_processor' => 'search_indexing',
+        ][$normalizedStageName] ?? null;
+    }
+
     /**
      * Create HTTP client with proper headers and timeout
      *
@@ -364,6 +409,39 @@ class BackendApiService
     private function createHttpClient()
     {
         return Http::timeout(config('krai.default_timeout', 10))->withHeaders($this->buildHeaders());
+    }
+
+    private function extractErrorMessage(Response $response): string
+    {
+        $detail = $response->json('detail');
+
+        if (is_string($detail) && $detail !== '') {
+            return $detail;
+        }
+
+        if (is_array($detail)) {
+            $error = $detail['error'] ?? null;
+            $details = $detail['details'] ?? null;
+
+            $parts = array_filter([
+                is_string($error) && $error !== '' ? $error : null,
+                is_string($details) && $details !== '' ? $details : null,
+            ]);
+
+            if ($parts !== []) {
+                return implode(': ', $parts);
+            }
+
+            return json_encode($detail, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: 'Unknown backend error';
+        }
+
+        $body = trim($response->body());
+
+        if ($body !== '') {
+            return $body;
+        }
+
+        return "HTTP {$response->status()}";
     }
 
     /**

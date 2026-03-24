@@ -3,20 +3,33 @@
 namespace Tests\Feature;
 
 use App\Services\MonitoringService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Http\Client\ConnectionException;
 use Tests\TestCase;
 
 class MonitoringServiceTest extends TestCase
 {
     protected string $baseUrl = 'http://krai-engine:8000';
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'krai.engine_url' => $this->baseUrl,
+            'krai.monitoring.base_url' => $this->baseUrl,
+        ]);
+    }
+
     protected function tearDown(): void
     {
-        (new MonitoringService())->clearCache();
-        parent::tearDown();
+        try {
+            (new MonitoringService)->clearCache();
+            Cache::flush();
+        } finally {
+            parent::tearDown();
+        }
     }
 
     /** @test */
@@ -210,5 +223,39 @@ class MonitoringServiceTest extends TestCase
 
         $this->assertNull(Cache::get('monitoring.dashboard.overview'));
         $this->assertNull(Cache::get('monitoring.pipeline'));
+    }
+
+    /** @test */
+    public function get_dashboard_batch_returns_endpoint_error_payloads_when_lock_is_unavailable(): void
+    {
+        $endpoints = [
+            'dashboard' => '/api/v1/dashboard/overview',
+            'metrics' => '/api/v1/monitoring/metrics',
+            'data_quality' => '/api/v1/monitoring/data-quality',
+            'queue' => '/api/v1/monitoring/queue',
+            'pipeline' => '/api/v1/monitoring/pipeline',
+        ];
+        $cacheKey = 'monitoring.batch.'.md5(json_encode($endpoints));
+        $lock = Cache::lock('lock.'.$cacheKey, 30);
+        $this->assertTrue($lock->get());
+
+        $service = app(MonitoringService::class);
+        try {
+            $result = $service->getDashboardBatch();
+
+            $this->assertIsArray($result);
+            $this->assertSame(
+                ['dashboard', 'metrics', 'data_quality', 'queue', 'pipeline'],
+                array_keys($result)
+            );
+
+            foreach ($result as $endpointResult) {
+                $this->assertFalse($endpointResult['success']);
+                $this->assertSame([], $endpointResult['data']);
+                $this->assertSame('Cache lock timeout', $endpointResult['error']);
+            }
+        } finally {
+            $lock->release();
+        }
     }
 }

@@ -25,9 +25,10 @@ class PipelineErrorResource extends Resource
 
     public static function getBackendApiService(): BackendApiService
     {
-        if (!isset(static::$backendApiService)) {
+        if (! isset(static::$backendApiService)) {
             static::$backendApiService = app(BackendApiService::class);
         }
+
         return static::$backendApiService;
     }
 
@@ -44,7 +45,7 @@ class PipelineErrorResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['document:id,filename', 'resolvedBy:id,name'])
+            ->with(['document:id,filename,stage_status', 'resolvedBy:id,name'])
             ->latest('created_at');
     }
 
@@ -75,7 +76,7 @@ class PipelineErrorResource extends Resource
 
     public static function getStatusBadgeColor(string $status): string
     {
-        return match($status) {
+        return match ($status) {
             'pending' => 'danger',
             'retrying' => 'warning',
             'resolved' => 'success',
@@ -85,11 +86,11 @@ class PipelineErrorResource extends Resource
 
     public static function getStatusIcon(string $status): string
     {
-        return match($status) {
-            'pending'  => 'heroicon-o-x-circle',
+        return match ($status) {
+            'pending' => 'heroicon-o-x-circle',
             'retrying' => 'heroicon-o-arrow-path',
             'resolved' => 'heroicon-o-check-circle',
-            default    => 'heroicon-o-exclamation-triangle',
+            default => 'heroicon-o-exclamation-triangle',
         };
     }
 }

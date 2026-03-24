@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\Monitoring\AlertConfigurationResource\Tables;
 
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\BulkActionGroup;
-use Filament\Tables\Actions\DeleteBulkAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -99,7 +99,7 @@ class AlertConfigurationsTable
                         }
                     }),
             ])
-            ->actions([
+            ->recordActions([
                 EditAction::make(),
 
                 Action::make('toggle')
@@ -109,7 +109,7 @@ class AlertConfigurationsTable
                         $record->update(['is_enabled' => ! $record->is_enabled]);
                     }),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),

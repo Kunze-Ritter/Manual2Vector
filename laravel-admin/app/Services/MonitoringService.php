@@ -581,16 +581,21 @@ class MonitoringService
                             'trace' => $e->getTraceAsString(),
                         ]);
 
-                        return [
-                            'success' => false,
-                            'data' => [],
-                            'error' => $e->getMessage(),
-                        ];
+                        return $this->buildBatchErrorResult($endpoints, $e->getMessage());
                     }
                 });
             });
 
-            return $lockResult ?? ['success' => false, 'data' => [], 'error' => 'Cache lock timeout'];
+            if (is_array($lockResult)) {
+                return $lockResult;
+            }
+
+            Log::warning('Batch monitoring lock unavailable', [
+                'cache_key' => $cacheKey,
+                'endpoints' => array_keys($endpoints),
+            ]);
+
+            return $this->buildBatchErrorResult($endpoints, 'Cache lock timeout');
         });
     }
 
@@ -637,6 +642,21 @@ class MonitoringService
         } finally {
             unset(self::$pendingRequests[$key]);
         }
+    }
+
+    private function buildBatchErrorResult(array $endpoints, string $error): array
+    {
+        $result = [];
+
+        foreach (array_keys($endpoints) as $name) {
+            $result[$name] = [
+                'success' => false,
+                'data' => [],
+                'error' => $error,
+            ];
+        }
+
+        return $result;
     }
 
     /**

@@ -141,6 +141,22 @@ return [
             'days' => 14,
         ],
 
+        'krai-engine' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/krai-engine.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
+        'krai-images' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/krai-images.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

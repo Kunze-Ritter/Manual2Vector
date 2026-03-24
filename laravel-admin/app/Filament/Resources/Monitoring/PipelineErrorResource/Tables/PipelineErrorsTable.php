@@ -166,7 +166,8 @@ class PipelineErrorsTable
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(fn (PipelineError $record): bool => $record->status !== 'resolved')
-                    ->disabled(fn () => ! PipelineErrorResource::getBackendApiService()->validateConfiguration())
+                    ->disabled(fn (PipelineError $record): bool => self::getRetryDisabledReason($record) !== null)
+                    ->tooltip(fn (PipelineError $record): ?string => self::getRetryDisabledReason($record))
                     ->requiresConfirmation()
                     ->modalHeading('Stage erneut versuchen')
                     ->modalDescription('Möchten Sie diese Stage wirklich erneut versuchen?')
@@ -184,7 +185,7 @@ class PipelineErrorsTable
                             } else {
                                 Notification::make()
                                     ->title('Retry fehlgeschlagen')
-                                    ->body($result['error'] ?? 'Unbekannter Fehler beim Retry-Versuch.')
+                                    ->body((string) ($result['error'] ?? 'Unbekannter Fehler beim Retry-Versuch.'))
                                     ->danger()
                                     ->send();
                             }
@@ -249,7 +250,7 @@ class PipelineErrorsTable
 
                                 Notification::make()
                                     ->title('Fehler lokal markiert')
-                                    ->body('Fehler lokal markiert, aber Backend-Synchronisation fehlgeschlagen: '.($result['error'] ?? 'Unbekannter Fehler'))
+                                    ->body('Fehler lokal markiert, aber Backend-Synchronisation fehlgeschlagen: '.(string) ($result['error'] ?? 'Unbekannter Fehler'))
                                     ->warning()
                                     ->send();
                             }
@@ -361,5 +362,30 @@ class PipelineErrorsTable
             ])
             ->defaultSort('created_at', 'desc')
             ->poll('15s');
+    }
+
+    private static function getRetryDisabledReason(PipelineError $record): ?string
+    {
+        $service = PipelineErrorResource::getBackendApiService();
+
+        if (! $service->validateConfiguration()) {
+            return 'Backend-Konfiguration für Retry ist unvollständig.';
+        }
+
+        $normalizedStage = $service->normalizeRetryStageName($record->stage_name);
+
+        if ($normalizedStage === null) {
+            return "Für die Stage '{$record->stage_name}' ist derzeit kein Admin-Retry verfügbar.";
+        }
+
+        $stageStatus = $record->document?->stage_status;
+        $documentStage = is_array($stageStatus) ? ($stageStatus[$normalizedStage] ?? null) : null;
+        $documentStageStatus = is_array($documentStage) ? ($documentStage['status'] ?? null) : null;
+
+        if ($documentStageStatus !== 'failed') {
+            return "Retry ist nur verfügbar, wenn die Dokument-Stage '{$normalizedStage}' im Status 'failed' ist.";
+        }
+
+        return null;
     }
 }

@@ -4,12 +4,14 @@ namespace App\Filament\Resources\Monitoring\PipelineErrorResource\Pages;
 
 use App\Filament\Resources\Monitoring\PipelineErrorResource;
 use Filament\Actions;
-use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Log;
 
 class ViewPipelineError extends ViewRecord
 {
@@ -34,8 +36,7 @@ class ViewPipelineError extends ViewRecord
                             TextInput::make('document.id')
                                 ->label('Dokument-ID')
                                 ->disabled()
-                                ->copyable()
-                                ->color('primary'),
+                                ->copyable(),
 
                             TextInput::make('stage_name')
                                 ->label('Stage')
@@ -130,15 +131,47 @@ class ViewPipelineError extends ViewRecord
                 ->icon('heroicon-o-arrow-path')
                 ->color('warning')
                 ->visible(fn () => $this->record->status !== 'resolved')
+                ->disabled(fn (): bool => $this->getRetryDisabledReason() !== null)
+                ->tooltip(fn (): ?string => $this->getRetryDisabledReason())
                 ->requiresConfirmation()
                 ->modalHeading('Stage erneut versuchen')
                 ->modalDescription('Möchten Sie diese Stage wirklich erneut versuchen?')
                 ->action(function () {
-                    Notification::make()
-                        ->title('Retry-Funktion')
-                        ->body('Backend-API-Integration wird in einer späteren Phase implementiert.')
-                        ->warning()
-                        ->send();
+                    try {
+                        $result = PipelineErrorResource::getBackendApiService()->retryStage(
+                            $this->record->document_id,
+                            $this->record->stage_name,
+                        );
+
+                        if ($result['success'] === true) {
+                            Notification::make()
+                                ->title('Stage wird erneut verarbeitet')
+                                ->body("Stage '{$this->record->stage_name}' wird für Dokument {$this->record->document_id} erneut verarbeitet.")
+                                ->success()
+                                ->send();
+
+                            return redirect()->route('filament.kradmin.resources.monitoring.pipeline-errors.view', $this->record);
+                        }
+
+                        Notification::make()
+                            ->title('Retry fehlgeschlagen')
+                            ->body((string) ($result['error'] ?? 'Unbekannter Fehler beim Retry-Versuch.'))
+                            ->danger()
+                            ->send();
+                    } catch (\Exception $e) {
+                        Log::error('Pipeline retry action failed on view page', [
+                            'error_id' => $this->record->error_id,
+                            'document_id' => $this->record->document_id,
+                            'stage_name' => $this->record->stage_name,
+                            'exception' => $e->getMessage(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Retry fehlgeschlagen')
+                            ->body('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.')
+                            ->danger()
+                            ->send();
+                    }
                 }),
 
             Actions\Action::make('markResolved')
@@ -147,7 +180,7 @@ class ViewPipelineError extends ViewRecord
                 ->color('success')
                 ->visible(fn () => $this->record->status !== 'resolved')
                 ->form([
-                    \Filament\Forms\Components\Textarea::make('resolution_notes')
+                    Textarea::make('resolution_notes')
                         ->label('Lösungsnotizen')
                         ->required()
                         ->maxLength(1000)
@@ -161,10 +194,43 @@ class ViewPipelineError extends ViewRecord
                         'resolution_notes' => $data['resolution_notes'],
                     ]);
 
-                    Notification::make()
-                        ->title('Fehler als gelöst markiert')
-                        ->success()
-                        ->send();
+                    try {
+                        $result = PipelineErrorResource::getBackendApiService()->markErrorResolved(
+                            $this->record->error_id,
+                            auth()->id(),
+                            $data['resolution_notes'],
+                        );
+
+                        if ($result['success'] === true) {
+                            Notification::make()
+                                ->title('Fehler als gelöst markiert')
+                                ->body('Fehler wurde lokal und im Backend als gelöst markiert.')
+                                ->success()
+                                ->send();
+                        } else {
+                            Log::warning('Backend sync failed for resolved error on view page', [
+                                'error_id' => $this->record->error_id,
+                                'error' => $result['error'] ?? 'Unknown error',
+                            ]);
+
+                            Notification::make()
+                                ->title('Fehler lokal markiert')
+                                ->body('Fehler lokal markiert, aber Backend-Synchronisation fehlgeschlagen: '.(string) ($result['error'] ?? 'Unbekannter Fehler'))
+                                ->warning()
+                                ->send();
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Exception during backend sync for resolved error on view page', [
+                            'error_id' => $this->record->error_id,
+                            'exception' => $e->getMessage(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Fehler lokal markiert')
+                            ->body('Fehler lokal markiert, aber Backend-Synchronisation fehlgeschlagen.')
+                            ->warning()
+                            ->send();
+                    }
 
                     return redirect()->route('filament.kradmin.resources.monitoring.pipeline-errors.view', $this->record);
                 }),
@@ -192,5 +258,30 @@ class ViewPipelineError extends ViewRecord
                 )
                 ->visible(fn () => $this->record->document_id !== null),
         ];
+    }
+
+    private function getRetryDisabledReason(): ?string
+    {
+        $service = PipelineErrorResource::getBackendApiService();
+
+        if (! $service->validateConfiguration()) {
+            return 'Backend-Konfiguration für Retry ist unvollständig.';
+        }
+
+        $normalizedStage = $service->normalizeRetryStageName($this->record->stage_name);
+
+        if ($normalizedStage === null) {
+            return "Für die Stage '{$this->record->stage_name}' ist derzeit kein Admin-Retry verfügbar.";
+        }
+
+        $stageStatus = $this->record->document?->stage_status;
+        $documentStage = is_array($stageStatus) ? ($stageStatus[$normalizedStage] ?? null) : null;
+        $documentStageStatus = is_array($documentStage) ? ($documentStage['status'] ?? null) : null;
+
+        if ($documentStageStatus !== 'failed') {
+            return "Retry ist nur verfügbar, wenn die Dokument-Stage '{$normalizedStage}' im Status 'failed' ist.";
+        }
+
+        return null;
     }
 }
