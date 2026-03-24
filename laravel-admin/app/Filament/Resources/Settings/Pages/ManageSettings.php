@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Settings\Pages;
 
-use App\Filament\Resources\Ollama\OllamaResource;
 use App\Filament\Resources\Settings\Schemas\SettingsFormSchema;
 use App\Filament\Resources\Settings\SettingsResource;
 use Filament\Actions\Action;
@@ -10,8 +9,13 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\EmbeddedSchema;
+use Filament\Schemas\Components\Form;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 
 class ManageSettings extends Page implements HasForms
 {
@@ -61,6 +65,24 @@ class ManageSettings extends Page implements HasForms
     public function form(Schema $form): Schema
     {
         return SettingsFormSchema::configure($form)->statePath('data');
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema->components([
+            $this->getFormContentComponent(),
+        ]);
+    }
+
+    public function getFormContentComponent(): Component
+    {
+        return Form::make([EmbeddedSchema::make('form')])
+            ->id('form')
+            ->livewireSubmitHandler('save')
+            ->footer([
+                Actions::make($this->getFormActions())
+                    ->key('form-actions'),
+            ]);
     }
 
     protected function getHeaderActions(): array
@@ -153,8 +175,8 @@ class ManageSettings extends Page implements HasForms
 
     protected function loadOllamaData(): void
     {
-        $this->models = OllamaResource::getOllamaModels();
-        $this->ollamaInfo = OllamaResource::getOllamaInfo();
+        $this->models = $this->getOllamaModels();
+        $this->ollamaInfo = $this->getOllamaInfo();
     }
 
     public function refreshOllamaData(): void
@@ -170,9 +192,11 @@ class ManageSettings extends Page implements HasForms
     public function deleteModel(string $modelName): void
     {
         try {
-            $response = OllamaResource::deleteModel($modelName);
+            $response = Http::timeout(30)->post("{$this->getOllamaBaseUrl()}/api/delete", [
+                'name' => $modelName,
+            ]);
 
-            if ($response['success'] ?? false) {
+            if ($response->successful()) {
                 Notification::make()
                     ->title('Model Deleted')
                     ->body("Model '{$modelName}' has been deleted successfully.")
@@ -181,7 +205,7 @@ class ManageSettings extends Page implements HasForms
 
                 $this->refreshOllamaData();
             } else {
-                throw new \Exception($response['error'] ?? 'Unknown error');
+                throw new \Exception($response->json('error') ?? $response->body() ?: 'Unknown error');
             }
         } catch (\Exception $e) {
             Notification::make()
@@ -249,6 +273,74 @@ class ManageSettings extends Page implements HasForms
         return $this->getOllamaModelOptions() + array_combine($fallbackModels, $fallbackModels);
     }
 
+    protected function getOllamaModels(): array
+    {
+        try {
+            $response = Http::timeout(10)->get("{$this->getOllamaBaseUrl()}/api/tags");
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $models = $response->json('models', []);
+
+            if (! is_array($models)) {
+                return [];
+            }
+
+            return array_map(function (mixed $model): array {
+                if (! is_array($model)) {
+                    return [
+                        'name' => 'Unknown',
+                        'size' => '—',
+                        'modified' => '—',
+                    ];
+                }
+
+                return [
+                    'name' => (string) ($model['name'] ?? 'Unknown'),
+                    'size' => $this->formatBytes(isset($model['size']) ? (int) $model['size'] : null),
+                    'modified' => (string) ($model['modified_at'] ?? $model['modified'] ?? '—'),
+                ];
+            }, $models);
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    protected function getOllamaInfo(): array
+    {
+        try {
+            $versionResponse = Http::timeout(5)->get("{$this->getOllamaBaseUrl()}/api/version");
+
+            if (! $versionResponse->successful()) {
+                return [
+                    'status' => 'offline',
+                    'version' => 'Unknown',
+                    'build' => 'Unknown',
+                    'model_count' => count($this->models),
+                ];
+            }
+
+            $data = $versionResponse->json();
+
+            return [
+                'status' => 'online',
+                'version' => $data['version'] ?? 'Unknown',
+                'build' => $data['build'] ?? 'Unknown',
+                'model_count' => count($this->models),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'offline',
+                'version' => 'Unknown',
+                'build' => 'Unknown',
+                'model_count' => count($this->models),
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
     protected function serializeEnvValue(mixed $value): string
     {
         if (is_bool($value)) {
@@ -260,5 +352,28 @@ class ManageSettings extends Page implements HasForms
         }
 
         return (string) $value;
+    }
+
+    protected function getOllamaBaseUrl(): string
+    {
+        return rtrim(config('krai.ollama_url', env('OLLAMA_URL', 'http://krai-ollama-prod:11434')), '/');
+    }
+
+    protected function formatBytes(?int $bytes): string
+    {
+        if (! is_int($bytes) || $bytes < 0) {
+            return '—';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $value = (float) $bytes;
+        $unitIndex = 0;
+
+        while ($value >= 1024 && $unitIndex < count($units) - 1) {
+            $value /= 1024;
+            $unitIndex++;
+        }
+
+        return number_format($value, $unitIndex === 0 ? 0 : 1).' '.$units[$unitIndex];
     }
 }

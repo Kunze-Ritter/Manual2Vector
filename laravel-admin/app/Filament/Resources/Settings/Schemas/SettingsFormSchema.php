@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\Settings\Schemas;
 
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ViewField;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 
 class SettingsFormSchema
@@ -156,12 +156,10 @@ class SettingsFormSchema
                                     ViewField::make('ollama_status')
                                         ->label('')
                                         ->view('filament.forms.components.ollama-status-display')
-                                        ->state(fn ($livewire) => $livewire->ollamaInfo ?? [])
                                         ->columnSpanFull(),
                                     ViewField::make('ollama_models_table')
                                         ->label('')
                                         ->view('filament.forms.components.ollama-models-table')
-                                        ->state(fn ($livewire) => $livewire->models ?? [])
                                         ->columnSpanFull(),
                                 ]),
                             Section::make('GPU Settings')
