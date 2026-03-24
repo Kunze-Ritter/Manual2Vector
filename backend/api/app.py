@@ -4,7 +4,7 @@ KRAI Processing Pipeline API
 FastAPI app for monitoring, managing, and controlling the document processing pipeline.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Depends, Request, Response, status
+from fastapi import FastAPI, Form, HTTPException, UploadFile, File, BackgroundTasks, Depends, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
@@ -783,6 +783,7 @@ async def upload_document(
     response: Response,
     file: UploadFile = File(...),
     document_type: str = "service_manual",
+    language: str = Form("en"),
     force_reprocess: bool = False,
     processor: UploadProcessor = Depends(get_upload_processor),
     current_user: dict = Depends(require_permission('documents:write'))
@@ -817,7 +818,7 @@ async def upload_document(
             model=None,
             series=None,
             version=None,
-            language="en",
+            language=language or "en",
         )
         context.force_reprocess = force_reprocess
 

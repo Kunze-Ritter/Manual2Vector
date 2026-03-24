@@ -63,6 +63,9 @@ services:
       - ./laravel-admin/resources:/var/www/html/resources
       - ./laravel-admin/routes:/var/www/html/routes
       - ./laravel-admin/storage:/var/www/html/storage
+      - KRAI_SERVICE_JWT=${KRAI_SERVICE_JWT:-}
+      - KRAI_ENGINE_ADMIN_USERNAME=${KRAI_ENGINE_ADMIN_USERNAME:-}
+      - KRAI_ENGINE_ADMIN_PASSWORD=${KRAI_ENGINE_ADMIN_PASSWORD:-}
       - ./laravel-admin/public:/var/www/html/public
       - ./laravel-admin/.env.example:/var/www/html/.env.example
       - laravel_vendor:/var/www/html/vendor

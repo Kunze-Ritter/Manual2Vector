@@ -2,41 +2,50 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\User;
 
 class KraiEngineService
 {
     private string $baseUrl;
+
     private string $serviceToken;
+
     private int $defaultTimeout;
+
     private int $queryTimeout;
 
-    public function __construct(string $baseUrl, string $serviceToken, int $defaultTimeout = 120, int $queryTimeout = 60)
-    {
+    private int $uploadTimeout;
+
+    public function __construct(
+        string $baseUrl,
+        string $serviceToken,
+        int $defaultTimeout = 120,
+        int $queryTimeout = 60,
+        int $uploadTimeout = 600
+    ) {
         $this->baseUrl = rtrim($baseUrl, '/');
         $this->serviceToken = $serviceToken;
         $this->defaultTimeout = $defaultTimeout;
         $this->queryTimeout = $queryTimeout;
+        $this->uploadTimeout = $uploadTimeout;
     }
 
     /**
      * Create HTTP client with default headers
      */
-    private function createHttpClient(int $timeout = null): PendingRequest
+    private function createHttpClient(?int $timeout = null): PendingRequest
     {
         $client = Http::timeout($timeout ?? $this->defaultTimeout)
             ->withHeaders([
-                'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
             ]);
 
         if ($this->serviceToken) {
             $client = $client->withHeaders([
-                'Authorization' => 'Bearer ' . $this->serviceToken,
+                'Authorization' => 'Bearer '.$this->serviceToken,
             ]);
         }
 
@@ -48,7 +57,7 @@ class KraiEngineService
      */
     private function addUserContext(PendingRequest $client, ?User $user = null): PendingRequest
     {
-        if (!$user) {
+        if (! $user) {
             $user = auth()->user();
         }
 
@@ -77,7 +86,7 @@ class KraiEngineService
         );
 
         if ($error) {
-            $message .= ' - Error: ' . $error;
+            $message .= ' - Error: '.$error;
         }
 
         if ($status >= 400) {
@@ -92,27 +101,29 @@ class KraiEngineService
      */
     public function processStage(string $documentId, string $stageName, ?User $user = null): array
     {
-        $endpoint = "/documents/{$documentId}/process/stage/{$stageName}";
-        
+        $endpoint = "/api/v1/documents/{$documentId}/process/stage/{$stageName}";
+
         try {
             $client = $this->createHttpClient();
             $client = $this->addUserContext($client, $user);
-            
-            $response = $client->post($this->baseUrl . $endpoint);
-            
+
+            $response = $client->post($this->baseUrl.$endpoint);
+
             $this->logApiCall('POST', $endpoint, $documentId, $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'stage' => $stageName,
-                    'data' => $data,
-                    'processing_time' => $data['processing_time'] ?? 0,
+                    'stage' => $data['data']['stage'] ?? $stageName,
+                    'status' => $data['data']['status'] ?? 'queued',
+                    'document_id' => $data['data']['document_id'] ?? $documentId,
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -120,9 +131,10 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('POST', $endpoint, $documentId, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
@@ -132,34 +144,36 @@ class KraiEngineService
      */
     public function processMultipleStages(string $documentId, array $stages, bool $stopOnError = true, ?User $user = null): array
     {
-        $endpoint = "/documents/{$documentId}/process/stages";
-        
+        $endpoint = "/api/v1/documents/{$documentId}/process/stages";
+
         try {
-            $client = $this->createHttpClient();
+            $client = $this->createHttpClient($this->uploadTimeout);
             $client = $this->addUserContext($client, $user);
-            
+
             $payload = [
                 'stages' => $stages,
                 'stop_on_error' => $stopOnError,
             ];
-            
-            $response = $client->post($this->baseUrl . $endpoint, $payload);
-            
+
+            $response = $client->asJson()->post($this->baseUrl.$endpoint, $payload);
+
             $this->logApiCall('POST', $endpoint, $documentId, $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'total_stages' => $data['total_stages'] ?? count($stages),
-                    'successful' => $data['successful'] ?? 0,
-                    'failed' => $data['failed'] ?? 0,
-                    'stage_results' => $data['stage_results'] ?? [],
-                    'success_rate' => $data['success_rate'] ?? 0,
+                    'total_stages' => $data['data']['total_stages'] ?? count($stages),
+                    'successful' => $data['data']['successful'] ?? 0,
+                    'failed' => $data['data']['failed'] ?? 0,
+                    'stage_results' => $data['data']['stage_results'] ?? [],
+                    'success_rate' => (float) ($data['data']['success_rate'] ?? 0),
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -170,9 +184,10 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('POST', $endpoint, $documentId, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
                 'total_stages' => count($stages),
                 'successful' => 0,
                 'failed' => count($stages),
@@ -185,38 +200,40 @@ class KraiEngineService
      */
     public function processVideo(string $documentId, string $videoUrl, ?string $manufacturerId = null, ?User $user = null): array
     {
-        $endpoint = "/documents/{$documentId}/process/video";
-        
+        $endpoint = "/api/v1/documents/{$documentId}/process/video";
+
         try {
             $client = $this->createHttpClient();
             $client = $this->addUserContext($client, $user);
-            
+
             $payload = [
                 'video_url' => $videoUrl,
             ];
-            
+
             if ($manufacturerId) {
                 $payload['manufacturer_id'] = $manufacturerId;
             }
-            
-            $response = $client->post($this->baseUrl . $endpoint, $payload);
-            
+
+            $response = $client->asJson()->post($this->baseUrl.$endpoint, $payload);
+
             $this->logApiCall('POST', $endpoint, $documentId, $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'video_id' => $data['video_id'] ?? null,
-                    'title' => $data['title'] ?? null,
-                    'platform' => $data['platform'] ?? null,
-                    'thumbnail_url' => $data['thumbnail_url'] ?? null,
-                    'duration' => $data['duration'] ?? null,
-                    'channel_title' => $data['channel_title'] ?? null,
+                    'video_id' => $data['data']['video_id'] ?? null,
+                    'title' => $data['data']['title'] ?? null,
+                    'platform' => $data['data']['platform'] ?? null,
+                    'thumbnail_url' => $data['data']['thumbnail_url'] ?? null,
+                    'duration' => $data['data']['duration'] ?? null,
+                    'channel_title' => $data['data']['channel_title'] ?? null,
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -224,9 +241,10 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('POST', $endpoint, $documentId, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
@@ -236,32 +254,34 @@ class KraiEngineService
      */
     public function generateThumbnail(string $documentId, array $size = [300, 400], int $page = 0, ?User $user = null): array
     {
-        $endpoint = "/documents/{$documentId}/process/thumbnail";
-        
+        $endpoint = "/api/v1/documents/{$documentId}/process/thumbnail";
+
         try {
             $client = $this->createHttpClient();
             $client = $this->addUserContext($client, $user);
-            
+
             $payload = [
                 'size' => $size,
                 'page' => $page,
             ];
-            
-            $response = $client->post($this->baseUrl . $endpoint, $payload);
-            
+
+            $response = $client->asJson()->post($this->baseUrl.$endpoint, $payload);
+
             $this->logApiCall('POST', $endpoint, $documentId, $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'thumbnail_url' => $data['thumbnail_url'] ?? null,
-                    'size' => $data['size'] ?? $size,
-                    'file_size' => $data['file_size'] ?? null,
+                    'thumbnail_url' => $data['data']['thumbnail_url'] ?? null,
+                    'size' => $data['data']['size'] ?? $size,
+                    'file_size' => $data['data']['file_size'] ?? null,
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -269,9 +289,10 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('POST', $endpoint, $documentId, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
@@ -281,33 +302,28 @@ class KraiEngineService
      */
     public function getStageStatus(string $documentId): array
     {
-        $endpoint = "/documents/{$documentId}/stages/status";
-        
+        $endpoint = "/api/v1/documents/{$documentId}/stages";
+
         try {
             $client = $this->createHttpClient($this->queryTimeout);
-            
-            $response = $client->get($this->baseUrl . $endpoint);
-            
+
+            $response = $client->get($this->baseUrl.$endpoint);
+
             $this->logApiCall('GET', $endpoint, $documentId, $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'document_id' => $data['document_id'] ?? $documentId,
-                    'stage_status' => $data['stage_status'] ?? [],
-                    'found' => true,
-                ];
-            } elseif ($response->status() === 404) {
-                return [
-                    'success' => true,
-                    'document_id' => $documentId,
-                    'stage_status' => [],
-                    'found' => false,
+                    'document_id' => $data['data']['document_id'] ?? $documentId,
+                    'stage_status' => $data['data']['stage_status'] ?? [],
+                    'found' => $data['data']['found'] ?? false,
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('GET', $endpoint, $documentId, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -316,38 +332,42 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('GET', $endpoint, $documentId, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
                 'found' => false,
             ];
         }
     }
 
     /**
-     * Get available stages for a document
+     * Get available stages for processing
      */
-    public function getAvailableStages(string $documentId): array
+    public function getAvailableStages(): array
     {
-        $endpoint = "/documents/{$documentId}/stages";
-        
+        $endpoint = '/api/v1/stages/names';
+        $logContext = 'global';
+
         try {
             $client = $this->createHttpClient($this->queryTimeout);
-            
-            $response = $client->get($this->baseUrl . $endpoint);
-            
-            $this->logApiCall('GET', $endpoint, $documentId, $response->status());
-            
+
+            $response = $client->get($this->baseUrl.$endpoint);
+
+            $this->logApiCall('GET', $endpoint, $logContext, $response->status());
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'stages' => $data['stages'] ?? [],
-                    'total' => $data['total'] ?? 0,
+                    'stages' => $data['data']['stages'] ?? [],
+                    'total' => $data['data']['total'] ?? 0,
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
-                $this->logApiCall('GET', $endpoint, $documentId, $response->status(), $error);
+                $this->logApiCall('GET', $endpoint, $logContext, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -356,10 +376,11 @@ class KraiEngineService
                 ];
             }
         } catch (\Exception $e) {
-            $this->logApiCall('GET', $endpoint, $documentId, 500, $e->getMessage());
+            $this->logApiCall('GET', $endpoint, $logContext, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
                 'stages' => [],
                 'total' => 0,
             ];
@@ -371,26 +392,30 @@ class KraiEngineService
      */
     public function getDocumentStatus(string $documentId): array
     {
-        $endpoint = "/documents/{$documentId}/status";
-        
+        $endpoint = "/api/v1/documents/{$documentId}/status";
+
         try {
             $client = $this->createHttpClient($this->queryTimeout);
-            
-            $response = $client->get($this->baseUrl . $endpoint);
-            
+
+            $response = $client->get($this->baseUrl.$endpoint);
+
             $this->logApiCall('GET', $endpoint, $documentId, $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'document_status' => $data['document_status'] ?? 'unknown',
-                    'queue_position' => $data['queue_position'] ?? 0,
-                    'total_queue_items' => $data['total_queue_items'] ?? 0,
+                    'status' => $data['data']['status'] ?? 'unknown',
+                    'current_stage' => $data['data']['current_stage'] ?? null,
+                    'progress' => (float) ($data['data']['progress'] ?? 0),
+                    'queue_position' => $data['data']['queue_position'] ?? 0,
+                    'total_queue_items' => $data['data']['total_queue_items'] ?? 0,
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('GET', $endpoint, $documentId, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -398,9 +423,10 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('GET', $endpoint, $documentId, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
@@ -410,19 +436,19 @@ class KraiEngineService
      */
     public function uploadDocument(\Illuminate\Http\UploadedFile $file, string $documentType, string $language = 'en', ?User $user = null): array
     {
-        $endpoint = "/documents/upload";
-        
+        $endpoint = '/upload';
+
         try {
             $client = $this->createHttpClient();
             $client = $this->addUserContext($client, $user);
-            
+
             $fileHandle = fopen($file->getRealPath(), 'rb');
             try {
                 $response = $client->attach(
                     'file',
                     $fileHandle,
                     $file->getClientOriginalName()
-                )->post($this->baseUrl . $endpoint, [
+                )->post($this->baseUrl.$endpoint, [
                     'document_type' => $documentType,
                     'language' => $language,
                 ]);
@@ -431,11 +457,12 @@ class KraiEngineService
                     fclose($fileHandle);
                 }
             }
-            
+
             $this->logApiCall('POST', $endpoint, 'upload', $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
                     'document_id' => $data['document_id'] ?? null,
@@ -447,6 +474,7 @@ class KraiEngineService
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('POST', $endpoint, 'upload', $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -454,9 +482,10 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('POST', $endpoint, 'upload', 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
@@ -466,27 +495,29 @@ class KraiEngineService
      */
     public function reprocessDocument(string $documentId, ?User $user = null): array
     {
-        $endpoint = "/documents/{$documentId}/reprocess";
-        
+        $endpoint = "/api/v1/documents/{$documentId}/reprocess";
+
         try {
             $client = $this->createHttpClient();
             $client = $this->addUserContext($client, $user);
-            
-            $response = $client->post($this->baseUrl . $endpoint);
-            
+
+            $response = $client->post($this->baseUrl.$endpoint);
+
             $this->logApiCall('POST', $endpoint, $documentId, $response->status());
-            
+
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
-                    'message' => $data['message'] ?? 'Document reprocessing started',
-                    'document_id' => $data['document_id'] ?? $documentId,
-                    'status' => $data['status'] ?? 'started',
+                    'message' => $data['data']['message'] ?? 'Document reprocessing started',
+                    'document_id' => $data['data']['document_id'] ?? $documentId,
+                    'status' => $data['data']['status'] ?? 'started',
                 ];
             } else {
                 $error = $response->json('detail', 'Unknown error');
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
+
                 return [
                     'success' => false,
                     'error' => $error,
@@ -494,9 +525,10 @@ class KraiEngineService
             }
         } catch (\Exception $e) {
             $this->logApiCall('POST', $endpoint, $documentId, 500, $e->getMessage());
+
             return [
                 'success' => false,
-                'error' => 'Connection error: ' . $e->getMessage(),
+                'error' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
