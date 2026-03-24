@@ -69,6 +69,7 @@ from api.routes.batch import router as batch_router
 from api.routes.search import router as search_router
 from api.routes.api_keys import router as api_keys_router
 from api.routes.dashboard import router as dashboard_router
+from api.routes.document_processing import router as document_processing_router
 from api import websocket as websocket_api
 from services.metrics_service import MetricsService
 from services.alert_service import AlertService
@@ -1210,7 +1211,6 @@ app.include_router(pipeline_errors.router, prefix="/api/v1")
 from api import monitoring_api
 app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
 
-from api.routes.document_processing import router as document_processing_router
 app.include_router(document_processing_router, prefix="/api/v1")
 
 # OpenAI-compatible wrapper — used by OpenWebUI and other OpenAI clients

@@ -54,8 +54,11 @@ def _stub_modules():
     sys.modules["models.document"] = doc_mod
 
 
+# Run once at module import time so tests don't clobber sys.modules on each call
+_stub_modules()
+
+
 def test_router_imports_cleanly():
-    _stub_modules()
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "api.routes.document_processing",
@@ -63,5 +66,7 @@ def test_router_imports_cleanly():
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    from fastapi import APIRouter
     assert hasattr(mod, "router")
     assert mod.router is not None
+    assert isinstance(mod.router, APIRouter)

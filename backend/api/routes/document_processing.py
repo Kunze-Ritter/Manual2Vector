@@ -9,7 +9,7 @@ import logging
 from typing import Optional
 
 import asyncpg
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status  # noqa: F401
 
 from api.dependencies.database import get_database_pool
 from api.middleware.auth_middleware import require_permission
@@ -19,8 +19,8 @@ from api.routes.response_models import (
     StageProcessingResponse,
     StageStatusResponse,
     SuccessResponse,
-    ThumbnailGenerationRequest,
-    VideoProcessingRequest,
+    ThumbnailGenerationRequest,  # noqa: F401
+    VideoProcessingRequest,  # noqa: F401
     DocumentProcessingStatusResponse,
 )
 from models.document import CANONICAL_STAGES
