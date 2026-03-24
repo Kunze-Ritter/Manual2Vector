@@ -5,40 +5,44 @@ Handles document ingestion, validation, deduplication, and queue management.
 """
 
 import hashlib
-from pathlib import Path
-from typing import Optional, Dict, Any
-import asyncio
+import os
 from datetime import datetime
-from uuid import UUID, uuid4
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
 
-from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingResult, Stage, ProcessingError
-from backend.core.data_models import DocumentModel, ProcessingQueueModel, ProcessingStatus, DocumentType
-import asyncpg
+from backend.core.base_processor import BaseProcessor, ProcessingContext, ProcessingError, ProcessingResult, Stage
+from backend.core.data_models import DocumentModel, DocumentType, ProcessingQueueModel, ProcessingStatus
 from backend.processors.logger import get_logger
 from backend.services.database_adapter import DatabaseAdapter
+from backend.services.object_storage_service import ObjectStorageService
+from backend.services.storage_factory import create_storage_service
+
 from .stage_tracker import StageTracker
 
 
 class UploadProcessor(BaseProcessor):
     """
     Stage 1: Document Upload & Validation
-    
+
     Responsibilities:
     1. File validation (format, size, corruption)
     2. Duplicate detection (hash-based)
     3. Database record creation
     4. Processing queue management
     """
-    
+
     def __init__(
         self,
         database_adapter: DatabaseAdapter,
         max_file_size_mb: int = 500,
-        allowed_extensions: list = None
+        allowed_extensions: list = None,
+        storage_service: ObjectStorageService | None = None,
+        upload_documents_to_storage: bool | None = None,
     ):
         """
         Initialize upload processor
-        
+
         Args:
             database_adapter: Database adapter instance
             max_file_size_mb: Maximum file size in MB
@@ -49,17 +53,59 @@ class UploadProcessor(BaseProcessor):
         self.database = database_adapter
         self.database_service = database_adapter
         self.db_adapter = database_adapter
-        
+        self.upload_documents_to_storage = (
+            upload_documents_to_storage
+            if upload_documents_to_storage is not None
+            else str(os.getenv("UPLOAD_DOCUMENTS_TO_STORAGE", "false")).lower() in ("true", "1", "yes", "on")
+        )
+        self.storage_service = storage_service
+        self._storage_connected = False
+
+        if self.upload_documents_to_storage and self.storage_service is None:
+            self.storage_service = create_storage_service()
+
         self.max_file_size_bytes = max_file_size_mb * 1024 * 1024
         # CURRENT SCOPE: PDF/PDFZ only
         # Support standard PDFs and .pdfz variants (PDFs with custom extension)
         # FUTURE: Extend to support DOCX, images (jpg, png), and video formats (mp4, avi)
         # with appropriate validation and metadata extraction per type
-        self.allowed_extensions = allowed_extensions or ['.pdf', '.pdfz']
+        self.allowed_extensions = allowed_extensions or [".pdf", ".pdfz"]
 
         # Stage tracking with database adapter
         self.stage_tracker = StageTracker(database_adapter) if database_adapter else None
-    
+
+    async def _ensure_storage_connected(self) -> None:
+        if not self.upload_documents_to_storage or self.storage_service is None or self._storage_connected:
+            return
+        await self.storage_service.connect()
+        self._storage_connected = True
+
+    async def _upload_document_to_storage(
+        self,
+        file_path: Path,
+        file_hash: str,
+        document_type: str,
+    ) -> dict[str, Any]:
+        await self._ensure_storage_connected()
+        if self.storage_service is None:
+            raise ProcessingError(
+                "Document storage is enabled but storage_service is not configured",
+                self.name,
+                "STORAGE_NOT_CONFIGURED",
+            )
+
+        content = file_path.read_bytes()
+        return await self.storage_service.upload_file(
+            content=content,
+            filename=file_path.name,
+            bucket_type="documents",
+            metadata={
+                "document_type": document_type,
+                "source": "upload_processor",
+                "file_hash": file_hash,
+            },
+        )
+
     async def process(self, context: ProcessingContext) -> ProcessingResult:
         """Async entrypoint used by the pipeline framework.
 
@@ -94,7 +140,7 @@ class UploadProcessor(BaseProcessor):
                 "INVALID_RESULT_TYPE",
             )
 
-        metadata: Dict[str, Any] = {
+        metadata: dict[str, Any] = {
             "document_id": raw_result.get("document_id"),
             "file_path": str(file_path),
             "stage": self.stage.value,
@@ -119,8 +165,8 @@ class UploadProcessor(BaseProcessor):
         file_path: Path,
         document_type: str,
         force_reprocess: bool,
-        context: Optional[ProcessingContext] = None,
-    ) -> Dict[str, Any]:
+        context: ProcessingContext | None = None,
+    ) -> dict[str, Any]:
         """Adapter-based upload path using DatabaseService/DatabaseAdapter (e.g. PostgreSQLAdapter)."""
 
         with self.logger_context(stage=self.stage, document_id=None, file=file_path.name) as adapter:
@@ -128,12 +174,8 @@ class UploadProcessor(BaseProcessor):
 
         # Step 1: Validate file
         validation_result = self._validate_file(file_path)
-        if not validation_result['valid']:
-            return {
-                'success': False,
-                'error': validation_result['error'],
-                'document_id': None
-            }
+        if not validation_result["valid"]:
+            return {"success": False, "error": validation_result["error"], "document_id": None}
 
         # Step 2: Calculate file hash
         file_hash = self._calculate_file_hash(file_path)
@@ -148,44 +190,54 @@ class UploadProcessor(BaseProcessor):
             existing_doc = await self.database.get_document_by_hash(file_hash)
 
         if existing_doc and not force_reprocess:
-            document_id = str(existing_doc.get('id') or existing_doc.get('document_id'))
+            document_id = str(existing_doc.get("id") or existing_doc.get("document_id"))
             with self.logger_context(stage=self.stage, document_id=document_id) as adapter:
                 adapter.info("Duplicate found - skipping reprocess")
-            
+
             # Mark upload stage as skipped for duplicates
             if self.stage_tracker is not None:
                 await self.stage_tracker.skip_stage(
-                    document_id=document_id,
-                    stage_name=self.stage,
-                    reason="Duplicate document detected"
+                    document_id=document_id, stage_name=self.stage, reason="Duplicate document detected"
                 )
-            
+
             return {
-                'success': True,
-                'document_id': document_id,
-                'status': 'duplicate',
-                'existing_document': existing_doc,
-                'reprocessing': False
+                "success": True,
+                "document_id": document_id,
+                "status": "duplicate",
+                "existing_document": existing_doc,
+                "reprocessing": False,
             }
 
         language = getattr(context, "language", "en") if context is not None else "en"
+        storage_result: dict[str, Any] | None = None
+        if self.upload_documents_to_storage:
+            storage_result = await self._upload_document_to_storage(
+                file_path=file_path,
+                file_hash=file_hash,
+                document_type=document_type,
+            )
+            metadata["storage_path"] = storage_result.get("storage_path")
+            metadata["storage_url"] = storage_result.get("storage_url") or storage_result.get("url")
 
         try:
             if existing_doc and force_reprocess:
                 # Update existing record
-                document_id = str(existing_doc.get('id') or existing_doc.get('document_id'))
+                document_id = str(existing_doc.get("id") or existing_doc.get("document_id"))
                 with self.logger_context(stage=self.stage, document_id=document_id) as adapter:
                     adapter.info("Reprocessing existing document")
 
                 # Only update columns that are known to exist in krai_core.documents
                 updates = {
-                    'file_hash': file_hash,
-                    'file_size': metadata['file_size_bytes'],
-                    'processing_status': ProcessingStatus.PENDING.value,
+                    "file_hash": file_hash,
+                    "file_size": metadata["file_size_bytes"],
+                    "processing_status": ProcessingStatus.PENDING.value,
                 }
+                if storage_result is not None:
+                    updates["storage_path"] = metadata.get("storage_path")
+                    updates["storage_url"] = metadata.get("storage_url")
                 if hasattr(self.database, "update_document"):
                     await self.database.update_document(document_id, updates)
-                status = 'reprocessing'
+                status = "reprocessing"
             else:
                 # Create new record
                 document_type_value = document_type
@@ -198,22 +250,23 @@ class UploadProcessor(BaseProcessor):
                 doc_model = DocumentModel(
                     filename=file_path.name,
                     original_filename=file_path.name,
-                    file_size=metadata['file_size_bytes'],
+                    file_size=metadata["file_size_bytes"],
                     file_hash=file_hash,
                     document_type=document_type_value,
                     language=language,
                     processing_status=ProcessingStatus.PENDING,
-                    storage_path=str(file_path),
+                    storage_path=metadata.get("storage_path") or str(file_path),
+                    storage_url=metadata.get("storage_url"),
                 )
 
                 document_id = await self.database.create_document(doc_model)
-                status = 'new'
+                status = "new"
                 self.logger.success(f"Created document record: {document_id}")
         except Exception as e:
             return {
-                'success': False,
-                'error': f"Database error: {e}",
-                'document_id': None,
+                "success": False,
+                "error": f"Database error: {e}",
+                "document_id": None,
             }
 
         # Step 6: Add to processing queue via adapter (non-critical)
@@ -236,24 +289,23 @@ class UploadProcessor(BaseProcessor):
                 document_id=document_id,
                 stage_name=self.stage,
                 metadata={
-                    'file_hash': file_hash,
-                    'file_size': metadata['file_size_bytes'],
-                    'page_count': metadata.get('page_count', 0)
-                }
+                    "file_hash": file_hash,
+                    "file_size": metadata["file_size_bytes"],
+                    "page_count": metadata.get("page_count", 0),
+                },
             )
 
         return {
-            'success': True,
-            'document_id': document_id,
-            'status': status,
-            'file_hash': file_hash,
-            'metadata': metadata
+            "success": True,
+            "document_id": document_id,
+            "status": status,
+            "file_hash": file_hash,
+            "metadata": metadata,
         }
 
-    
-    def _validate_file(self, file_path: Path) -> Dict[str, Any]:
+    def _validate_file(self, file_path: Path) -> dict[str, Any]:
         """Validate file format and size"""
-        
+
         # Debug logging for file validation
         self.logger.debug(
             "Validating file: %s (suffix=%r) allowed=%s",
@@ -264,96 +316,92 @@ class UploadProcessor(BaseProcessor):
 
         # Check if file exists
         if not file_path.exists():
-            return {'valid': False, 'error': f"File not found: {file_path}"}
-        
+            return {"valid": False, "error": f"File not found: {file_path}"}
+
         # Check file extension
         if file_path.suffix.lower() not in self.allowed_extensions:
             return {
-                'valid': False,
-                'error': f"Invalid file type '{file_path.suffix}'. Allowed: {self.allowed_extensions}"
+                "valid": False,
+                "error": f"Invalid file type '{file_path.suffix}'. Allowed: {self.allowed_extensions}",
             }
-        
+
         # Check file size
         file_size = file_path.stat().st_size
         if file_size > self.max_file_size_bytes:
             max_mb = self.max_file_size_bytes / (1024 * 1024)
             actual_mb = file_size / (1024 * 1024)
-            return {
-                'valid': False,
-                'error': f"File too large: {actual_mb:.1f}MB (max: {max_mb}MB)"
-            }
-        
+            return {"valid": False, "error": f"File too large: {actual_mb:.1f}MB (max: {max_mb}MB)"}
+
         # Check if file is corrupted (basic check - can be opened)
         try:
             import fitz  # PyMuPDF
+
             doc = fitz.open(file_path)
             try:
                 page_count = len(doc)
             finally:
                 doc.close()
-            
+
             if page_count == 0:
-                return {'valid': False, 'error': "PDF has no pages"}
-            
+                return {"valid": False, "error": "PDF has no pages"}
+
         except Exception as e:
-            return {'valid': False, 'error': f"Corrupted or invalid PDF: {str(e)}"}
-        
-        return {'valid': True, 'error': None}
-    
+            return {"valid": False, "error": f"Corrupted or invalid PDF: {e!s}"}
+
+        return {"valid": True, "error": None}
+
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calculate SHA-256 hash of file"""
         sha256_hash = hashlib.sha256()
-        
+
         with open(file_path, "rb") as f:
             # Read in chunks to handle large files
             for chunk in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(chunk)
-        
+
         return sha256_hash.hexdigest()
-    
-    
-    def _extract_basic_metadata(self, file_path: Path) -> Dict[str, Any]:
+
+    def _extract_basic_metadata(self, file_path: Path) -> dict[str, Any]:
         """Extract basic metadata from PDF"""
         import fitz  # PyMuPDF
-        
+
         metadata = {
-            'filename': file_path.name,
-            'file_size_bytes': file_path.stat().st_size,
-            'file_modified_at': datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+            "filename": file_path.name,
+            "file_size_bytes": file_path.stat().st_size,
+            "file_modified_at": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat(),
         }
-        
+
         try:
             doc = fitz.open(file_path)
             try:
                 # PDF metadata
                 pdf_meta = doc.metadata
-                metadata.update({
-                    'page_count': len(doc),
-                    'title': pdf_meta.get('title', '') or file_path.stem,
-                    'author': pdf_meta.get('author', ''),
-                    'subject': pdf_meta.get('subject', ''),
-                    'creator': pdf_meta.get('creator', ''),
-                    'producer': pdf_meta.get('producer', ''),
-                    'creation_date': pdf_meta.get('creationDate', ''),
-                    'modification_date': pdf_meta.get('modDate', '')
-                })
+                metadata.update(
+                    {
+                        "page_count": len(doc),
+                        "title": pdf_meta.get("title", "") or file_path.stem,
+                        "author": pdf_meta.get("author", ""),
+                        "subject": pdf_meta.get("subject", ""),
+                        "creator": pdf_meta.get("creator", ""),
+                        "producer": pdf_meta.get("producer", ""),
+                        "creation_date": pdf_meta.get("creationDate", ""),
+                        "modification_date": pdf_meta.get("modDate", ""),
+                    }
+                )
             finally:
                 doc.close()
-            
+
         except Exception as e:
             self.logger.warning(f"Could not extract PDF metadata: {e}")
-            metadata['page_count'] = 0
-            metadata['title'] = file_path.stem
-        
+            metadata["page_count"] = 0
+            metadata["title"] = file_path.stem
+
         return metadata
-    
-    
-    
 
 
 class BatchUploadProcessor:
     """Process multiple documents in batch"""
-    
+
     def __init__(self, database_adapter: DatabaseAdapter, max_file_size_mb: int = 500):
         """Initialize batch processor"""
         self.upload_processor = UploadProcessor(database_adapter, max_file_size_mb)
@@ -399,37 +447,37 @@ class BatchUploadProcessor:
         directory: Path,
         document_type: str = "service_manual",
         recursive: bool = False,
-        force_reprocess: bool = False
-    ) -> Dict[str, Any]:
+        force_reprocess: bool = False,
+    ) -> dict[str, Any]:
         """
         Process all PDFs in a directory
-        
+
         Args:
             directory: Directory containing PDFs
             document_type: Type of documents
             recursive: If True, search subdirectories
             force_reprocess: If True, reprocess existing documents
-            
+
         Returns:
             Dict with processing results
         """
         self.logger.section(f"Batch Upload: {directory}")
-        
+
         # Find all PDFs
         if recursive:
             pdf_files = list(directory.rglob("*.pdf"))
         else:
             pdf_files = list(directory.glob("*.pdf"))
-        
+
         self.logger.info(f"Found {len(pdf_files)} PDF files")
-        
+
         results = {
-            'total': len(pdf_files),
-            'successful': 0,
-            'failed': 0,
-            'duplicates': 0,
-            'reprocessed': 0,
-            'documents': []
+            "total": len(pdf_files),
+            "successful": 0,
+            "failed": 0,
+            "duplicates": 0,
+            "reprocessed": 0,
+            "documents": [],
         }
 
         batch_results = await self.process_batch(
@@ -440,45 +488,49 @@ class BatchUploadProcessor:
 
         for pdf_file, result in zip(pdf_files, batch_results):
             if result.success:
-                results['successful'] += 1
+                results["successful"] += 1
 
                 status = None
                 if isinstance(getattr(result, "data", None), dict):
-                    status = result.data.get('status')
+                    status = result.data.get("status")
 
-                if status == 'duplicate':
-                    results['duplicates'] += 1
-                elif status == 'reprocessing':
-                    results['reprocessed'] += 1
+                if status == "duplicate":
+                    results["duplicates"] += 1
+                elif status == "reprocessing":
+                    results["reprocessed"] += 1
 
                 document_id = None
                 if isinstance(getattr(result, "data", None), dict):
-                    document_id = result.data.get('document_id')
+                    document_id = result.data.get("document_id")
 
-                results['documents'].append({
-                    'filename': pdf_file.name,
-                    'document_id': document_id,
-                    'status': status,
-                })
+                results["documents"].append(
+                    {
+                        "filename": pdf_file.name,
+                        "document_id": document_id,
+                        "status": status,
+                    }
+                )
             else:
-                results['failed'] += 1
+                results["failed"] += 1
                 error_str = None
                 if hasattr(result, "error") and result.error is not None:
                     error_str = str(result.error)
-                results['documents'].append({
-                    'filename': pdf_file.name,
-                    'error': error_str or 'Processing failed',
-                })
-        
+                results["documents"].append(
+                    {
+                        "filename": pdf_file.name,
+                        "error": error_str or "Processing failed",
+                    }
+                )
+
         # Summary
         self.logger.section("Batch Upload Summary")
         self.logger.info(f"Total: {results['total']}")
         self.logger.success(f"Successful: {results['successful']}")
-        if results['duplicates'] > 0:
+        if results["duplicates"] > 0:
             self.logger.info(f"Duplicates skipped: {results['duplicates']}")
-        if results['reprocessed'] > 0:
+        if results["reprocessed"] > 0:
             self.logger.info(f"Reprocessed: {results['reprocessed']}")
-        if results['failed'] > 0:
+        if results["failed"] > 0:
             self.logger.warning(f"Failed: {results['failed']}")
-        
+
         return results
