@@ -873,7 +873,20 @@ async def startup_events():
     db_adapter = create_database_adapter()
     await db_adapter.connect()
     app.state.db_adapter = db_adapter
-    
+
+    # Services for document_processing router
+    from services.storage_factory import create_storage_service
+    from pipeline.master_pipeline import KRMasterPipeline
+    try:
+        app.state.storage_service = create_storage_service()
+    except Exception as exc:
+        logger.warning("Object storage not available: %s — thumbnail endpoint will fail", exc)
+        app.state.storage_service = None
+    app.state.pipeline = KRMasterPipeline(
+        database_adapter=db_adapter,
+        force_continue_on_errors=True,
+    )
+
     try:
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
@@ -1196,6 +1209,9 @@ app.include_router(pipeline_errors.router, prefix="/api/v1")
 # Mount Monitoring API
 from api import monitoring_api
 app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
+
+from api.routes.document_processing import router as document_processing_router
+app.include_router(document_processing_router, prefix="/api/v1")
 
 # OpenAI-compatible wrapper — used by OpenWebUI and other OpenAI clients
 app.include_router(openai_compat_router)

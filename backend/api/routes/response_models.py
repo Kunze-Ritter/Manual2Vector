@@ -16,6 +16,17 @@ class DocumentStatusResponse(BaseModel):
     total_queue_items: int = Field(..., description="Total number of items in queue")
 
 
+class DocumentProcessingStatusResponse(BaseModel):
+    """Processing status response for the new /api/v1/documents/{id}/status endpoint.
+    Distinct from DocumentStatusResponse (which has field 'document_status')."""
+    document_id: str
+    status: str = Field(..., description="pending|processing|completed|failed")
+    current_stage: Optional[str] = None
+    progress: float = Field(default=0.0, ge=0.0, le=1.0)
+    queue_position: int = Field(default=0)
+    total_queue_items: int = Field(default=0)
+
+
 class SuccessResponse(GenericModel, Generic[T]):
     """Standard success response envelope."""
 
