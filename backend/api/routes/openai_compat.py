@@ -12,6 +12,7 @@ Fast-Path (no LLM needed):
 Supported backends (env LLM_BACKEND):
   ollama  — local Ollama (default, model via OLLAMA_MODEL_CHAT)
   openai  — OpenAI API  (model via OPENAI_MODEL, key via OPENAI_API_KEY)
+  openrouter — OpenRouter API (model via OPENROUTER_MODEL, key via OPENROUTER_API_KEY)
 
 Vision / Image Analysis
   When the request contains image_url content parts the images are forwarded
@@ -35,12 +36,18 @@ import re
 import time
 import uuid
 from urllib.parse import urlparse
-from typing import AsyncGenerator, Optional, Union
+from typing import Any, AsyncGenerator, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from api.agent_scope import (
+    AgentScope,
+    build_scope_filters,
+    extract_scope_from_openai_payload,
+    normalize_scope,
+)
 from api.middleware.auth_middleware import require_permission
 
 logger = logging.getLogger(__name__)
@@ -54,6 +61,10 @@ router = APIRouter(prefix="/v1", tags=["OpenAI Compatible"])
 # Falls back to OBJECT_STORAGE_PUBLIC_URL (without bucket path) if not set.
 _MINIO_IMAGES_PUBLIC = (
     os.getenv('OBJECT_STORAGE_PUBLIC_URL_IMAGES') or
+    os.getenv('OBJECT_STORAGE_PUBLIC_URL', '')
+).rstrip('/')
+_MINIO_DOCUMENTS_PUBLIC = (
+    os.getenv('OBJECT_STORAGE_PUBLIC_URL_DOCUMENTS') or
     os.getenv('OBJECT_STORAGE_PUBLIC_URL', '')
 ).rstrip('/')
 
@@ -70,6 +81,20 @@ def _rewrite_storage_url(url: str) -> str:
     parsed = urlparse(url)
     internal_origin = f"{parsed.scheme}://{parsed.netloc}"
     public_origin = urlparse(_MINIO_IMAGES_PUBLIC).scheme + "://" + urlparse(_MINIO_IMAGES_PUBLIC).netloc
+    return url.replace(internal_origin, public_origin, 1)
+
+
+def _rewrite_document_url(url: str | None) -> str | None:
+    """Rewrite document URLs to the configured public documents origin."""
+    if not _MINIO_DOCUMENTS_PUBLIC or not url:
+        return url
+    parsed = urlparse(url)
+    internal_origin = f"{parsed.scheme}://{parsed.netloc}"
+    public_origin = (
+        urlparse(_MINIO_DOCUMENTS_PUBLIC).scheme
+        + "://"
+        + urlparse(_MINIO_DOCUMENTS_PUBLIC).netloc
+    )
     return url.replace(internal_origin, public_origin, 1)
 
 
@@ -99,6 +124,9 @@ class ChatCompletionRequest(BaseModel):
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
     user: Optional[str] = None          # treated as session_id hint when set
+    metadata: Optional[dict[str, Any]] = None
+    scope: Optional[AgentScope] = None
+    reset_scope: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -153,9 +181,9 @@ def _extract_last_user_content(
     return "", []
 
 
-def _make_response(content: str, model: str) -> dict:
+def _make_response(content: str, model: str, krai_context: dict[str, Any] | None = None) -> dict:
     """Build a non-streaming OpenAI chat.completion response object."""
-    return {
+    response = {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",
         "created": int(time.time()),
@@ -169,6 +197,465 @@ def _make_response(content: str, model: str) -> dict:
         ],
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
     }
+    if krai_context is not None:
+        response["krai_context"] = krai_context
+    return response
+
+
+def _product_label(row) -> str | None:
+    parts = [row.get("model_name"), row.get("model_number")]
+    value = " ".join(part for part in parts if part).strip()
+    return value or None
+
+
+def _scope_label(scope: dict[str, str]) -> str:
+    bits = []
+    if scope.get("manufacturer"):
+        bits.append(scope["manufacturer"])
+    if scope.get("product"):
+        bits.append(scope["product"])
+    elif scope.get("series"):
+        bits.append(scope["series"])
+    return " / ".join(bits)
+
+
+def _serialize_krai_row(row) -> dict[str, Any]:
+    return {
+        "manufacturer": row.get("manufacturer_name"),
+        "product": _product_label(row),
+        "series": row.get("series_name"),
+    }
+
+
+def _model_match_score(row, raw_model: str | None) -> int:
+    if not raw_model:
+        return 0
+    raw_model_lower = raw_model.lower()
+    score = 0
+    for value in (
+        row.get("model_number"),
+        row.get("model_name"),
+        row.get("series_name"),
+        row.get("document_filename"),
+        row.get("filename"),
+    ):
+        if value and raw_model_lower in str(value).lower():
+            score += 50
+    return score
+
+
+def _strip_hp_family_lines(text: str, error_code: str) -> str:
+    if not text:
+        return text
+    upper_code = error_code.upper()
+    if not re.match(r"^\d{2}\.[A-Z]\d(?:\.[A-Z0-9]{2})?$", upper_code):
+        return text
+
+    parts = upper_code.split(".")
+    family_stem = f"{parts[0]}.{parts[1][0]}" if len(parts) >= 2 and parts[1] else None
+    filtered_lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        upper_line = stripped.upper()
+        if not stripped:
+            filtered_lines.append(line)
+            continue
+        if family_stem and upper_line.startswith(f"{family_stem}X."):
+            continue
+        if family_stem and upper_line.startswith(f"{family_stem}") and upper_code not in upper_line:
+            continue
+        if upper_line in {
+            "RESIDUAL PAPER JAM IN TRAY X. ( X = TRAY 2, 3, OR 4 )",
+            "THIS JAM OCCURS WHEN RESIDUAL PAPER IS DETECTED AT THE TRAY X FEED SENSOR.",
+        }:
+            continue
+        filtered_lines.append(line)
+
+    cleaned = "\n".join(filtered_lines)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def _contains_video_term(text: str, term: str) -> bool:
+    words = re.findall(r"\w+", term.lower())
+    normalized = text.lower()
+    return bool(words) and all(word in normalized for word in words)
+
+
+def _detect_query_manufacturer(text: str, scope: dict[str, str] | None = None) -> str | None:
+    manufacturer = (scope or {}).get("manufacturer")
+    if manufacturer:
+        return manufacturer
+    manufacturer_patterns = (
+        (r"\b(hp|hewlett[\s\-]?packard)\b", "HP"),
+        (r"\blexmark\b", "Lexmark"),
+        (r"\bkonica\s+minolta\b", "Konica Minolta"),
+        (r"\bricoh\b", "Ricoh"),
+        (r"\bxerox\b", "Xerox"),
+        (r"\bkyocera\b", "Kyocera"),
+        (r"\bcanon\b", "Canon"),
+        (r"\bbrother\b", "Brother"),
+        (r"\bsharp\b", "Sharp"),
+        (r"\btoshiba\b", "Toshiba"),
+        (r"\bepson\b", "Epson"),
+        (r"\boki\b", "OKI"),
+        (r"\bfujifilm\b", "Fujifilm"),
+        (r"\briso\b", "Riso"),
+    )
+    for pattern, label in manufacturer_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            return label
+    return None
+
+
+def _video_row_relevance(
+    row,
+    search_terms: list[str],
+    *,
+    issue_terms: list[str] | None = None,
+    expansion_terms: list[str] | None = None,
+) -> int:
+    title_text = (row.get("title") or "").lower()
+    description_text = " ".join(
+        part.lower()
+        for part in (
+            row.get("description") or "",
+            row.get("channel_title") or "",
+        )
+        if part
+    )
+    product_text = " ".join(
+        part.lower()
+        for part in (
+            row.get("model_number") or "",
+            row.get("model_name") or "",
+            row.get("series_name") or "",
+        )
+        if part
+    )
+    combined_text = " ".join(part for part in (title_text, description_text, product_text) if part)
+
+    score = 0
+    for term in search_terms:
+        if _contains_video_term(product_text, term):
+            score += 40
+        elif _contains_video_term(title_text, term):
+            score += 30
+        elif _contains_video_term(combined_text, term):
+            score += 15
+
+    if search_terms and all(_contains_video_term(combined_text, term) for term in search_terms):
+        score += 30
+    if search_terms and all(_contains_video_term(title_text, term) for term in search_terms):
+        score += 20
+
+    issue_terms = issue_terms or []
+    issue_matches = sum(1 for term in issue_terms if _contains_video_term(combined_text, term))
+    title_issue_matches = sum(1 for term in issue_terms if _contains_video_term(title_text, term))
+    score += issue_matches * 25
+    score += title_issue_matches * 15
+    if issue_terms and issue_matches == 0:
+        score -= 25
+
+    expansion_terms = expansion_terms or []
+    score += sum(1 for term in expansion_terms if _contains_video_term(combined_text, term)) * 12
+    score += sum(1 for term in expansion_terms if _contains_video_term(title_text, term)) * 8
+
+    return score
+
+
+def _build_video_search_plan(text: str, scope: dict[str, str] | None = None) -> dict[str, Any]:
+    model_match = _MODEL_RE.search(text)
+    tray_match = re.search(r'\btray\s*\d+\b', text, re.IGNORECASE)
+    jam_match = re.search(r'\b(paper\s+jam|jam|stau)\b', text, re.IGNORECASE)
+    manufacturer = _detect_query_manufacturer(text, scope)
+
+    issue_terms: list[str] = []
+    if tray_match and jam_match:
+        issue_terms.append(f"{tray_match.group(0)} {jam_match.group(0)}")
+    if tray_match:
+        issue_terms.append(tray_match.group(0))
+    if jam_match:
+        issue_terms.append(jam_match.group(0))
+
+    expansion_terms: list[str] = []
+    tray_number_match = re.search(r'(\d+)', tray_match.group(0)) if tray_match else None
+    tray_number = tray_number_match.group(1) if tray_number_match else None
+    if manufacturer and manufacturer.lower().startswith("hp") and jam_match:
+        expansion_terms.append("paper jam")
+        if tray_number == "4":
+            expansion_terms.extend(["13.A4", "HCI", "cassette"])
+
+    if model_match and issue_terms:
+        search_term_sets = [
+            [model_match.group(0), issue_terms[0]],
+            [model_match.group(0)] + issue_terms[1:],
+            [model_match.group(0)],
+            [issue_terms[0]],
+        ]
+    elif model_match:
+        search_term_sets = [[model_match.group(0)]]
+    elif issue_terms:
+        search_term_sets = [[issue_terms[0]]]
+    else:
+        tokens = [
+            token
+            for token in re.findall(r'\b\w[\w\-\.]{2,}\b', text)
+            if token.lower() not in _VIDEO_QUERY_STOPWORDS
+        ]
+        manufacturer_tokens = {
+            token.lower() for token in re.findall(r"\w+", manufacturer or "")
+        }
+        ranked_tokens = sorted(
+            dict.fromkeys(
+                token for token in tokens
+                if token.lower() not in manufacturer_tokens
+            ),
+            key=lambda token: (
+                0 if _PARTS_KEYWORDS.search(token) else 1,
+                -len(token),
+                token.lower(),
+            ),
+        )
+        if ranked_tokens:
+            search_term_sets = []
+            if manufacturer:
+                search_term_sets.append([manufacturer, ranked_tokens[0]])
+            search_term_sets.append([ranked_tokens[0]])
+            if len(ranked_tokens) > 1:
+                if manufacturer:
+                    search_term_sets.append([manufacturer, ranked_tokens[1]])
+                search_term_sets.append([ranked_tokens[1]])
+            if manufacturer:
+                search_term_sets.append([manufacturer])
+        else:
+            fallback_term = manufacturer or text[:40]
+            search_term_sets = [[fallback_term]]
+
+    if model_match:
+        for expansion_term in expansion_terms:
+            search_term_sets.append([model_match.group(0), expansion_term])
+    else:
+        for expansion_term in expansion_terms:
+            search_term_sets.append([expansion_term])
+
+    deduped_term_sets: list[list[str]] = []
+    seen_term_sets: set[tuple[str, ...]] = set()
+    for term_set in search_term_sets:
+        normalized = tuple(dict.fromkeys(term_set))
+        if normalized and normalized not in seen_term_sets:
+            seen_term_sets.add(normalized)
+            deduped_term_sets.append(list(normalized))
+
+    return {
+        "manufacturer": manufacturer,
+        "model": model_match.group(0) if model_match else None,
+        "issue_terms": issue_terms,
+        "expansion_terms": expansion_terms,
+        "search_term_sets": deduped_term_sets,
+    }
+
+
+def _serialize_video_match(row, *, score: int | None = None) -> dict[str, Any]:
+    payload = {
+        "title": row["title"],
+        "url": row["video_url"],
+        "description": row["description"],
+        "duration": row["duration"],
+        "channel_title": row["channel_title"],
+        **_serialize_krai_row(row),
+    }
+    if score is not None:
+        payload["score"] = score
+    return payload
+
+
+def _serialize_document_match(row) -> dict[str, Any]:
+    return {
+        "filename": row["filename"],
+        "document_type": row["document_type"],
+        "storage_url": _rewrite_document_url(row.get("storage_url")),
+        **_serialize_krai_row(row),
+    }
+
+
+def _has_explicit_error_intent(text: str) -> bool:
+    """Return True when the user is clearly asking about an error/event code."""
+
+    return bool(
+        re.search(
+            r"\b(fehler|error(?:\s*code)?|event\s*code|warn(?:ung|code)?|störung|fault\s*code)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _prefer_keyword_route(text: str) -> str | None:
+    """Prefer parts/video routing over error-code routing for ambiguous model-like terms."""
+
+    if _has_explicit_error_intent(text):
+        return None
+    if _VIDEO_KEYWORDS.search(text):
+        return "video"
+    if _PARTS_KEYWORDS.search(text):
+        return "parts"
+    return None
+
+
+_SEMANTIC_INTENT_PATTERNS = (
+    re.compile(r"\b(was bedeutet|erkl[äa]r(?:e|ung)?|bedeutung|ursache|l[öo]sung|hilfe)\b", re.IGNORECASE),
+    re.compile(r"\b(suche|finde|zeige|gib mir|welche[srn]?|passende[nrs]?|relevante[nrs]?)\b", re.IGNORECASE),
+    re.compile(r"\b(dokument|handbuch|manual|service manual|cpmd|bulletin|quelle|quellen)\b", re.IGNORECASE),
+    re.compile(r"\b(fehler|fehlercode|stau|jam|paper jam|problem|st[öo]rung)\b", re.IGNORECASE),
+)
+
+
+def _should_use_semantic_fast_path(text: str) -> bool:
+    normalized = " ".join(text.strip().split())
+    if not normalized:
+        return False
+    if _ERROR_CODE_RE.search(normalized):
+        return True
+    if _prefer_keyword_route(normalized) is not None:
+        return True
+    return any(pattern.search(normalized) for pattern in _SEMANTIC_INTENT_PATTERNS)
+
+
+def _is_meaningful_response_image(row) -> bool:
+    """Filter decorative or redundant text/table images from responses."""
+
+    width = row.get("width_px") or 0
+    height = row.get("height_px") or 0
+    file_size = row.get("file_size") or 0
+    image_type = (row.get("image_type") or "").lower()
+    contains_text = bool(row.get("contains_text"))
+    ocr_text = (row.get("ocr_text") or "").strip()
+
+    if width and height and width * height < 20_000:
+        return False
+    if file_size and file_size < 2_000:
+        return False
+    if image_type == "table":
+        return False
+    if contains_text and len(ocr_text) > 40 and image_type not in {"diagram", "photo", "schematic", "flowchart"}:
+        return False
+
+    return True
+
+
+async def _find_related_videos(
+    conn,
+    query: str,
+    scope: dict[str, str],
+    *,
+    matched_product_ids: list[str] | None = None,
+    matched_document_ids: list[str] | None = None,
+    limit: int = 3,
+):
+    params: list[object] = [f"%{query}%"]
+    where_clauses = [
+        "("
+        "v.title ILIKE $1 OR "
+        "COALESCE(v.description, '') ILIKE $1 OR "
+        "COALESCE(v.context_description, '') ILIKE $1 OR "
+        "COALESCE(p.model_number, '') ILIKE $1 OR "
+        "COALESCE(p.model_name, '') ILIKE $1 OR "
+        "COALESCE(ps.series_name, '') ILIKE $1"
+        ")"
+    ]
+
+    if matched_product_ids:
+        params.append(matched_product_ids)
+        where_clauses.append(f"vp.product_id = ANY(${len(params)}::uuid[])")
+
+    if matched_document_ids:
+        params.append(matched_document_ids)
+        where_clauses.append(f"v.document_id = ANY(${len(params)}::uuid[])")
+
+    where_clauses.extend(
+        build_scope_filters(
+            params,
+            scope,
+            manufacturer_templates=("m.name ILIKE ${index}",),
+            product_templates=(
+                "COALESCE(p.model_number, '') ILIKE ${index}",
+                "COALESCE(p.model_name, '') ILIKE ${index}",
+                "COALESCE(ps.series_name, '') ILIKE ${index}",
+            ),
+            product_id_template="vp.product_id = ${index}::uuid",
+            series_templates=("COALESCE(ps.series_name, '') ILIKE ${index}",),
+            document_id_template="v.document_id = ${index}::uuid",
+        )
+    )
+    params.append(limit)
+
+    return await conn.fetch(
+        f"""
+        {_VIDEO_BASE_SQL}
+        WHERE {' AND '.join(where_clauses)}
+        ORDER BY v.id, v.published_at DESC NULLS LAST
+        LIMIT ${len(params)}
+        """,
+        *params,
+    )
+
+
+async def _find_related_documents(
+    conn,
+    query: str,
+    scope: dict[str, str],
+    *,
+    matched_product_ids: list[str] | None = None,
+    exclude_document_ids: list[str] | None = None,
+    limit: int = 4,
+):
+    params: list[object] = [f"%{query}%"]
+    where_clauses = [
+        "("
+        "d.filename ILIKE $1 OR "
+        "COALESCE(d.document_type, '') ILIKE $1 OR "
+        "COALESCE(ch.text_chunk, '') ILIKE $1 OR "
+        "COALESCE(p.model_number, '') ILIKE $1 OR "
+        "COALESCE(p.model_name, '') ILIKE $1 OR "
+        "COALESCE(ps.series_name, '') ILIKE $1"
+        ")"
+    ]
+
+    if matched_product_ids:
+        params.append(matched_product_ids)
+        where_clauses.append(f"dp.product_id = ANY(${len(params)}::uuid[])")
+
+    if exclude_document_ids:
+        params.append(exclude_document_ids)
+        where_clauses.append(f"NOT (d.id = ANY(${len(params)}::uuid[]))")
+
+    where_clauses.extend(
+        build_scope_filters(
+            params,
+            scope,
+            manufacturer_templates=("m.name ILIKE ${index}",),
+            product_templates=(
+                "COALESCE(p.model_number, '') ILIKE ${index}",
+                "COALESCE(p.model_name, '') ILIKE ${index}",
+                "COALESCE(ps.series_name, '') ILIKE ${index}",
+            ),
+            product_id_template="dp.product_id = ${index}::uuid",
+            series_templates=("COALESCE(ps.series_name, '') ILIKE ${index}",),
+            document_id_template="d.id = ${index}::uuid",
+        )
+    )
+    params.append(limit)
+
+    return await conn.fetch(
+        f"""
+        {_RELATED_DOCUMENTS_BASE_SQL}
+        WHERE {' AND '.join(where_clauses)}
+        ORDER BY d.id, d.updated_at DESC
+        LIMIT ${len(params)}
+        """,
+        *params,
+    )
 
 
 async def _sse_stream(
@@ -212,45 +699,28 @@ _ERROR_CODE_RE = re.compile(
 
 # HP/Konica/Ricoh model patterns: M507, E50045, MFP 8601, bizhub 308, Aficio MP201
 _MODEL_RE = re.compile(
-    r'\b(E\d{4,6}|M\d{3,4}|P\d{4,6}|bizhub\s*\d{3,4}|Aficio\s*\w+|'
+    r'\b(E\d{3,6}|M\d{3,4}|P\d{4,6}|bizhub\s*\d{3,4}|Aficio\s*\w+|'
     r'MFP\s*\d{4,5}|MP\s*\d{3,4}|C\d{3,4}(?:dn|dw|n)?|LaserJet\s*\w+|'
     r'\w+[-]\d{3,5}(?:dn|dw|n|i|f)?)\b',
     re.IGNORECASE,
 )
 
-_FAST_PATH_SQL = """
-    SELECT ec.error_code, ec.error_description,
+_FAST_PATH_BASE_SQL = """
+    SELECT DISTINCT ON (ec.id)
+           ec.error_code, ec.error_description,
            ec.solution_customer_text, ec.solution_agent_text, ec.solution_technician_text,
            ec.page_number, ec.severity_level, ec.confidence_score,
-           m.name     AS manufacturer_name,
+           m.name AS manufacturer_name,
            d.filename AS document_filename,
-           d.models   AS document_models,
-           d.manufacturer AS document_manufacturer
+           p.model_number, p.model_name, ps.series_name,
+           ec.document_id AS document_id,
+           dp.product_id AS product_id
     FROM   krai_intelligence.error_codes ec
-    LEFT JOIN krai_core.manufacturers m  ON ec.manufacturer_id = m.id
-    LEFT JOIN krai_core.documents      d  ON ec.document_id    = d.id
-    WHERE  ec.is_category IS NOT TRUE
-      AND  ec.error_code ILIKE $1
-    ORDER  BY ec.confidence_score DESC
-    LIMIT  50
-"""
-
-_FAST_PATH_MODEL_SQL = """
-    SELECT ec.error_code, ec.error_description,
-           ec.solution_customer_text, ec.solution_agent_text, ec.solution_technician_text,
-           ec.page_number, ec.severity_level, ec.confidence_score,
-           m.name     AS manufacturer_name,
-           d.filename AS document_filename,
-           d.models   AS document_models,
-           d.manufacturer AS document_manufacturer
-    FROM   krai_intelligence.error_codes ec
-    LEFT JOIN krai_core.manufacturers m  ON ec.manufacturer_id = m.id
-    LEFT JOIN krai_core.documents      d  ON ec.document_id    = d.id
-    WHERE  ec.is_category IS NOT TRUE
-      AND  ec.error_code ILIKE $1
-      AND  array_to_string(d.models, ',') ILIKE $2
-    ORDER  BY ec.confidence_score DESC
-    LIMIT  10
+    LEFT JOIN krai_core.manufacturers m ON ec.manufacturer_id = m.id
+    LEFT JOIN krai_core.documents d ON ec.document_id = d.id
+    LEFT JOIN krai_core.document_products dp ON dp.document_id = d.id
+    LEFT JOIN krai_core.products p ON dp.product_id = p.id
+    LEFT JOIN krai_core.product_series ps ON p.series_id = ps.id
 """
 
 # Fallback: search chunks when all 3 solution columns are still NULL.
@@ -296,7 +766,8 @@ _FULL_SOLUTION_SQL = """
 # Images for a document + error code, grouped by page for inline insertion.
 _IMAGE_BY_DOC_PAGE_SQL = """
     SELECT DISTINCT ON (img.page_number)
-        img.storage_url, img.page_number, img.image_type, img.ai_description
+        img.storage_url, img.page_number, img.image_type, img.ai_description,
+        img.file_size, img.width_px, img.height_px, img.contains_text, img.ocr_text
     FROM krai_content.images img
     JOIN krai_core.documents d ON d.id = img.document_id
     WHERE d.filename = $1
@@ -305,6 +776,16 @@ _IMAGE_BY_DOC_PAGE_SQL = """
     ORDER BY img.page_number,
              CASE img.image_type WHEN 'diagram' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END
     LIMIT 6
+"""
+
+_TABLE_BY_DOC_PAGE_SQL = """
+    SELECT st.page_number, st.table_index, st.table_type, st.table_markdown, st.caption, st.context_text
+    FROM   krai_intelligence.structured_tables st
+    JOIN   krai_core.documents d ON d.id = st.document_id
+    WHERE  d.filename = $1
+      AND  ($2 = ANY(st.related_error_codes) OR COALESCE(st.context_text, '') ILIKE $3 OR COALESCE(st.table_markdown, '') ILIKE $3)
+    ORDER  BY st.page_number, st.table_index
+    LIMIT  4
 """
 
 
@@ -404,7 +885,11 @@ def _extract_levels_from_combined(combined_text: str, error_code: str) -> dict:
     return extract_all_hp_levels(block)
 
 
-async def _fast_path_lookup(pool, text: str) -> Optional[str]:
+async def _fast_path_lookup(
+    pool,
+    text: str,
+    scope: dict[str, str] | None = None,
+) -> Optional[tuple[str, dict[str, Any] | None]]:
     """Try an instant DB lookup if ``text`` contains an error code.
 
     Also detects a model number in the query (e.g. "M507", "E50045", "bizhub 308")
@@ -429,16 +914,55 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
     text_without_code = text[:m.start()] + text[m.end():]
     model_match = _MODEL_RE.search(text_without_code)
     raw_model = model_match.group(0).strip() if model_match else None
+    active_scope = normalize_scope(scope)
 
     try:
         async with pool.acquire() as conn:
             rows = None
             for v in variants:
-                if raw_model:
-                    # Try model-filtered query first
-                    rows = await conn.fetch(_FAST_PATH_MODEL_SQL, f'%{v}%', f'%{raw_model}%')
-                if not rows:
-                    rows = await conn.fetch(_FAST_PATH_SQL, f'%{v}%')
+                model_filter_enabled = raw_model and not any(
+                    active_scope.get(key) for key in ("product", "product_id", "series")
+                )
+                for apply_model_filter in ([True, False] if model_filter_enabled else [False]):
+                    params: list[object] = [f'%{v}%']
+                    where_clauses = [
+                        "ec.is_category IS NOT TRUE",
+                        "ec.error_code ILIKE $1",
+                    ]
+                    where_clauses.extend(
+                        build_scope_filters(
+                            params,
+                            active_scope,
+                            manufacturer_templates=("m.name ILIKE ${index}",),
+                            product_templates=(
+                                "COALESCE(p.model_number, '') ILIKE ${index}",
+                                "COALESCE(p.model_name, '') ILIKE ${index}",
+                                "COALESCE(ps.series_name, '') ILIKE ${index}",
+                            ),
+                            product_id_template="dp.product_id = ${index}::uuid",
+                            series_templates=("COALESCE(ps.series_name, '') ILIKE ${index}",),
+                            document_id_template="ec.document_id = ${index}::uuid",
+                        )
+                    )
+                    if apply_model_filter and raw_model:
+                        params.append(f"%{raw_model}%")
+                        where_clauses.append(
+                            f"(COALESCE(p.model_number, '') ILIKE ${len(params)} "
+                            f"OR COALESCE(p.model_name, '') ILIKE ${len(params)} "
+                            f"OR COALESCE(ps.series_name, '') ILIKE ${len(params)})"
+                        )
+                    params.append(50)
+                    rows = await conn.fetch(
+                        f"""
+                        {_FAST_PATH_BASE_SQL}
+                        WHERE {' AND '.join(where_clauses)}
+                        ORDER BY ec.id, ec.confidence_score DESC NULLS LAST
+                        LIMIT ${len(params)}
+                        """,
+                        *params,
+                    )
+                    if rows:
+                        break
                 if rows:
                     break
     except Exception as exc:
@@ -448,11 +972,29 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
     # Code pattern detected but nothing in DB → return immediately, skip LLM
     if not rows:
         return (
-            f"**Fehlercode `{raw_code}` nicht in der KRAI-Datenbank gefunden.**\n\n"
-            "Mögliche Ursachen:\n"
-            "- Dieser Code wurde noch nicht aus den Service-Handbüchern extrahiert\n"
-            "- Prüfe die Schreibweise (z.B. `C-2801` statt `C2801`)\n"
-            "- Wende dich an den Hersteller-Support oder öffne das zugehörige Service-Manual direkt"
+            (
+                f"**Fehlercode `{raw_code}` nicht in der KRAI-Datenbank gefunden.**\n\n"
+                "Mögliche Ursachen:\n"
+                "- Dieser Code wurde noch nicht aus den Service-Handbüchern extrahiert\n"
+                "- Prüfe die Schreibweise (z.B. `C-2801` statt `C2801`)\n"
+                "- Wende dich an den Hersteller-Support oder öffne das zugehörige Service-Manual direkt"
+            ),
+            {
+                "type": "error_code_lookup",
+                "found": False,
+                "error_code": raw_code,
+                "scope": active_scope,
+            },
+        )
+
+    if raw_model:
+        rows = sorted(
+            rows,
+            key=lambda row: (
+                -_model_match_score(row, raw_model),
+                -(float(row["confidence_score"]) if row["confidence_score"] else 0.0),
+                str(row.get("document_filename") or "").lower(),
+            ),
         )
 
     # ── Group by (code, description) — collect unique sources with model info ──
@@ -469,7 +1011,7 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
                 "sol_customer":   row_cust,
                 "sol_agent":      row_agent,
                 "sol_technician": row_tech,
-                "mfr":  row["manufacturer_name"] or row.get("document_manufacturer") or "",
+                "mfr":  row["manufacturer_name"] or "",
                 "sources": [],  # list of (filename, page, models_list)
             }
         else:
@@ -482,7 +1024,7 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
                 groups[key]["sol_customer"] = row_cust
         fn  = row["document_filename"]
         pg  = row["page_number"]
-        mdl = list(row["document_models"] or [])
+        mdl = [value for value in (_product_label(row), row["series_name"]) if value]
         src_key = f"{fn}:{pg}"
         if fn and src_key not in {f"{s[0]}:{s[1]}" for s in groups[key]["sources"]}:
             groups[key]["sources"].append((fn, pg, mdl))
@@ -504,6 +1046,8 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
                     seen_urls: set[str] = set()
                     image_md_list: list[str] = []
                     for ir in img_rows:
+                        if not _is_meaningful_response_image(ir):
+                            continue
                         url = _rewrite_storage_url(ir['storage_url'])
                         if url not in seen_urls:
                             seen_urls.add(url)
@@ -530,6 +1074,9 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
 
     # ── Chunk fallback only when ALL three DB columns are empty ───────────────
     solution_from_chunk: Optional[str] = None
+    related_videos = []
+    related_documents = []
+    related_tables = []
     first_group = next(iter(groups.values()))
     has_db_solution = bool(
         first_group["sol_technician"] or first_group["sol_agent"] or first_group["sol_customer"]
@@ -551,6 +1098,49 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
         except Exception as exc:
             logger.warning("chunk_solution_lookup error: %s", exc)
 
+    try:
+        matched_product_ids = list({str(row["product_id"]) for row in rows if row["product_id"]})
+        matched_document_ids = list({str(row["document_id"]) for row in rows if row["document_id"]})
+        related_query = f"{raw_code} {raw_model}" if raw_model else raw_code
+        async with pool.acquire() as conn:
+            related_videos = await _find_related_videos(
+                conn,
+                related_query,
+                active_scope,
+                matched_product_ids=matched_product_ids,
+                matched_document_ids=matched_document_ids,
+            )
+            related_documents = await _find_related_documents(
+                conn,
+                related_query,
+                active_scope,
+                matched_product_ids=matched_product_ids,
+                exclude_document_ids=matched_document_ids,
+            )
+            if raw_model and not related_documents:
+                related_documents = await _find_related_documents(
+                    conn,
+                    raw_model,
+                    active_scope,
+                    matched_product_ids=matched_product_ids,
+                    exclude_document_ids=matched_document_ids,
+                )
+            for doc_filename in {row["document_filename"] for row in rows if row["document_filename"]}:
+                related_tables.extend(
+                    await conn.fetch(_TABLE_BY_DOC_PAGE_SQL, doc_filename, raw_code, f"%{raw_code}%")
+                )
+    except Exception as exc:
+        logger.warning("related_context_lookup error: %s", exc)
+
+    if raw_model:
+        related_documents = sorted(
+            related_documents,
+            key=lambda document: (
+                -_model_match_score(document, raw_model),
+                str(document.get("filename") or "").lower(),
+            ),
+        )
+
     # ── Format output ─────────────────────────────────────────────────────────
     parts: list[str] = []
     for group in groups.values():
@@ -569,6 +1159,8 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
             header += f"  *({mfr})*"
         if raw_model:
             header += f"  🖨️ gefiltert für **{raw_model}**"
+        elif active_scope and _scope_label(active_scope):
+            header += f"  🖨️ Scope: **{_scope_label(active_scope)}**"
         parts.append(header)
 
         # Use full multi-chunk solution when available, fall back to DB column.
@@ -588,6 +1180,9 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
         sol_t_full = _format_solution_text(full.get('technician') or sol_t or "")
         sol_a_full = _format_solution_text(full.get('agent') or sol_a or "")
         sol_c_full = _format_solution_text(full.get('customer') or sol_c or "")
+        sol_t_full = _strip_hp_family_lines(sol_t_full, code)
+        sol_a_full = _strip_hp_family_lines(sol_a_full, code)
+        sol_c_full = _strip_hp_family_lines(sol_c_full, code)
         images_md: list[str] = full.get('images') or []
 
         # Solution: technician preferred → agent → customer → chunk fallback
@@ -625,7 +1220,21 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
                 parts.append(f"**📄 Quelle für {raw_model}:**")
             else:
                 parts.append(f"**📄 Quellen** ({len(sources)} Dokumente):")
-            for fn, pg, mdl in sources:
+            ordered_sources = sorted(
+                sources,
+                key=lambda source: (
+                    -_model_match_score(
+                        {
+                            "document_filename": source[0],
+                            "model_number": " ".join(source[2]),
+                            "series_name": " ".join(source[2]),
+                        },
+                        raw_model,
+                    ),
+                    str(source[0] or "").lower(),
+                ),
+            )
+            for fn, pg, mdl in ordered_sources:
                 src = f"- `{fn}`"
                 if pg:
                     src += f", Seite {pg}"
@@ -636,12 +1245,111 @@ async def _fast_path_lookup(pool, text: str) -> Optional[str]:
                     src += f"\n  *Modelle: {shown}*"
                 parts.append(src)
 
-        if not raw_model and len(sources) > 1:
+        if not raw_model and not active_scope.get("product") and len(sources) > 1:
             parts.append(
                 f"\n> 💡 Nenne dein Modell für eine gefilterte Antwort — z.B. `{code} M507`"
             )
 
-    return "\n".join(parts)
+    if related_videos:
+        parts.append("\n## 🎬 Passende Videos\n")
+        for video in related_videos:
+            dur = f" ({video['duration']//60}:{video['duration']%60:02d})" if video["duration"] else ""
+            lines = [f"- **[{video['title']}]({video['video_url']})**{dur}"]
+            product_label = _product_label(video) or video["series_name"]
+            if product_label:
+                lines.append(f"  Gerät: {product_label}")
+            if video["description"]:
+                lines.append(f"  _{video['description'][:120]}_")
+            parts.append("\n".join(lines))
+
+    if related_documents:
+        parts.append("\n## 📚 Weitere relevante Dokumente\n")
+        for document in related_documents:
+            storage_url = _rewrite_document_url(document.get("storage_url"))
+            if storage_url:
+                lines = [f"- **[{document['filename']}]({storage_url})**"]
+            else:
+                lines = [f"- **`{document['filename']}`**"]
+            if document["document_type"]:
+                lines[0] += f" — {document['document_type']}"
+            product_label = _product_label(document) or document["series_name"]
+            if product_label:
+                lines.append(f"  Gerät: {product_label}")
+            if document["manufacturer_name"]:
+                lines.append(f"  Hersteller: {document['manufacturer_name']}")
+            parts.append("\n".join(lines))
+
+    if related_tables:
+        parts.append("\n## 📋 Relevante Tabellen\n")
+        seen_table_keys: set[tuple[object, object]] = set()
+        for table in related_tables:
+            table_key = (table["page_number"], table["table_index"])
+            if table_key in seen_table_keys:
+                continue
+            seen_table_keys.add(table_key)
+            header = f"- Tabelle Seite {table['page_number']}"
+            if table["caption"]:
+                header += f": {table['caption']}"
+            parts.append(header)
+            if table["table_markdown"]:
+                parts.append(f"\n{table['table_markdown']}\n")
+
+    primary_group = next(iter(groups.values()))
+    context = {
+        "type": "error_code_lookup",
+        "found": True,
+        "error_code": raw_code,
+        "scope": active_scope,
+        "summary": {
+            "description": primary_group["desc"],
+            "manufacturer": primary_group["mfr"],
+        },
+        "solutions": {
+            "technician": sol_t_full if "sol_t_full" in locals() else None,
+            "agent": sol_a_full if "sol_a_full" in locals() else None,
+            "customer": sol_c_full if "sol_c_full" in locals() else None,
+            "chunk_fallback": solution_from_chunk,
+        },
+        "videos": [
+            {
+                "title": video["title"],
+                "url": video["video_url"],
+                "description": video["description"],
+                "duration": video["duration"],
+                **_serialize_krai_row(video),
+            }
+            for video in related_videos
+        ],
+        "related_documents": [
+            {
+                "filename": document["filename"],
+                "document_type": document["document_type"],
+                "storage_url": _rewrite_document_url(document.get("storage_url")),
+                **_serialize_krai_row(document),
+            }
+            for document in related_documents
+        ],
+        "tables": [
+            {
+                "page_number": table["page_number"],
+                "table_index": table["table_index"],
+                "table_type": table["table_type"],
+                "caption": table["caption"],
+                "table_markdown": table["table_markdown"],
+            }
+            for table in related_tables
+        ],
+        "source_documents": [
+            {
+                "filename": filename,
+                "page_number": page_number,
+                "models": models,
+            }
+            for filename, page_number, models in primary_group["sources"]
+        ],
+    }
+
+    return "\n".join(parts), context
 
 
 # ---------------------------------------------------------------------------
@@ -660,92 +1368,363 @@ _VIDEO_KEYWORDS = re.compile(
     re.IGNORECASE,
 )
 
-_PARTS_SQL = """
-    SELECT pc.part_number, pc.part_name, pc.part_description, pc.part_category,
-           pc.unit_price_usd, m.name AS manufacturer_name
+_VIDEO_QUERY_STOPWORDS = {
+    "gibt",
+    "es",
+    "ein",
+    "eine",
+    "einen",
+    "video",
+    "youtube",
+    "tutorial",
+    "anleitung",
+    "howto",
+    "how-to",
+    "how",
+    "to",
+    "repair",
+    "reparatur",
+    "replace",
+    "tauschen",
+    "austauschen",
+    "wechseln",
+    "wechsel",
+    "remove",
+    "removal",
+    "install",
+    "installation",
+    "einbau",
+    "wie",
+    "kann",
+    "ich",
+    "das",
+    "die",
+    "der",
+    "dem",
+    "den",
+    "zu",
+    "für",
+    "for",
+}
+
+_PARTS_BASE_SQL = """
+    SELECT pc.part_number, pc.part_name, pc.description, pc.category,
+           pc.price_usd, m.name AS manufacturer_name,
+           p.model_number, p.model_name, ps.series_name
     FROM   krai_parts.parts_catalog pc
-    LEFT JOIN krai_core.manufacturers m ON pc.manufacturer_id = m.id
-    WHERE  pc.part_number ILIKE $1
-       OR  pc.part_name   ILIKE $1
-    ORDER  BY pc.part_number
-    LIMIT  8
+    LEFT JOIN krai_core.products p ON pc.product_id = p.id
+    LEFT JOIN krai_core.product_series ps ON p.series_id = ps.id
+    LEFT JOIN krai_core.manufacturers m ON p.manufacturer_id = m.id
 """
 
-_VIDEO_SQL = """
-    SELECT v.title, v.video_url, v.description, v.duration, v.channel_title,
-           m.name AS manufacturer_name
+_VIDEO_BASE_SQL = """
+    SELECT DISTINCT ON (v.id)
+           v.title, v.video_url, v.description, v.duration, v.channel_title,
+           m.name AS manufacturer_name, p.model_number, p.model_name, ps.series_name
     FROM   krai_content.videos v
     LEFT JOIN krai_core.manufacturers m ON v.manufacturer_id = m.id
-    WHERE  v.title       ILIKE $1
-       OR  v.description ILIKE $1
-    ORDER  BY v.published_at DESC NULLS LAST
-    LIMIT  5
+    LEFT JOIN krai_content.video_products vp ON vp.video_id = v.id
+    LEFT JOIN krai_core.products p ON vp.product_id = p.id
+    LEFT JOIN krai_core.product_series ps ON p.series_id = ps.id
 """
 
-_SEMANTIC_SQL = """
-    SELECT c.text_chunk, c.page_start, d.filename, d.original_filename
+_SEMANTIC_BASE_SQL = """
+    SELECT DISTINCT ON (c.id)
+           c.text_chunk, c.page_start, d.filename, d.original_filename,
+           m.name AS manufacturer_name, p.model_number, p.model_name, ps.series_name
     FROM   krai_intelligence.chunks c
     JOIN   krai_core.documents d ON c.document_id = d.id
-    WHERE  c.embedding IS NOT NULL
-      AND  c.processing_status = 'completed'
-    ORDER  BY c.embedding <=> $1
-    LIMIT  5
+    LEFT JOIN krai_core.document_products dp ON dp.document_id = d.id
+    LEFT JOIN krai_core.products p ON dp.product_id = p.id
+    LEFT JOIN krai_core.product_series ps ON p.series_id = ps.id
+    LEFT JOIN krai_core.manufacturers m ON COALESCE(p.manufacturer_id, d.manufacturer_id) = m.id
+"""
+
+_RELATED_DOCUMENTS_BASE_SQL = """
+    SELECT DISTINCT ON (d.id)
+           d.id, d.filename, d.document_type, d.storage_url,
+           m.name AS manufacturer_name,
+           p.model_number, p.model_name, ps.series_name
+    FROM   krai_core.documents d
+    LEFT JOIN krai_core.document_products dp ON dp.document_id = d.id
+    LEFT JOIN krai_core.products p ON dp.product_id = p.id
+    LEFT JOIN krai_core.product_series ps ON p.series_id = ps.id
+    LEFT JOIN krai_core.manufacturers m ON COALESCE(p.manufacturer_id, d.manufacturer_id) = m.id
+    LEFT JOIN krai_intelligence.chunks ch ON ch.document_id = d.id
 """
 
 
-async def _parts_lookup(pool, text: str) -> Optional[str]:
+async def _parts_lookup(pool, text: str, scope: dict[str, str] | None = None) -> Optional[str]:
     """Return spare-parts results when query mentions part-related keywords."""
     if not _PARTS_KEYWORDS.search(text):
         return None
+    active_scope = normalize_scope(scope)
     # Extract longest token as search term
     tokens = [t for t in re.findall(r'\b\w[\w\-\.]{2,}\b', text) if not re.match(r'^(was|ist|wie|gibt|es|der|die|das|und|oder|ich|du|wir|sie|ein|für|mit|von|bei|nach|auf|an|im|zur|zum)$', t, re.I)]
     term = max(tokens, key=len) if tokens else text[:40]
     try:
         async with pool.acquire() as conn:
-            rows = await conn.fetch(_PARTS_SQL, f'%{term}%')
+            params: list[object] = [f'%{term}%']
+            where_clauses = [
+                "("
+                "pc.part_number ILIKE $1 OR "
+                "COALESCE(pc.part_name, '') ILIKE $1 OR "
+                "COALESCE(pc.description, '') ILIKE $1"
+                ")"
+            ]
+            where_clauses.extend(
+                build_scope_filters(
+                    params,
+                    active_scope,
+                    manufacturer_templates=("m.name ILIKE ${index}",),
+                    product_templates=(
+                        "COALESCE(p.model_number, '') ILIKE ${index}",
+                        "COALESCE(p.model_name, '') ILIKE ${index}",
+                        "COALESCE(ps.series_name, '') ILIKE ${index}",
+                    ),
+                    product_id_template="pc.product_id = ${index}::uuid",
+                    series_templates=("COALESCE(ps.series_name, '') ILIKE ${index}",),
+                )
+            )
+            params.append(8)
+            rows = await conn.fetch(
+                f"""
+                {_PARTS_BASE_SQL}
+                WHERE {' AND '.join(where_clauses)}
+                ORDER BY pc.part_number
+                LIMIT ${len(params)}
+                """,
+                *params,
+            )
             if not rows and len(term) > 6:
                 # Retry with shorter stem
-                rows = await conn.fetch(_PARTS_SQL, f'%{term[:6]}%')
+                params[0] = f'%{term[:6]}%'
+                rows = await conn.fetch(
+                    f"""
+                    {_PARTS_BASE_SQL}
+                    WHERE {' AND '.join(where_clauses)}
+                    ORDER BY pc.part_number
+                    LIMIT ${len(params)}
+                    """,
+                    *params,
+                )
     except Exception as exc:
         logger.warning("parts_lookup DB error: %s", exc)
         return None
     if not rows:
         return f"**Kein Ersatzteil für `{term}` gefunden.**\n\nTipp: Suche nach Teilenummer oder Gerätebezeichnung."
     lines = ["## 🔧 Ersatzteile\n"]
+    if active_scope and _scope_label(active_scope):
+        lines.append(f"_Scope: { _scope_label(active_scope) }_\n")
     for r in rows:
-        price = f" — ${r['unit_price_usd']:.2f}" if r['unit_price_usd'] else ""
+        price = f" — ${r['price_usd']:.2f}" if r['price_usd'] else ""
         mfr = f" *({r['manufacturer_name']})*" if r['manufacturer_name'] else ""
         lines.append(f"**{r['part_number']}** – {r['part_name']}{mfr}{price}")
-        if r['part_description']:
-            lines.append(f"  _{r['part_description'][:120]}_")
+        if _product_label(r) or r["series_name"]:
+            lines.append(f"  Gerät: {_product_label(r) or r['series_name']}")
+        if r['description']:
+            lines.append(f"  _{r['description'][:120]}_")
     return "\n".join(lines)
 
 
-async def _video_lookup(pool, text: str) -> Optional[str]:
-    """Return video results when query mentions video/tutorial keywords."""
+async def _video_lookup(
+    pool,
+    text: str,
+    scope: dict[str, str] | None = None,
+) -> Optional[tuple[str, dict[str, Any]]]:
+    """Return ranked video results with related context for video/tutorial queries."""
     if not _VIDEO_KEYWORDS.search(text):
         return None
-    tokens = [t for t in re.findall(r'\b\w[\w\-\.]{2,}\b', text) if not re.match(r'^(video|tutorial|anleitung|repair|replace|youtube|howto|wie|kann|ich|das|die|der|ein|für)$', t, re.I)]
-    term = max(tokens, key=len) if tokens else text[:40]
+    active_scope = normalize_scope(scope)
+    search_plan = _build_video_search_plan(text, active_scope)
+    if search_plan["manufacturer"] and not active_scope.get("manufacturer"):
+        active_scope = {**active_scope, "manufacturer": search_plan["manufacturer"]}
+    search_term_sets = search_plan["search_term_sets"]
+    primary_terms = search_term_sets[0]
+    display_term = " ".join(primary_terms)
     try:
         async with pool.acquire() as conn:
-            rows = await conn.fetch(_VIDEO_SQL, f'%{term}%')
+            ranked_rows: dict[str, tuple[dict[str, Any], int]] = {}
+            for search_terms in search_term_sets:
+                params: list[object] = [f'%{term}%' for term in search_terms]
+                where_clauses = []
+                for index in range(1, len(search_terms) + 1):
+                    where_clauses.append(
+                        "("
+                        f"v.title ILIKE ${index} OR "
+                        f"COALESCE(v.description, '') ILIKE ${index} OR "
+                        f"COALESCE(v.context_description, '') ILIKE ${index} OR "
+                        f"COALESCE(p.model_number, '') ILIKE ${index} OR "
+                        f"COALESCE(p.model_name, '') ILIKE ${index} OR "
+                        f"COALESCE(ps.series_name, '') ILIKE ${index}"
+                        ")"
+                    )
+                where_clauses.extend(
+                    build_scope_filters(
+                        params,
+                        active_scope,
+                        manufacturer_templates=("m.name ILIKE ${index}",),
+                        product_templates=(
+                            "COALESCE(p.model_number, '') ILIKE ${index}",
+                            "COALESCE(p.model_name, '') ILIKE ${index}",
+                            "COALESCE(ps.series_name, '') ILIKE ${index}",
+                        ),
+                        product_id_template="vp.product_id = ${index}::uuid",
+                        series_templates=("COALESCE(ps.series_name, '') ILIKE ${index}",),
+                        document_id_template="v.document_id = ${index}::uuid",
+                    )
+                )
+                params.append(20)
+                rows = await conn.fetch(
+                    f"""
+                    {_VIDEO_BASE_SQL}
+                    WHERE {' AND '.join(where_clauses)}
+                    ORDER BY v.id, v.published_at DESC NULLS LAST
+                    LIMIT ${len(params)}
+                    """,
+                    *params,
+                )
+                for row in rows:
+                    score = _video_row_relevance(
+                        row,
+                        primary_terms,
+                        issue_terms=search_plan["issue_terms"],
+                        expansion_terms=search_plan["expansion_terms"],
+                    )
+                    if search_terms == primary_terms:
+                        score += 20
+                    elif search_terms == [search_plan["model"]]:
+                        score += 10
+
+                    row_key = row.get("video_url") or row.get("title") or str(row)
+                    previous = ranked_rows.get(row_key)
+                    if previous is None or score > previous[1]:
+                        ranked_rows[row_key] = (dict(row), score)
+
+            ordered_rows = [
+                row
+                for row, _score in sorted(
+                    ranked_rows.values(),
+                    key=lambda item: (-item[1], str(item[0].get("title") or "").lower()),
+                )[:5]
+            ]
+
+            related_documents = await _find_related_documents(
+                conn,
+                " ".join(primary_terms),
+                active_scope,
+                limit=4,
+            )
     except Exception as exc:
         logger.warning("video_lookup DB error: %s", exc)
         return None
-    if not rows:
-        return f"**Kein Video für `{term}` gefunden.**\n\nTipp: Suche nach Gerätemodell oder Reparaturtyp."
+
+    if not ordered_rows:
+        parts = [
+            f"**Kein Video für `{display_term}` gefunden.**\n",
+            "Tipp: Suche nach Gerätemodell oder Reparaturtyp.",
+        ]
+        if related_documents:
+            parts.append("\n## 📚 Relevante Dokumente\n")
+            for document in related_documents:
+                storage_url = _rewrite_document_url(document.get("storage_url"))
+                if storage_url:
+                    lines = [f"- **[{document['filename']}]({storage_url})**"]
+                else:
+                    lines = [f"- **`{document['filename']}`**"]
+                if document["document_type"]:
+                    lines[0] += f" — {document['document_type']}"
+                product_label = _product_label(document) or document["series_name"]
+                if product_label:
+                    lines.append(f"  Gerät: {product_label}")
+                parts.append("\n".join(lines))
+        return (
+            "\n".join(parts),
+            {
+                "type": "video_lookup",
+                "found": False,
+                "scope": active_scope,
+                "query": text,
+                "search_terms": primary_terms,
+                "signals": {
+                    "model": search_plan["model"],
+                    "issue_terms": search_plan["issue_terms"],
+                },
+                "related_documents": [
+                    _serialize_document_match(document) for document in related_documents
+                ],
+            },
+        )
+
     lines = ["## 🎬 Videos\n"]
-    for r in rows:
+    if active_scope and _scope_label(active_scope):
+        lines.append(f"_Scope: { _scope_label(active_scope) }_\n")
+    if search_plan["model"] or search_plan["issue_terms"]:
+        understood_bits = []
+        if search_plan["model"]:
+            understood_bits.append(f"Modell `{search_plan['model']}`")
+        if search_plan["issue_terms"]:
+            understood_bits.append(f"Thema `{', '.join(search_plan['issue_terms'])}`")
+        if search_plan["expansion_terms"]:
+            understood_bits.append(f"HP-Erweiterung `{', '.join(search_plan['expansion_terms'])}`")
+        lines.append(f"_Verstanden als: {' · '.join(understood_bits)}_\n")
+    for r in ordered_rows:
         dur = f" ({r['duration']//60}:{r['duration']%60:02d})" if r['duration'] else ""
         ch = f" — {r['channel_title']}" if r['channel_title'] else ""
         lines.append(f"**[{r['title']}]({r['video_url']})**{dur}{ch}")
+        if _product_label(r) or r["series_name"]:
+            lines.append(f"  Gerät: {_product_label(r) or r['series_name']}")
         if r['description']:
             lines.append(f"  _{r['description'][:120]}_\n")
-    return "\n".join(lines)
+    if related_documents:
+        lines.append("\n## 📚 Relevante Dokumente\n")
+        for document in related_documents:
+            storage_url = _rewrite_document_url(document.get("storage_url"))
+            if storage_url:
+                doc_lines = [f"- **[{document['filename']}]({storage_url})**"]
+            else:
+                doc_lines = [f"- **`{document['filename']}`**"]
+            if document["document_type"]:
+                doc_lines[0] += f" — {document['document_type']}"
+            product_label = _product_label(document) or document["series_name"]
+            if product_label:
+                doc_lines.append(f"  Gerät: {product_label}")
+            if document["manufacturer_name"]:
+                doc_lines.append(f"  Hersteller: {document['manufacturer_name']}")
+            lines.append("\n".join(doc_lines))
+
+    return (
+        "\n".join(lines),
+        {
+            "type": "video_lookup",
+            "found": True,
+            "scope": active_scope,
+            "query": text,
+            "search_terms": primary_terms,
+            "signals": {
+                "model": search_plan["model"],
+                "issue_terms": search_plan["issue_terms"],
+            },
+            "videos": [
+                _serialize_video_match(
+                    row,
+                    score=_video_row_relevance(
+                        row,
+                        primary_terms,
+                        issue_terms=search_plan["issue_terms"],
+                        expansion_terms=search_plan["expansion_terms"],
+                    ),
+                )
+                for row in ordered_rows
+            ],
+            "related_documents": [
+                _serialize_document_match(document) for document in related_documents
+            ],
+        },
+    )
 
 
-async def _semantic_fast_lookup(pool, text: str) -> Optional[str]:
+async def _semantic_fast_lookup(pool, text: str, scope: dict[str, str] | None = None) -> Optional[str]:
     """Embedding-based semantic search — no LLM, uses pgvector directly (~1.5 s)."""
     ollama_url = os.getenv("OLLAMA_URL", "http://krai-ollama-prod:11434")
     embed_model = os.getenv("OLLAMA_MODEL_EMBEDDING", "nomic-embed-text:latest")
@@ -763,9 +1742,39 @@ async def _semantic_fast_lookup(pool, text: str) -> Optional[str]:
 
     # Format embedding as pgvector literal
     vec_literal = "[" + ",".join(f"{x:.6f}" for x in embedding) + "]"
+    active_scope = normalize_scope(scope)
     try:
         async with pool.acquire() as conn:
-            rows = await conn.fetch(_SEMANTIC_SQL, vec_literal)
+            params: list[object] = [vec_literal]
+            where_clauses = [
+                "c.embedding IS NOT NULL",
+                "c.processing_status = 'completed'",
+            ]
+            where_clauses.extend(
+                build_scope_filters(
+                    params,
+                    active_scope,
+                    manufacturer_templates=("m.name ILIKE ${index}",),
+                    product_templates=(
+                        "COALESCE(p.model_number, '') ILIKE ${index}",
+                        "COALESCE(p.model_name, '') ILIKE ${index}",
+                        "COALESCE(ps.series_name, '') ILIKE ${index}",
+                    ),
+                    product_id_template="dp.product_id = ${index}::uuid",
+                    series_templates=("COALESCE(ps.series_name, '') ILIKE ${index}",),
+                    document_id_template="d.id = ${index}::uuid",
+                )
+            )
+            params.append(5)
+            rows = await conn.fetch(
+                f"""
+                {_SEMANTIC_BASE_SQL}
+                WHERE {' AND '.join(where_clauses)}
+                ORDER BY c.id, c.embedding <=> $1::vector
+                LIMIT ${len(params)}
+                """,
+                *params,
+            )
     except Exception as exc:
         logger.warning("semantic_fast_lookup DB error: %s", exc)
         return None
@@ -774,10 +1783,14 @@ async def _semantic_fast_lookup(pool, text: str) -> Optional[str]:
         return "**Keine relevanten Inhalte in den Service-Handbüchern gefunden.**"
 
     lines = [f"## 🔍 Suchergebnisse für: _{text[:80]}_\n"]
+    if active_scope and _scope_label(active_scope):
+        lines.append(f"_Scope: { _scope_label(active_scope) }_\n")
     for i, r in enumerate(rows, 1):
         doc = r['original_filename'] or r['filename'] or "Unbekanntes Dokument"
         page = f", Seite {r['page_start']}" if r['page_start'] else ""
         lines.append(f"### Ergebnis {i} — 📄 {doc}{page}")
+        if _product_label(r) or r["series_name"]:
+            lines.append(f"_Gerät: {_product_label(r) or r['series_name']}_")
         lines.append(r['text_chunk'][:600].strip())
         lines.append("")
     return "\n".join(lines)
@@ -795,6 +1808,8 @@ async def list_models(
     llm_backend = os.getenv("LLM_BACKEND", "ollama").lower()
     if llm_backend == "openai":
         backend_model = os.getenv("OPENAI_MODEL", "gpt-4o")
+    elif llm_backend == "openrouter":
+        backend_model = os.getenv("OPENROUTER_MODEL", "openrouter/free")
     else:
         backend_model = (
             os.getenv("OLLAMA_MODEL_CHAT")
@@ -810,7 +1825,7 @@ async def list_models(
                 "owned_by": "krai",
                 "description": (
                     f"KRAI AI Agent — error codes, spare parts, service manuals "
-                    f"(powered by {backend_model})"
+                    f"(powered by {llm_backend}:{backend_model})"
                 ),
             }
         ],
@@ -836,6 +1851,15 @@ async def chat_completions(
 
     session_id = _session_id(body.messages, body.user)
     content, images = _extract_last_user_content(body.messages)
+    scope, reset_scope = extract_scope_from_openai_payload(
+        body.scope,
+        body.metadata,
+        reset_scope=body.reset_scope,
+    )
+    if agent is not None and hasattr(agent, "resolve_session_scope"):
+        active_scope = agent.resolve_session_scope(session_id, scope, reset_scope=reset_scope)
+    else:
+        active_scope = normalize_scope(scope)
 
     if not content:
         raise HTTPException(status_code=400, detail="No user message found in request")
@@ -845,29 +1869,47 @@ async def chat_completions(
     if not images and isinstance(content, str):
         pool = getattr(request.app.state, "db_pool", None)
         if pool is not None:
+            preferred_keyword_route = _prefer_keyword_route(content)
+
+            if preferred_keyword_route == "parts":
+                result = await _parts_lookup(pool, content, active_scope)
+                if result is not None:
+                    logger.info("route=parts-preferred for: %.60s", content)
+                    return _make_response(result, body.model)
+
+            if preferred_keyword_route == "video":
+                result = await _video_lookup(pool, content, active_scope)
+                if result is not None:
+                    logger.info("route=video-preferred for: %.60s", content)
+                    result_text, krai_context = result
+                    return _make_response(result_text, body.model, krai_context=krai_context)
+
             # 1. Error-code pattern → instant SQL (~300 ms)
-            result = await _fast_path_lookup(pool, content)
+            result = await _fast_path_lookup(pool, content, active_scope)
             if result is not None:
                 logger.info("route=error_code for: %.60s", content)
-                return _make_response(result, body.model)
+                result_text, krai_context = result
+                return _make_response(result_text, body.model, krai_context=krai_context)
 
             # 2. Spare-parts keywords → SQL parts_catalog (~300 ms)
-            result = await _parts_lookup(pool, content)
+            result = await _parts_lookup(pool, content, active_scope)
             if result is not None:
                 logger.info("route=parts for: %.60s", content)
                 return _make_response(result, body.model)
 
             # 3. Video/tutorial keywords → SQL videos (~300 ms)
-            result = await _video_lookup(pool, content)
+            result = await _video_lookup(pool, content, active_scope)
             if result is not None:
                 logger.info("route=video for: %.60s", content)
-                return _make_response(result, body.model)
+                result_text, krai_context = result
+                return _make_response(result_text, body.model, krai_context=krai_context)
 
             # 4. Semantic search via pgvector (embed ~1 s + vector search ~0.5 s)
-            result = await _semantic_fast_lookup(pool, content)
-            if result is not None:
-                logger.info("route=semantic for: %.60s", content)
-                return _make_response(result, body.model)
+            if _should_use_semantic_fast_path(content):
+                result = await _semantic_fast_lookup(pool, content, active_scope)
+                if result is not None:
+                    logger.info("route=semantic for: %.60s", content)
+                    return _make_response(result, body.model)
 
     # ── Fallback: LangGraph agent (requires LLM — slow without GPU) ──────────
     if agent is None:
@@ -883,7 +1925,12 @@ async def chat_completions(
         async def _gen() -> AsyncGenerator[str, None]:
             try:
                 async with asyncio.timeout(_AGENT_TIMEOUT):
-                    async for token in agent.chat_stream(content, session_id):
+                    async for token in agent.chat_stream(
+                        content,
+                        session_id,
+                        scope,
+                        reset_scope=reset_scope,
+                    ):
                         yield token
             except TimeoutError:
                 yield "\n\n⚠️ *Antwort-Timeout. Bitte stelle eine spezifischere Frage.*"
@@ -896,7 +1943,12 @@ async def chat_completions(
 
     try:
         async with asyncio.timeout(_AGENT_TIMEOUT):
-            response_text = await agent.chat(content, session_id)
+            response_text, _active_scope = await agent.chat(
+                content,
+                session_id,
+                scope,
+                reset_scope=reset_scope,
+            )
     except TimeoutError:
         response_text = (
             "⚠️ **Timeout** — Die Anfrage hat zu lange gedauert.\n\n"

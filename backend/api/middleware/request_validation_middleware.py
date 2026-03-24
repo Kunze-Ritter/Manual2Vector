@@ -112,7 +112,9 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
     async def _validate_body(self, request: Request) -> Response | None:
         content_type = request.headers.get("content-type", "").lower()
         if "multipart/form-data" in content_type:
-            return await self._validate_multipart(request)
+            # Multipart parsing consumes the request stream. Upload endpoints
+            # already perform file-type/size/PDF validation in the processor.
+            return None
         if "application/json" in content_type:
             return await self._validate_json(request)
         if content_type and content_type not in ALLOWED_CONTENT_TYPES:
