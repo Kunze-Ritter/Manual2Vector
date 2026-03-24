@@ -100,7 +100,10 @@ def _make_test_app():
     mock_pool = MagicMock()
     mock_conn = AsyncMock()
     mock_pool.acquire = MagicMock(
-        return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_conn), __aexit__=AsyncMock())
+        return_value=AsyncMock(
+            __aenter__=AsyncMock(return_value=mock_conn),
+            __aexit__=AsyncMock(return_value=False),
+        )
     )
 
     async def override_pool():
@@ -203,3 +206,60 @@ async def test_get_document_stages_returns_found_false_when_missing():
     assert body["success"] is True
     assert body["data"]["found"] is False
     assert body["data"]["stage_status"] == {}
+
+
+@pytest.mark.asyncio
+async def test_reprocess_document_returns_pending():
+    app, mock_conn = _make_test_app()
+    mock_conn.fetchrow = AsyncMock(return_value={"id": "doc-123"})
+    mock_conn.execute = AsyncMock()
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/documents/doc-123/reprocess",
+            headers={"Authorization": "Bearer test-token"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    assert body["data"]["status"] == "pending"
+    assert body["data"]["document_id"] == "doc-123"
+
+
+@pytest.mark.asyncio
+async def test_reprocess_document_404_when_not_found():
+    app, mock_conn = _make_test_app()
+    mock_conn.fetchrow = AsyncMock(return_value=None)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/documents/missing/reprocess",
+            headers={"Authorization": "Bearer test-token"},
+        )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_process_single_stage_valid_stage():
+    app, mock_conn = _make_test_app()
+    mock_conn.fetchrow = AsyncMock(return_value={"id": "doc-123"})
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/documents/doc-123/process/stage/embedding",
+            headers={"Authorization": "Bearer test-token"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    assert body["data"]["stage"] == "embedding"
+    assert body["data"]["status"] == "queued"
+
+
+@pytest.mark.asyncio
+async def test_process_single_stage_invalid_stage_returns_400():
+    app, mock_conn = _make_test_app()
+    mock_conn.fetchrow = AsyncMock(return_value={"id": "doc-123"})
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/documents/doc-123/process/stage/nonexistent_stage",
+            headers={"Authorization": "Bearer test-token"},
+        )
+    assert resp.status_code == 400

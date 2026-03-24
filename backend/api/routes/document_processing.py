@@ -10,7 +10,7 @@ import json
 import logging
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from models.document import CANONICAL_STAGES
 
 from api.dependencies.database import get_database_pool
@@ -119,3 +119,77 @@ async def get_document_stages(
             found=True,
         )
     )
+
+
+async def _run_pipeline_stages(document_id: str, stages: list[str], pipeline) -> None:
+    """Background task: run pipeline stages for a document."""
+    try:
+        await pipeline.run_stages(document_id, stages)
+    except Exception as exc:
+        logger.error("Background pipeline failed for %s: %s", document_id, exc)
+
+
+@router.post("/documents/{document_id}/reprocess")
+async def reprocess_document(
+    document_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    pool: asyncpg.Pool = Depends(get_database_pool),
+    _: dict = Depends(require_permission("documents:write")),
+):
+    """Reset document state and trigger full pipeline reprocessing."""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id FROM krai_core.documents WHERE id = $1", document_id
+        )
+        if row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        await conn.execute(
+            "UPDATE krai_core.documents SET processing_status = 'pending', stage_status = '{}'::jsonb WHERE id = $1",
+            document_id,
+        )
+        try:
+            await conn.execute(
+                "DELETE FROM krai_system.stage_tracking WHERE document_id = $1", document_id
+            )
+        except Exception:
+            pass  # table may not exist in all environments
+        try:
+            await conn.execute(
+                "DELETE FROM krai_system.completion_markers WHERE document_id = $1", document_id
+            )
+        except Exception:
+            pass
+
+    pipeline = request.app.state.pipeline
+    background_tasks.add_task(_run_pipeline_stages, document_id, CANONICAL_STAGES, pipeline)
+
+    return SuccessResponse(data={"message": "Reprocessing queued", "document_id": document_id, "status": "pending"})
+
+
+@router.post("/documents/{document_id}/process/stage/{stage_name}")
+async def process_single_stage(
+    document_id: str,
+    stage_name: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    pool: asyncpg.Pool = Depends(get_database_pool),
+    _: dict = Depends(require_permission("documents:write")),
+):
+    """Queue a single pipeline stage as a background task."""
+    if stage_name not in CANONICAL_STAGES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown stage '{stage_name}'. Valid: {', '.join(CANONICAL_STAGES)}",
+        )
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id FROM krai_core.documents WHERE id = $1", document_id
+        )
+        if row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    pipeline = request.app.state.pipeline
+    background_tasks.add_task(_run_pipeline_stages, document_id, [stage_name], pipeline)
+
+    return SuccessResponse(data={"stage": stage_name, "status": "queued", "document_id": document_id})
