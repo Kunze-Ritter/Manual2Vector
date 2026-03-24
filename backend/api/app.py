@@ -4,7 +4,7 @@ KRAI Processing Pipeline API
 FastAPI app for monitoring, managing, and controlling the document processing pipeline.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Depends, Request, Response, status
+from fastapi import FastAPI, Form, HTTPException, UploadFile, File, BackgroundTasks, Depends, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
@@ -69,6 +69,7 @@ from api.routes.batch import router as batch_router
 from api.routes.search import router as search_router
 from api.routes.api_keys import router as api_keys_router
 from api.routes.dashboard import router as dashboard_router
+from api.routes.document_processing import router as document_processing_router
 from api import websocket as websocket_api
 from services.metrics_service import MetricsService
 from services.alert_service import AlertService
@@ -782,6 +783,7 @@ async def upload_document(
     response: Response,
     file: UploadFile = File(...),
     document_type: str = "service_manual",
+    language: str = Form("en"),
     force_reprocess: bool = False,
     processor: UploadProcessor = Depends(get_upload_processor),
     current_user: dict = Depends(require_permission('documents:write'))
@@ -816,7 +818,7 @@ async def upload_document(
             model=None,
             series=None,
             version=None,
-            language="en",
+            language=language or "en",
         )
         context.force_reprocess = force_reprocess
 
@@ -873,7 +875,20 @@ async def startup_events():
     db_adapter = create_database_adapter()
     await db_adapter.connect()
     app.state.db_adapter = db_adapter
-    
+
+    # Services for document_processing router
+    from services.storage_factory import create_storage_service
+    from pipeline.master_pipeline import KRMasterPipeline
+    try:
+        app.state.storage_service = create_storage_service()
+    except Exception as exc:
+        logger.warning("Object storage not available: %s — thumbnail endpoint will fail", exc)
+        app.state.storage_service = None
+    app.state.pipeline = KRMasterPipeline(
+        database_adapter=db_adapter,
+        force_continue_on_errors=True,
+    )
+
     try:
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
@@ -1196,6 +1211,8 @@ app.include_router(pipeline_errors.router, prefix="/api/v1")
 # Mount Monitoring API
 from api import monitoring_api
 app.include_router(monitoring_api.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
+
+app.include_router(document_processing_router, prefix="/api/v1")
 
 # OpenAI-compatible wrapper — used by OpenWebUI and other OpenAI clients
 app.include_router(openai_compat_router)

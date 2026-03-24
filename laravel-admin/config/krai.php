@@ -16,6 +16,7 @@ return [
     'service_jwt' => env('KRAI_SERVICE_JWT', env('KRAI_ENGINE_SERVICE_JWT', '')),
     'default_timeout' => 120, // Default HTTP timeout in seconds
     'query_timeout' => 60, // Timeout for read-only queries
+    'upload_timeout' => 600, // Timeout for multi-stage sync calls (seconds)
 
     /*
     |--------------------------------------------------------------------------

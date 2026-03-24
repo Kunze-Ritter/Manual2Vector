@@ -43,7 +43,7 @@ repos:
     rev: 1.8.0
     hooks:
       - id: bandit
-        args: [-x, "tests/"]
+        args: [-x, "tests/,backend/tests/"]
 
   # ===========================================
   # Git hooks

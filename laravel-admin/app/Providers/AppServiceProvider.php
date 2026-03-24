@@ -26,7 +26,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(KraiEngineService::class, function ($app) {
             return new KraiEngineService(
                 config('krai.engine_url'),
-                config('krai.service_jwt')
+                config('krai.service_jwt'),
+                uploadTimeout: config('krai.upload_timeout', 600),
             );
         });
 
