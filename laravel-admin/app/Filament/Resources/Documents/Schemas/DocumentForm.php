@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Documents\Schemas;
 
 use App\Enums\DocumentProcessingStatus;
+use App\Models\Manufacturer;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -59,7 +60,11 @@ class DocumentForm
 
                 Select::make('manufacturer_id')
                     ->label('Hersteller')
-                    ->relationship('manufacturer', 'name')
+                    ->options(fn (): array => Manufacturer::query()
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->toArray()
+                    )
                     ->searchable()
                     ->preload()
                     ->nullable(),
