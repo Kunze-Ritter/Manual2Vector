@@ -374,6 +374,37 @@ async def test_process_multiple_stages_returns_stage_results():
 
 
 @pytest.mark.asyncio
+async def test_process_multiple_stages_defaults_missing_processing_time_to_zero():
+    app, mock_conn = _make_test_app()
+    mock_conn.fetchrow = AsyncMock(return_value={"id": "doc-123"})
+    mock_pipeline = MagicMock()
+    mock_pipeline.run_stages = AsyncMock(
+        return_value={
+            "success": False,
+            "total_stages": 1,
+            "successful": 0,
+            "failed": 1,
+            "success_rate": 0.0,
+            "stage_results": [
+                {"stage": "text_extraction", "success": False, "error": "boom"},
+            ],
+        }
+    )
+    app.state.pipeline = mock_pipeline
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/documents/doc-123/process/stages",
+            json={"stages": ["text_extraction"], "stop_on_error": True},
+            headers={"Authorization": "Bearer test-token"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    assert body["data"]["failed"] == 1
+    assert body["data"]["stage_results"][0]["processing_time"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_process_multiple_stages_rejects_invalid_stage():
     app, _ = _make_test_app()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:

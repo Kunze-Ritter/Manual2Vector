@@ -12,9 +12,6 @@ import logging
 import asyncpg
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from models.document import CANONICAL_STAGES
-from processors.thumbnail_processor import ThumbnailProcessor
-from services.video_enrichment_service import VideoEnrichmentService
-from core.types import ProcessingContext
 
 from api.dependencies.database import get_database_pool
 from api.middleware.auth_middleware import require_permission
@@ -28,6 +25,9 @@ from api.routes.response_models import (
     ThumbnailGenerationRequest,
     VideoProcessingRequest,
 )
+from core.types import ProcessingContext
+from processors.thumbnail_processor import ThumbnailProcessor
+from services.video_enrichment_service import VideoEnrichmentService
 
 logger = logging.getLogger("krai.api.document_processing")
 
@@ -225,7 +225,15 @@ async def process_multiple_stages(
     finally:
         pipeline.force_continue_on_errors = original_force_continue
 
-    stage_results = raw_result.get("stage_results", [])
+    raw_stage_results = raw_result.get("stage_results", [])
+    stage_results = []
+    for item in raw_stage_results:
+        if isinstance(item, dict):
+            normalized = dict(item)
+            normalized.setdefault("processing_time", 0.0)
+            stage_results.append(normalized)
+        else:
+            stage_results.append(item)
     total_stages = len(body.stages)
     successful = int(raw_result.get("successful", sum(1 for item in stage_results if item.get("success"))))
     failed = int(raw_result.get("failed", max(total_stages - successful, 0)))
