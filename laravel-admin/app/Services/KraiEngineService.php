@@ -97,6 +97,28 @@ class KraiEngineService
     }
 
     /**
+     * Normalize API error payloads into safe loggable strings.
+     */
+    private function normalizeApiError(mixed $error, string $fallback = 'Unknown error'): string
+    {
+        if (is_string($error)) {
+            return $error;
+        }
+
+        if (is_array($error)) {
+            $json = json_encode($error, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            return $json !== false ? $json : $fallback;
+        }
+
+        if (is_scalar($error)) {
+            return (string) $error;
+        }
+
+        return $fallback;
+    }
+
+    /**
      * Process a single stage for a document
      */
     public function processStage(string $documentId, string $stageName, ?User $user = null): array
@@ -121,7 +143,7 @@ class KraiEngineService
                     'document_id' => $data['data']['document_id'] ?? $documentId,
                 ];
             } else {
-                $error = $response->json('detail', 'Unknown error');
+                $error = $this->normalizeApiError($response->json('detail', 'Unknown error'));
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
 
                 return [
@@ -171,7 +193,7 @@ class KraiEngineService
                     'success_rate' => (float) ($data['data']['success_rate'] ?? 0),
                 ];
             } else {
-                $error = $response->json('detail', 'Unknown error');
+                $error = $this->normalizeApiError($response->json('detail', 'Unknown error'));
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
 
                 return [
@@ -231,7 +253,7 @@ class KraiEngineService
                     'channel_title' => $data['data']['channel_title'] ?? null,
                 ];
             } else {
-                $error = $response->json('detail', 'Unknown error');
+                $error = $this->normalizeApiError($response->json('detail', 'Unknown error'));
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
 
                 return [
@@ -279,7 +301,7 @@ class KraiEngineService
                     'file_size' => $data['data']['file_size'] ?? null,
                 ];
             } else {
-                $error = $response->json('detail', 'Unknown error');
+                $error = $this->normalizeApiError($response->json('detail', 'Unknown error'));
                 $this->logApiCall('POST', $endpoint, $documentId, $response->status(), $error);
 
                 return [
@@ -321,7 +343,7 @@ class KraiEngineService
                     'found' => $data['data']['found'] ?? false,
                 ];
             } else {
-                $error = $response->json('detail', 'Unknown error');
+                $error = $this->normalizeApiError($response->json('detail', 'Unknown error'));
                 $this->logApiCall('GET', $endpoint, $documentId, $response->status(), $error);
 
                 return [
@@ -365,7 +387,7 @@ class KraiEngineService
                     'total' => $data['data']['total'] ?? 0,
                 ];
             } else {
-                $error = $response->json('detail', 'Unknown error');
+                $error = $this->normalizeApiError($response->json('detail', 'Unknown error'));
                 $this->logApiCall('GET', $endpoint, $logContext, $response->status(), $error);
 
                 return [

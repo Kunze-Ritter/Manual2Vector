@@ -131,6 +131,27 @@ class KraiEngineServiceFixesTest extends TestCase
     }
 
     #[Test]
+    public function get_stage_status_normalizes_array_error_payloads(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/v1/documents/doc-123/stages" => Http::response([
+                'detail' => [
+                    'message' => 'Stage status unavailable',
+                    'reason' => 'backend timeout',
+                ],
+            ], 500),
+        ]);
+
+        $service = $this->makeService();
+        $result = $service->getStageStatus('doc-123');
+
+        $this->assertFalse($result['success']);
+        $this->assertIsString($result['error']);
+        $this->assertStringContainsString('Stage status unavailable', $result['error']);
+        $this->assertStringContainsString('backend timeout', $result['error']);
+    }
+
+    #[Test]
     public function get_available_stages_calls_global_endpoint_without_document_id(): void
     {
         Http::fake([
