@@ -40,6 +40,8 @@ class ListDocuments extends ListRecords
                     FileUpload::make('file')
                         ->label('PDF-Datei')
                         ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(102400)
+                        ->helperText('Maximale Dateigröße: 100 MB')
                         ->required(),
                     Select::make('document_type')
                         ->label('Dokumenttyp')

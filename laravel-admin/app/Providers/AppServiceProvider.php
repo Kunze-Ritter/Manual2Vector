@@ -55,6 +55,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        config([
+            'livewire.temporary_file_upload.rules' => [
+                'required',
+                'file',
+                'mimetypes:application/pdf',
+                'max:102400',
+            ],
+            'livewire.temporary_file_upload.max_upload_time' => 30,
+        ]);
     }
 }
