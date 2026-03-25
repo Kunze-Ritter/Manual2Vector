@@ -434,13 +434,20 @@ class KraiEngineService
     /**
      * Upload a document to the KRAI Engine
      */
-    public function uploadDocument(\Illuminate\Http\UploadedFile $file, string $documentType, string $language = 'en', ?User $user = null): array
+    public function uploadDocument(\Illuminate\Http\UploadedFile $file, string $documentType, string $language = 'en', ?User $user = null, array $context = []): array
     {
         $endpoint = '/upload';
 
         try {
             $client = $this->createHttpClient();
             $client = $this->addUserContext($client, $user);
+            $payload = array_filter([
+                'document_type' => $documentType,
+                'language' => $language,
+                'manufacturer' => $context['manufacturer'] ?? null,
+                'series' => $context['series'] ?? null,
+                'model' => $context['model'] ?? null,
+            ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
             $fileHandle = fopen($file->getRealPath(), 'rb');
             try {
@@ -448,10 +455,7 @@ class KraiEngineService
                     'file',
                     $fileHandle,
                     $file->getClientOriginalName()
-                )->post($this->baseUrl.$endpoint, [
-                    'document_type' => $documentType,
-                    'language' => $language,
-                ]);
+                )->post($this->baseUrl.$endpoint, $payload);
             } finally {
                 if (is_resource($fileHandle)) {
                     fclose($fileHandle);

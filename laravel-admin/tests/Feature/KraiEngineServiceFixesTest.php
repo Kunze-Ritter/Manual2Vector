@@ -46,6 +46,44 @@ class KraiEngineServiceFixesTest extends TestCase
     }
 
     #[Test]
+    public function upload_document_includes_optional_product_context_when_provided(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/upload" => Http::response([
+                'document_id' => 'doc-456',
+                'filename' => 'manual.pdf',
+                'document_type' => 'service_manual',
+                'language' => 'de',
+                'status' => 'uploaded',
+            ], 200),
+        ]);
+
+        $file = UploadedFile::fake()->create('manual.pdf', 100, 'application/pdf');
+        $service = $this->makeService();
+
+        $result = $service->uploadDocument($file, 'service_manual', 'de', null, [
+            'manufacturer' => 'Konica Minolta',
+            'series' => 'bizhub i-Series',
+            'model' => 'C450i',
+        ]);
+
+        $this->assertTrue($result['success']);
+
+        Http::assertSent(function (Request $request) {
+            $multipartFields = collect($request->data())
+                ->filter(fn (array $part): bool => array_key_exists('name', $part) && array_key_exists('contents', $part))
+                ->reject(fn (array $part): bool => $part['name'] === 'file')
+                ->mapWithKeys(fn (array $part): array => [$part['name'] => $part['contents']])
+                ->all();
+
+            return $request->url() === "{$this->baseUrl}/upload"
+                && ($multipartFields['manufacturer'] ?? null) === 'Konica Minolta'
+                && ($multipartFields['series'] ?? null) === 'bizhub i-Series'
+                && ($multipartFields['model'] ?? null) === 'C450i';
+        });
+    }
+
+    #[Test]
     public function get_document_status_reads_from_data_wrapper(): void
     {
         Http::fake([

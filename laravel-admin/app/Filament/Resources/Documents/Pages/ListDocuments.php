@@ -3,6 +3,9 @@
 namespace App\Filament\Resources\Documents\Pages;
 
 use App\Filament\Resources\Documents\DocumentResource;
+use App\Models\Manufacturer;
+use App\Models\Product;
+use App\Models\ProductSeries;
 use App\Services\KraiEngineService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
@@ -12,6 +15,11 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Illuminate\Http\UploadedFile;
+use InvalidArgumentException;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ListDocuments extends ListRecords
 {
@@ -41,6 +49,7 @@ class ListDocuments extends ListRecords
                         ->label('PDF-Datei')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(102400)
+                        ->storeFiles(false)
                         ->helperText('Maximale Dateigröße: 100 MB')
                         ->required(),
                     Select::make('document_type')
@@ -60,6 +69,39 @@ class ListDocuments extends ListRecords
                         ->label('Sprache')
                         ->maxLength(10)
                         ->default('en'),
+                    Select::make('manufacturer')
+                        ->label('Hersteller (optional)')
+                        ->options(fn (): array => Manufacturer::query()
+                            ->orderBy('name')
+                            ->pluck('name', 'name')
+                            ->toArray()
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->helperText('Leer lassen für Auto-Erkennung.')
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('series', null);
+                            $set('model', null);
+                        }),
+                    Select::make('series')
+                        ->label('Serie (optional)')
+                        ->options(fn (Get $get): array => $this->getSeriesOptions($get('manufacturer')))
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->disabled(fn (Get $get): bool => blank($get('manufacturer')))
+                        ->helperText('Optional. Für Serie und Modell zuerst Hersteller wählen.')
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('model', null);
+                        }),
+                    Select::make('model')
+                        ->label('Modell (optional)')
+                        ->options(fn (Get $get): array => $this->getModelOptions($get('manufacturer'), $get('series')))
+                        ->searchable()
+                        ->preload()
+                        ->disabled(fn (Get $get): bool => blank($get('manufacturer')))
+                        ->helperText('Leer lassen für Auto-Erkennung.'),
                     CheckboxList::make('stages')
                         ->label('Stages zur Verarbeitung (optional)')
                         ->options(collect(config('krai.stages'))->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
@@ -73,7 +115,18 @@ class ListDocuments extends ListRecords
                         ->visible(fn ($get) => ! empty($get('stages'))),
                 ])
                 ->action(function (array $data): void {
-                    $file = $data['file'];
+                    try {
+                        $file = $this->normalizeUploadedFile($data['file'] ?? null);
+                    } catch (InvalidArgumentException $exception) {
+                        Notification::make()
+                            ->title('Upload fehlgeschlagen')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
                     $service = app(KraiEngineService::class);
                     $user = auth()->user();
 
@@ -82,7 +135,8 @@ class ListDocuments extends ListRecords
                         $file,
                         $data['document_type'],
                         $data['language'] ?? 'en',
-                        $user
+                        $user,
+                        $this->buildUploadContextPayload($data)
                     );
 
                     if (! $uploadResult['success']) {
@@ -143,5 +197,85 @@ class ListDocuments extends ListRecords
                 }),
             // Kein Create-Button, Upload läuft (später) über eigenen Flow
         ];
+    }
+
+    protected function normalizeUploadedFile(mixed $file): UploadedFile
+    {
+        if (is_array($file)) {
+            $file = reset($file) ?: null;
+        }
+
+        if ($file instanceof UploadedFile) {
+            return $file;
+        }
+
+        if (is_string($file) && TemporaryUploadedFile::canUnserialize($file)) {
+            $file = TemporaryUploadedFile::unserializeFromLivewireRequest($file);
+
+            if ($file instanceof UploadedFile) {
+                return $file;
+            }
+        }
+
+        throw new InvalidArgumentException('Die temporäre Upload-Datei konnte nicht verarbeitet werden. Bitte Datei erneut auswählen.');
+    }
+
+    protected function buildUploadContextPayload(array $data): array
+    {
+        return array_filter([
+            'manufacturer' => $this->normalizeOptionalSelection($data['manufacturer'] ?? null),
+            'series' => $this->normalizeOptionalSelection($data['series'] ?? null),
+            'model' => $this->normalizeOptionalSelection($data['model'] ?? null),
+        ], static fn (?string $value): bool => filled($value));
+    }
+
+    protected function getSeriesOptions(?string $manufacturer): array
+    {
+        if (blank($manufacturer)) {
+            return [];
+        }
+
+        return ProductSeries::query()
+            ->whereHas('manufacturer', fn ($query) => $query->where('name', $manufacturer))
+            ->orderBy('series_name')
+            ->pluck('series_name', 'series_name')
+            ->toArray();
+    }
+
+    protected function getModelOptions(?string $manufacturer, ?string $series): array
+    {
+        if (blank($manufacturer)) {
+            return [];
+        }
+
+        return Product::query()
+            ->whereHas('manufacturer', fn ($query) => $query->where('name', $manufacturer))
+            ->when(
+                filled($series),
+                fn ($query) => $query->whereHas('series', fn ($seriesQuery) => $seriesQuery->where('series_name', $series))
+            )
+            ->orderBy('model_number')
+            ->get(['model_number', 'model_name'])
+            ->mapWithKeys(function (Product $product): array {
+                $label = $product->model_number;
+
+                if (filled($product->model_name) && $product->model_name !== $product->model_number) {
+                    $label .= ' - '.$product->model_name;
+                }
+
+                return [$product->model_number => $label];
+            })
+            ->all();
+    }
+
+    protected function normalizeOptionalSelection(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : null;
     }
 }

@@ -6,8 +6,8 @@ import ast
 import json
 import sys
 import types
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -450,22 +450,26 @@ async def test_process_thumbnail_returns_url():
 
 
 def test_upload_endpoint_accepts_language_form_param():
-    """The /upload endpoint must accept and use a multipart language form field."""
+    """The /upload endpoint must accept optional multipart context fields."""
     app_path = ROOT / "api" / "app.py"
     source = app_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
 
     upload_fn = next(
-        (
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == "upload_document"
-        ),
+        (node for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef) and node.name == "upload_document"),
         None,
     )
 
     assert upload_fn is not None, "upload_document function not found in app.py"
 
     fn_source = ast.get_source_segment(source, upload_fn) or ""
+    assert 'document_type: str = Form("service_manual")' in fn_source
     assert 'language: str = Form("en")' in fn_source
+    assert "manufacturer: str | None = Form(None)" in fn_source
+    assert "series: str | None = Form(None)" in fn_source
+    assert "model: str | None = Form(None)" in fn_source
+    assert "force_reprocess: bool = Form(False)" in fn_source
     assert 'language=language or "en"' in fn_source
+    assert "manufacturer=manufacturer or None" in fn_source
+    assert "series=series or None" in fn_source
+    assert "model=model or None" in fn_source
