@@ -23,6 +23,8 @@ class ManageSettingsTest extends TestCase
         $this->assertStringContainsString('use Filament\\Schemas\\Components\\Tabs;', $schemaFile);
         $this->assertStringContainsString('use Filament\\Schemas\\Components\\Tabs\\Tab;', $schemaFile);
         $this->assertStringNotContainsString('use Filament\\Forms\\Components\\Tabs;', $schemaFile);
+        $this->assertStringContainsString("->icon('heroicon-o-sparkles')", $schemaFile);
+        $this->assertStringNotContainsString("->icon('heroicon-o-brain')", $schemaFile);
         $this->assertStringContainsString("->view('filament.forms.components.ollama-status-display')", $schemaFile);
         $this->assertStringContainsString("->view('filament.forms.components.ollama-models-table')", $schemaFile);
         $this->assertStringNotContainsString('->state(fn ($livewire) => $livewire->ollamaInfo ?? [])', $schemaFile);

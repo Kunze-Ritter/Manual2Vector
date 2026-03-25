@@ -49,7 +49,7 @@ class SettingsFormSchema
                                         ->columnSpanFull(),
                                 ]),
                             Section::make('LLM Models')
-                                ->icon('heroicon-o-brain')
+                                ->icon('heroicon-o-sparkles')
                                 ->description('Select which models to use for different tasks.')
                                 ->columns(['md' => 2, 'xl' => 2])
                                 ->schema([
