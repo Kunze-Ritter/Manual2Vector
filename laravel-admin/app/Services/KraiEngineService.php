@@ -335,12 +335,28 @@ class KraiEngineService
 
             if ($response->successful()) {
                 $data = $response->json();
+                $payload = $data['data'] ?? [];
+                $stageStatus = $payload['stage_status'] ?? null;
+                $found = $payload['found'] ?? null;
+
+                if (! is_array($stageStatus) && is_array($payload['stages'] ?? null)) {
+                    $stageStatus = collect($payload['stages'])
+                        ->mapWithKeys(function (mixed $stageData, string $stageName): array {
+                            if (is_array($stageData)) {
+                                return [$stageName => $stageData['status'] ?? 'pending'];
+                            }
+
+                            return [$stageName => (string) $stageData];
+                        })
+                        ->all();
+                    $found = true;
+                }
 
                 return [
                     'success' => true,
-                    'document_id' => $data['data']['document_id'] ?? $documentId,
-                    'stage_status' => $data['data']['stage_status'] ?? [],
-                    'found' => $data['data']['found'] ?? false,
+                    'document_id' => (string) ($payload['document_id'] ?? $documentId),
+                    'stage_status' => is_array($stageStatus) ? $stageStatus : [],
+                    'found' => (bool) ($found ?? false),
                 ];
             } else {
                 $error = $this->normalizeApiError($response->json('detail', 'Unknown error'));

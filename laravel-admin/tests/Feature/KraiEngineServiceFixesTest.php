@@ -131,6 +131,36 @@ class KraiEngineServiceFixesTest extends TestCase
     }
 
     #[Test]
+    public function get_stage_status_reads_legacy_stage_payloads(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/v1/documents/doc-123/stages" => Http::response([
+                'success' => true,
+                'data' => [
+                    'document_id' => 'doc-123',
+                    'filename' => 'manual.pdf',
+                    'overall_progress' => 50,
+                    'current_stage' => 'embedding',
+                    'stages' => [
+                        'text_extraction' => ['status' => 'completed'],
+                        'embedding' => ['status' => 'processing'],
+                    ],
+                    'can_retry' => false,
+                    'last_updated' => '2026-03-25T12:00:00Z',
+                ],
+            ], 200),
+        ]);
+
+        $service = $this->makeService();
+        $result = $service->getStageStatus('doc-123');
+
+        $this->assertTrue($result['success']);
+        $this->assertTrue($result['found']);
+        $this->assertSame('completed', $result['stage_status']['text_extraction']);
+        $this->assertSame('processing', $result['stage_status']['embedding']);
+    }
+
+    #[Test]
     public function get_stage_status_normalizes_array_error_payloads(): void
     {
         Http::fake([

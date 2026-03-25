@@ -473,3 +473,9 @@ def test_upload_endpoint_accepts_language_form_param():
     assert "manufacturer=manufacturer or None" in fn_source
     assert "series=series or None" in fn_source
     assert "model=model or None" in fn_source
+
+
+def test_legacy_documents_stage_response_casts_document_id_to_string():
+    source = (ROOT / "api" / "routes" / "documents.py").read_text(encoding="utf-8")
+
+    assert 'document_id=str(doc["id"])' in source
