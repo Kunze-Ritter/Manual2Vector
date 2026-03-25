@@ -28,5 +28,6 @@ class ListDocumentsUploadActionTest extends TestCase
         $this->assertIsString($source);
         $this->assertStringContainsString("\$service->reprocessDocument(\$documentId, \$user)", $source);
         $this->assertStringContainsString('vollständigen Verarbeitung eingereiht', $source);
+        $this->assertStringContainsString("->except(['upload'])", $source);
     }
 }

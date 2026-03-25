@@ -136,7 +136,7 @@ class EditDocument extends EditRecord
                 ->form([
                     Select::make('stage')
                         ->label('Stage auswählen')
-                        ->options(collect(config('krai.stages'))->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
+                        ->options(collect(config('krai.stages'))->except(['upload'])->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
                         ->required()
                         ->helperText('Wählen Sie eine einzelne Stage zur Verarbeitung'),
                 ])
@@ -180,7 +180,7 @@ class EditDocument extends EditRecord
                 ->form([
                     CheckboxList::make('stages')
                         ->label('Stages auswählen')
-                        ->options(collect(config('krai.stages'))->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
+                        ->options(collect(config('krai.stages'))->except(['upload'])->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
                         ->columns(3)
                         ->required()
                         ->helperText('Wählen Sie mehrere Stages zur sequenziellen Verarbeitung'),

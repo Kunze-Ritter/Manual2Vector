@@ -104,7 +104,7 @@ class ListDocuments extends ListRecords
                         ->helperText('Leer lassen für Auto-Erkennung.'),
                     CheckboxList::make('stages')
                         ->label('Stages zur Verarbeitung (optional)')
-                        ->options(collect(config('krai.stages'))->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
+                        ->options(collect(config('krai.stages'))->except(['upload'])->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
                         ->columns(3)
                         ->helperText('Leer lassen für vollständige Verarbeitung (alle Stages)')
                         ->default(null),

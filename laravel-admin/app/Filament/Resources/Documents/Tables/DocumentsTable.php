@@ -221,7 +221,7 @@ class DocumentsTable
                         ->form([
                             Select::make('stage')
                                 ->label('Stage auswählen')
-                                ->options(collect(config('krai.stages'))->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
+                                ->options(collect(config('krai.stages'))->except(['upload'])->mapWithKeys(fn ($stage, $key) => [$key => $stage['label']]))
                                 ->required(),
                         ])
                         ->action(function (Collection $records, array $data) {
