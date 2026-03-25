@@ -108,7 +108,7 @@ class ImageStorageProcessor:
         Returns:
             MD5 hash as hex string
         """
-        md5_hash = hashlib.md5()
+        md5_hash = hashlib.md5(usedforsecurity=False)
         
         with open(image_path, 'rb') as f:
             for chunk in iter(lambda: f.read(8192), b""):
@@ -433,4 +433,3 @@ async def upload_images_to_storage(
     """
     processor = ImageStorageProcessor(database_adapter=database_adapter)
     return await processor.upload_images(document_id, images)
-
