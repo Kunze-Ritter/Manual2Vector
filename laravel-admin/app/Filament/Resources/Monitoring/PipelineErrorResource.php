@@ -45,7 +45,7 @@ class PipelineErrorResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['document:id,filename,stage_status', 'resolvedBy:id,name'])
+            ->with(['document:id,filename,stage_status', 'resolvedBy:id,first_name,last_name,username,email'])
             ->latest('created_at');
     }
 
