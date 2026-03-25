@@ -24,7 +24,7 @@ The `scripts/` directory contains standalone utilities for setup, maintenance, d
 
 | Script Name | Description | Usage | Status |
 |------------|-------------|-------|--------|
-| `cleanup_database.py` | Database cleanup operations | `python scripts/cleanup_database.py --dry-run` | Active |
+| `reset_document_data.py` | Delete document-derived data while preserving manufacturers, products, series, videos, and users | `python scripts/reset_document_data.py` | Active |
 | `delete_document_data.py` | Delete specific document data | `python scripts/delete_document_data.py <document_id>` | Active |
 | `apply_migration_019_processing_queue_stage_column.py` | Add the missing `stage` column to `krai_system.processing_queue` | `python scripts/apply_migration_019_processing_queue_stage_column.py` | Active |
 | `list_documents.py` | List all documents in database | `python scripts/list_documents.py` | Active |
@@ -113,11 +113,11 @@ python scripts/auto_processor.py --pdf-file /path/to/file.pdf
 # List all documents
 python scripts/list_documents.py
 
-# Dry-run cleanup (recommended first)
-python scripts/cleanup_database.py --dry-run
+# Dry-run document reset (recommended first)
+python scripts/reset_document_data.py
 
-# Actual cleanup
-python scripts/cleanup_database.py
+# Actual document reset
+python scripts/reset_document_data.py --confirm
 ```
 
 ### Video Enrichment

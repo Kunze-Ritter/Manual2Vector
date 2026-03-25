@@ -6,37 +6,51 @@ Usage:
     python scripts/reset_document_data.py --confirm
 
 PRESERVES: manufacturers, products, product_series, videos, video_products, users
-DELETES: documents, chunks, error_codes, solutions, images, links, parts, stage tracking
+DELETES: documents, content/intelligence chunks, error_codes, solutions, images, links,
+         document-derived tables/parts, stage state, processing queue
 """
+
 import argparse
 import asyncio
 import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
-
-from processors.env_loader import load_all_env_files
-load_all_env_files(Path(__file__).parent.parent)
-
 import asyncpg
+
+PROJECT_ROOT = Path(__file__).parent.parent
+
+
+def load_project_env() -> None:
+    sys.path.insert(0, str(PROJECT_ROOT / "backend"))
+
+    from processors.env_loader import load_all_env_files
+
+    load_all_env_files(PROJECT_ROOT)
+
+
+load_project_env()
 
 DELETE_STEPS = [
     # Intelligence (depends on chunks/documents)
-    ("krai_intelligence.error_codes",    "DELETE FROM krai_intelligence.error_codes"),
-    ("krai_intelligence.solutions",      "DELETE FROM krai_intelligence.solutions"),
-    ("krai_intelligence.chunks",         "DELETE FROM krai_intelligence.chunks"),
+    ("krai_intelligence.error_codes", "DELETE FROM krai_intelligence.error_codes"),
+    ("krai_intelligence.solutions", "DELETE FROM krai_intelligence.solutions"),
+    ("krai_intelligence.chunks", "DELETE FROM krai_intelligence.chunks"),
     # Content (except videos)
-    ("krai_content.images",              "DELETE FROM krai_content.images"),
-    ("krai_content.links",               "DELETE FROM krai_content.links"),
+    ("krai_content.tables", "DELETE FROM krai_content.tables"),
+    ("krai_content.images", "DELETE FROM krai_content.images"),
+    ("krai_content.links", "DELETE FROM krai_content.links"),
+    ("krai_content.chunks", "DELETE FROM krai_content.chunks"),
     # Parts
-    ("krai_parts.parts_catalog",         "DELETE FROM krai_parts.parts_catalog"),
+    ("krai_parts.parts_catalog", "DELETE FROM krai_parts.parts_catalog"),
+    ("krai_parts.accessories", "DELETE FROM krai_parts.accessories"),
     # System state
-    ("krai_system.stage_tracking",       "DELETE FROM krai_system.stage_tracking"),
-    ("krai_system.completion_markers",   "DELETE FROM krai_system.completion_markers"),
-    ("krai_system.retries",              "DELETE FROM krai_system.retries"),
+    ("krai_system.stage_tracking", "DELETE FROM krai_system.stage_tracking"),
+    ("krai_system.completion_markers", "DELETE FROM krai_system.completion_markers"),
+    ("krai_system.retries", "DELETE FROM krai_system.retries"),
+    ("krai_system.processing_queue", "DELETE FROM krai_system.processing_queue"),
     # Documents last
-    ("krai_core.documents",              "DELETE FROM krai_core.documents"),
+    ("krai_core.documents", "DELETE FROM krai_core.documents"),
 ]
 
 PRESERVED = [
@@ -51,24 +65,24 @@ PRESERVED = [
 
 async def run_reset(dsn: str) -> None:
     conn = await asyncpg.connect(dsn)
-    print("\n⚠️  PRESERVED (untouched):")
+    print("\nPRESERVED (untouched):")
     for t in PRESERVED:
-        print(f"  ✓ {t}")
+        print(f"  - {t}")
 
-    print("\n🗑️  Deleting tables in order:")
+    print("\nDeleting tables in order:")
     try:
         for label, sql in DELETE_STEPS:
             try:
                 result = await conn.execute(sql)
                 # asyncpg returns "DELETE N" string
                 count = result.split()[-1] if result else "?"
-                print(f"  ✓ {label}: {count} rows deleted")
+                print(f"  OK {label}: {count} rows deleted")
             except Exception as e:
-                print(f"  ⚠  {label}: {e} (skipping — table may not exist)")
+                print(f"  WARN {label}: {e} (skipping - table may not exist)")
     finally:
         await conn.close()
 
-    print("\n✅ Reset complete. Re-upload documents to reprocess.\n")
+    print("\nReset complete. Re-upload documents to reprocess.\n")
 
 
 def main():
@@ -77,7 +91,7 @@ def main():
     args = parser.parse_args()
 
     if not args.confirm:
-        print("Dry run — add --confirm to execute.\n")
+        print("Dry run - add --confirm to execute.\n")
         print("Will DELETE:")
         for label, _ in DELETE_STEPS:
             print(f"  - {label}")

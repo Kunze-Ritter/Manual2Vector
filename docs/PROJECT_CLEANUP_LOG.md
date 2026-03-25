@@ -1,6 +1,6 @@
 # Project Cleanup Log
 
-**Date:** 2025-11-29  
+**Date:** 2025-11-29
 **Initiated by:** KRAI-009 Documentation Cleanup
 
 ## Summary
@@ -21,20 +21,20 @@ A comprehensive documentation cleanup consolidated 10+ TODO/IMPROVEMENT/ACTION_I
 ### File Movements
 
 #### 1. Consolidated into MASTER-TODO.md
-- Root `TODO.md` (1000+ lines) → `archive/docs/superseded/TODO_OLD_ROOT.md` 
-- `IMPLEMENTATION_TODO.md` → `archive/docs/superseded/IMPLEMENTATION_TODO_ERROR_CODE_TOOL.md` 
-- All `ACTION_ITEMS_*.md` files → `archive/docs/superseded/` 
+- Root `TODO.md` (1000+ lines) → `archive/docs/superseded/TODO_OLD_ROOT.md`
+- `IMPLEMENTATION_TODO.md` → `archive/docs/superseded/IMPLEMENTATION_TODO_ERROR_CODE_TOOL.md`
+- All `ACTION_ITEMS_*.md` files → `archive/docs/superseded/`
 
 #### 2. Archived Outdated Analysis
 - `KRAI_PROJECT_IMPROVEMENT_ANALYSIS.md` → `archive/docs/outdated/` (October 2025 analysis)
-- `KRAI_PROJECT_IMPROVEMENT_SUMMARY.md` → `archive/docs/outdated/` 
-- `KRAI_PROJECT_IMPROVEMENT_ACTION_PLAN.md` → `archive/docs/outdated/` 
-- `PROJECT_IMPROVEMENT_MASTER_PLAN.md` → `archive/docs/outdated/` 
+- `KRAI_PROJECT_IMPROVEMENT_SUMMARY.md` → `archive/docs/outdated/`
+- `KRAI_PROJECT_IMPROVEMENT_ACTION_PLAN.md` → `archive/docs/outdated/`
+- `PROJECT_IMPROVEMENT_MASTER_PLAN.md` → `archive/docs/outdated/`
 
 #### 3. Archived Completed Implementations
-- `backend/IMPLEMENTATION_STATUS.md` → `archive/docs/completed/IMPLEMENTATION_STATUS_MANUFACTURER_PATTERNS.md` 
-- `backend/IMPLEMENTATION_COMPLETE.md` → `archive/docs/completed/IMPLEMENTATION_COMPLETE_MANUFACTURER_PATTERNS.md` 
-- `docs/releases/IMPLEMENTATION_SUMMARY.md` → `archive/docs/completed/IMPLEMENTATION_SUMMARY_CHUNK_ID_LINKING.md` 
+- `backend/IMPLEMENTATION_STATUS.md` → `archive/docs/completed/IMPLEMENTATION_STATUS_MANUFACTURER_PATTERNS.md`
+- `backend/IMPLEMENTATION_COMPLETE.md` → `archive/docs/completed/IMPLEMENTATION_COMPLETE_MANUFACTURER_PATTERNS.md`
+- `docs/releases/IMPLEMENTATION_SUMMARY.md` → `archive/docs/completed/IMPLEMENTATION_SUMMARY_CHUNK_ID_LINKING.md`
 
 #### 4. Updated Active Documentation
 - `docs/project_management/TODO.md` - Cleaned up, moved completed tasks to archive section
@@ -90,7 +90,7 @@ For questions or to restore archived documentation, see `archive/docs/README.md`
 
 ## KRAI-009 Documentation Cleanup - Phase 3
 
-**Date:** 2025-11-29  
+**Date:** 2025-11-29
 **Initiated by:** Systematic documentation update for PostgreSQL-only and stage-based pipeline architecture
 
 ### Summary
@@ -184,7 +184,7 @@ archive/docs/
 
 ## Scripts Directory Cleanup (KRAI-008)
 
-**Date:** 2025-11-29  
+**Date:** 2025-11-29
 **Initiated by:** Systematic scripts directory organization and cleanup
 
 ### Summary
@@ -214,7 +214,7 @@ A comprehensive scripts directory cleanup analyzed and categorized 150+ scripts,
 - `pipeline_processor.py` - CLI for stage-based pipeline control
 
 #### Active Utilities (~15)
-- Database management: `cleanup_database.py`, `delete_document_data.py`, `list_documents.py`, `sync_oem_to_database.py`
+- Database management: `reset_document_data.py`, `delete_document_data.py`, `list_documents.py`, `sync_oem_to_database.py`
 - Video enrichment: `enrich_video_metadata.py`, `check_videos.py`, `count_videos.py`
 - Storage management: `cleanup_r2_storage.py`, `delete_r2_bucket_contents.py`, `init_minio.py`
 - Setup & configuration: `setup_computer.py`, `validate_env.py`, `generate_jwt_keys.py`, `generate_env_reference.py`
@@ -299,7 +299,7 @@ archive/scripts/
 |----------------|--------------|--------|-------------|
 | `analyze_foliant_matrix.py` | `archive/scripts/analysis/` | One-off analysis completed | N/A |
 | `test_postgresql_connection_simple.py` | `archive/scripts/tests/` | Redundant with existing tests | `tests/test_database_adapters.py` |
-| `cleanup_orphaned_data.py` | `archive/scripts/deprecated/` | Replaced by unified cleanup | `cleanup_database.py` |
+| `cleanup_orphaned_data.py` | `archive/scripts/deprecated/` | Replaced by document reset flow | `reset_document_data.py` |
 | `setup_test_environment.py` | `archive/scripts/setup/` | Docker-based setup | Docker containers |
 | `check_video_links.py` | `archive/scripts/debug/` | Replaced by generic checks | `check_video_data_quality.py` |
 
@@ -345,7 +345,7 @@ scripts/               # Centralized maintenance utilities (checks, fixes, migra
 tests/
 ├── processors/        # Processor-focused integration tests
 └── ...                # Other repository tests
-``` 
+```
 
 Documentation subfolders:
 - `docs/processor/` – Processor design, checklists, and maintenance plans
