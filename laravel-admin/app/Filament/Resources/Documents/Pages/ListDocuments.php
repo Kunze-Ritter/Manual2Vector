@@ -184,12 +184,21 @@ class ListDocuments extends ListRecords
                                 ->send();
                         }
                     } else {
-                        // Default: full background processing (existing behavior)
-                        Notification::make()
-                            ->title('Dokumenten-Upload gestartet')
-                            ->body('Das Dokument wurde hochgeladen und wird im Hintergrund verarbeitet.')
-                            ->success()
-                            ->send();
+                        $reprocessResult = $service->reprocessDocument($documentId, $user);
+
+                        if ($reprocessResult['success']) {
+                            Notification::make()
+                                ->title('Dokument hochgeladen und eingereiht')
+                                ->body('Das Dokument wurde hochgeladen und zur vollständigen Verarbeitung eingereiht.')
+                                ->success()
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title('Dokument hochgeladen, aber Verarbeitung nicht gestartet')
+                                ->body($reprocessResult['error'] ?? 'Die vollständige Verarbeitung konnte nicht automatisch gestartet werden.')
+                                ->warning()
+                                ->send();
+                        }
                     }
 
                     // Refresh the documents table to show the new document

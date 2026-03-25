@@ -99,6 +99,54 @@
                 </div>
             </x-filament::section>
 
+            <x-filament::section heading="Pipeline-Aktivitaet">
+                @php
+                    $activity = $activityData['activity'] ?? [];
+                    $terminalLines = $activityData['terminal_lines'] ?? [];
+                @endphp
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="rounded-lg border bg-white overflow-hidden">
+                        <div class="border-b px-4 py-3 font-semibold text-sm">Letzte Pipeline-Ereignisse</div>
+                        @if (empty($activity))
+                            <div class="px-4 py-6 text-sm text-gray-500">
+                                Keine aktuelle Pipeline-Aktivitaet sichtbar.
+                            </div>
+                        @else
+                            <div class="divide-y text-sm">
+                                @foreach ($activity as $entry)
+                                    <div class="px-4 py-3">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div class="font-medium text-gray-900">{{ $entry['message'] ?? 'Pipeline-Ereignis' }}</div>
+                                            <x-filament::badge :color="($entry['type'] ?? null) === 'error' ? 'danger' : (($entry['status'] ?? null) === 'processing' ? 'warning' : 'gray')">
+                                                {{ strtoupper($entry['status'] ?? 'unknown') }}
+                                            </x-filament::badge>
+                                        </div>
+                                        <div class="mt-1 text-xs text-gray-500">
+                                            {{ $entry['timestamp'] ?? 'n/a' }} |
+                                            Dokument: {{ $entry['document_id'] ?? 'n/a' }} |
+                                            Stage: {{ $entry['stage_name'] ?? 'n/a' }}
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="rounded-lg border bg-gray-950 text-green-300 overflow-hidden">
+                        <div class="border-b border-gray-800 px-4 py-3 font-semibold text-sm text-green-200">
+                            Pipeline-Terminal
+                        </div>
+                        @if (empty($terminalLines))
+                            <div class="px-4 py-6 text-sm text-gray-400">
+                                Noch keine pipelinebezogenen Ausgaben vorhanden.
+                            </div>
+                        @else
+                            <pre class="px-4 py-4 text-xs leading-6 overflow-x-auto whitespace-pre-wrap">{{ implode("\n", $terminalLines) }}</pre>
+                        @endif
+                    </div>
+                </div>
+            </x-filament::section>
+
             <x-filament::section heading="Hardware-Status">
                 @php
                     $hardware = $pipelineData['hardware_status'] ?? [];

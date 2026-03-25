@@ -19,4 +19,14 @@ class ListDocumentsUploadActionTest extends TestCase
         $this->assertStringContainsString("Select::make('model')", $source);
         $this->assertStringContainsString("Leer lassen für Auto-Erkennung", $source);
     }
+
+    #[Test]
+    public function upload_action_starts_full_reprocessing_when_no_explicit_stages_are_selected(): void
+    {
+        $source = file_get_contents(app_path('Filament/Resources/Documents/Pages/ListDocuments.php'));
+
+        $this->assertIsString($source);
+        $this->assertStringContainsString("\$service->reprocessDocument(\$documentId, \$user)", $source);
+        $this->assertStringContainsString('vollständigen Verarbeitung eingereiht', $source);
+    }
 }
