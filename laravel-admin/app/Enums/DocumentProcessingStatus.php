@@ -21,6 +21,19 @@ enum DocumentProcessingStatus: string
         };
     }
 
+    public static function labelFor(self|string|null $status): string
+    {
+        if ($status instanceof self) {
+            return $status->label();
+        }
+
+        if (is_string($status)) {
+            return self::tryFrom($status)?->label() ?? $status;
+        }
+
+        return '';
+    }
+
     public static function options(): array
     {
         return array_column(

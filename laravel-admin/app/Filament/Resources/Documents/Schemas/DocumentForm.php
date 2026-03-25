@@ -49,7 +49,7 @@ class DocumentForm
 
                 TextInput::make('processing_status')
                     ->label('Processing Status')
-                    ->formatStateUsing(fn ($state) => $state?->label() ?? DocumentProcessingStatus::tryFrom((string) $state)?->label() ?? (string) $state)
+                    ->formatStateUsing(fn ($state) => DocumentProcessingStatus::labelFor($state))
                     ->disabled(),
 
                 TextInput::make('confidence_score')

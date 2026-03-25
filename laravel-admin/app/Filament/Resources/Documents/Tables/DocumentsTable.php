@@ -51,7 +51,7 @@ class DocumentsTable
 
                 TextColumn::make('processing_status')
                     ->label('Status')
-                    ->formatStateUsing(fn ($state) => $state?->label() ?? DocumentProcessingStatus::tryFrom((string) $state)?->label() ?? (string) $state)
+                    ->formatStateUsing(fn ($state) => DocumentProcessingStatus::labelFor($state))
                     ->sortable(),
 
                 TextColumn::make('stage_status')

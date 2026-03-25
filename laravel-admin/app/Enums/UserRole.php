@@ -17,6 +17,19 @@ enum UserRole: string
         };
     }
 
+    public static function labelFor(self|string|null $role): string
+    {
+        if ($role instanceof self) {
+            return $role->label();
+        }
+
+        if (is_string($role)) {
+            return self::tryFrom($role)?->label() ?? $role;
+        }
+
+        return '';
+    }
+
     public static function options(): array
     {
         return array_column(

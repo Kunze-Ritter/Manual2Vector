@@ -29,7 +29,7 @@ class UsersTable
 
                 TextColumn::make('role')
                     ->label('Rolle')
-                    ->formatStateUsing(fn ($state) => $state?->label() ?? UserRole::tryFrom((string) $state)?->label() ?? (string) $state)
+                    ->formatStateUsing(fn ($state) => UserRole::labelFor($state))
                     ->sortable(),
 
                 TextColumn::make('created_at')
