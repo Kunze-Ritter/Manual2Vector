@@ -1,7 +1,7 @@
 # KRAI PostgreSQL Database Setup
 
 **Version:** 1.0 (PostgreSQL-only)  
-**Last Updated:** 2025-12-20  
+**Last Updated:** 2026-03-25
 **Database:** PostgreSQL 15+ with pgvector extension
 
 ---
@@ -51,6 +51,10 @@ docker-compose up -d krai-postgres-prod
 docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/001_core_schema.sql
 docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/002_views.sql
 docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/003_functions.sql
+
+# 3. Danach die spaeteren Additiv-Migrationen aus
+#    database/migrations_postgresql/ pruefen und bei Bedarf anwenden
+#    (aktueller Repo-Stand reicht bis 029_fix_match_functions.sql)
 ```
 
 ### 3. Verifizierung
@@ -77,7 +81,7 @@ SELECT * FROM krai_system.migrations ORDER BY applied_at;
 
 Erwartete Ausgabe:
 - **7 Schemas** (krai_core, krai_intelligence, krai_content, krai_system, krai_parts, krai_users, krai_analytics)
-- **~25 Tabellen** über alle Schemas
+- **mehrere Dutzend Tabellen** über alle Schemas
 - **~16 Public Views** (vw_documents, vw_chunks, vw_embeddings, etc.)
 - **5 Extensions** (uuid-ossp, vector, pg_trgm, unaccent, pg_stat_statements)
 
@@ -85,17 +89,18 @@ Erwartete Ausgabe:
 
 ## 📁 Migration Files
 
-### Konsolidierte Migrationen (PostgreSQL-only)
+### Aktive PostgreSQL-Migrationen
 
-Alle Migrationen sind im Verzeichnis `database/migrations_postgresql/`:
+Der aktive SQL-Migrationspfad liegt in `database/migrations_postgresql/`.
 
-1. **`001_core_schema.sql`** - Schemas, Tabellen, Extensions, Indexes
-2. **`002_views.sql`** - Alle public vw_* Views
-3. **`003_functions.sql`** - RPC Functions, Triggers, Stage Tracking
+- **Basis-Bootstrap:** `001_core_schema.sql`, `002_views.sql`, `003_functions.sql`
+- **Danach:** additive Feature-/Fix-Migrationen bis aktuell `029_fix_match_functions.sql`
+- **Wichtig:** Einige Nummern existieren mehrfach (z. B. `004`, `005`, `009`), weil der Satz historisch gewachsen ist. Dateiname und Zielzustand pruefen, nicht blind nur nach Praefix ausfuehren.
 
-### Alte Migrationen (Archiv)
+### Historischer Kontext
 
-Die alten 130+ Migrationen (inkl. Supabase-spezifische) wurden nach `database/migrations/archive/` verschoben. Sie sind **nicht mehr notwendig** für neue Installationen.
+Kurzhinweise zu aelteren oder alternativen Migrationsansaetzen stehen in `database/migrations/README.md`.
+Ein `database/migrations/archive/`-Verzeichnis gibt es im aktuellen Repo nicht.
 
 ---
 
@@ -111,13 +116,13 @@ Die alten 130+ Migrationen (inkl. Supabase-spezifische) wurden nach `database/mi
 
 ```sql
 -- Embeddings abfragen
-SELECT id, chunk_text, embedding 
+SELECT id, text_chunk, embedding
 FROM krai_intelligence.chunks 
 WHERE embedding IS NOT NULL 
 LIMIT 10;
 
 -- Oder via View
-SELECT id, chunk_text, embedding 
+SELECT id, text_chunk, embedding
 FROM public.vw_embeddings 
 LIMIT 10;
 ```
@@ -272,8 +277,8 @@ CREATE INDEX idx_chunks_embedding ON krai_intelligence.chunks
 ## 📚 Weitere Dokumentation
 
 - **`DATABASE_SCHEMA.md`** - Vollständige Schema-Dokumentation (auto-generiert)
-- **`migrations_postgresql/`** - Konsolidierte PostgreSQL Migrationen
-- **`migrations/archive/`** - Alte Migrationen (nur für Referenz)
+- **`migrations_postgresql/README.md`** - Aktiver SQL-Migrationssatz und Hinweise zum Umgang damit
+- **`migrations/README.md`** - Historischer Kontext zu aelteren Migrationsansaetzen
 
 ---
 

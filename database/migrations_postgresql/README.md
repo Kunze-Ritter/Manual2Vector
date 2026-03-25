@@ -1,256 +1,69 @@
 # KRAI PostgreSQL Migrations
 
-**Version:** 1.0 (PostgreSQL-only, consolidated)  
-**Created:** 2025-12-20  
-**Status:** ✅ Production Ready
+**Last Updated:** 2026-03-25
+**Status:** Active SQL migration directory for the current repository state
 
-## ⚠️ WICHTIGER HINWEIS
+## Important
 
-**Diese Migrationen sind NUR für NEUE/FRISCHE Installationen gedacht!**
+- This folder is the active PostgreSQL migration set used by the repo.
+- It is no longer a 3-file or 4-file "consolidated" migration bundle.
+- The current repo contains migration files from `001` through `029`.
+- Some numeric prefixes appear more than once, for example `004`, `005`, and `009`.
+  These are historical variants or follow-up migrations. Check the full filename and
+  the target schema state before applying them to a live database.
+- Do not assume every file in this folder should be executed blindly on every environment.
 
-Falls deine Datenbank bereits läuft und die Pipeline ohne Fehler funktioniert:
-- ❌ **NICHT** diese Migrationen ausführen!
-- ✅ **Behalte** deine bestehende Datenbank-Struktur
-- ✅ **Nutze** die alten Migrationen in `database/migrations/` für Updates
+## Practical Use
 
-Diese konsolidierten Migrationen sind für:
-- ✅ Neue Installationen (frische PostgreSQL Datenbank)
-- ✅ Zukünftige Deployments
-- ✅ Dokumentation und Referenz
+For a fresh PostgreSQL bootstrap, start with:
 
----
+1. `001_core_schema.sql`
+2. `002_views.sql`
+3. `003_functions.sql`
 
-## 📋 Migration Files
+After that, review the later files in this directory and apply the migrations that
+match your deployment path and current schema state.
 
-Diese 4 konsolidierten Migrationen ersetzen die alten 130+ fragmentierten Migrationen:
+Examples of additive topics covered here:
 
-### 1. `001_core_schema.sql`
-**Erstellt:**
-- Extensions (uuid-ossp, vector, pg_trgm, unaccent, pg_stat_statements)
-- 7 Schemas (krai_core, krai_intelligence, krai_content, krai_system, krai_parts, krai_users, krai_analytics)
-- ~25 Tabellen mit Foreign Keys
-- Performance Indexes (B-Tree, HNSW, GIN)
-- Migration Tracking Table
+- stage tracking
+- manufacturer verification cache
+- firecrawl queue tables and fixes
+- product discovery columns
+- pipeline resilience
+- stage metrics
+- video enrichment columns
+- error code hierarchy
+- processing queue extensions
+- vector indexes
+- match-function fixes
 
-**Dauer:** ~30 Sekunden
+## Current Repo Range
 
-### 2. `002_views.sql`
-**Erstellt:**
-- 16 Public Views (vw_documents, vw_chunks, vw_embeddings, etc.)
-- Permissions für PUBLIC
-- **Wichtig:** vw_embeddings ist ALIAS für vw_chunks!
+- Base bootstrap: `001` to `003`
+- Additional migrations currently present up to `029_fix_match_functions.sql`
+- Canonical table/column reference: `../../DATABASE_SCHEMA.md`
 
-**Dauer:** ~5 Sekunden
+## Verification
 
-### 3. `003_functions.sql`
-**Erstellt:**
-- Stage Tracking Functions (start_stage, complete_stage, etc.)
-- Vector Search Functions (match_chunks, match_multimodal, etc.)
-- Utility Functions (get_embedding_stats, etc.)
-- Updated_at Triggers
-
-**Dauer:** ~10 Sekunden
-
-### 4. `004_stage_tracking.sql`
-**Erstellt:**
-- Tabelle `krai_system.stage_tracking` inklusive `stage_number`
-- Unique Constraint auf `(document_id, stage_number)`
-- Indizes auf `document_id` und `status`
-- Migration Tracking Eintrag in `krai_system.migrations`
-
-**Dauer:** ~5 Sekunden
-
-### 5. `009_add_stage_metrics_table.sql` (optional)
-**Erstellt:**
-- Tabelle `krai_system.stage_metrics` für Echtzeit-Metriken pro Dokument/Stage
-- Indizes auf document_id, stage_name, created_at
-
-**Anwenden (wenn gewünscht):**
-```bash
-# Mit Python (POSTGRES_URL aus .env muss gesetzt sein)
-python scripts/apply_migration_009_stage_metrics.py
-```
-Oder mit psql:
-```bash
-psql "$POSTGRES_URL" -f database/migrations_postgresql/009_add_stage_metrics_table.sql
-```
-
-### 6. `017_video_enrichment_columns.sql` (optional)
-**Erstellt:**
-- `krai_content.videos.tags` (`text[]`)
-- `krai_content.videos.enrichment_error` (`text`)
-- Entfernt optional `krai_content.videos.duration_seconds` (falls durch alte doppelte 017 angelegt)
-- Index `idx_videos_enrichment_pending` für Brightcove Pending-Enrichment (`needs_enrichment` ODER leerer `title`/`context_description`)
-
-**Anwenden (wenn Brightcove Stage 16 genutzt wird):**
-```bash
-psql "$POSTGRES_URL" -f database/migrations_postgresql/017_video_enrichment_columns.sql
-```
-
----
-
-### 7. `019_add_processing_queue_stage_column.sql` (optional)
-**Erstellt:** Fügt der Tabelle `krai_system.processing_queue` eine nicht nullable `stage`-Spalte hinzu, damit Queue-Helpers (z. B. SVG-Uploads) den auslösenden Pipeline-Stage dokumentieren.
-**Anwenden (bei alten Datenbanken ohne Spalte):**
-```bash
-python scripts/apply_migration_019_processing_queue_stage_column.py
-```
-
----
-
-## 🚀 Installation
-
-### Voraussetzungen
-- PostgreSQL 15+
-- Docker & Docker Compose
-- Laufender PostgreSQL Container
-
-### Quick Start
-
-```bash
-# Im KRAI-minimal Root-Verzeichnis
-
-# 1. Container starten
-docker-compose up -d krai-postgres-prod
-
-# 2. Migrationen anwenden (in Reihenfolge!)
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/001_core_schema.sql
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/002_views.sql
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/003_functions.sql
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/004_stage_tracking.sql
-
-# 3. Verifizierung
-docker exec -it krai-postgres-prod psql -U postgres -d krai_db -c "SELECT * FROM krai_system.migrations;"
-```
-
-**Erwartete Ausgabe:**
-```
- migration_name  |         applied_at         |                    description                    
------------------+----------------------------+---------------------------------------------------
- 001_core_schema | 2025-12-20 17:00:00+00     | PostgreSQL core schema setup - extensions, ...
- 002_views       | 2025-12-20 17:00:05+00     | PostgreSQL public views - all vw_ views ...
- 003_functions   | 2025-12-20 17:00:10+00     | PostgreSQL functions and triggers - stage ...
-```
-
----
-
-## ✅ Verifizierung
-
-Nach erfolgreicher Migration:
+Use the database migration table and schema inspection queries before and after changes:
 
 ```sql
--- Schemas prüfen (sollte 7 sein)
-SELECT nspname FROM pg_namespace WHERE nspname LIKE 'krai_%' ORDER BY nspname;
+SELECT * FROM krai_system.migrations ORDER BY applied_at;
 
--- Tabellen zählen (sollte ~25 sein)
-SELECT COUNT(*) FROM information_schema.tables WHERE table_schema LIKE 'krai_%';
+SELECT nspname
+FROM pg_namespace
+WHERE nspname LIKE 'krai_%'
+ORDER BY nspname;
 
--- Views prüfen (sollte 16 sein)
-SELECT viewname FROM pg_views WHERE schemaname = 'public' AND viewname LIKE 'vw_%' ORDER BY viewname;
-
--- Extensions prüfen
-\dx
-
--- Embedding Stats
-SELECT * FROM krai_intelligence.get_embedding_stats();
+SELECT viewname
+FROM pg_views
+WHERE schemaname = 'public' AND viewname LIKE 'vw_%'
+ORDER BY viewname;
 ```
 
----
+## Related Docs
 
-## 🔄 Migration von alter Installation
-
-Falls du die alten Migrationen bereits angewendet hast:
-
-### Option 1: Kompletter Reset (empfohlen)
-
-```bash
-# 1. Backup erstellen
-docker exec krai-postgres-prod pg_dump -U postgres -d krai_db -F c -f /tmp/backup.dump
-
-# 2. Alle krai_* Schemas löschen
-docker exec -it krai-postgres-prod psql -U postgres -d krai_db << 'EOF'
-DROP SCHEMA IF EXISTS krai_core CASCADE;
-DROP SCHEMA IF EXISTS krai_intelligence CASCADE;
-DROP SCHEMA IF EXISTS krai_content CASCADE;
-DROP SCHEMA IF EXISTS krai_system CASCADE;
-DROP SCHEMA IF EXISTS krai_parts CASCADE;
-DROP SCHEMA IF EXISTS krai_users CASCADE;
-DROP SCHEMA IF EXISTS krai_analytics CASCADE;
-EOF
-
-# 3. Neue Migrationen anwenden
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/001_core_schema.sql
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/002_views.sql
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/003_functions.sql
-```
-
-### Option 2: Inkrementell (nur fehlende Teile)
-
-Falls du nur bestimmte Migrationen nachholen möchtest:
-
-```bash
-# Nur Views aktualisieren
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/002_views.sql
-
-# Nur Functions aktualisieren
-docker exec -i krai-postgres-prod psql -U postgres -d krai_db < database/migrations_postgresql/003_functions.sql
-```
-
----
-
-## 📚 Weitere Dokumentation
-
-- **`database/README.md`** - Vollständige PostgreSQL Setup-Anleitung
-- **`DATABASE_SCHEMA.md`** - Detaillierte Schema-Dokumentation
-- **`database/migrations/archive/`** - Alte Migrationen (nur Referenz)
-
----
-
-## 🐛 Troubleshooting
-
-### Problem: "relation already exists"
-
-**Ursache:** Migration wurde bereits teilweise angewendet
-
-**Lösung:** Entweder kompletter Reset (Option 1) oder einzelne CREATE-Statements überspringen
-
-### Problem: "extension vector does not exist"
-
-**Ursache:** pgvector Extension nicht installiert
-
-**Lösung:**
-```bash
-docker exec -it krai-postgres-prod psql -U postgres -d krai_db -c "CREATE EXTENSION vector;"
-```
-
-### Problem: "permission denied for schema krai_core"
-
-**Ursache:** Fehlende Berechtigungen
-
-**Lösung:**
-```sql
-GRANT ALL ON SCHEMA krai_core TO krai_user;
-GRANT ALL ON ALL TABLES IN SCHEMA krai_core TO krai_user;
-```
-
----
-
-## ✨ Vorteile der Konsolidierung
-
-### Vorher (130+ Dateien)
-- ❌ Fragmentiert und schwer zu überblicken
-- ❌ Supabase-spezifische Annahmen
-- ❌ Inkonsistente Reihenfolge
-- ❌ Hohe Fehlerrate bei partieller Ausführung
-- ❌ Schwierige Wartung
-
-### Nachher (3 Dateien)
-- ✅ Klar strukturiert und wartbar
-- ✅ PostgreSQL-only (keine Supabase-Abhängigkeiten)
-- ✅ Logische Gruppierung
-- ✅ Atomic Execution
-- ✅ Einfache Wartung und Updates
-
----
-
-**Bei Fragen:** Siehe `database/README.md` oder `TODO.md`
+- `../README.md`
+- `../migrations/README.md`
+- `../../DATABASE_SCHEMA.md`

@@ -1,20 +1,20 @@
 # KRAI Database Schema Documentation
 ================================================================================
 
-**Zuletzt aktualisiert:** 06.03.2026 um 11:30 Uhr
+**Zuletzt aktualisiert:** 25.03.2026
 
 **Quelle:** PostgreSQL Database (Production Structure - Migration from Supabase completed November 2024, KRAI-002)
 
 **Setup:** Siehe `database/README.md` für PostgreSQL Installation
 
-**Aktuelle Migration:** 024 (fehlende Indizes für queue processing und JSONB queries)
+**Aktueller Repo-Stand bei Migrationen:** `029_fix_match_functions.sql`
 
 ## ⚠️ WICHTIGE INFORMATIONEN
 
 ### PostgreSQL Setup
 - **Database:** PostgreSQL 15+ mit pgvector Extension
-- **Migrationen:** `database/migrations_postgresql/` (3 konsolidierte Dateien)
-- **Alte Migrationen:** Archiviert in `database/migrations/archive/`
+- **Migrationen:** `database/migrations_postgresql/` (aktiver inkrementeller Satz, derzeit `001` bis `029`)
+- **Historischer Kontext:** `database/migrations/README.md` (nur Hinweise, kein aktiver Migrationspfad)
 
 ### Embeddings Storage
 - **Embeddings sind in `krai_intelligence.chunks` als Spalte `embedding` gespeichert!**
