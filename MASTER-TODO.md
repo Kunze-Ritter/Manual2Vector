@@ -51,9 +51,6 @@
 | 3 | **Unit-Tests fehlen** | Embedding/Image Processor haben wenige Tests |
 
 ### Mittlere Priorität
-| 3 | **Unit-Tests fehlen** | Embedding/Image Processor haben wenige Tests |
-
-### Mittlere Priorität
 
 | # | Task | Beschreibung |
 |---|------|--------------|
